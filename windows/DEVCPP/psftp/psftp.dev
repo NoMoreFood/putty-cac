@@ -9,10 +9,10 @@ IsCpp=1
 Type=1
 Compiler=-W -D__GNUWIN32__ -DWIN32 -DNDEBUG -D_WINDOWS -DNO_MULTIMON -D_MBCS_@@_
 CppCompiler=-W -D__GNUWIN32__ -DWIN32 -DNDEBUG -D_WINDOWS -DNO_MULTIMON -D_MBCS_@@_
-Includes=..\..\..\.;..\..\..\charset;..\..\..\windows;..\..\..\unix;..\..\..\mac;..\..\..\macosx
+Includes=..\..\..\.;..\..\..\charset;..\..\..\windows;..\..\..\unix;..\..\..\macosx
 Linker=-ladvapi32 -lcomctl32 -lcomdlg32 -lgdi32 -limm32 -lshell32 -luser32 -lwinmm -lwinspool_@@_
 Libs=
-UnitCount=72
+UnitCount=73
 Folders="Header Files","Resource Files","Source Files"
 ObjFiles=
 PrivateResource=psftp_private.rc
@@ -33,7 +33,7 @@ CompilerSet=0
 CompilerSettings=0000000000000000000000
 
 [Unit1]
-FileName=..\..\..\be_none.c
+FileName=..\..\..\be_ssh.c
 Folder=Source Files
 Compile=1
 CompileCpp=0
@@ -93,7 +93,7 @@ OverrideBuildCmd=0
 BuildCmd=
 
 [Unit7]
-FileName=..\..\..\pinger.c
+FileName=..\..\..\pgssapi.c
 Folder=Source Files
 Compile=1
 CompileCpp=0
@@ -103,7 +103,7 @@ OverrideBuildCmd=0
 BuildCmd=
 
 [Unit8]
-FileName=..\..\..\portfwd.c
+FileName=..\..\..\pinger.c
 Folder=Source Files
 Compile=1
 CompileCpp=0
@@ -113,7 +113,7 @@ OverrideBuildCmd=0
 BuildCmd=
 
 [Unit9]
-FileName=..\..\..\proxy.c
+FileName=..\..\..\portfwd.c
 Folder=Source Files
 Compile=1
 CompileCpp=0
@@ -123,7 +123,7 @@ OverrideBuildCmd=0
 BuildCmd=
 
 [Unit10]
-FileName=..\..\..\psftp.c
+FileName=..\..\..\proxy.c
 Folder=Source Files
 Compile=1
 CompileCpp=0
@@ -133,7 +133,7 @@ OverrideBuildCmd=0
 BuildCmd=
 
 [Unit11]
-FileName=..\..\..\sc.c
+FileName=..\..\..\psftp.c
 Folder=Source Files
 Compile=1
 CompileCpp=0
@@ -263,7 +263,7 @@ OverrideBuildCmd=0
 BuildCmd=
 
 [Unit24]
-FileName=..\..\..\sshmd5.c
+FileName=..\..\..\sshgssc.c
 Folder=Source Files
 Compile=1
 CompileCpp=0
@@ -273,7 +273,7 @@ OverrideBuildCmd=0
 BuildCmd=
 
 [Unit25]
-FileName=..\..\..\sshpubk.c
+FileName=..\..\..\sshmd5.c
 Folder=Source Files
 Compile=1
 CompileCpp=0
@@ -283,7 +283,7 @@ OverrideBuildCmd=0
 BuildCmd=
 
 [Unit26]
-FileName=..\..\..\sshrand.c
+FileName=..\..\..\sshpubk.c
 Folder=Source Files
 Compile=1
 CompileCpp=0
@@ -293,7 +293,7 @@ OverrideBuildCmd=0
 BuildCmd=
 
 [Unit27]
-FileName=..\..\..\sshrsa.c
+FileName=..\..\..\sshrand.c
 Folder=Source Files
 Compile=1
 CompileCpp=0
@@ -303,7 +303,7 @@ OverrideBuildCmd=0
 BuildCmd=
 
 [Unit28]
-FileName=..\..\..\sshsh256.c
+FileName=..\..\..\sshrsa.c
 Folder=Source Files
 Compile=1
 CompileCpp=0
@@ -313,7 +313,7 @@ OverrideBuildCmd=0
 BuildCmd=
 
 [Unit29]
-FileName=..\..\..\sshsh512.c
+FileName=..\..\..\sshsh256.c
 Folder=Source Files
 Compile=1
 CompileCpp=0
@@ -323,7 +323,7 @@ OverrideBuildCmd=0
 BuildCmd=
 
 [Unit30]
-FileName=..\..\..\sshsha.c
+FileName=..\..\..\sshsh512.c
 Folder=Source Files
 Compile=1
 CompileCpp=0
@@ -333,7 +333,7 @@ OverrideBuildCmd=0
 BuildCmd=
 
 [Unit31]
-FileName=..\..\..\sshzlib.c
+FileName=..\..\..\sshsha.c
 Folder=Source Files
 Compile=1
 CompileCpp=0
@@ -343,7 +343,7 @@ OverrideBuildCmd=0
 BuildCmd=
 
 [Unit32]
-FileName=..\..\..\timing.c
+FileName=..\..\..\sshzlib.c
 Folder=Source Files
 Compile=1
 CompileCpp=0
@@ -353,7 +353,7 @@ OverrideBuildCmd=0
 BuildCmd=
 
 [Unit33]
-FileName=..\..\..\tree234.c
+FileName=..\..\..\timing.c
 Folder=Source Files
 Compile=1
 CompileCpp=0
@@ -363,7 +363,7 @@ OverrideBuildCmd=0
 BuildCmd=
 
 [Unit34]
-FileName=..\..\..\version.c
+FileName=..\..\..\tree234.c
 Folder=Source Files
 Compile=1
 CompileCpp=0
@@ -373,7 +373,7 @@ OverrideBuildCmd=0
 BuildCmd=
 
 [Unit35]
-FileName=..\..\..\wildcard.c
+FileName=..\..\..\version.c
 Folder=Source Files
 Compile=1
 CompileCpp=0
@@ -383,7 +383,7 @@ OverrideBuildCmd=0
 BuildCmd=
 
 [Unit36]
-FileName=..\..\..\windows\wincons.c
+FileName=..\..\..\wildcard.c
 Folder=Source Files
 Compile=1
 CompileCpp=0
@@ -393,7 +393,7 @@ OverrideBuildCmd=0
 BuildCmd=
 
 [Unit37]
-FileName=..\..\..\windows\windefs.c
+FileName=..\..\..\windows\wincons.c
 Folder=Source Files
 Compile=1
 CompileCpp=0
@@ -403,7 +403,7 @@ OverrideBuildCmd=0
 BuildCmd=
 
 [Unit38]
-FileName=..\..\..\windows\wingss.c
+FileName=..\..\..\windows\windefs.c
 Folder=Source Files
 Compile=1
 CompileCpp=0
@@ -413,7 +413,7 @@ OverrideBuildCmd=0
 BuildCmd=
 
 [Unit39]
-FileName=..\..\..\windows\winhandl.c
+FileName=..\..\..\windows\wingss.c
 Folder=Source Files
 Compile=1
 CompileCpp=0
@@ -423,7 +423,7 @@ OverrideBuildCmd=0
 BuildCmd=
 
 [Unit40]
-FileName=..\..\..\windows\winmisc.c
+FileName=..\..\..\windows\winhandl.c
 Folder=Source Files
 Compile=1
 CompileCpp=0
@@ -433,7 +433,7 @@ OverrideBuildCmd=0
 BuildCmd=
 
 [Unit41]
-FileName=..\..\..\windows\winnet.c
+FileName=..\..\..\windows\winmisc.c
 Folder=Source Files
 Compile=1
 CompileCpp=0
@@ -443,7 +443,7 @@ OverrideBuildCmd=0
 BuildCmd=
 
 [Unit42]
-FileName=..\..\..\windows\winnoise.c
+FileName=..\..\..\windows\winnet.c
 Folder=Source Files
 Compile=1
 CompileCpp=0
@@ -453,7 +453,7 @@ OverrideBuildCmd=0
 BuildCmd=
 
 [Unit43]
-FileName=..\..\..\windows\winpgntc.c
+FileName=..\..\..\windows\winnoise.c
 Folder=Source Files
 Compile=1
 CompileCpp=0
@@ -463,7 +463,7 @@ OverrideBuildCmd=0
 BuildCmd=
 
 [Unit44]
-FileName=..\..\..\windows\winproxy.c
+FileName=..\..\..\windows\winnojmp.c
 Folder=Source Files
 Compile=1
 CompileCpp=0
@@ -473,7 +473,7 @@ OverrideBuildCmd=0
 BuildCmd=
 
 [Unit45]
-FileName=..\..\..\windows\winsftp.c
+FileName=..\..\..\windows\winpgntc.c
 Folder=Source Files
 Compile=1
 CompileCpp=0
@@ -483,7 +483,7 @@ OverrideBuildCmd=0
 BuildCmd=
 
 [Unit46]
-FileName=..\..\..\windows\winstore.c
+FileName=..\..\..\windows\winproxy.c
 Folder=Source Files
 Compile=1
 CompileCpp=0
@@ -493,7 +493,7 @@ OverrideBuildCmd=0
 BuildCmd=
 
 [Unit47]
-FileName=..\..\..\windows\wintime.c
+FileName=..\..\..\windows\winsftp.c
 Folder=Source Files
 Compile=1
 CompileCpp=0
@@ -503,7 +503,7 @@ OverrideBuildCmd=0
 BuildCmd=
 
 [Unit48]
-FileName=..\..\..\x11fwd.c
+FileName=..\..\..\windows\winstore.c
 Folder=Source Files
 Compile=1
 CompileCpp=0
@@ -513,6 +513,26 @@ OverrideBuildCmd=0
 BuildCmd=
 
 [Unit49]
+FileName=..\..\..\windows\wintime.c
+Folder=Source Files
+Compile=1
+CompileCpp=0
+Link=1
+Priority=1000
+OverrideBuildCmd=0
+BuildCmd=
+
+[Unit50]
+FileName=..\..\..\x11fwd.c
+Folder=Source Files
+Compile=1
+CompileCpp=0
+Link=1
+Priority=1000
+OverrideBuildCmd=0
+BuildCmd=
+
+[Unit51]
 FileName=..\..\..\charset\charset.h
 Folder=Header Files
 Compile=1
@@ -522,7 +542,7 @@ Priority=1000
 OverrideBuildCmd=0
 BuildCmd=
 
-[Unit50]
+[Unit52]
 FileName=..\..\..\int64.h
 Folder=Header Files
 Compile=1
@@ -532,17 +552,7 @@ Priority=1000
 OverrideBuildCmd=0
 BuildCmd=
 
-[Unit51]
-FileName=..\..\..\mac\macstuff.h
-Folder=Header Files
-Compile=1
-CompileCpp=1
-Link=1
-Priority=1000
-OverrideBuildCmd=0
-BuildCmd=
-
-[Unit52]
+[Unit53]
 FileName=..\..\..\macosx\osx.h
 Folder=Header Files
 Compile=1
@@ -552,7 +562,7 @@ Priority=1000
 OverrideBuildCmd=0
 BuildCmd=
 
-[Unit53]
+[Unit54]
 FileName=..\..\..\misc.h
 Folder=Header Files
 Compile=1
@@ -562,7 +572,7 @@ Priority=1000
 OverrideBuildCmd=0
 BuildCmd=
 
-[Unit54]
+[Unit55]
 FileName=..\..\..\network.h
 Folder=Header Files
 Compile=1
@@ -572,18 +582,8 @@ Priority=1000
 OverrideBuildCmd=0
 BuildCmd=
 
-[Unit55]
-FileName=..\..\..\pkcs11.h
-Folder=Header Files
-Compile=1
-CompileCpp=1
-Link=1
-Priority=1000
-OverrideBuildCmd=0
-BuildCmd=
-
 [Unit56]
-FileName=..\..\..\proxy.h
+FileName=..\..\..\pgssapi.h
 Folder=Header Files
 Compile=1
 CompileCpp=1
@@ -593,7 +593,7 @@ OverrideBuildCmd=0
 BuildCmd=
 
 [Unit57]
-FileName=..\..\..\psftp.h
+FileName=..\..\..\proxy.h
 Folder=Header Files
 Compile=1
 CompileCpp=1
@@ -603,7 +603,7 @@ OverrideBuildCmd=0
 BuildCmd=
 
 [Unit58]
-FileName=..\..\..\putty.h
+FileName=..\..\..\psftp.h
 Folder=Header Files
 Compile=1
 CompileCpp=1
@@ -613,7 +613,7 @@ OverrideBuildCmd=0
 BuildCmd=
 
 [Unit59]
-FileName=..\..\..\puttymem.h
+FileName=..\..\..\putty.h
 Folder=Header Files
 Compile=1
 CompileCpp=1
@@ -623,7 +623,7 @@ OverrideBuildCmd=0
 BuildCmd=
 
 [Unit60]
-FileName=..\..\..\puttyps.h
+FileName=..\..\..\puttymem.h
 Folder=Header Files
 Compile=1
 CompileCpp=1
@@ -633,7 +633,7 @@ OverrideBuildCmd=0
 BuildCmd=
 
 [Unit61]
-FileName=..\..\..\sc.h
+FileName=..\..\..\puttyps.h
 Folder=Header Files
 Compile=1
 CompileCpp=1
@@ -673,7 +673,7 @@ OverrideBuildCmd=0
 BuildCmd=
 
 [Unit65]
-FileName=..\..\..\storage.h
+FileName=..\..\..\sshgssc.h
 Folder=Header Files
 Compile=1
 CompileCpp=1
@@ -683,7 +683,7 @@ OverrideBuildCmd=0
 BuildCmd=
 
 [Unit66]
-FileName=..\..\..\tree234.h
+FileName=..\..\..\storage.h
 Folder=Header Files
 Compile=1
 CompileCpp=1
@@ -693,7 +693,7 @@ OverrideBuildCmd=0
 BuildCmd=
 
 [Unit67]
-FileName=..\..\..\unix\unix.h
+FileName=..\..\..\tree234.h
 Folder=Header Files
 Compile=1
 CompileCpp=1
@@ -703,7 +703,7 @@ OverrideBuildCmd=0
 BuildCmd=
 
 [Unit68]
-FileName=..\..\..\windows\rcstuff.h
+FileName=..\..\..\unix\unix.h
 Folder=Header Files
 Compile=1
 CompileCpp=1
@@ -713,7 +713,7 @@ OverrideBuildCmd=0
 BuildCmd=
 
 [Unit69]
-FileName=..\..\..\windows\winhelp.h
+FileName=..\..\..\windows\rcstuff.h
 Folder=Header Files
 Compile=1
 CompileCpp=1
@@ -723,7 +723,7 @@ OverrideBuildCmd=0
 BuildCmd=
 
 [Unit70]
-FileName=..\..\..\windows\winstuff.h
+FileName=..\..\..\windows\winhelp.h
 Folder=Header Files
 Compile=1
 CompileCpp=1
@@ -733,6 +733,16 @@ OverrideBuildCmd=0
 BuildCmd=
 
 [Unit71]
+FileName=..\..\..\windows\winstuff.h
+Folder=Header Files
+Compile=1
+CompileCpp=1
+Link=1
+Priority=1000
+OverrideBuildCmd=0
+BuildCmd=
+
+[Unit72]
 FileName=..\..\..\windows\pscp.ico
 Folder=Resource Files
 Compile=0
@@ -742,7 +752,7 @@ Priority=1000
 OverrideBuildCmd=0
 BuildCmd=
 
-[Unit72]
+[Unit73]
 FileName=..\..\..\windows\psftp.rc
 Folder=Resource Files
 Compile=1

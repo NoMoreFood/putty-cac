@@ -1,5 +1,5 @@
 /************************************************************************
- * $Id: minibidi.c 8097 2008-06-29 09:14:26Z simon $
+ * $Id: minibidi.c 9169 2011-05-07 10:57:19Z simon $
  *
  * ------------
  * Description:
@@ -14,9 +14,9 @@
  * -----------------
  * Revision Details:    (Updated by Revision Control System)
  * -----------------
- *  $Date: 2008-06-29 05:14:26 -0400 (Sun, 29 Jun 2008) $
+ *  $Date: 2011-05-07 11:57:19 +0100 (Sat, 07 May 2011) $
  *  $Author: simon $
- *  $Revision: 8097 $
+ *  $Revision: 9169 $
  *
  * (www.arabeyes.org - under MIT license)
  *
@@ -1194,7 +1194,7 @@ int do_bidi(bidi_char *line, int count)
     unsigned char currentEmbedding;
     unsigned char currentOverride;
     unsigned char tempType;
-    int i, j, imax, yes, bover;
+    int i, j, yes, bover;
 
     /* Check the presence of R or AL types as optimization */
     yes = 0;
@@ -1604,17 +1604,14 @@ int do_bidi(bidi_char *line, int count)
      * level or higher
      */
     /* we flip the character string and leave the level array */
-    imax = 0;
     i=0;
     tempType = levels[0];
     while (i < count) {
-	if (levels[i] > tempType) {
+	if (levels[i] > tempType)
 	    tempType = levels[i];
-	    imax=i;
-	}
 	i++;
     }
-    /* maximum level in tempType, its index in imax. */
+    /* maximum level in tempType. */
     while (tempType > 0) {     /* loop from highest level to the least odd, */
         /* which i assume is 1 */
 	flipThisRun(line, levels, tempType, count);

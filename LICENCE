@@ -6,12 +6,14 @@ PuTTY-SC is Copyright 2005-2008 Pascal Buchbinder.
 PuTTY-SC is available under the GPLv2 license.
 PuTTY-SC is a derivative work of PuTTY.
 
-PuTTY is copyright 1997-2009 Simon Tatham.
+PuTTY is copyright 1997-2011 Simon Tatham.
 
 Portions copyright Robert de Bath, Joris van Rantwijk, Delian
 Delchev, Andreas Schultz, Jeroen Massar, Wez Furlong, Nicolas Barry,
 Justin Bradford, Ben Harris, Malcolm Smith, Ahmad Khalifa, Markus
 Kuhn, Colin Watson, and CORE SDI S.A.
+
+CAPI support donated by Andrew Prout.
 
 Permission is hereby granted, free of charge, to any person
 obtaining a copy of this software and associated documentation files

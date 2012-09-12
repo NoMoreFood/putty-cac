@@ -75,8 +75,12 @@ unsigned char *rsa_public_blob(struct RSAKey *key, int *len);
 int rsa_public_blob_len(void *data, int maxlen);
 void freersakey(struct RSAKey *key);
 
-typedef unsigned int word32;
+#ifndef PUTTY_UINT32_DEFINED
+/* This makes assumptions about the int type. */
 typedef unsigned int uint32;
+#define PUTTY_UINT32_DEFINED
+#endif
+typedef uint32 word32;
 
 unsigned long crc32_compute(const void *s, size_t len);
 unsigned long crc32_update(unsigned long crc_input, const void *s, size_t len);
@@ -251,6 +255,9 @@ struct ssh_signkey {
 
 struct ssh_compress {
     char *name;
+    /* For zlib@openssh.com: if non-NULL, this name will be considered once
+     * userauth has completed successfully. */
+    char *delayed_name;
     void *(*compress_init) (void);
     void (*compress_cleanup) (void *);
     int (*compress) (void *, unsigned char *block, int len,
@@ -294,6 +301,14 @@ extern const struct ssh_mac ssh_hmac_sha1_buggy;
 extern const struct ssh_mac ssh_hmac_sha1_96;
 extern const struct ssh_mac ssh_hmac_sha1_96_buggy;
 
+void *aes_make_context(void);
+void aes_free_context(void *handle);
+void aes128_key(void *handle, unsigned char *key);
+void aes192_key(void *handle, unsigned char *key);
+void aes256_key(void *handle, unsigned char *key);
+void aes_iv(void *handle, unsigned char *iv);
+void aes_ssh2_encrypt_blk(void *handle, unsigned char *blk, int len);
+void aes_ssh2_decrypt_blk(void *handle, unsigned char *blk, int len);
 
 /*
  * PuTTY version number formatted as an SSH version string. 
@@ -439,6 +454,8 @@ int ssh1_write_bignum(void *data, Bignum bn);
 Bignum biggcd(Bignum a, Bignum b);
 unsigned short bignum_mod_short(Bignum number, unsigned short modulus);
 Bignum bignum_add_long(Bignum number, unsigned long addend);
+Bignum bigadd(Bignum a, Bignum b);
+Bignum bigsub(Bignum a, Bignum b);
 Bignum bigmul(Bignum a, Bignum b);
 Bignum bigmuladd(Bignum a, Bignum b, Bignum addend);
 Bignum bigdiv(Bignum a, Bignum b);

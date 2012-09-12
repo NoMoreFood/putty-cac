@@ -68,6 +68,10 @@
 #      Disables PuTTY's ability to use GSSAPI functions for
 #      authentication and key exchange.
 #
+#  - COMPAT=-DSTATIC_GSSAPI
+#      Causes PuTTY to try to link statically against the GSSAPI
+#      library instead of the default of doing it at run time.
+#
 #  - COMPAT=-DMSVC4 (Windows only)
 #  - RCFL=-DMSVC4
 #      Makes a couple of minor changes so that PuTTY compiles using
@@ -101,7 +105,7 @@
 CC = $(TOOLPATH)gcc
 
 CFLAGS = -O2 -Wall -Werror -g -I.././ -I../charset/ -I../windows/ -I../unix/ \
-		-I../mac/ -I../macosx/
+		-I../macosx/
 MLDFLAGS = -framework Cocoa
 ULDFLAGS =
 
@@ -127,82 +131,84 @@ PuTTY: PuTTY.app/Contents/MacOS/PuTTY \
 PuTTY.app/Contents/MacOS/PuTTY: PuTTY.app/Contents/MacOS be_all_s.o config.o \
 		cproxy.o dialog.o fromucs.o ldisc.o ldiscucs.o localenc.o \
 		logging.o macenc.o mimeenc.o minibidi.o misc.o osxctrls.o \
-		osxdlg.o osxmain.o osxsel.o osxwin.o pinger.o portfwd.o \
-		proxy.o raw.o rlogin.o sbcs.o sbcsdat.o sc.o sercfg.o \
+		osxdlg.o osxmain.o osxsel.o osxwin.o pgssapi.o pinger.o \
+		portfwd.o proxy.o raw.o rlogin.o sbcs.o sbcsdat.o sercfg.o \
 		settings.o slookup.o ssh.o sshaes.o ssharcf.o sshblowf.o \
 		sshbn.o sshcrc.o sshcrcda.o sshdes.o sshdh.o sshdss.o \
-		sshmd5.o sshpubk.o sshrand.o sshrsa.o sshsh256.o sshsh512.o \
-		sshsha.o sshzlib.o telnet.o terminal.o testback.o time.o \
-		timing.o toucs.o tree234.o utf8.o ux_x11.o uxagentc.o \
+		sshgssc.o sshmd5.o sshpubk.o sshrand.o sshrsa.o sshsh256.o \
+		sshsh512.o sshsha.o sshzlib.o telnet.o terminal.o testback.o \
+		time.o timing.o toucs.o tree234.o utf8.o ux_x11.o uxagentc.o \
 		uxcfg.o uxgss.o uxmisc.o uxnet.o uxnoise.o uxprint.o \
 		uxproxy.o uxpty.o uxsel.o uxser.o uxsignal.o uxstore.o \
 		uxucs.o version.o wcwidth.o wildcard.o x11fwd.o xenc.o
 	$(CC) $(MLDFLAGS) -o $@ be_all_s.o config.o cproxy.o dialog.o \
 		fromucs.o ldisc.o ldiscucs.o localenc.o logging.o macenc.o \
 		mimeenc.o minibidi.o misc.o osxctrls.o osxdlg.o osxmain.o \
-		osxsel.o osxwin.o pinger.o portfwd.o proxy.o raw.o rlogin.o \
-		sbcs.o sbcsdat.o sc.o sercfg.o settings.o slookup.o ssh.o \
-		sshaes.o ssharcf.o sshblowf.o sshbn.o sshcrc.o sshcrcda.o \
-		sshdes.o sshdh.o sshdss.o sshmd5.o sshpubk.o sshrand.o \
-		sshrsa.o sshsh256.o sshsh512.o sshsha.o sshzlib.o telnet.o \
-		terminal.o testback.o time.o timing.o toucs.o tree234.o \
-		utf8.o ux_x11.o uxagentc.o uxcfg.o uxgss.o uxmisc.o uxnet.o \
-		uxnoise.o uxprint.o uxproxy.o uxpty.o uxsel.o uxser.o \
-		uxsignal.o uxstore.o uxucs.o version.o wcwidth.o wildcard.o \
-		x11fwd.o xenc.o 
-
-plink: be_all_s.o cmdline.o cproxy.o ldisc.o logging.o misc.o pinger.o \
-		portfwd.o proxy.o raw.o rlogin.o sc.o settings.o ssh.o \
-		sshaes.o ssharcf.o sshblowf.o sshbn.o sshcrc.o sshcrcda.o \
-		sshdes.o sshdh.o sshdss.o sshmd5.o sshpubk.o sshrand.o \
-		sshrsa.o sshsh256.o sshsh512.o sshsha.o sshzlib.o telnet.o \
-		time.o timing.o tree234.o ux_x11.o uxagentc.o uxcons.o \
-		uxgss.o uxmisc.o uxnet.o uxnoise.o uxplink.o uxproxy.o \
-		uxsel.o uxser.o uxsignal.o uxstore.o version.o wildcard.o \
-		x11fwd.o
-	$(CC) $(ULDFLAGS) -o $@ be_all_s.o cmdline.o cproxy.o ldisc.o \
-		logging.o misc.o pinger.o portfwd.o proxy.o raw.o rlogin.o \
-		sc.o settings.o ssh.o sshaes.o ssharcf.o sshblowf.o sshbn.o \
-		sshcrc.o sshcrcda.o sshdes.o sshdh.o sshdss.o sshmd5.o \
+		osxsel.o osxwin.o pgssapi.o pinger.o portfwd.o proxy.o raw.o \
+		rlogin.o sbcs.o sbcsdat.o sercfg.o settings.o slookup.o \
+		ssh.o sshaes.o ssharcf.o sshblowf.o sshbn.o sshcrc.o \
+		sshcrcda.o sshdes.o sshdh.o sshdss.o sshgssc.o sshmd5.o \
 		sshpubk.o sshrand.o sshrsa.o sshsh256.o sshsh512.o sshsha.o \
-		sshzlib.o telnet.o time.o timing.o tree234.o ux_x11.o \
+		sshzlib.o telnet.o terminal.o testback.o time.o timing.o \
+		toucs.o tree234.o utf8.o ux_x11.o uxagentc.o uxcfg.o uxgss.o \
+		uxmisc.o uxnet.o uxnoise.o uxprint.o uxproxy.o uxpty.o \
+		uxsel.o uxser.o uxsignal.o uxstore.o uxucs.o version.o \
+		wcwidth.o wildcard.o x11fwd.o xenc.o 
+
+plink: be_all_s.o cmdline.o cproxy.o ldisc.o logging.o misc.o pgssapi.o \
+		pinger.o portfwd.o proxy.o raw.o rlogin.o settings.o ssh.o \
+		sshaes.o ssharcf.o sshblowf.o sshbn.o sshcrc.o sshcrcda.o \
+		sshdes.o sshdh.o sshdss.o sshgssc.o sshmd5.o sshpubk.o \
+		sshrand.o sshrsa.o sshsh256.o sshsh512.o sshsha.o sshzlib.o \
+		telnet.o time.o timing.o tree234.o ux_x11.o uxagentc.o \
+		uxcons.o uxgss.o uxmisc.o uxnet.o uxnoise.o uxplink.o \
+		uxproxy.o uxsel.o uxser.o uxsignal.o uxstore.o version.o \
+		wildcard.o x11fwd.o
+	$(CC) $(ULDFLAGS) -o $@ be_all_s.o cmdline.o cproxy.o ldisc.o \
+		logging.o misc.o pgssapi.o pinger.o portfwd.o proxy.o raw.o \
+		rlogin.o settings.o ssh.o sshaes.o ssharcf.o sshblowf.o \
+		sshbn.o sshcrc.o sshcrcda.o sshdes.o sshdh.o sshdss.o \
+		sshgssc.o sshmd5.o sshpubk.o sshrand.o sshrsa.o sshsh256.o \
+		sshsh512.o sshsha.o sshzlib.o telnet.o time.o timing.o \
+		tree234.o ux_x11.o uxagentc.o uxcons.o uxgss.o uxmisc.o \
+		uxnet.o uxnoise.o uxplink.o uxproxy.o uxsel.o uxser.o \
+		uxsignal.o uxstore.o version.o wildcard.o x11fwd.o 
+
+pscp: be_ssh.o cmdline.o cproxy.o int64.o logging.o misc.o pgssapi.o \
+		pinger.o portfwd.o proxy.o pscp.o settings.o sftp.o ssh.o \
+		sshaes.o ssharcf.o sshblowf.o sshbn.o sshcrc.o sshcrcda.o \
+		sshdes.o sshdh.o sshdss.o sshgssc.o sshmd5.o sshpubk.o \
+		sshrand.o sshrsa.o sshsh256.o sshsh512.o sshsha.o sshzlib.o \
+		time.o timing.o tree234.o uxagentc.o uxcons.o uxgss.o \
+		uxmisc.o uxnet.o uxnoise.o uxproxy.o uxsel.o uxsftp.o \
+		uxstore.o version.o wildcard.o x11fwd.o
+	$(CC) $(ULDFLAGS) -o $@ be_ssh.o cmdline.o cproxy.o int64.o \
+		logging.o misc.o pgssapi.o pinger.o portfwd.o proxy.o pscp.o \
+		settings.o sftp.o ssh.o sshaes.o ssharcf.o sshblowf.o \
+		sshbn.o sshcrc.o sshcrcda.o sshdes.o sshdh.o sshdss.o \
+		sshgssc.o sshmd5.o sshpubk.o sshrand.o sshrsa.o sshsh256.o \
+		sshsh512.o sshsha.o sshzlib.o time.o timing.o tree234.o \
 		uxagentc.o uxcons.o uxgss.o uxmisc.o uxnet.o uxnoise.o \
-		uxplink.o uxproxy.o uxsel.o uxser.o uxsignal.o uxstore.o \
-		version.o wildcard.o x11fwd.o 
+		uxproxy.o uxsel.o uxsftp.o uxstore.o version.o wildcard.o \
+		x11fwd.o 
 
-pscp: be_none.o cmdline.o cproxy.o int64.o logging.o misc.o pinger.o \
-		portfwd.o proxy.o pscp.o sc.o settings.o sftp.o ssh.o \
+psftp: be_ssh.o cmdline.o cproxy.o int64.o logging.o misc.o pgssapi.o \
+		pinger.o portfwd.o proxy.o psftp.o settings.o sftp.o ssh.o \
 		sshaes.o ssharcf.o sshblowf.o sshbn.o sshcrc.o sshcrcda.o \
-		sshdes.o sshdh.o sshdss.o sshmd5.o sshpubk.o sshrand.o \
-		sshrsa.o sshsh256.o sshsh512.o sshsha.o sshzlib.o time.o \
-		timing.o tree234.o uxagentc.o uxcons.o uxgss.o uxmisc.o \
-		uxnet.o uxnoise.o uxproxy.o uxsel.o uxsftp.o uxstore.o \
-		version.o wildcard.o x11fwd.o
-	$(CC) $(ULDFLAGS) -o $@ be_none.o cmdline.o cproxy.o int64.o \
-		logging.o misc.o pinger.o portfwd.o proxy.o pscp.o sc.o \
-		settings.o sftp.o ssh.o sshaes.o ssharcf.o sshblowf.o \
-		sshbn.o sshcrc.o sshcrcda.o sshdes.o sshdh.o sshdss.o \
-		sshmd5.o sshpubk.o sshrand.o sshrsa.o sshsh256.o sshsh512.o \
-		sshsha.o sshzlib.o time.o timing.o tree234.o uxagentc.o \
-		uxcons.o uxgss.o uxmisc.o uxnet.o uxnoise.o uxproxy.o \
-		uxsel.o uxsftp.o uxstore.o version.o wildcard.o x11fwd.o 
-
-psftp: be_none.o cmdline.o cproxy.o int64.o logging.o misc.o pinger.o \
-		portfwd.o proxy.o psftp.o sc.o settings.o sftp.o ssh.o \
-		sshaes.o ssharcf.o sshblowf.o sshbn.o sshcrc.o sshcrcda.o \
-		sshdes.o sshdh.o sshdss.o sshmd5.o sshpubk.o sshrand.o \
-		sshrsa.o sshsh256.o sshsh512.o sshsha.o sshzlib.o time.o \
-		timing.o tree234.o uxagentc.o uxcons.o uxgss.o uxmisc.o \
-		uxnet.o uxnoise.o uxproxy.o uxsel.o uxsftp.o uxstore.o \
-		version.o wildcard.o x11fwd.o
-	$(CC) $(ULDFLAGS) -o $@ be_none.o cmdline.o cproxy.o int64.o \
-		logging.o misc.o pinger.o portfwd.o proxy.o psftp.o sc.o \
-		settings.o sftp.o ssh.o sshaes.o ssharcf.o sshblowf.o \
-		sshbn.o sshcrc.o sshcrcda.o sshdes.o sshdh.o sshdss.o \
-		sshmd5.o sshpubk.o sshrand.o sshrsa.o sshsh256.o sshsh512.o \
-		sshsha.o sshzlib.o time.o timing.o tree234.o uxagentc.o \
-		uxcons.o uxgss.o uxmisc.o uxnet.o uxnoise.o uxproxy.o \
-		uxsel.o uxsftp.o uxstore.o version.o wildcard.o x11fwd.o 
+		sshdes.o sshdh.o sshdss.o sshgssc.o sshmd5.o sshpubk.o \
+		sshrand.o sshrsa.o sshsh256.o sshsh512.o sshsha.o sshzlib.o \
+		time.o timing.o tree234.o uxagentc.o uxcons.o uxgss.o \
+		uxmisc.o uxnet.o uxnoise.o uxproxy.o uxsel.o uxsftp.o \
+		uxstore.o version.o wildcard.o x11fwd.o
+	$(CC) $(ULDFLAGS) -o $@ be_ssh.o cmdline.o cproxy.o int64.o \
+		logging.o misc.o pgssapi.o pinger.o portfwd.o proxy.o \
+		psftp.o settings.o sftp.o ssh.o sshaes.o ssharcf.o \
+		sshblowf.o sshbn.o sshcrc.o sshcrcda.o sshdes.o sshdh.o \
+		sshdss.o sshgssc.o sshmd5.o sshpubk.o sshrand.o sshrsa.o \
+		sshsh256.o sshsh512.o sshsha.o sshzlib.o time.o timing.o \
+		tree234.o uxagentc.o uxcons.o uxgss.o uxmisc.o uxnet.o \
+		uxnoise.o uxproxy.o uxsel.o uxsftp.o uxstore.o version.o \
+		wildcard.o x11fwd.o 
 
 puttygen: cmdgen.o import.o misc.o notiming.o sshaes.o sshbn.o sshdes.o \
 		sshdss.o sshdssg.o sshmd5.o sshprime.o sshpubk.o sshrand.o \
@@ -215,416 +221,311 @@ puttygen: cmdgen.o import.o misc.o notiming.o sshaes.o sshbn.o sshdes.o \
 		sshsha.o time.o tree234.o uxcons.o uxgen.o uxmisc.o \
 		uxnoise.o uxstore.o version.o 
 
-be_all.o: ../be_all.c ../putty.h ../puttyps.h ../network.h ../misc.h \
-		../windows/winstuff.h ../mac/macstuff.h ../macosx/osx.h \
-		../unix/unix.h ../puttymem.h ../tree234.h \
-		../windows/winhelp.h ../charset/charset.h
-	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
 be_all_s.o: ../be_all_s.c ../putty.h ../puttyps.h ../network.h ../misc.h \
-		../windows/winstuff.h ../mac/macstuff.h ../macosx/osx.h \
-		../unix/unix.h ../puttymem.h ../tree234.h \
-		../windows/winhelp.h ../charset/charset.h
+		../windows/winstuff.h ../macosx/osx.h ../unix/unix.h \
+		../puttymem.h ../tree234.h ../windows/winhelp.h \
+		../charset/charset.h
 	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
 be_none.o: ../be_none.c ../putty.h ../puttyps.h ../network.h ../misc.h \
-		../windows/winstuff.h ../mac/macstuff.h ../macosx/osx.h \
-		../unix/unix.h ../puttymem.h ../tree234.h \
-		../windows/winhelp.h ../charset/charset.h
+		../windows/winstuff.h ../macosx/osx.h ../unix/unix.h \
+		../puttymem.h ../tree234.h ../windows/winhelp.h \
+		../charset/charset.h
 	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
 be_nos_s.o: ../be_nos_s.c ../putty.h ../puttyps.h ../network.h ../misc.h \
-		../windows/winstuff.h ../mac/macstuff.h ../macosx/osx.h \
-		../unix/unix.h ../puttymem.h ../tree234.h \
-		../windows/winhelp.h ../charset/charset.h
+		../windows/winstuff.h ../macosx/osx.h ../unix/unix.h \
+		../puttymem.h ../tree234.h ../windows/winhelp.h \
+		../charset/charset.h
 	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
-be_nossh.o: ../be_nossh.c ../putty.h ../puttyps.h ../network.h ../misc.h \
-		../windows/winstuff.h ../mac/macstuff.h ../macosx/osx.h \
-		../unix/unix.h ../puttymem.h ../tree234.h \
-		../windows/winhelp.h ../charset/charset.h
+be_ssh.o: ../be_ssh.c ../putty.h ../puttyps.h ../network.h ../misc.h \
+		../windows/winstuff.h ../macosx/osx.h ../unix/unix.h \
+		../puttymem.h ../tree234.h ../windows/winhelp.h \
+		../charset/charset.h
 	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
 cmdgen.o: ../cmdgen.c ../putty.h ../ssh.h ../puttyps.h ../network.h \
-		../misc.h ../puttymem.h ../tree234.h ../int64.h ../pkcs11.h \
-		../windows/winstuff.h ../mac/macstuff.h ../macosx/osx.h \
-		../unix/unix.h ../windows/winhelp.h ../charset/charset.h
-	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
-cmdline.o: ../cmdline.c ../putty.h ../puttyps.h ../network.h ../misc.h \
-		../windows/winstuff.h ../mac/macstuff.h ../macosx/osx.h \
-		../unix/unix.h ../puttymem.h ../tree234.h \
+		../misc.h ../puttymem.h ../tree234.h ../int64.h \
+		../windows/winstuff.h ../macosx/osx.h ../unix/unix.h \
 		../windows/winhelp.h ../charset/charset.h
 	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
-config.o: ../config.c ../putty.h ../dialog.h ../storage.h ../pkcs11.h \
-		../sc.h ../puttyps.h ../network.h ../misc.h \
-		../windows/winstuff.h ../mac/macstuff.h ../macosx/osx.h \
+cmdline.o: ../cmdline.c ../putty.h ../puttyps.h ../network.h ../misc.h \
+		../windows/winstuff.h ../macosx/osx.h ../unix/unix.h \
+		../puttymem.h ../tree234.h ../windows/winhelp.h \
+		../charset/charset.h
+	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
+config.o: ../config.c ../putty.h ../dialog.h ../storage.h ../puttyps.h \
+		../network.h ../misc.h ../windows/winstuff.h ../macosx/osx.h \
 		../unix/unix.h ../puttymem.h ../tree234.h \
 		../windows/winhelp.h ../charset/charset.h
 	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
 cproxy.o: ../cproxy.c ../putty.h ../ssh.h ../network.h ../proxy.h \
 		../puttyps.h ../misc.h ../puttymem.h ../tree234.h ../int64.h \
-		../pkcs11.h ../windows/winstuff.h ../mac/macstuff.h \
-		../macosx/osx.h ../unix/unix.h ../windows/winhelp.h \
-		../charset/charset.h
+		../windows/winstuff.h ../macosx/osx.h ../unix/unix.h \
+		../windows/winhelp.h ../charset/charset.h
 	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
 dialog.o: ../dialog.c ../putty.h ../dialog.h ../puttyps.h ../network.h \
-		../misc.h ../windows/winstuff.h ../mac/macstuff.h \
-		../macosx/osx.h ../unix/unix.h ../puttymem.h ../tree234.h \
+		../misc.h ../windows/winstuff.h ../macosx/osx.h \
+		../unix/unix.h ../puttymem.h ../tree234.h \
 		../windows/winhelp.h ../charset/charset.h
 	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
 fromucs.o: ../charset/fromucs.c ../charset/charset.h ../charset/internal.h
 	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
 gtkcfg.o: ../unix/gtkcfg.c ../putty.h ../dialog.h ../storage.h ../puttyps.h \
-		../network.h ../misc.h ../windows/winstuff.h \
-		../mac/macstuff.h ../macosx/osx.h ../unix/unix.h \
-		../puttymem.h ../tree234.h ../windows/winhelp.h \
-		../charset/charset.h
+		../network.h ../misc.h ../windows/winstuff.h ../macosx/osx.h \
+		../unix/unix.h ../puttymem.h ../tree234.h \
+		../windows/winhelp.h ../charset/charset.h
 	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
 gtkcols.o: ../unix/gtkcols.c ../unix/gtkcols.h
 	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
 gtkdlg.o: ../unix/gtkdlg.c ../unix/gtkcols.h ../unix/gtkfont.h ../putty.h \
 		../storage.h ../dialog.h ../tree234.h ../puttyps.h \
-		../network.h ../misc.h ../windows/winstuff.h \
-		../mac/macstuff.h ../macosx/osx.h ../unix/unix.h \
-		../puttymem.h ../windows/winhelp.h ../charset/charset.h
-	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
-gtkfont.o: ../unix/gtkfont.c ../putty.h ../unix/gtkfont.h ../tree234.h \
-		../puttyps.h ../network.h ../misc.h ../windows/winstuff.h \
-		../mac/macstuff.h ../macosx/osx.h ../unix/unix.h \
-		../puttymem.h ../windows/winhelp.h ../charset/charset.h
-	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
-gtkwin.o: ../unix/gtkwin.c ../putty.h ../terminal.h ../unix/gtkfont.h \
-		../puttyps.h ../network.h ../misc.h ../tree234.h \
-		../windows/winstuff.h ../mac/macstuff.h ../macosx/osx.h \
+		../network.h ../misc.h ../windows/winstuff.h ../macosx/osx.h \
 		../unix/unix.h ../puttymem.h ../windows/winhelp.h \
 		../charset/charset.h
 	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
+gtkfont.o: ../unix/gtkfont.c ../putty.h ../unix/gtkfont.h ../tree234.h \
+		../puttyps.h ../network.h ../misc.h ../windows/winstuff.h \
+		../macosx/osx.h ../unix/unix.h ../puttymem.h \
+		../windows/winhelp.h ../charset/charset.h
+	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
+gtkwin.o: ../unix/gtkwin.c ../putty.h ../terminal.h ../unix/gtkfont.h \
+		../puttyps.h ../network.h ../misc.h ../tree234.h \
+		../windows/winstuff.h ../macosx/osx.h ../unix/unix.h \
+		../puttymem.h ../windows/winhelp.h ../charset/charset.h
+	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
 import.o: ../import.c ../putty.h ../ssh.h ../misc.h ../puttyps.h \
 		../network.h ../puttymem.h ../tree234.h ../int64.h \
-		../pkcs11.h ../windows/winstuff.h ../mac/macstuff.h \
-		../macosx/osx.h ../unix/unix.h ../windows/winhelp.h \
-		../charset/charset.h
+		../windows/winstuff.h ../macosx/osx.h ../unix/unix.h \
+		../windows/winhelp.h ../charset/charset.h
 	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
 int64.o: ../int64.c ../int64.h
 	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
 ldisc.o: ../ldisc.c ../putty.h ../terminal.h ../ldisc.h ../puttyps.h \
 		../network.h ../misc.h ../tree234.h ../windows/winstuff.h \
-		../mac/macstuff.h ../macosx/osx.h ../unix/unix.h \
-		../puttymem.h ../windows/winhelp.h ../charset/charset.h
+		../macosx/osx.h ../unix/unix.h ../puttymem.h \
+		../windows/winhelp.h ../charset/charset.h
 	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
 ldiscucs.o: ../ldiscucs.c ../putty.h ../terminal.h ../ldisc.h ../puttyps.h \
 		../network.h ../misc.h ../tree234.h ../windows/winstuff.h \
-		../mac/macstuff.h ../macosx/osx.h ../unix/unix.h \
-		../puttymem.h ../windows/winhelp.h ../charset/charset.h
+		../macosx/osx.h ../unix/unix.h ../puttymem.h \
+		../windows/winhelp.h ../charset/charset.h
 	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
 localenc.o: ../charset/localenc.c ../charset/charset.h ../charset/internal.h
 	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
 logging.o: ../logging.c ../putty.h ../puttyps.h ../network.h ../misc.h \
-		../windows/winstuff.h ../mac/macstuff.h ../macosx/osx.h \
-		../unix/unix.h ../puttymem.h ../tree234.h \
-		../windows/winhelp.h ../charset/charset.h
-	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
-mac.o: ../mac/mac.c ../mac/macresid.h ../putty.h ../ssh.h ../terminal.h \
-		../mac/mac.h ../puttyps.h ../network.h ../misc.h \
-		../puttymem.h ../tree234.h ../int64.h ../pkcs11.h \
-		../charset/charset.h ../windows/winstuff.h ../mac/macstuff.h \
-		../macosx/osx.h ../unix/unix.h ../windows/winhelp.h
-	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
-macabout.o: ../mac/macabout.c ../putty.h ../mac/mac.h ../mac/macresid.h \
-		../puttyps.h ../network.h ../misc.h ../charset/charset.h \
-		../tree234.h ../windows/winstuff.h ../mac/macstuff.h \
-		../macosx/osx.h ../unix/unix.h ../puttymem.h \
-		../windows/winhelp.h
-	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
-macctrls.o: ../mac/macctrls.c ../putty.h ../mac/mac.h ../mac/macresid.h \
-		../dialog.h ../tree234.h ../puttyps.h ../network.h ../misc.h \
-		../charset/charset.h ../windows/winstuff.h ../mac/macstuff.h \
-		../macosx/osx.h ../unix/unix.h ../puttymem.h \
-		../windows/winhelp.h
-	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
-macdlg.o: ../mac/macdlg.c ../putty.h ../dialog.h ../mac/mac.h \
-		../mac/macresid.h ../storage.h ../puttyps.h ../network.h \
-		../misc.h ../charset/charset.h ../tree234.h \
-		../windows/winstuff.h ../mac/macstuff.h ../macosx/osx.h \
-		../unix/unix.h ../puttymem.h ../windows/winhelp.h
-	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
-macenc.o: ../charset/macenc.c ../charset/charset.h ../charset/internal.h
-	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
-macevlog.o: ../mac/macevlog.c ../putty.h ../mac/mac.h ../mac/macresid.h \
-		../terminal.h ../puttyps.h ../network.h ../misc.h \
-		../charset/charset.h ../tree234.h ../windows/winstuff.h \
-		../mac/macstuff.h ../macosx/osx.h ../unix/unix.h \
-		../puttymem.h ../windows/winhelp.h
-	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
-macmisc.o: ../mac/macmisc.c ../putty.h ../mac/mac.h ../ssh.h ../puttyps.h \
-		../network.h ../misc.h ../charset/charset.h ../tree234.h \
-		../puttymem.h ../int64.h ../pkcs11.h ../windows/winstuff.h \
-		../mac/macstuff.h ../macosx/osx.h ../unix/unix.h \
-		../windows/winhelp.h
-	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
-macnet.o: ../mac/macnet.c ../putty.h ../network.h ../mac/mac.h ../ssh.h \
-		../puttyps.h ../misc.h ../charset/charset.h ../tree234.h \
-		../puttymem.h ../int64.h ../pkcs11.h ../windows/winstuff.h \
-		../mac/macstuff.h ../macosx/osx.h ../unix/unix.h \
-		../windows/winhelp.h
-	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
-macnoise.o: ../mac/macnoise.c ../putty.h ../ssh.h ../storage.h ../puttyps.h \
-		../network.h ../misc.h ../puttymem.h ../tree234.h ../int64.h \
-		../pkcs11.h ../windows/winstuff.h ../mac/macstuff.h \
-		../macosx/osx.h ../unix/unix.h ../windows/winhelp.h \
+		../windows/winstuff.h ../macosx/osx.h ../unix/unix.h \
+		../puttymem.h ../tree234.h ../windows/winhelp.h \
 		../charset/charset.h
 	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
-macpgen.o: ../mac/macpgen.c ../mac/macpgrid.h ../putty.h ../ssh.h \
-		../mac/mac.h ../puttyps.h ../network.h ../misc.h \
-		../puttymem.h ../tree234.h ../int64.h ../pkcs11.h \
-		../charset/charset.h ../windows/winstuff.h ../mac/macstuff.h \
-		../macosx/osx.h ../unix/unix.h ../windows/winhelp.h
-	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
-macpgkey.o: ../mac/macpgkey.c ../putty.h ../mac/mac.h ../mac/macpgrid.h \
-		../ssh.h ../puttyps.h ../network.h ../misc.h \
-		../charset/charset.h ../tree234.h ../puttymem.h ../int64.h \
-		../pkcs11.h ../windows/winstuff.h ../mac/macstuff.h \
-		../macosx/osx.h ../unix/unix.h ../windows/winhelp.h
-	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
-macstore.o: ../mac/macstore.c ../putty.h ../storage.h ../mac/mac.h \
-		../mac/macresid.h ../puttyps.h ../network.h ../misc.h \
-		../charset/charset.h ../tree234.h ../windows/winstuff.h \
-		../mac/macstuff.h ../macosx/osx.h ../unix/unix.h \
-		../puttymem.h ../windows/winhelp.h
-	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
-macterm.o: ../mac/macterm.c ../mac/macresid.h ../putty.h \
-		../charset/charset.h ../mac/mac.h ../terminal.h ../puttyps.h \
-		../network.h ../misc.h ../tree234.h ../windows/winstuff.h \
-		../mac/macstuff.h ../macosx/osx.h ../unix/unix.h \
-		../puttymem.h ../windows/winhelp.h
-	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
-macucs.o: ../mac/macucs.c ../putty.h ../charset/charset.h ../terminal.h \
-		../misc.h ../mac/mac.h ../puttyps.h ../network.h \
-		../tree234.h ../puttymem.h ../windows/winstuff.h \
-		../mac/macstuff.h ../macosx/osx.h ../unix/unix.h \
-		../windows/winhelp.h
+macenc.o: ../charset/macenc.c ../charset/charset.h ../charset/internal.h
 	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
 mimeenc.o: ../charset/mimeenc.c ../charset/charset.h ../charset/internal.h
 	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
 minibidi.o: ../minibidi.c ../misc.h ../puttymem.h
 	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
 misc.o: ../misc.c ../putty.h ../puttyps.h ../network.h ../misc.h \
-		../windows/winstuff.h ../mac/macstuff.h ../macosx/osx.h \
-		../unix/unix.h ../puttymem.h ../tree234.h \
-		../windows/winhelp.h ../charset/charset.h
-	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
-mtcpnet.o: ../mac/mtcpnet.c ../putty.h ../network.h ../mac/mac.h \
-		../puttyps.h ../misc.h ../charset/charset.h ../tree234.h \
-		../windows/winstuff.h ../mac/macstuff.h ../macosx/osx.h \
-		../unix/unix.h ../puttymem.h ../windows/winhelp.h
+		../windows/winstuff.h ../macosx/osx.h ../unix/unix.h \
+		../puttymem.h ../tree234.h ../windows/winhelp.h \
+		../charset/charset.h
 	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
 nocproxy.o: ../nocproxy.c ../putty.h ../network.h ../proxy.h ../puttyps.h \
-		../misc.h ../windows/winstuff.h ../mac/macstuff.h \
-		../macosx/osx.h ../unix/unix.h ../puttymem.h ../tree234.h \
-		../windows/winhelp.h ../charset/charset.h
-	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
-notiming.o: ../notiming.c ../putty.h ../puttyps.h ../network.h ../misc.h \
-		../windows/winstuff.h ../mac/macstuff.h ../macosx/osx.h \
+		../misc.h ../windows/winstuff.h ../macosx/osx.h \
 		../unix/unix.h ../puttymem.h ../tree234.h \
 		../windows/winhelp.h ../charset/charset.h
+	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
+nogss.o: ../nogss.c ../putty.h ../puttyps.h ../network.h ../misc.h \
+		../windows/winstuff.h ../macosx/osx.h ../unix/unix.h \
+		../puttymem.h ../tree234.h ../windows/winhelp.h \
+		../charset/charset.h
+	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
+notiming.o: ../notiming.c ../putty.h ../puttyps.h ../network.h ../misc.h \
+		../windows/winstuff.h ../macosx/osx.h ../unix/unix.h \
+		../puttymem.h ../tree234.h ../windows/winhelp.h \
+		../charset/charset.h
 	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
 osxctrls.o: ../macosx/osxctrls.m ../putty.h ../dialog.h ../macosx/osxclass.h \
 		../tree234.h ../puttyps.h ../network.h ../misc.h \
-		../windows/winstuff.h ../mac/macstuff.h ../macosx/osx.h \
-		../unix/unix.h ../puttymem.h ../windows/winhelp.h \
-		../charset/charset.h
+		../windows/winstuff.h ../macosx/osx.h ../unix/unix.h \
+		../puttymem.h ../windows/winhelp.h ../charset/charset.h
 	$(CC) -x objective-c $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
 osxdlg.o: ../macosx/osxdlg.m ../putty.h ../storage.h ../dialog.h \
 		../macosx/osxclass.h ../puttyps.h ../network.h ../misc.h \
-		../windows/winstuff.h ../mac/macstuff.h ../macosx/osx.h \
+		../windows/winstuff.h ../macosx/osx.h ../unix/unix.h \
+		../puttymem.h ../tree234.h ../windows/winhelp.h \
+		../charset/charset.h
+	$(CC) -x objective-c $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
+osxmain.o: ../macosx/osxmain.m ../putty.h ../macosx/osxclass.h ../puttyps.h \
+		../network.h ../misc.h ../windows/winstuff.h ../macosx/osx.h \
 		../unix/unix.h ../puttymem.h ../tree234.h \
 		../windows/winhelp.h ../charset/charset.h
 	$(CC) -x objective-c $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
-osxmain.o: ../macosx/osxmain.m ../putty.h ../macosx/osxclass.h ../puttyps.h \
-		../network.h ../misc.h ../windows/winstuff.h \
-		../mac/macstuff.h ../macosx/osx.h ../unix/unix.h \
-		../puttymem.h ../tree234.h ../windows/winhelp.h \
-		../charset/charset.h
-	$(CC) -x objective-c $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
 osxsel.o: ../macosx/osxsel.m ../putty.h ../macosx/osxclass.h ../puttyps.h \
-		../network.h ../misc.h ../windows/winstuff.h \
-		../mac/macstuff.h ../macosx/osx.h ../unix/unix.h \
-		../puttymem.h ../tree234.h ../windows/winhelp.h \
-		../charset/charset.h
+		../network.h ../misc.h ../windows/winstuff.h ../macosx/osx.h \
+		../unix/unix.h ../puttymem.h ../tree234.h \
+		../windows/winhelp.h ../charset/charset.h
 	$(CC) -x objective-c $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
 osxwin.o: ../macosx/osxwin.m ../putty.h ../terminal.h ../macosx/osxclass.h \
 		../puttyps.h ../network.h ../misc.h ../tree234.h \
-		../windows/winstuff.h ../mac/macstuff.h ../macosx/osx.h \
-		../unix/unix.h ../puttymem.h ../windows/winhelp.h \
-		../charset/charset.h
+		../windows/winstuff.h ../macosx/osx.h ../unix/unix.h \
+		../puttymem.h ../windows/winhelp.h ../charset/charset.h
 	$(CC) -x objective-c $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
-otnet.o: ../mac/otnet.c ../putty.h ../network.h ../mac/mac.h ../puttyps.h \
-		../misc.h ../charset/charset.h ../tree234.h \
-		../windows/winstuff.h ../mac/macstuff.h ../macosx/osx.h \
-		../unix/unix.h ../puttymem.h ../windows/winhelp.h
-	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
-pinger.o: ../pinger.c ../putty.h ../puttyps.h ../network.h ../misc.h \
-		../windows/winstuff.h ../mac/macstuff.h ../macosx/osx.h \
+pgssapi.o: ../pgssapi.c ../putty.h ../pgssapi.h ../puttyps.h ../network.h \
+		../misc.h ../windows/winstuff.h ../macosx/osx.h \
 		../unix/unix.h ../puttymem.h ../tree234.h \
 		../windows/winhelp.h ../charset/charset.h
 	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
-portfwd.o: ../portfwd.c ../putty.h ../ssh.h ../puttyps.h ../network.h \
-		../misc.h ../puttymem.h ../tree234.h ../int64.h ../pkcs11.h \
-		../windows/winstuff.h ../mac/macstuff.h ../macosx/osx.h \
-		../unix/unix.h ../windows/winhelp.h ../charset/charset.h
+pinger.o: ../pinger.c ../putty.h ../puttyps.h ../network.h ../misc.h \
+		../windows/winstuff.h ../macosx/osx.h ../unix/unix.h \
+		../puttymem.h ../tree234.h ../windows/winhelp.h \
+		../charset/charset.h
 	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
-pproxy.o: ../pproxy.c ../putty.h ../network.h ../proxy.h ../puttyps.h \
-		../misc.h ../windows/winstuff.h ../mac/macstuff.h \
-		../macosx/osx.h ../unix/unix.h ../puttymem.h ../tree234.h \
+portfwd.o: ../portfwd.c ../putty.h ../ssh.h ../puttyps.h ../network.h \
+		../misc.h ../puttymem.h ../tree234.h ../int64.h \
+		../windows/winstuff.h ../macosx/osx.h ../unix/unix.h \
 		../windows/winhelp.h ../charset/charset.h
 	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
 proxy.o: ../proxy.c ../putty.h ../network.h ../proxy.h ../puttyps.h \
-		../misc.h ../windows/winstuff.h ../mac/macstuff.h \
-		../macosx/osx.h ../unix/unix.h ../puttymem.h ../tree234.h \
+		../misc.h ../windows/winstuff.h ../macosx/osx.h \
+		../unix/unix.h ../puttymem.h ../tree234.h \
 		../windows/winhelp.h ../charset/charset.h
 	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
 pscp.o: ../pscp.c ../putty.h ../psftp.h ../ssh.h ../sftp.h ../storage.h \
 		../int64.h ../puttyps.h ../network.h ../misc.h ../puttymem.h \
-		../tree234.h ../pkcs11.h ../windows/winstuff.h \
-		../mac/macstuff.h ../macosx/osx.h ../unix/unix.h \
-		../windows/winhelp.h ../charset/charset.h
+		../tree234.h ../windows/winstuff.h ../macosx/osx.h \
+		../unix/unix.h ../windows/winhelp.h ../charset/charset.h
 	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
 psftp.o: ../psftp.c ../putty.h ../psftp.h ../storage.h ../ssh.h ../sftp.h \
 		../int64.h ../puttyps.h ../network.h ../misc.h ../puttymem.h \
-		../tree234.h ../pkcs11.h ../windows/winstuff.h \
-		../mac/macstuff.h ../macosx/osx.h ../unix/unix.h \
-		../windows/winhelp.h ../charset/charset.h
+		../tree234.h ../windows/winstuff.h ../macosx/osx.h \
+		../unix/unix.h ../windows/winhelp.h ../charset/charset.h
 	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
 raw.o: ../raw.c ../putty.h ../puttyps.h ../network.h ../misc.h \
-		../windows/winstuff.h ../mac/macstuff.h ../macosx/osx.h \
-		../unix/unix.h ../puttymem.h ../tree234.h \
-		../windows/winhelp.h ../charset/charset.h
+		../windows/winstuff.h ../macosx/osx.h ../unix/unix.h \
+		../puttymem.h ../tree234.h ../windows/winhelp.h \
+		../charset/charset.h
 	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
 rlogin.o: ../rlogin.c ../putty.h ../puttyps.h ../network.h ../misc.h \
-		../windows/winstuff.h ../mac/macstuff.h ../macosx/osx.h \
-		../unix/unix.h ../puttymem.h ../tree234.h \
-		../windows/winhelp.h ../charset/charset.h
+		../windows/winstuff.h ../macosx/osx.h ../unix/unix.h \
+		../puttymem.h ../tree234.h ../windows/winhelp.h \
+		../charset/charset.h
 	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
 sbcs.o: ../charset/sbcs.c ../charset/charset.h ../charset/internal.h
 	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
 sbcsdat.o: ../charset/sbcsdat.c ../charset/charset.h ../charset/internal.h
 	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
-sc.o: ../sc.c ../ssh.h ../pkcs11.h ../sc.h ../puttymem.h ../tree234.h \
-		../network.h ../int64.h ../misc.h
-	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
 sercfg.o: ../sercfg.c ../putty.h ../dialog.h ../storage.h ../puttyps.h \
-		../network.h ../misc.h ../windows/winstuff.h \
-		../mac/macstuff.h ../macosx/osx.h ../unix/unix.h \
-		../puttymem.h ../tree234.h ../windows/winhelp.h \
-		../charset/charset.h
+		../network.h ../misc.h ../windows/winstuff.h ../macosx/osx.h \
+		../unix/unix.h ../puttymem.h ../tree234.h \
+		../windows/winhelp.h ../charset/charset.h
 	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
 settings.o: ../settings.c ../putty.h ../storage.h ../puttyps.h ../network.h \
-		../misc.h ../windows/winstuff.h ../mac/macstuff.h \
-		../macosx/osx.h ../unix/unix.h ../puttymem.h ../tree234.h \
+		../misc.h ../windows/winstuff.h ../macosx/osx.h \
+		../unix/unix.h ../puttymem.h ../tree234.h \
 		../windows/winhelp.h ../charset/charset.h
 	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
 sftp.o: ../sftp.c ../misc.h ../int64.h ../tree234.h ../sftp.h ../puttymem.h
 	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
 sizetip.o: ../windows/sizetip.c ../putty.h ../puttyps.h ../network.h \
-		../misc.h ../windows/winstuff.h ../mac/macstuff.h \
-		../macosx/osx.h ../unix/unix.h ../puttymem.h ../tree234.h \
+		../misc.h ../windows/winstuff.h ../macosx/osx.h \
+		../unix/unix.h ../puttymem.h ../tree234.h \
 		../windows/winhelp.h ../charset/charset.h
 	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
 slookup.o: ../charset/slookup.c ../charset/charset.h ../charset/internal.h \
 		../charset/enum.c ../charset/sbcsdat.c ../charset/utf8.c
 	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
-ssh.o: ../ssh.c ../putty.h ../tree234.h ../ssh.h ../sshgss.h ../pkcs11.h \
-		../sc.h ../puttyps.h ../network.h ../misc.h ../puttymem.h \
-		../int64.h ../windows/winstuff.h ../mac/macstuff.h \
-		../macosx/osx.h ../unix/unix.h ../windows/winhelp.h \
-		../charset/charset.h
+ssh.o: ../ssh.c ../putty.h ../tree234.h ../ssh.h ../sshgssc.h ../sshgss.h \
+		../puttyps.h ../network.h ../misc.h ../puttymem.h ../int64.h \
+		../pgssapi.h ../windows/winstuff.h ../macosx/osx.h \
+		../unix/unix.h ../windows/winhelp.h ../charset/charset.h
 	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
 sshaes.o: ../sshaes.c ../ssh.h ../puttymem.h ../tree234.h ../network.h \
-		../int64.h ../misc.h ../pkcs11.h
+		../int64.h ../misc.h
 	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
 ssharcf.o: ../ssharcf.c ../ssh.h ../puttymem.h ../tree234.h ../network.h \
-		../int64.h ../misc.h ../pkcs11.h
+		../int64.h ../misc.h
 	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
 sshblowf.o: ../sshblowf.c ../ssh.h ../puttymem.h ../tree234.h ../network.h \
-		../int64.h ../misc.h ../pkcs11.h
+		../int64.h ../misc.h
 	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
 sshbn.o: ../sshbn.c ../misc.h ../ssh.h ../puttymem.h ../tree234.h \
-		../network.h ../int64.h ../pkcs11.h
+		../network.h ../int64.h
 	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
 sshcrc.o: ../sshcrc.c ../ssh.h ../puttymem.h ../tree234.h ../network.h \
-		../int64.h ../misc.h ../pkcs11.h
+		../int64.h ../misc.h
 	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
 sshcrcda.o: ../sshcrcda.c ../misc.h ../ssh.h ../puttymem.h ../tree234.h \
-		../network.h ../int64.h ../pkcs11.h
+		../network.h ../int64.h
 	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
 sshdes.o: ../sshdes.c ../ssh.h ../puttymem.h ../tree234.h ../network.h \
-		../int64.h ../misc.h ../pkcs11.h
+		../int64.h ../misc.h
 	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
 sshdh.o: ../sshdh.c ../ssh.h ../puttymem.h ../tree234.h ../network.h \
-		../int64.h ../misc.h ../pkcs11.h
+		../int64.h ../misc.h
 	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
 sshdss.o: ../sshdss.c ../ssh.h ../misc.h ../puttymem.h ../tree234.h \
-		../network.h ../int64.h ../pkcs11.h
+		../network.h ../int64.h
 	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
 sshdssg.o: ../sshdssg.c ../misc.h ../ssh.h ../puttymem.h ../tree234.h \
-		../network.h ../int64.h ../pkcs11.h
+		../network.h ../int64.h
+	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
+sshgssc.o: ../sshgssc.c ../putty.h ../sshgssc.h ../misc.h ../puttyps.h \
+		../network.h ../pgssapi.h ../sshgss.h ../puttymem.h \
+		../windows/winstuff.h ../macosx/osx.h ../unix/unix.h \
+		../tree234.h ../windows/winhelp.h ../charset/charset.h
 	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
 sshmd5.o: ../sshmd5.c ../ssh.h ../puttymem.h ../tree234.h ../network.h \
-		../int64.h ../misc.h ../pkcs11.h
+		../int64.h ../misc.h
 	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
 sshprime.o: ../sshprime.c ../ssh.h ../puttymem.h ../tree234.h ../network.h \
-		../int64.h ../misc.h ../pkcs11.h
+		../int64.h ../misc.h
 	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
 sshpubk.o: ../sshpubk.c ../putty.h ../ssh.h ../misc.h ../puttyps.h \
 		../network.h ../puttymem.h ../tree234.h ../int64.h \
-		../pkcs11.h ../windows/winstuff.h ../mac/macstuff.h \
-		../macosx/osx.h ../unix/unix.h ../windows/winhelp.h \
-		../charset/charset.h
+		../windows/winstuff.h ../macosx/osx.h ../unix/unix.h \
+		../windows/winhelp.h ../charset/charset.h
 	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
 sshrand.o: ../sshrand.c ../putty.h ../ssh.h ../puttyps.h ../network.h \
-		../misc.h ../puttymem.h ../tree234.h ../int64.h ../pkcs11.h \
-		../windows/winstuff.h ../mac/macstuff.h ../macosx/osx.h \
-		../unix/unix.h ../windows/winhelp.h ../charset/charset.h
+		../misc.h ../puttymem.h ../tree234.h ../int64.h \
+		../windows/winstuff.h ../macosx/osx.h ../unix/unix.h \
+		../windows/winhelp.h ../charset/charset.h
 	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
 sshrsa.o: ../sshrsa.c ../ssh.h ../misc.h ../puttymem.h ../tree234.h \
-		../network.h ../int64.h ../pkcs11.h
+		../network.h ../int64.h
 	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
 sshrsag.o: ../sshrsag.c ../ssh.h ../puttymem.h ../tree234.h ../network.h \
-		../int64.h ../misc.h ../pkcs11.h
+		../int64.h ../misc.h
 	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
 sshsh256.o: ../sshsh256.c ../ssh.h ../puttymem.h ../tree234.h ../network.h \
-		../int64.h ../misc.h ../pkcs11.h
+		../int64.h ../misc.h
 	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
 sshsh512.o: ../sshsh512.c ../ssh.h ../puttymem.h ../tree234.h ../network.h \
-		../int64.h ../misc.h ../pkcs11.h
+		../int64.h ../misc.h
 	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
 sshsha.o: ../sshsha.c ../ssh.h ../puttymem.h ../tree234.h ../network.h \
-		../int64.h ../misc.h ../pkcs11.h
+		../int64.h ../misc.h
 	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
 sshzlib.o: ../sshzlib.c ../ssh.h ../puttymem.h ../tree234.h ../network.h \
-		../int64.h ../misc.h ../pkcs11.h
-	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
-stricmp.o: ../mac/stricmp.c ../putty.h ../puttyps.h ../network.h ../misc.h \
-		../windows/winstuff.h ../mac/macstuff.h ../macosx/osx.h \
-		../unix/unix.h ../puttymem.h ../tree234.h \
-		../windows/winhelp.h ../charset/charset.h
+		../int64.h ../misc.h
 	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
 telnet.o: ../telnet.c ../putty.h ../puttyps.h ../network.h ../misc.h \
-		../windows/winstuff.h ../mac/macstuff.h ../macosx/osx.h \
-		../unix/unix.h ../puttymem.h ../tree234.h \
-		../windows/winhelp.h ../charset/charset.h
+		../windows/winstuff.h ../macosx/osx.h ../unix/unix.h \
+		../puttymem.h ../tree234.h ../windows/winhelp.h \
+		../charset/charset.h
 	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
 terminal.o: ../terminal.c ../putty.h ../terminal.h ../puttyps.h ../network.h \
-		../misc.h ../tree234.h ../windows/winstuff.h \
-		../mac/macstuff.h ../macosx/osx.h ../unix/unix.h \
-		../puttymem.h ../windows/winhelp.h ../charset/charset.h
+		../misc.h ../tree234.h ../windows/winstuff.h ../macosx/osx.h \
+		../unix/unix.h ../puttymem.h ../windows/winhelp.h \
+		../charset/charset.h
 	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
 testback.o: ../testback.c ../putty.h ../puttyps.h ../network.h ../misc.h \
-		../windows/winstuff.h ../mac/macstuff.h ../macosx/osx.h \
-		../unix/unix.h ../puttymem.h ../tree234.h \
-		../windows/winhelp.h ../charset/charset.h
+		../windows/winstuff.h ../macosx/osx.h ../unix/unix.h \
+		../puttymem.h ../tree234.h ../windows/winhelp.h \
+		../charset/charset.h
 	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
 time.o: ../time.c
 	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
 timing.o: ../timing.c ../putty.h ../tree234.h ../puttyps.h ../network.h \
-		../misc.h ../windows/winstuff.h ../mac/macstuff.h \
-		../macosx/osx.h ../unix/unix.h ../puttymem.h \
-		../windows/winhelp.h ../charset/charset.h
+		../misc.h ../windows/winstuff.h ../macosx/osx.h \
+		../unix/unix.h ../puttymem.h ../windows/winhelp.h \
+		../charset/charset.h
 	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
 toucs.o: ../charset/toucs.c ../charset/charset.h ../charset/internal.h
 	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
@@ -633,268 +534,260 @@ tree234.o: ../tree234.c ../puttymem.h ../tree234.h
 utf8.o: ../charset/utf8.c ../charset/charset.h ../charset/internal.h
 	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
 ux_x11.o: ../unix/ux_x11.c ../putty.h ../ssh.h ../network.h ../puttyps.h \
-		../misc.h ../puttymem.h ../tree234.h ../int64.h ../pkcs11.h \
-		../windows/winstuff.h ../mac/macstuff.h ../macosx/osx.h \
-		../unix/unix.h ../windows/winhelp.h ../charset/charset.h
+		../misc.h ../puttymem.h ../tree234.h ../int64.h \
+		../windows/winstuff.h ../macosx/osx.h ../unix/unix.h \
+		../windows/winhelp.h ../charset/charset.h
 	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
 uxagentc.o: ../unix/uxagentc.c ../putty.h ../misc.h ../tree234.h \
 		../puttymem.h ../puttyps.h ../network.h \
-		../windows/winstuff.h ../mac/macstuff.h ../macosx/osx.h \
-		../unix/unix.h ../windows/winhelp.h ../charset/charset.h
+		../windows/winstuff.h ../macosx/osx.h ../unix/unix.h \
+		../windows/winhelp.h ../charset/charset.h
 	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
 uxcfg.o: ../unix/uxcfg.c ../putty.h ../dialog.h ../storage.h ../puttyps.h \
-		../network.h ../misc.h ../windows/winstuff.h \
-		../mac/macstuff.h ../macosx/osx.h ../unix/unix.h \
-		../puttymem.h ../tree234.h ../windows/winhelp.h \
-		../charset/charset.h
+		../network.h ../misc.h ../windows/winstuff.h ../macosx/osx.h \
+		../unix/unix.h ../puttymem.h ../tree234.h \
+		../windows/winhelp.h ../charset/charset.h
 	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
 uxcons.o: ../unix/uxcons.c ../putty.h ../storage.h ../ssh.h ../puttyps.h \
 		../network.h ../misc.h ../puttymem.h ../tree234.h ../int64.h \
-		../pkcs11.h ../windows/winstuff.h ../mac/macstuff.h \
-		../macosx/osx.h ../unix/unix.h ../windows/winhelp.h \
-		../charset/charset.h
+		../windows/winstuff.h ../macosx/osx.h ../unix/unix.h \
+		../windows/winhelp.h ../charset/charset.h
 	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
 uxgen.o: ../unix/uxgen.c ../putty.h ../puttyps.h ../network.h ../misc.h \
-		../windows/winstuff.h ../mac/macstuff.h ../macosx/osx.h \
-		../unix/unix.h ../puttymem.h ../tree234.h \
-		../windows/winhelp.h ../charset/charset.h
-	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
-uxgss.o: ../unix/uxgss.c ../putty.h ../sshgss.h ../misc.h ../puttyps.h \
-		../network.h ../puttymem.h ../windows/winstuff.h \
-		../mac/macstuff.h ../macosx/osx.h ../unix/unix.h \
-		../tree234.h ../windows/winhelp.h ../charset/charset.h
-	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
-uxmisc.o: ../unix/uxmisc.c ../putty.h ../puttyps.h ../network.h ../misc.h \
-		../windows/winstuff.h ../mac/macstuff.h ../macosx/osx.h \
-		../unix/unix.h ../puttymem.h ../tree234.h \
-		../windows/winhelp.h ../charset/charset.h
-	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
-uxnet.o: ../unix/uxnet.c ../putty.h ../network.h ../tree234.h ../puttyps.h \
-		../misc.h ../windows/winstuff.h ../mac/macstuff.h \
-		../macosx/osx.h ../unix/unix.h ../puttymem.h \
-		../windows/winhelp.h ../charset/charset.h
-	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
-uxnoise.o: ../unix/uxnoise.c ../putty.h ../ssh.h ../storage.h ../puttyps.h \
-		../network.h ../misc.h ../puttymem.h ../tree234.h ../int64.h \
-		../pkcs11.h ../windows/winstuff.h ../mac/macstuff.h \
-		../macosx/osx.h ../unix/unix.h ../windows/winhelp.h \
-		../charset/charset.h
-	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
-uxplink.o: ../unix/uxplink.c ../putty.h ../storage.h ../tree234.h \
-		../puttyps.h ../network.h ../misc.h ../windows/winstuff.h \
-		../mac/macstuff.h ../macosx/osx.h ../unix/unix.h \
-		../puttymem.h ../windows/winhelp.h ../charset/charset.h
-	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
-uxprint.o: ../unix/uxprint.c ../putty.h ../puttyps.h ../network.h ../misc.h \
-		../windows/winstuff.h ../mac/macstuff.h ../macosx/osx.h \
-		../unix/unix.h ../puttymem.h ../tree234.h \
-		../windows/winhelp.h ../charset/charset.h
-	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
-uxproxy.o: ../unix/uxproxy.c ../tree234.h ../putty.h ../network.h ../proxy.h \
-		../puttyps.h ../misc.h ../windows/winstuff.h \
-		../mac/macstuff.h ../macosx/osx.h ../unix/unix.h \
-		../puttymem.h ../windows/winhelp.h ../charset/charset.h
-	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
-uxpterm.o: ../unix/uxpterm.c ../putty.h ../puttyps.h ../network.h ../misc.h \
-		../windows/winstuff.h ../mac/macstuff.h ../macosx/osx.h \
-		../unix/unix.h ../puttymem.h ../tree234.h \
-		../windows/winhelp.h ../charset/charset.h
-	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
-uxpty.o: ../unix/uxpty.c ../putty.h ../tree234.h ../puttyps.h ../network.h \
-		../misc.h ../windows/winstuff.h ../mac/macstuff.h \
-		../macosx/osx.h ../unix/unix.h ../puttymem.h \
-		../windows/winhelp.h ../charset/charset.h
-	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
-uxputty.o: ../unix/uxputty.c ../putty.h ../storage.h ../puttyps.h \
-		../network.h ../misc.h ../windows/winstuff.h \
-		../mac/macstuff.h ../macosx/osx.h ../unix/unix.h \
+		../windows/winstuff.h ../macosx/osx.h ../unix/unix.h \
 		../puttymem.h ../tree234.h ../windows/winhelp.h \
 		../charset/charset.h
 	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
-uxsel.o: ../unix/uxsel.c ../putty.h ../tree234.h ../puttyps.h ../network.h \
-		../misc.h ../windows/winstuff.h ../mac/macstuff.h \
+uxgss.o: ../unix/uxgss.c ../putty.h ../pgssapi.h ../sshgss.h ../sshgssc.h \
+		../puttyps.h ../network.h ../misc.h ../windows/winstuff.h \
+		../macosx/osx.h ../unix/unix.h ../puttymem.h ../tree234.h \
+		../windows/winhelp.h ../charset/charset.h
+	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
+uxmisc.o: ../unix/uxmisc.c ../putty.h ../puttyps.h ../network.h ../misc.h \
+		../windows/winstuff.h ../macosx/osx.h ../unix/unix.h \
+		../puttymem.h ../tree234.h ../windows/winhelp.h \
+		../charset/charset.h
+	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
+uxnet.o: ../unix/uxnet.c ../putty.h ../network.h ../tree234.h ../puttyps.h \
+		../misc.h ../windows/winstuff.h ../macosx/osx.h \
+		../unix/unix.h ../puttymem.h ../windows/winhelp.h \
+		../charset/charset.h
+	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
+uxnoise.o: ../unix/uxnoise.c ../putty.h ../ssh.h ../storage.h ../puttyps.h \
+		../network.h ../misc.h ../puttymem.h ../tree234.h ../int64.h \
+		../windows/winstuff.h ../macosx/osx.h ../unix/unix.h \
+		../windows/winhelp.h ../charset/charset.h
+	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
+uxplink.o: ../unix/uxplink.c ../putty.h ../storage.h ../tree234.h \
+		../puttyps.h ../network.h ../misc.h ../windows/winstuff.h \
 		../macosx/osx.h ../unix/unix.h ../puttymem.h \
 		../windows/winhelp.h ../charset/charset.h
 	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
-uxser.o: ../unix/uxser.c ../putty.h ../tree234.h ../puttyps.h ../network.h \
-		../misc.h ../windows/winstuff.h ../mac/macstuff.h \
-		../macosx/osx.h ../unix/unix.h ../puttymem.h \
+uxprint.o: ../unix/uxprint.c ../putty.h ../puttyps.h ../network.h ../misc.h \
+		../windows/winstuff.h ../macosx/osx.h ../unix/unix.h \
+		../puttymem.h ../tree234.h ../windows/winhelp.h \
+		../charset/charset.h
+	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
+uxproxy.o: ../unix/uxproxy.c ../tree234.h ../putty.h ../network.h ../proxy.h \
+		../puttyps.h ../misc.h ../windows/winstuff.h ../macosx/osx.h \
+		../unix/unix.h ../puttymem.h ../windows/winhelp.h \
+		../charset/charset.h
+	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
+uxpterm.o: ../unix/uxpterm.c ../putty.h ../puttyps.h ../network.h ../misc.h \
+		../windows/winstuff.h ../macosx/osx.h ../unix/unix.h \
+		../puttymem.h ../tree234.h ../windows/winhelp.h \
+		../charset/charset.h
+	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
+uxpty.o: ../unix/uxpty.c ../putty.h ../tree234.h ../puttyps.h ../network.h \
+		../misc.h ../windows/winstuff.h ../macosx/osx.h \
+		../unix/unix.h ../puttymem.h ../windows/winhelp.h \
+		../charset/charset.h
+	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
+uxputty.o: ../unix/uxputty.c ../putty.h ../storage.h ../puttyps.h \
+		../network.h ../misc.h ../windows/winstuff.h ../macosx/osx.h \
+		../unix/unix.h ../puttymem.h ../tree234.h \
 		../windows/winhelp.h ../charset/charset.h
+	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
+uxsel.o: ../unix/uxsel.c ../putty.h ../tree234.h ../puttyps.h ../network.h \
+		../misc.h ../windows/winstuff.h ../macosx/osx.h \
+		../unix/unix.h ../puttymem.h ../windows/winhelp.h \
+		../charset/charset.h
+	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
+uxser.o: ../unix/uxser.c ../putty.h ../tree234.h ../puttyps.h ../network.h \
+		../misc.h ../windows/winstuff.h ../macosx/osx.h \
+		../unix/unix.h ../puttymem.h ../windows/winhelp.h \
+		../charset/charset.h
 	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
 uxsftp.o: ../unix/uxsftp.c ../putty.h ../ssh.h ../psftp.h ../int64.h \
 		../puttyps.h ../network.h ../misc.h ../puttymem.h \
-		../tree234.h ../pkcs11.h ../windows/winstuff.h \
-		../mac/macstuff.h ../macosx/osx.h ../unix/unix.h \
-		../windows/winhelp.h ../charset/charset.h
+		../tree234.h ../windows/winstuff.h ../macosx/osx.h \
+		../unix/unix.h ../windows/winhelp.h ../charset/charset.h
 	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
 uxsignal.o: ../unix/uxsignal.c
 	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
 uxstore.o: ../unix/uxstore.c ../putty.h ../storage.h ../tree234.h \
 		../puttyps.h ../network.h ../misc.h ../windows/winstuff.h \
-		../mac/macstuff.h ../macosx/osx.h ../unix/unix.h \
-		../puttymem.h ../windows/winhelp.h ../charset/charset.h
+		../macosx/osx.h ../unix/unix.h ../puttymem.h \
+		../windows/winhelp.h ../charset/charset.h
 	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
 uxucs.o: ../unix/uxucs.c ../putty.h ../charset/charset.h ../terminal.h \
 		../misc.h ../puttyps.h ../network.h ../tree234.h \
-		../puttymem.h ../windows/winstuff.h ../mac/macstuff.h \
-		../macosx/osx.h ../unix/unix.h ../windows/winhelp.h
+		../puttymem.h ../windows/winstuff.h ../macosx/osx.h \
+		../unix/unix.h ../windows/winhelp.h
 	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
 version.o: ../version.c
 	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
-vsnprint.o: ../mac/vsnprint.c ../putty.h ../puttyps.h ../network.h ../misc.h \
-		../windows/winstuff.h ../mac/macstuff.h ../macosx/osx.h \
-		../unix/unix.h ../puttymem.h ../tree234.h \
-		../windows/winhelp.h ../charset/charset.h
-	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
 wcwidth.o: ../wcwidth.c ../putty.h ../puttyps.h ../network.h ../misc.h \
-		../windows/winstuff.h ../mac/macstuff.h ../macosx/osx.h \
-		../unix/unix.h ../puttymem.h ../tree234.h \
-		../windows/winhelp.h ../charset/charset.h
-	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
-wildcard.o: ../wildcard.c ../putty.h ../puttyps.h ../network.h ../misc.h \
-		../windows/winstuff.h ../mac/macstuff.h ../macosx/osx.h \
-		../unix/unix.h ../puttymem.h ../tree234.h \
-		../windows/winhelp.h ../charset/charset.h
-	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
-wincfg.o: ../windows/wincfg.c ../putty.h ../dialog.h ../storage.h \
-		../puttyps.h ../network.h ../misc.h ../windows/winstuff.h \
-		../mac/macstuff.h ../macosx/osx.h ../unix/unix.h \
+		../windows/winstuff.h ../macosx/osx.h ../unix/unix.h \
 		../puttymem.h ../tree234.h ../windows/winhelp.h \
 		../charset/charset.h
 	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
+wildcard.o: ../wildcard.c ../putty.h ../puttyps.h ../network.h ../misc.h \
+		../windows/winstuff.h ../macosx/osx.h ../unix/unix.h \
+		../puttymem.h ../tree234.h ../windows/winhelp.h \
+		../charset/charset.h
+	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
+wincfg.o: ../windows/wincfg.c ../putty.h ../dialog.h ../storage.h \
+		../puttyps.h ../network.h ../misc.h ../windows/winstuff.h \
+		../macosx/osx.h ../unix/unix.h ../puttymem.h ../tree234.h \
+		../windows/winhelp.h ../charset/charset.h
+	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
 wincons.o: ../windows/wincons.c ../putty.h ../storage.h ../ssh.h \
 		../puttyps.h ../network.h ../misc.h ../puttymem.h \
-		../tree234.h ../int64.h ../pkcs11.h ../windows/winstuff.h \
-		../mac/macstuff.h ../macosx/osx.h ../unix/unix.h \
-		../windows/winhelp.h ../charset/charset.h
+		../tree234.h ../int64.h ../windows/winstuff.h \
+		../macosx/osx.h ../unix/unix.h ../windows/winhelp.h \
+		../charset/charset.h
 	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
 winctrls.o: ../windows/winctrls.c ../putty.h ../misc.h ../dialog.h \
 		../puttyps.h ../network.h ../puttymem.h \
-		../windows/winstuff.h ../mac/macstuff.h ../macosx/osx.h \
-		../unix/unix.h ../tree234.h ../windows/winhelp.h \
-		../charset/charset.h
+		../windows/winstuff.h ../macosx/osx.h ../unix/unix.h \
+		../tree234.h ../windows/winhelp.h ../charset/charset.h
 	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
 windefs.o: ../windows/windefs.c ../putty.h ../puttyps.h ../network.h \
-		../misc.h ../windows/winstuff.h ../mac/macstuff.h \
-		../macosx/osx.h ../unix/unix.h ../puttymem.h ../tree234.h \
+		../misc.h ../windows/winstuff.h ../macosx/osx.h \
+		../unix/unix.h ../puttymem.h ../tree234.h \
 		../windows/winhelp.h ../charset/charset.h
 	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
 windlg.o: ../windows/windlg.c ../putty.h ../ssh.h ../windows/win_res.h \
 		../storage.h ../dialog.h ../puttyps.h ../network.h ../misc.h \
-		../puttymem.h ../tree234.h ../int64.h ../pkcs11.h \
-		../windows/winstuff.h ../mac/macstuff.h ../macosx/osx.h \
-		../unix/unix.h ../windows/winhelp.h ../charset/charset.h
-	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
-window.o: ../windows/window.c ../putty.h ../terminal.h ../storage.h \
-		../windows/win_res.h ../puttyps.h ../network.h ../misc.h \
-		../tree234.h ../windows/winstuff.h ../mac/macstuff.h \
-		../macosx/osx.h ../unix/unix.h ../puttymem.h \
-		../windows/winhelp.h ../charset/charset.h
-	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
-wingss.o: ../windows/wingss.c ../putty.h ../sshgss.h ../misc.h ../puttyps.h \
-		../network.h ../puttymem.h ../windows/winstuff.h \
-		../mac/macstuff.h ../macosx/osx.h ../unix/unix.h \
-		../tree234.h ../windows/winhelp.h ../charset/charset.h
-	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
-winhandl.o: ../windows/winhandl.c ../putty.h ../puttyps.h ../network.h \
-		../misc.h ../windows/winstuff.h ../mac/macstuff.h \
-		../macosx/osx.h ../unix/unix.h ../puttymem.h ../tree234.h \
-		../windows/winhelp.h ../charset/charset.h
-	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
-winhelp.o: ../windows/winhelp.c ../putty.h ../puttyps.h ../network.h \
-		../misc.h ../windows/winstuff.h ../mac/macstuff.h \
-		../macosx/osx.h ../unix/unix.h ../puttymem.h ../tree234.h \
-		../windows/winhelp.h ../charset/charset.h
-	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
-winmisc.o: ../windows/winmisc.c ../putty.h ../puttyps.h ../network.h \
-		../misc.h ../windows/winstuff.h ../mac/macstuff.h \
-		../macosx/osx.h ../unix/unix.h ../puttymem.h ../tree234.h \
-		../windows/winhelp.h ../charset/charset.h
-	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
-winnet.o: ../windows/winnet.c ../putty.h ../network.h ../tree234.h \
-		../puttyps.h ../misc.h ../windows/winstuff.h \
-		../mac/macstuff.h ../macosx/osx.h ../unix/unix.h \
-		../puttymem.h ../windows/winhelp.h ../charset/charset.h
-	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
-winnoise.o: ../windows/winnoise.c ../putty.h ../ssh.h ../storage.h \
-		../puttyps.h ../network.h ../misc.h ../puttymem.h \
-		../tree234.h ../int64.h ../pkcs11.h ../windows/winstuff.h \
-		../mac/macstuff.h ../macosx/osx.h ../unix/unix.h \
-		../windows/winhelp.h ../charset/charset.h
-	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
-winpgen.o: ../windows/winpgen.c ../putty.h ../ssh.h ../puttyps.h \
-		../network.h ../misc.h ../puttymem.h ../tree234.h ../int64.h \
-		../pkcs11.h ../windows/winstuff.h ../mac/macstuff.h \
+		../puttymem.h ../tree234.h ../int64.h ../windows/winstuff.h \
 		../macosx/osx.h ../unix/unix.h ../windows/winhelp.h \
 		../charset/charset.h
 	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
+window.o: ../windows/window.c ../putty.h ../terminal.h ../storage.h \
+		../windows/win_res.h ../puttyps.h ../network.h ../misc.h \
+		../tree234.h ../windows/winstuff.h ../macosx/osx.h \
+		../unix/unix.h ../puttymem.h ../windows/winhelp.h \
+		../charset/charset.h
+	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
+wingss.o: ../windows/wingss.c ../putty.h ../pgssapi.h ../sshgss.h \
+		../sshgssc.h ../misc.h ../puttyps.h ../network.h \
+		../puttymem.h ../windows/winstuff.h ../macosx/osx.h \
+		../unix/unix.h ../tree234.h ../windows/winhelp.h \
+		../charset/charset.h
+	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
+winhandl.o: ../windows/winhandl.c ../putty.h ../puttyps.h ../network.h \
+		../misc.h ../windows/winstuff.h ../macosx/osx.h \
+		../unix/unix.h ../puttymem.h ../tree234.h \
+		../windows/winhelp.h ../charset/charset.h
+	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
+winhelp.o: ../windows/winhelp.c ../putty.h ../puttyps.h ../network.h \
+		../misc.h ../windows/winstuff.h ../macosx/osx.h \
+		../unix/unix.h ../puttymem.h ../tree234.h \
+		../windows/winhelp.h ../charset/charset.h
+	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
+winjump.o: ../windows/winjump.c ../putty.h ../storage.h ../puttyps.h \
+		../network.h ../misc.h ../windows/winstuff.h ../macosx/osx.h \
+		../unix/unix.h ../puttymem.h ../tree234.h \
+		../windows/winhelp.h ../charset/charset.h
+	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
+winmisc.o: ../windows/winmisc.c ../putty.h ../puttyps.h ../network.h \
+		../misc.h ../windows/winstuff.h ../macosx/osx.h \
+		../unix/unix.h ../puttymem.h ../tree234.h \
+		../windows/winhelp.h ../charset/charset.h
+	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
+winnet.o: ../windows/winnet.c ../putty.h ../network.h ../tree234.h \
+		../puttyps.h ../misc.h ../windows/winstuff.h ../macosx/osx.h \
+		../unix/unix.h ../puttymem.h ../windows/winhelp.h \
+		../charset/charset.h
+	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
+winnoise.o: ../windows/winnoise.c ../putty.h ../ssh.h ../storage.h \
+		../puttyps.h ../network.h ../misc.h ../puttymem.h \
+		../tree234.h ../int64.h ../windows/winstuff.h \
+		../macosx/osx.h ../unix/unix.h ../windows/winhelp.h \
+		../charset/charset.h
+	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
+winnojmp.o: ../windows/winnojmp.c
+	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
+winpgen.o: ../windows/winpgen.c ../putty.h ../ssh.h ../puttyps.h \
+		../network.h ../misc.h ../puttymem.h ../tree234.h ../int64.h \
+		../windows/winstuff.h ../macosx/osx.h ../unix/unix.h \
+		../windows/winhelp.h ../charset/charset.h
+	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
 winpgnt.o: ../windows/winpgnt.c ../putty.h ../ssh.h ../misc.h ../tree234.h \
-		../storage.h ../sc.h ../puttyps.h ../network.h ../puttymem.h \
-		../int64.h ../pkcs11.h ../windows/winstuff.h \
-		../mac/macstuff.h ../macosx/osx.h ../unix/unix.h \
+		../puttyps.h ../network.h ../puttymem.h ../int64.h \
+		../windows/winstuff.h ../macosx/osx.h ../unix/unix.h \
 		../windows/winhelp.h ../charset/charset.h
 	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
 winpgntc.o: ../windows/winpgntc.c ../putty.h ../puttyps.h ../network.h \
-		../misc.h ../windows/winstuff.h ../mac/macstuff.h \
-		../macosx/osx.h ../unix/unix.h ../puttymem.h ../tree234.h \
+		../misc.h ../windows/winstuff.h ../macosx/osx.h \
+		../unix/unix.h ../puttymem.h ../tree234.h \
 		../windows/winhelp.h ../charset/charset.h
 	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
 winplink.o: ../windows/winplink.c ../putty.h ../storage.h ../tree234.h \
 		../puttyps.h ../network.h ../misc.h ../windows/winstuff.h \
-		../mac/macstuff.h ../macosx/osx.h ../unix/unix.h \
-		../puttymem.h ../windows/winhelp.h ../charset/charset.h
+		../macosx/osx.h ../unix/unix.h ../puttymem.h \
+		../windows/winhelp.h ../charset/charset.h
 	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
 winprint.o: ../windows/winprint.c ../putty.h ../puttyps.h ../network.h \
-		../misc.h ../windows/winstuff.h ../mac/macstuff.h \
-		../macosx/osx.h ../unix/unix.h ../puttymem.h ../tree234.h \
+		../misc.h ../windows/winstuff.h ../macosx/osx.h \
+		../unix/unix.h ../puttymem.h ../tree234.h \
 		../windows/winhelp.h ../charset/charset.h
 	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
 winproxy.o: ../windows/winproxy.c ../tree234.h ../putty.h ../network.h \
 		../proxy.h ../puttyps.h ../misc.h ../windows/winstuff.h \
-		../mac/macstuff.h ../macosx/osx.h ../unix/unix.h \
-		../puttymem.h ../windows/winhelp.h ../charset/charset.h
+		../macosx/osx.h ../unix/unix.h ../puttymem.h \
+		../windows/winhelp.h ../charset/charset.h
 	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
 winser.o: ../windows/winser.c ../putty.h ../puttyps.h ../network.h ../misc.h \
-		../windows/winstuff.h ../mac/macstuff.h ../macosx/osx.h \
+		../windows/winstuff.h ../macosx/osx.h ../unix/unix.h \
+		../puttymem.h ../tree234.h ../windows/winhelp.h \
+		../charset/charset.h
+	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
+winsftp.o: ../windows/winsftp.c ../putty.h ../psftp.h ../ssh.h ../int64.h \
+		../puttyps.h ../network.h ../misc.h ../puttymem.h \
+		../tree234.h ../windows/winstuff.h ../macosx/osx.h \
+		../unix/unix.h ../windows/winhelp.h ../charset/charset.h
+	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
+winstore.o: ../windows/winstore.c ../putty.h ../storage.h ../puttyps.h \
+		../network.h ../misc.h ../windows/winstuff.h ../macosx/osx.h \
 		../unix/unix.h ../puttymem.h ../tree234.h \
 		../windows/winhelp.h ../charset/charset.h
 	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
-winsftp.o: ../windows/winsftp.c ../putty.h ../psftp.h ../int64.h \
-		../puttyps.h ../network.h ../misc.h ../windows/winstuff.h \
-		../mac/macstuff.h ../macosx/osx.h ../unix/unix.h \
-		../puttymem.h ../tree234.h ../windows/winhelp.h \
-		../charset/charset.h
-	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
-winstore.o: ../windows/winstore.c ../putty.h ../storage.h ../puttyps.h \
-		../network.h ../misc.h ../windows/winstuff.h \
-		../mac/macstuff.h ../macosx/osx.h ../unix/unix.h \
-		../puttymem.h ../tree234.h ../windows/winhelp.h \
-		../charset/charset.h
-	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
 wintime.o: ../windows/wintime.c ../putty.h ../puttyps.h ../network.h \
-		../misc.h ../windows/winstuff.h ../mac/macstuff.h \
-		../macosx/osx.h ../unix/unix.h ../puttymem.h ../tree234.h \
+		../misc.h ../windows/winstuff.h ../macosx/osx.h \
+		../unix/unix.h ../puttymem.h ../tree234.h \
 		../windows/winhelp.h ../charset/charset.h
 	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
 winucs.o: ../windows/winucs.c ../putty.h ../terminal.h ../misc.h \
 		../puttyps.h ../network.h ../tree234.h ../puttymem.h \
-		../windows/winstuff.h ../mac/macstuff.h ../macosx/osx.h \
-		../unix/unix.h ../windows/winhelp.h ../charset/charset.h
+		../windows/winstuff.h ../macosx/osx.h ../unix/unix.h \
+		../windows/winhelp.h ../charset/charset.h
 	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
 winutils.o: ../windows/winutils.c ../putty.h ../misc.h ../puttyps.h \
 		../network.h ../puttymem.h ../windows/winstuff.h \
-		../mac/macstuff.h ../macosx/osx.h ../unix/unix.h \
-		../tree234.h ../windows/winhelp.h ../charset/charset.h
+		../macosx/osx.h ../unix/unix.h ../tree234.h \
+		../windows/winhelp.h ../charset/charset.h
 	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
 winx11.o: ../windows/winx11.c ../putty.h ../ssh.h ../puttyps.h ../network.h \
-		../misc.h ../puttymem.h ../tree234.h ../int64.h ../pkcs11.h \
-		../windows/winstuff.h ../mac/macstuff.h ../macosx/osx.h \
-		../unix/unix.h ../windows/winhelp.h ../charset/charset.h
+		../misc.h ../puttymem.h ../tree234.h ../int64.h \
+		../windows/winstuff.h ../macosx/osx.h ../unix/unix.h \
+		../windows/winhelp.h ../charset/charset.h
 	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
 x11fwd.o: ../x11fwd.c ../putty.h ../ssh.h ../tree234.h ../puttyps.h \
-		../network.h ../misc.h ../puttymem.h ../int64.h ../pkcs11.h \
-		../windows/winstuff.h ../mac/macstuff.h ../macosx/osx.h \
-		../unix/unix.h ../windows/winhelp.h ../charset/charset.h
+		../network.h ../misc.h ../puttymem.h ../int64.h \
+		../windows/winstuff.h ../macosx/osx.h ../unix/unix.h \
+		../windows/winhelp.h ../charset/charset.h
 	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
 xenc.o: ../charset/xenc.c ../charset/charset.h ../charset/internal.h
 	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
@@ -913,3 +806,5 @@ xpmputty.o: ../unix/xpmputty.c
 clean:
 	rm -f *.o *.dmg plink pscp psftp puttygen
 	rm -rf *.app
+
+FORCE:

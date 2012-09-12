@@ -348,6 +348,59 @@ enum {
     SER_FLOW_NONE, SER_FLOW_XONXOFF, SER_FLOW_RTSCTS, SER_FLOW_DSRDTR
 };
 
+/*
+ * Tables of string <-> enum value mappings used in settings.c.
+ * Defined here so that backends can export their GSS library tables
+ * to the cross-platform settings code.
+ */
+struct keyvalwhere {
+    /*
+     * Two fields which define a string and enum value to be
+     * equivalent to each other.
+     */
+    char *s;
+    int v;
+
+    /*
+     * The next pair of fields are used by gprefs() in settings.c to
+     * arrange that when it reads a list of strings representing a
+     * preference list and translates it into the corresponding list
+     * of integers, strings not appearing in the list are entered in a
+     * configurable position rather than uniformly at the end.
+     */
+
+    /*
+     * 'vrel' indicates which other value in the list to place this
+     * element relative to. It should be a value that has occurred in
+     * a 'v' field of some other element of the array, or -1 to
+     * indicate that we simply place relative to one or other end of
+     * the list.
+     *
+     * gprefs will try to process the elements in an order which makes
+     * this field work (i.e. so that the element referenced has been
+     * added before processing this one).
+     */
+    int vrel;
+
+    /*
+     * 'where' indicates whether to place the new value before or
+     * after the one referred to by vrel. -1 means before; +1 means
+     * after.
+     *
+     * When vrel is -1, this also implicitly indicates which end of
+     * the array to use. So vrel=-1, where=-1 means to place _before_
+     * some end of the list (hence, at the last element); vrel=-1,
+     * where=+1 means to place _after_ an end (hence, at the first).
+     */
+    int where;
+};
+
+#ifndef NO_GSSAPI
+extern const int ngsslibs;
+extern const char *const gsslibnames[]; /* for displaying in configuration */
+extern const struct keyvalwhere gsslibkeywords[]; /* for settings.c */
+#endif
+
 extern const char *const ttymodes[];
 
 enum {
@@ -457,6 +510,7 @@ struct config_tag {
     int sshprot;		       /* use v1 or v2 when both available */
     int ssh2_des_cbc;		       /* "des-cbc" unrecommended SSH-2 cipher */
     int ssh_no_userauth;	       /* bypass "ssh-userauth" (SSH-2 only) */
+    int ssh_show_banner;	       /* show USERAUTH_BANNERs (SSH-2 only) */
     int try_tis_auth;
     int try_ki_auth;
     /* PuTTY SC start */
@@ -473,6 +527,8 @@ struct config_tag {
     /* PuTTY end start */
     int try_gssapi_auth;               /* attempt gssapi auth */
     int gssapifwd;                     /* forward tgt via gss */
+    int ssh_gsslist[4];		       /* preference order for local GSS libs */
+    Filename ssh_gss_custom;
     int ssh_subsys;		       /* run a subsystem rather than a command */
     int ssh_subsys2;		       /* fallback to go with remote_cmd_ptr2 */
     int ssh_no_shell;		       /* avoid running a shell */
@@ -604,7 +660,8 @@ struct config_tag {
     /* SSH bug compatibility modes */
     int sshbug_ignore1, sshbug_plainpw1, sshbug_rsa1,
 	sshbug_hmac2, sshbug_derivekey2, sshbug_rsapad2,
-	sshbug_pksessid2, sshbug_rekey2, sshbug_maxpkt2;
+	sshbug_pksessid2, sshbug_rekey2, sshbug_maxpkt2,
+	sshbug_ignore2;
     /*
      * ssh_simple means that we promise never to open any channel other
      * than the main one, which means it can safely use a very large
@@ -621,6 +678,7 @@ struct config_tag {
     FontSpec wideboldfont;
     int shadowboldoffset;
     int crhaslf;
+    char winclass[256];
 };
 
 /*
@@ -662,6 +720,10 @@ GLOBAL int default_port;
  * This is set TRUE by cmdline.c iff a session is loaded with "-load".
  */
 GLOBAL int loaded_session;
+/*
+ * This is set to the name of the loaded session.
+ */
+GLOBAL char *cmdline_session_name;
 
 struct RSAKey;			       /* be a little careful of scope */
 
@@ -837,6 +899,7 @@ void term_free(Terminal *);
 void term_size(Terminal *, int, int, int);
 void term_paint(Terminal *, Context, int, int, int, int, int);
 void term_scroll(Terminal *, int, int);
+void term_scroll_to_selection(Terminal *, int);
 void term_pwron(Terminal *, int);
 void term_clrsb(Terminal *);
 void term_mouse(Terminal *, Mouse_Button, Mouse_Button, Mouse_Action,
@@ -865,6 +928,8 @@ void term_set_focus(Terminal *term, int has_focus);
 char *term_get_ttymode(Terminal *term, const char *mode);
 int term_get_userpass_input(Terminal *term, prompts_t *p,
 			    unsigned char *in, int inlen);
+
+int format_arrow_key(char *buf, Terminal *term, int xkey, int ctrl);
 
 /*
  * Exports from logging.c.
@@ -1238,5 +1303,16 @@ long schedule_timer(int ticks, timer_fn_t fn, void *ctx);
 void expire_timer_context(void *ctx);
 int run_timers(long now, long *next);
 void timer_change_notify(long next);
+
+/*
+ * Define no-op macros for the jump list functions, on platforms that
+ * don't support them. (This is a bit of a hack, and it'd be nicer to
+ * localise even the calls to those functions into the Windows front
+ * end, but it'll do for the moment.)
+ */
+#ifndef JUMPLIST_SUPPORTED
+#define add_session_to_jumplist(x) ((void)0)
+#define remove_session_from_jumplist(x) ((void)0)
+#endif
 
 #endif

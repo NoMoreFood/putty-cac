@@ -34,6 +34,16 @@
 #define CAT(x,y) CAT2(x,y)
 #define ASSERT(x) enum {CAT(assertion_,__LINE__) = 1 / (x)}
 
+#if GTK_CHECK_VERSION(2,0,0)
+ASSERT(sizeof(long) <= sizeof(gsize));
+#define LONG_TO_GPOINTER(l) GSIZE_TO_POINTER(l)
+#define GPOINTER_TO_LONG(p) GPOINTER_TO_SIZE(p)
+#else /* Gtk 1.2 */
+ASSERT(sizeof(long) <= sizeof(gpointer));
+#define LONG_TO_GPOINTER(l) ((gpointer)(long)(l))
+#define GPOINTER_TO_LONG(p) ((long)(p))
+#endif
+
 /* Colours come in two flavours: configurable, and xterm-extended. */
 #define NCFGCOLOURS (lenof(((Config *)0)->colours))
 #define NEXTCOLOURS 240 /* 216 colour-cube plus 24 shades of grey */
@@ -167,14 +177,9 @@ int platform_default_i(const char *name, int def)
     return def;
 }
 
+/* Dummy routine, only required in plink. */
 void ldisc_update(void *frontend, int echo, int edit)
 {
-    /*
-     * This is a stub in pterm. If I ever produce a Unix
-     * command-line ssh/telnet/rlogin client (i.e. a port of plink)
-     * then it will require some termios manoeuvring analogous to
-     * that in the Windows plink.c, but here it's meaningless.
-     */
 }
 
 char *get_ttymode(void *frontend, const char *mode)
@@ -1057,19 +1062,8 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 	      case GDK_Begin: case GDK_KP_Begin: xkey = 'G'; break;
 	    }
 	    if (xkey) {
-		/*
-		 * The arrow keys normally do ESC [ A and so on. In
-		 * app cursor keys mode they do ESC O A instead.
-		 * Ctrl toggles the two modes.
-		 */
-		if (inst->term->vt52_mode) {
-		    end = 1 + sprintf(output+1, "\033%c", xkey);
-		} else if (!inst->term->app_cursor_keys ^
-			   !(event->state & GDK_CONTROL_MASK)) {
-		    end = 1 + sprintf(output+1, "\033O%c", xkey);
-		} else {		    
-		    end = 1 + sprintf(output+1, "\033[%c", xkey);
-		}
+		end = 1 + format_arrow_key(output+1, inst->term, xkey,
+					   event->state & GDK_CONTROL_MASK);
 		use_ucsoutput = FALSE;
 		goto done;
 	    }
@@ -1280,7 +1274,7 @@ static gint idle_exit_func(gpointer data)
             term_provide_resize_fn(inst->term, NULL, NULL);
 	    update_specials_menu(inst);
 	}
-	gtk_widget_show(inst->restartitem);
+	gtk_widget_set_sensitive(inst->restartitem, TRUE);
     }
 
     gtk_idle_remove(inst->term_exit_idle_id);
@@ -1296,14 +1290,14 @@ void notify_remote_exit(void *frontend)
 
 static gint timer_trigger(gpointer data)
 {
-    long now = GPOINTER_TO_INT(data);
+    long now = GPOINTER_TO_LONG(data);
     long next;
     long ticks;
 
     if (run_timers(now, &next)) {
 	ticks = next - GETTICKCOUNT();
 	timer_id = gtk_timeout_add(ticks > 0 ? ticks : 1, timer_trigger,
-				   GINT_TO_POINTER(next));
+				   LONG_TO_GPOINTER(next));
     }
 
     /*
@@ -1325,7 +1319,7 @@ void timer_change_notify(long next)
 	ticks = 1;		       /* just in case */
 
     timer_id = gtk_timeout_add(ticks, timer_trigger,
-			       GINT_TO_POINTER(next));
+			       LONG_TO_GPOINTER(next));
 }
 
 void fd_input_func(gpointer data, gint sourcefd, GdkInputCondition condition)
@@ -3204,6 +3198,7 @@ static void update_savedsess_menu(GtkMenuItem *menuitem, gpointer data)
 			  (GtkCallback)gtk_widget_destroy, NULL);
 
     get_sesslist(&sesslist, TRUE);
+    /* skip sesslist.sessions[0] == Default Settings */
     for (i = 1; i < sesslist.nsessions; i++) {
 	GtkWidget *menuitem =
 	    gtk_menu_item_new_with_label(sesslist.sessions[i]);
@@ -3217,6 +3212,13 @@ static void update_savedsess_menu(GtkMenuItem *menuitem, gpointer data)
 	gtk_signal_connect(GTK_OBJECT(menuitem), "destroy",
 			   GTK_SIGNAL_FUNC(saved_session_freedata),
 			   inst);
+    }
+    if (sesslist.nsessions <= 1) {
+	GtkWidget *menuitem =
+	    gtk_menu_item_new_with_label("(No sessions)");
+	gtk_widget_set_sensitive(menuitem, FALSE);
+	gtk_container_add(GTK_CONTAINER(inst->sessionsmenu), menuitem);
+	gtk_widget_show(menuitem);
     }
     get_sesslist(&sesslist, FALSE); /* free up */
 }
@@ -3357,7 +3359,7 @@ static void start_backend(struct gui_data *inst)
 	ldisc_create(&inst->cfg, inst->term, inst->back, inst->backhandle,
 		     inst);
 
-    gtk_widget_hide(inst->restartitem);
+    gtk_widget_set_sensitive(inst->restartitem, FALSE);
 }
 
 int pt_main(int argc, char **argv)
@@ -3428,6 +3430,9 @@ int pt_main(int argc, char **argv)
     init_cutbuffers();
 
     inst->window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
+    if (inst->cfg.winclass[0])
+        gtk_window_set_wmclass(GTK_WINDOW(inst->window),
+                               inst->cfg.winclass, inst->cfg.winclass);
 
     /*
      * Set up the colour map.
@@ -3535,20 +3540,34 @@ int pt_main(int argc, char **argv)
 
 	inst->menu = gtk_menu_new();
 
-#define MKMENUITEM(title, func) do { \
-    menuitem = title ? gtk_menu_item_new_with_label(title) : \
-    gtk_menu_item_new(); \
-    gtk_container_add(GTK_CONTAINER(inst->menu), menuitem); \
-    gtk_widget_show(menuitem); \
-    if (func != NULL) \
-	gtk_signal_connect(GTK_OBJECT(menuitem), "activate", \
-			       GTK_SIGNAL_FUNC(func), inst); \
-} while (0)
+#define MKMENUITEM(title, func) do                                      \
+        {                                                               \
+            menuitem = gtk_menu_item_new_with_label(title);             \
+            gtk_container_add(GTK_CONTAINER(inst->menu), menuitem);     \
+            gtk_widget_show(menuitem);                                  \
+            gtk_signal_connect(GTK_OBJECT(menuitem), "activate",        \
+                               GTK_SIGNAL_FUNC(func), inst);            \
+        } while (0)
+
+#define MKSUBMENU(title) do                                             \
+        {                                                               \
+            menuitem = gtk_menu_item_new_with_label(title);             \
+            gtk_container_add(GTK_CONTAINER(inst->menu), menuitem);     \
+            gtk_widget_show(menuitem);                                  \
+        } while (0)
+
+#define MKSEP() do                                                      \
+        {                                                               \
+            menuitem = gtk_menu_item_new();                             \
+            gtk_container_add(GTK_CONTAINER(inst->menu), menuitem);     \
+            gtk_widget_show(menuitem);                                  \
+        } while (0)
+
 	if (new_session)
-	    MKMENUITEM("New Session", new_session_menuitem);
+	    MKMENUITEM("New Session...", new_session_menuitem);
         MKMENUITEM("Restart Session", restart_session_menuitem);
 	inst->restartitem = menuitem;
-	gtk_widget_hide(inst->restartitem);
+	gtk_widget_set_sensitive(inst->restartitem, FALSE);
         MKMENUITEM("Duplicate Session", dup_session_menuitem);
 	if (saved_sessions) {
 	    inst->sessionsmenu = gtk_menu_new();
@@ -3558,27 +3577,29 @@ int pt_main(int argc, char **argv)
 	    gtk_menu_item_set_submenu(GTK_MENU_ITEM(menuitem),
 				      inst->sessionsmenu);
 	}
-	MKMENUITEM(NULL, NULL);
-        MKMENUITEM("Change Settings", change_settings_menuitem);
-	MKMENUITEM(NULL, NULL);
+	MKSEP();
+        MKMENUITEM("Change Settings...", change_settings_menuitem);
+	MKSEP();
 	if (use_event_log)
 	    MKMENUITEM("Event Log", event_log_menuitem);
-	MKMENUITEM("Special Commands", NULL);
+	MKSUBMENU("Special Commands");
 	inst->specialsmenu = gtk_menu_new();
 	gtk_menu_item_set_submenu(GTK_MENU_ITEM(menuitem), inst->specialsmenu);
 	inst->specialsitem1 = menuitem;
-	MKMENUITEM(NULL, NULL);
+	MKSEP();
 	inst->specialsitem2 = menuitem;
 	gtk_widget_hide(inst->specialsitem1);
 	gtk_widget_hide(inst->specialsitem2);
 	MKMENUITEM("Clear Scrollback", clear_scrollback_menuitem);
 	MKMENUITEM("Reset Terminal", reset_terminal_menuitem);
 	MKMENUITEM("Copy All", copy_all_menuitem);
-	MKMENUITEM(NULL, NULL);
+	MKSEP();
 	s = dupcat("About ", appname, NULL);
 	MKMENUITEM(s, about_menuitem);
 	sfree(s);
 #undef MKMENUITEM
+#undef MKSUBMENU
+#undef MKSEP
     }
 
     inst->textcursor = make_mouse_ptr(inst, GDK_XTERM);

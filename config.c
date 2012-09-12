@@ -67,7 +67,7 @@ static void config_port_handler(union control *ctrl, void *dlg,
     char buf[80];
 
     /*
-     * This function works just like the standard edit box handler,
+     * This function works similarly to the standard edit box handler,
      * only it has to choose the control's label and text from two
      * different places depending on the protocol.
      */
@@ -81,7 +81,11 @@ static void config_port_handler(union control *ctrl, void *dlg,
 	    sprintf(buf, "%d", cfg->serspeed);
 	} else {
 	    dlg_label_change(ctrl, dlg, PORT_BOX_TITLE);
-	    sprintf(buf, "%d", cfg->port);
+	    if (cfg->port != 0)
+		sprintf(buf, "%d", cfg->port);
+	    else
+		/* Display an (invalid) port of 0 as blank */
+		buf[0] = '\0';
 	}
 	dlg_editbox_set(ctrl, dlg, buf);
     } else if (event == EVENT_VALCHANGE) {
@@ -133,15 +137,16 @@ void config_protocolbuttons_handler(union control *ctrl, void *dlg,
 	    Backend *nb = backend_from_proto(cfg->protocol);
 	    assert(ob);
 	    assert(nb);
-	    /* Iff the user hasn't changed the port from the protocol
-	     * default (if any), update it with the new protocol's
-	     * default.
-	     * (XXX: this isn't perfect; a default can become permanent
-	     * by going via the serial backend. However, it helps with
-	     * the common case of tabbing through the controls in order
-	     * and setting a non-default port.) */
-	    if (cfg->port == ob->default_port &&
-		cfg->port > 0 && nb->default_port > 0)
+	    /* Iff the user hasn't changed the port from the old protocol's
+	     * default, update it with the new protocol's default.
+	     * (This includes a "default" of 0, implying that there is no
+	     * sensible default for that protocol; in this case it's
+	     * displayed as a blank.)
+	     * This helps with the common case of tabbing through the
+	     * controls in order and setting a non-default port before
+	     * getting to the protocol; we want that non-default port
+	     * to be preserved. */
+	    if (cfg->port == ob->default_port)
 		cfg->port = nb->default_port;
 	}
 	dlg_refresh(hp->host, dlg);
@@ -250,6 +255,33 @@ static void cipherlist_handler(union control *ctrl, void *dlg,
 
     }
 }
+
+#ifndef NO_GSSAPI
+static void gsslist_handler(union control *ctrl, void *dlg,
+			    void *data, int event)
+{
+    Config *cfg = (Config *)data;
+    if (event == EVENT_REFRESH) {
+	int i;
+
+	dlg_update_start(ctrl, dlg);
+	dlg_listbox_clear(ctrl, dlg);
+	for (i = 0; i < ngsslibs; i++) {
+	    int id = cfg->ssh_gsslist[i];
+	    assert(id >= 0 && id < ngsslibs);
+	    dlg_listbox_addwithid(ctrl, dlg, gsslibnames[id], id);
+	}
+	dlg_update_done(ctrl, dlg);
+
+    } else if (event == EVENT_VALCHANGE) {
+	int i;
+
+	/* Update array to match the list box. */
+	for (i=0; i < ngsslibs; i++)
+	    cfg->ssh_gsslist[i] = dlg_listbox_getid(ctrl, dlg, i);
+    }
+}
+#endif
 
 static void kexlist_handler(union control *ctrl, void *dlg,
 			    void *data, int event)
@@ -1350,19 +1382,25 @@ static void portfwd_handler(union control *ctrl, void *dlg,
 		*p = '\0';
 	    p = cfg->portfwd;
 	    while (*p) {
+		if (strcmp(p,str) == 0) {
+		    dlg_error_msg(dlg, "Specified forwarding already exists");
+		    break;
+		}
 		while (*p)
 		    p++;
 		p++;
 	    }
-	    if ((p - cfg->portfwd) + strlen(str) + 2 <=
-		sizeof(cfg->portfwd)) {
-		strcpy(p, str);
-		p[strlen(str) + 1] = '\0';
-		dlg_listbox_add(pfd->listbox, dlg, str);
-		dlg_editbox_set(pfd->sourcebox, dlg, "");
-		dlg_editbox_set(pfd->destbox, dlg, "");
-	    } else {
-		dlg_error_msg(dlg, "Too many forwardings");
+	    if (!*p) {
+		if ((p - cfg->portfwd) + strlen(str) + 2 <=
+		    sizeof(cfg->portfwd)) {
+		    strcpy(p, str);
+		    p[strlen(str) + 1] = '\0';
+		    dlg_listbox_add(pfd->listbox, dlg, str);
+		    dlg_editbox_set(pfd->sourcebox, dlg, "");
+		    dlg_editbox_set(pfd->destbox, dlg, "");
+		} else {
+		    dlg_error_msg(dlg, "Too many forwardings");
+		}
 	    }
 	} else if (ctrl == pfd->rembutton) {
 	    int i = dlg_listbox_index(pfd->listbox, dlg);
@@ -1509,7 +1547,7 @@ void setup_config_box(struct controlbox *b, int midsession,
 	    ctrl_radiobuttons(s, "Connection type:", NO_SHORTCUT, 3,
 			      HELPCTX(session_hostname),
 			      config_protocolbuttons_handler, P(hp),
-			      "Raw", 'r', I(PROT_RAW),
+			      "Raw", 'w', I(PROT_RAW),
 			      "Telnet", 't', I(PROT_TELNET),
 			      "Rlogin", 'i', I(PROT_RLOGIN),
 			      NULL);
@@ -1517,7 +1555,7 @@ void setup_config_box(struct controlbox *b, int midsession,
 	    ctrl_radiobuttons(s, "Connection type:", NO_SHORTCUT, 4,
 			      HELPCTX(session_hostname),
 			      config_protocolbuttons_handler, P(hp),
-			      "Raw", 'r', I(PROT_RAW),
+			      "Raw", 'w', I(PROT_RAW),
 			      "Telnet", 't', I(PROT_TELNET),
 			      "Rlogin", 'i', I(PROT_RLOGIN),
 			      "SSH", 's', I(PROT_SSH),
@@ -1575,7 +1613,7 @@ void setup_config_box(struct controlbox *b, int midsession,
     ctrl_columns(s, 1, 100);
 
     s = ctrl_getset(b, "Session", "otheropts", NULL);
-    c = ctrl_radiobuttons(s, "Close window on exit:", 'w', 4,
+    c = ctrl_radiobuttons(s, "Close window on exit:", 'x', 4,
 			  HELPCTX(session_coe),
 			  dlg_stdradiobutton_handler,
 			  I(offsetof(Config, close_on_exit)),
@@ -2098,7 +2136,8 @@ void setup_config_box(struct controlbox *b, int midsession,
 		/* We assume the local username is sufficiently stable
 		 * to include on the dialog box. */
 		char *user = get_username();
-		char *userlabel = dupprintf("Use system username (%s)", user);
+		char *userlabel = dupprintf("Use system username (%s)",
+					    user ? user : "");
 		sfree(user);
 		ctrl_radiobuttons(s, "When username is not specified:", 'n', 4,
 				  HELPCTX(connection_username_from_env),
@@ -2380,62 +2419,6 @@ void setup_config_box(struct controlbox *b, int midsession,
 		      HELPCTX(ssh_kex_repeat));
 	}
 
-	if (!midsession) {
-
-	    /*
-	     * The Connection/SSH/Auth panel.
-	     */
-	    ctrl_settitle(b, "Connection/SSH/Auth",
-			  "Options controlling SSH authentication");
-
-	    s = ctrl_getset(b, "Connection/SSH/Auth", "main", NULL);
-	    ctrl_checkbox(s, "Bypass authentication entirely (SSH-2 only)", 'b',
-			  HELPCTX(ssh_auth_bypass),
-			  dlg_stdcheckbox_handler,
-			  I(offsetof(Config,ssh_no_userauth)));
-
-	    s = ctrl_getset(b, "Connection/SSH/Auth", "methods",
-			    "Authentication methods");
-	    ctrl_checkbox(s, "Attempt authentication using Pageant", 'p',
-			  HELPCTX(ssh_auth_pageant),
-			  dlg_stdcheckbox_handler,
-			  I(offsetof(Config,tryagent)));
-	    ctrl_checkbox(s, "Attempt TIS or CryptoCard auth (SSH-1)", 'm',
-			  HELPCTX(ssh_auth_tis),
-			  dlg_stdcheckbox_handler,
-			  I(offsetof(Config,try_tis_auth)));
-	    ctrl_checkbox(s, "Attempt \"keyboard-interactive\" auth (SSH-2)",
-			  'i', HELPCTX(ssh_auth_ki),
-			  dlg_stdcheckbox_handler,
-			  I(offsetof(Config,try_ki_auth)));
-
-#ifndef NO_GSSAPI
-	    ctrl_checkbox(s, "Attempt GSSAPI auth (SSH-2)",
-			  NO_SHORTCUT, HELPCTX(no_help),
-			  dlg_stdcheckbox_handler,
-			  I(offsetof(Config,try_gssapi_auth)));
-#endif
-
-	    s = ctrl_getset(b, "Connection/SSH/Auth", "params",
-			    "Authentication parameters");
-	    ctrl_checkbox(s, "Allow agent forwarding", 'f',
-			  HELPCTX(ssh_auth_agentfwd),
-			  dlg_stdcheckbox_handler, I(offsetof(Config,agentfwd)));
-	    ctrl_checkbox(s, "Allow attempted changes of username in SSH-2", 'u',
-			  HELPCTX(ssh_auth_changeuser),
-			  dlg_stdcheckbox_handler,
-			  I(offsetof(Config,change_username)));
-#ifndef NO_GSSAPI
-	    ctrl_checkbox(s, "Allow GSSAPI credential delegation in SSH-2", NO_SHORTCUT,
-			  HELPCTX(no_help),
-			  dlg_stdcheckbox_handler,
-			  I(offsetof(Config,gssapifwd)));
-#endif
-	    ctrl_filesel(s, "Private key file for authentication:", 'k',
-			 FILTER_KEY_FILES, FALSE, "Select private key file",
-			 HELPCTX(ssh_auth_privkey),
-			 dlg_stdfilesel_handler, I(offsetof(Config, keyfile)));
-	}
 
 	if (!midsession) {
           /* PuTTY SC start */
@@ -2521,9 +2504,114 @@ void setup_config_box(struct controlbox *b, int midsession,
                         NO_SHORTCUT, 100, HELPCTX(ssh_auth_pkcs11_cert_label),
                         capi_keystring_handler, P(NULL), P(NULL));
 */
+
 #endif
+
 		/* PuTTY CAPI end */
 
+
+	    /*
+	     * The Connection/SSH/Auth panel.
+	     */
+	    ctrl_settitle(b, "Connection/SSH/Auth",
+			  "Options controlling SSH authentication");
+
+	    s = ctrl_getset(b, "Connection/SSH/Auth", "main", NULL);
+	    ctrl_checkbox(s, "Bypass authentication entirely (SSH-2 only)", 'b',
+			  HELPCTX(ssh_auth_bypass),
+			  dlg_stdcheckbox_handler,
+			  I(offsetof(Config,ssh_no_userauth)));
+	    ctrl_checkbox(s, "Display pre-authentication banner (SSH-2 only)",
+			  'd', HELPCTX(ssh_auth_banner),
+			  dlg_stdcheckbox_handler,
+			  I(offsetof(Config,ssh_show_banner)));
+
+	    s = ctrl_getset(b, "Connection/SSH/Auth", "methods",
+			    "Authentication methods");
+	    ctrl_checkbox(s, "Attempt authentication using Pageant", 'p',
+			  HELPCTX(ssh_auth_pageant),
+			  dlg_stdcheckbox_handler,
+			  I(offsetof(Config,tryagent)));
+	    ctrl_checkbox(s, "Attempt TIS or CryptoCard auth (SSH-1)", 'm',
+			  HELPCTX(ssh_auth_tis),
+			  dlg_stdcheckbox_handler,
+			  I(offsetof(Config,try_tis_auth)));
+	    ctrl_checkbox(s, "Attempt \"keyboard-interactive\" auth (SSH-2)",
+			  'i', HELPCTX(ssh_auth_ki),
+			  dlg_stdcheckbox_handler,
+			  I(offsetof(Config,try_ki_auth)));
+
+	    s = ctrl_getset(b, "Connection/SSH/Auth", "params",
+			    "Authentication parameters");
+	    ctrl_checkbox(s, "Allow agent forwarding", 'f',
+			  HELPCTX(ssh_auth_agentfwd),
+			  dlg_stdcheckbox_handler, I(offsetof(Config,agentfwd)));
+	    ctrl_checkbox(s, "Allow attempted changes of username in SSH-2", NO_SHORTCUT,
+			  HELPCTX(ssh_auth_changeuser),
+			  dlg_stdcheckbox_handler,
+			  I(offsetof(Config,change_username)));
+	    ctrl_filesel(s, "Private key file for authentication:", 'k',
+			 FILTER_KEY_FILES, FALSE, "Select private key file",
+			 HELPCTX(ssh_auth_privkey),
+			 dlg_stdfilesel_handler, I(offsetof(Config, keyfile)));
+
+#ifndef NO_GSSAPI
+	    /*
+	     * Connection/SSH/Auth/GSSAPI, which sadly won't fit on
+	     * the main Auth panel.
+	     */
+	    ctrl_settitle(b, "Connection/SSH/Auth/GSSAPI",
+			  "Options controlling GSSAPI authentication");
+	    s = ctrl_getset(b, "Connection/SSH/Auth/GSSAPI", "gssapi", NULL);
+
+	    ctrl_checkbox(s, "Attempt GSSAPI authentication (SSH-2 only)",
+			  't', HELPCTX(ssh_gssapi),
+			  dlg_stdcheckbox_handler,
+			  I(offsetof(Config,try_gssapi_auth)));
+
+	    ctrl_checkbox(s, "Allow GSSAPI credential delegation", 'l',
+			  HELPCTX(ssh_gssapi_delegation),
+			  dlg_stdcheckbox_handler,
+			  I(offsetof(Config,gssapifwd)));
+
+	    /*
+	     * GSSAPI library selection.
+	     */
+	    if (ngsslibs > 1) {
+		c = ctrl_draglist(s, "Preference order for GSSAPI libraries:",
+				  'p', HELPCTX(ssh_gssapi_libraries),
+				  gsslist_handler, P(NULL));
+		c->listbox.height = ngsslibs;
+
+		/*
+		 * I currently assume that if more than one GSS
+		 * library option is available, then one of them is
+		 * 'user-supplied' and so we should present the
+		 * following file selector. This is at least half-
+		 * reasonable, because if we're using statically
+		 * linked GSSAPI then there will only be one option
+		 * and no way to load from a user-supplied library,
+		 * whereas if we're using dynamic libraries then
+		 * there will almost certainly be some default
+		 * option in addition to a user-supplied path. If
+		 * anyone ever ports PuTTY to a system on which
+		 * dynamic-library GSSAPI is available but there is
+		 * absolutely no consensus on where to keep the
+		 * libraries, there'll need to be a flag alongside
+		 * ngsslibs to control whether the file selector is
+		 * displayed. 
+		 */
+
+		ctrl_filesel(s, "User-supplied GSSAPI library path:", 's',
+			     FILTER_DYNLIB_FILES, FALSE, "Select library file",
+			     HELPCTX(ssh_gssapi_libraries),
+			     dlg_stdfilesel_handler,
+			     I(offsetof(Config, ssh_gss_custom)));
+	    }
+#endif
+	}
+
+	if (!midsession) {
 	    /*
 	     * The Connection/SSH/TTY panel.
 	     */
@@ -2702,6 +2790,9 @@ void setup_config_box(struct controlbox *b, int midsession,
 	    ctrl_droplist(s, "Chokes on SSH-1 RSA authentication", 'r', 20,
 			  HELPCTX(ssh_bugs_rsa1),
 			  sshbug_handler, I(offsetof(Config,sshbug_rsa1)));
+	    ctrl_droplist(s, "Chokes on SSH-2 ignore messages", '2', 20,
+			  HELPCTX(ssh_bugs_ignore2),
+			  sshbug_handler, I(offsetof(Config,sshbug_ignore2)));
 	    ctrl_droplist(s, "Miscomputes SSH-2 HMAC keys", 'm', 20,
 			  HELPCTX(ssh_bugs_hmac2),
 			  sshbug_handler, I(offsetof(Config,sshbug_hmac2)));

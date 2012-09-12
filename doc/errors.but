@@ -1,4 +1,4 @@
-\define{versioniderrors} \versionid $Id: errors.but 8194 2008-09-25 19:00:42Z jacob $
+\define{versioniderrors} \versionid $Id: errors.but 8897 2010-03-13 14:47:14Z jacob $
 
 \C{errors} Common \i{error messages}
 
@@ -68,6 +68,9 @@ and this buffer becomes full, you will see this error message.
 We need to fix this (fixed-size buffers are almost always a mistake)
 but we haven't got round to it. If you actually have trouble with
 this, let us know and we'll move it up our priority list.
+
+If you're running into this limit, you may want to consider using
+dynamic port forwarding instead; see \k{using-port-forwarding}.
 
 \H{errors-cipher-warning} \q{The first cipher supported by the server is
 ... below the configured warning threshold}

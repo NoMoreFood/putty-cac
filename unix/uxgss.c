@@ -1,196 +1,168 @@
-#ifndef NO_GSSAPI
-
-#include <string.h>
-#include <gssapi/gssapi.h>
 #include "putty.h"
+#ifndef NO_GSSAPI
+#include "pgssapi.h"
 #include "sshgss.h"
-#include "misc.h"
+#include "sshgssc.h"
 
-static gss_OID_desc putty_gss_mech_krb5_desc =
-    { 9, (void *)"\x2a\x86\x48\x86\xf7\x12\x01\x02\x02" };
-static gss_OID const putty_gss_mech_krb5 = &putty_gss_mech_krb5_desc;
+/* Unix code to set up the GSSAPI library list. */
 
-typedef struct uxSsh_gss_ctx {
-    OM_uint32 maj_stat;
-    OM_uint32 min_stat;
-    gss_ctx_id_t ctx;
-} uxSsh_gss_ctx;
+#if !defined NO_LIBDL && !defined NO_GSSAPI
 
-int ssh_gss_init(void)
+const int ngsslibs = 4;
+const char *const gsslibnames[4] = {
+    "libgssapi (Heimdal)",
+    "libgssapi_krb5 (MIT Kerberos)",
+    "libgss (Sun)",
+    "User-specified GSSAPI library",
+};
+const struct keyvalwhere gsslibkeywords[] = {
+    { "libgssapi", 0, -1, -1 },
+    { "libgssapi_krb5", 1, -1, -1 },
+    { "libgss", 2, -1, -1 },
+    { "custom", 3, -1, -1 },
+};
+
+/*
+ * Run-time binding against a choice of GSSAPI implementations. We
+ * try loading several libraries, and produce an entry in
+ * ssh_gss_libraries[] for each one.
+ */
+
+static void gss_init(struct ssh_gss_library *lib, void *dlhandle,
+		     int id, const char *msg)
 {
-    /* On Windows this tries to load the SSPI library functions.  On
-       Unix we assume we have GSSAPI at runtime if we were linked with
-       it at compile time */
-    return 1;
+    lib->id = id;
+    lib->gsslogmsg = msg;
+    lib->handle = dlhandle;
+
+#define BIND_GSS_FN(name) \
+    lib->u.gssapi.name = (t_gss_##name) dlsym(dlhandle, "gss_" #name)
+
+    BIND_GSS_FN(delete_sec_context);
+    BIND_GSS_FN(display_status);
+    BIND_GSS_FN(get_mic);
+    BIND_GSS_FN(import_name);
+    BIND_GSS_FN(init_sec_context);
+    BIND_GSS_FN(release_buffer);
+    BIND_GSS_FN(release_cred);
+    BIND_GSS_FN(release_name);
+
+#undef BIND_GSS_FN
+
+    ssh_gssapi_bind_fns(lib);
 }
 
-Ssh_gss_stat ssh_gss_indicate_mech(Ssh_gss_buf *mech)
+/* Dynamically load gssapi libs. */
+struct ssh_gss_liblist *ssh_gss_setup(const Config *cfg)
 {
-    /* Copy constant into mech */
-    mech->length  = putty_gss_mech_krb5->length;
-    mech->value = putty_gss_mech_krb5->elements;
+    void *gsslib;
+    struct ssh_gss_liblist *list = snew(struct ssh_gss_liblist);
 
-    return SSH_GSS_OK;
+    list->libraries = snewn(4, struct ssh_gss_library);
+    list->nlibraries = 0;
+
+    /* Heimdal's GSSAPI Library */
+    if ((gsslib = dlopen("libgssapi.so.2", RTLD_LAZY)) != NULL)
+	gss_init(&list->libraries[list->nlibraries++], gsslib,
+		 0, "Using GSSAPI from libgssapi.so.2");
+
+    /* MIT Kerberos's GSSAPI Library */
+    if ((gsslib = dlopen("libgssapi_krb5.so.2", RTLD_LAZY)) != NULL)
+	gss_init(&list->libraries[list->nlibraries++], gsslib,
+		 1, "Using GSSAPI from libgssapi_krb5.so.2");
+
+    /* Sun's GSSAPI Library */
+    if ((gsslib = dlopen("libgss.so.1", RTLD_LAZY)) != NULL)
+	gss_init(&list->libraries[list->nlibraries++], gsslib,
+		 2, "Using GSSAPI from libgss.so.1");
+
+    /* User-specified GSSAPI library */
+    if (cfg->ssh_gss_custom.path[0] &&
+	(gsslib = dlopen(cfg->ssh_gss_custom.path, RTLD_LAZY)) != NULL)
+	gss_init(&list->libraries[list->nlibraries++], gsslib,
+		 3, dupprintf("Using GSSAPI from user-specified"
+			      " library '%s'", cfg->ssh_gss_custom.path));
+
+    return list;
 }
 
-Ssh_gss_stat ssh_gss_import_name(char *host,
-                                 Ssh_gss_name *srv_name)
+void ssh_gss_cleanup(struct ssh_gss_liblist *list)
 {
-    OM_uint32 min_stat,maj_stat;
-    gss_buffer_desc host_buf;
-    char *pStr;
+    int i;
 
-    pStr = dupcat("host@", host, NULL);
-
-    host_buf.value = pStr;
-    host_buf.length = strlen(pStr);
-
-    maj_stat = gss_import_name(&min_stat, &host_buf,
-			       GSS_C_NT_HOSTBASED_SERVICE, srv_name);
-    /* Release buffer */
-    sfree(pStr);
-    if (maj_stat == GSS_S_COMPLETE) return SSH_GSS_OK;
-    return SSH_GSS_FAILURE;
-}
-
-Ssh_gss_stat ssh_gss_acquire_cred(Ssh_gss_ctx *ctx)
-{
-    uxSsh_gss_ctx *uxctx = snew(uxSsh_gss_ctx);
-
-    uxctx->maj_stat =  uxctx->min_stat = GSS_S_COMPLETE;
-    uxctx->ctx = GSS_C_NO_CONTEXT;
-    *ctx = (Ssh_gss_ctx) uxctx;
-
-    return SSH_GSS_OK;
-}
-
-Ssh_gss_stat ssh_gss_init_sec_context(Ssh_gss_ctx *ctx,
-                                      Ssh_gss_name srv_name,
-                                      int to_deleg,
-				      Ssh_gss_buf *recv_tok,
-				      Ssh_gss_buf *send_tok)
-{
-    uxSsh_gss_ctx *uxctx = (uxSsh_gss_ctx*) *ctx;
-    OM_uint32 ret_flags;
-
-    if (to_deleg) to_deleg = GSS_C_DELEG_FLAG;
-    uxctx->maj_stat = gss_init_sec_context(&uxctx->min_stat,
-					   GSS_C_NO_CREDENTIAL,
-					   &uxctx->ctx,
-					   srv_name,
-					   (gss_OID) putty_gss_mech_krb5,
-					   GSS_C_MUTUAL_FLAG |
-					   GSS_C_INTEG_FLAG | to_deleg,
-					   0,
-					   GSS_C_NO_CHANNEL_BINDINGS,
-					   recv_tok,
-					   NULL,   /* ignore mech type */
-					   send_tok,
-					   &ret_flags,
-					   NULL);  /* ignore time_rec */
-  
-    if (uxctx->maj_stat == GSS_S_COMPLETE) return SSH_GSS_S_COMPLETE;
-    if (uxctx->maj_stat == GSS_S_CONTINUE_NEEDED) return SSH_GSS_S_CONTINUE_NEEDED;
-    return SSH_GSS_FAILURE;
-}
-
-Ssh_gss_stat ssh_gss_display_status(Ssh_gss_ctx ctx, Ssh_gss_buf *buf)
-{
-    uxSsh_gss_ctx *uxctx = (uxSsh_gss_ctx *) ctx;
-    OM_uint32 lmin,lmax;
-    OM_uint32 ccc;
-    gss_buffer_desc msg_maj=GSS_C_EMPTY_BUFFER;
-    gss_buffer_desc msg_min=GSS_C_EMPTY_BUFFER;
-
-    /* Return empty buffer in case of failure */
-    SSH_GSS_CLEAR_BUF(buf);
-
-    /* get first mesg from GSS */
-    ccc=0;
-    lmax=gss_display_status(&lmin,uxctx->maj_stat,GSS_C_GSS_CODE,(gss_OID) putty_gss_mech_krb5,&ccc,&msg_maj);
-
-    if (lmax != GSS_S_COMPLETE) return SSH_GSS_FAILURE;
-
-    /* get first mesg from Kerberos */
-    ccc=0;
-    lmax=gss_display_status(&lmin,uxctx->min_stat,GSS_C_MECH_CODE,(gss_OID) putty_gss_mech_krb5,&ccc,&msg_min);
-
-    if (lmax != GSS_S_COMPLETE) {
-	gss_release_buffer(&lmin, &msg_maj);
-	return SSH_GSS_FAILURE;
+    /*
+     * dlopen and dlclose are defined to employ reference counting
+     * in the case where the same library is repeatedly dlopened, so
+     * even in a multiple-sessions-per-process context it's safe to
+     * naively dlclose everything here without worrying about
+     * destroying it under the feet of another SSH instance still
+     * using it.
+     */
+    for (i = 0; i < list->nlibraries; i++) {
+	dlclose(list->libraries[i].handle);
+	if (list->libraries[i].id == 3) {
+	    /* The 'custom' id involves a dynamically allocated message.
+	     * Note that we must cast away the 'const' to free it. */
+	    sfree((char *)list->libraries[i].gsslogmsg);
+	}
     }
-
-    /* copy data into buffer */
-    buf->length = msg_maj.length + msg_min.length + 1;
-    buf->value = snewn(buf->length + 1, char);
-  
-    /* copy mem */
-    memcpy((char *)buf->value, msg_maj.value, msg_maj.length);
-    ((char *)buf->value)[msg_maj.length] = ' ';
-    memcpy((char *)buf->value + msg_maj.length + 1, msg_min.value, msg_min.length);
-    ((char *)buf->value)[buf->length] = 0;
-    /* free mem & exit */
-    gss_release_buffer(&lmin, &msg_maj);
-    gss_release_buffer(&lmin, &msg_min);
-    return SSH_GSS_OK;
+    sfree(list->libraries);
+    sfree(list);
 }
 
-Ssh_gss_stat ssh_gss_free_tok(Ssh_gss_buf *send_tok)
+#elif !defined NO_GSSAPI
+
+const int ngsslibs = 1;
+const char *const gsslibnames[1] = {
+    "static",
+};
+const struct keyvalwhere gsslibkeywords[] = {
+    { "static", 0, -1, -1 },
+};
+
+/*
+ * Link-time binding against GSSAPI. Here we just construct a single
+ * library structure containing pointers to the functions we linked
+ * against.
+ */
+
+#include <gssapi/gssapi.h>
+
+/* Dynamically load gssapi libs. */
+struct ssh_gss_liblist *ssh_gss_setup(const Config *cfg)
 {
-    OM_uint32 min_stat,maj_stat;
-    maj_stat = gss_release_buffer(&min_stat, send_tok);
-  
-    if (maj_stat == GSS_S_COMPLETE) return SSH_GSS_OK;
-    return SSH_GSS_FAILURE;
+    struct ssh_gss_liblist *list = snew(struct ssh_gss_liblist);
+
+    list->libraries = snew(struct ssh_gss_library);
+    list->nlibraries = 1;
+
+    list->libraries[0].gsslogmsg = "Using statically linked GSSAPI";
+
+#define BIND_GSS_FN(name) \
+    list->libraries[0].u.gssapi.name = (t_gss_##name) gss_##name
+
+    BIND_GSS_FN(delete_sec_context);
+    BIND_GSS_FN(display_status);
+    BIND_GSS_FN(get_mic);
+    BIND_GSS_FN(import_name);
+    BIND_GSS_FN(init_sec_context);
+    BIND_GSS_FN(release_buffer);
+    BIND_GSS_FN(release_cred);
+    BIND_GSS_FN(release_name);
+
+#undef BIND_GSS_FN
+
+    ssh_gssapi_bind_fns(&list->libraries[0]);
+
+    return list;
 }
 
-Ssh_gss_stat ssh_gss_release_cred(Ssh_gss_ctx *ctx)
+void ssh_gss_cleanup(struct ssh_gss_liblist *list)
 {
-    uxSsh_gss_ctx *uxctx = (uxSsh_gss_ctx *) *ctx;
-    OM_uint32 min_stat;
-    OM_uint32 maj_stat=GSS_S_COMPLETE;
-  
-    if (uxctx == NULL) return SSH_GSS_FAILURE;
-    if (uxctx->ctx != GSS_C_NO_CONTEXT)
-	maj_stat = gss_delete_sec_context(&min_stat,&uxctx->ctx,GSS_C_NO_BUFFER);
-    sfree(uxctx);
-  
-    if (maj_stat == GSS_S_COMPLETE) return SSH_GSS_OK;
-    return SSH_GSS_FAILURE;
+    sfree(list->libraries);
+    sfree(list);
 }
 
+#endif /* NO_LIBDL */
 
-Ssh_gss_stat ssh_gss_release_name(Ssh_gss_name *srv_name)
-{
-    OM_uint32 min_stat,maj_stat;
-    maj_stat = gss_release_name(&min_stat, srv_name);
-  
-    if (maj_stat == GSS_S_COMPLETE) return SSH_GSS_OK;
-    return SSH_GSS_FAILURE;
-}
-
-Ssh_gss_stat ssh_gss_get_mic(Ssh_gss_ctx ctx, Ssh_gss_buf *buf,
-			     Ssh_gss_buf *hash) 
-{
-    uxSsh_gss_ctx *uxctx = (uxSsh_gss_ctx *) ctx;
-    if (uxctx == NULL) return SSH_GSS_FAILURE;
-    return gss_get_mic(&(uxctx->min_stat), uxctx->ctx, 0, buf, hash);
-}
-
-Ssh_gss_stat ssh_gss_free_mic(Ssh_gss_buf *hash)
-{
-    /* On Unix this is the same freeing process as ssh_gss_free_tok. */
-    return ssh_gss_free_tok(hash);
-}
-
-#else
-
-/* Dummy function so this source file defines something if NO_GSSAPI
-   is defined. */
-
-int ssh_gss_init(void)
-{
-    return 1;
-}
-
-#endif
+#endif /* NO_GSSAPI */

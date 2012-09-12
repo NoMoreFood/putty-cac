@@ -11,18 +11,25 @@ AC_CONFIG_HEADERS([uxconfig.h:uxconfig.in])
 AC_PROG_INSTALL
 AC_PROG_CC
 if test "X$GCC" = Xyes; then
-    CFLAGS="$CFLAGS -Wall -Werror"
+    PUTTYCFLAGS="-Wall -Werror"
+else
+    PUTTYCFLAGS=""
 fi
+AC_SUBST(PUTTYCFLAGS)
 
-AC_ARG_WITH(gssapi,
-[  --without-gssapi        disable GSS-API support])
+AC_ARG_WITH([gssapi],
+  [AS_HELP_STRING([--without-gssapi],
+                  [disable GSSAPI support])],
+  [],
+  [with_gssapi=yes])
+
+WITH_GSSAPI=
+AS_IF([test "x$with_gssapi" != xno],
+  [AC_DEFINE([WITH_GSSAPI], [1], [Define if building with GSSAPI support.])])
 
 AC_CHECK_HEADERS([utmpx.h sys/select.h],,,[
 #include <sys/types.h>
 #include <utmp.h>])
-if test "$with_gssapi" != "no"; then
-  AC_CHECK_HEADERS([gssapi/gssapi.h])
-fi
 
 # Look for both GTK 1 and GTK 2.
 AM_PATH_GTK([1.2.0], [gtk=1], [gtk=none])
@@ -44,9 +51,19 @@ fi
 AC_SUBST([all_targets])
 
 AC_SEARCH_LIBS([socket], [xnet])
-if test "$with_gssapi" != "no"; then
-  AC_SEARCH_LIBS([gss_init_sec_context], [gss gssapi gssapi_krb5])
-fi
+
+AS_IF([test "x$with_gssapi" != xno],
+  [AC_SEARCH_LIBS(
+    [dlopen],[dl],
+    [],
+    [AC_DEFINE([NO_LIBDL], [1], [Define if we could not find libdl.])
+     AC_CHECK_HEADERS([gssapi/gssapi.h])
+     AC_SEARCH_LIBS(
+       [gss_init_sec_context],[gssapi gssapi_krb5 gss],
+       [],
+       [AC_DEFINE([NO_GSSAPI_LIB], [1], [Define if we could not find a gssapi library])])])])
+
+AC_CHECK_LIB(X11, XOpenDisplay)
 
 AC_CHECK_FUNCS([getaddrinfo ptsname setresuid strsignal updwtmpx])
 
@@ -79,7 +96,12 @@ AH_BOTTOM([
 #ifndef HAVE_PANGO_FONT_MAP_LIST_FAMILIES
 # define PANGO_PRE_1POINT6
 #endif
-#ifndef HAVE_GSSAPI_GSSAPI_H
+#if !defined(WITH_GSSAPI)
 # define NO_GSSAPI
+#endif
+#if !defined(NO_GSSAPI) && defined(NO_LIBDL)
+# if !defined(HAVE_GSSAPI_GSSAPI_H) || defined(NO_GSSAPI_LIB)
+#  define NO_GSSAPI
+# endif
 #endif
 ])

@@ -2,45 +2,52 @@
 
 #include "putty.h"
 
-#define SECURITY_WIN32
 #include <security.h>
 
+#include "pgssapi.h"
 #include "sshgss.h"
+#include "sshgssc.h"
+
 #include "misc.h"
 
-#define NOTHING
-#define DECL_SSPI_FUNCTION(linkage, rettype, name, params)	\
-  typedef rettype (WINAPI *t_##name) params;			\
-  linkage t_##name p_##name
-#define GET_SSPI_FUNCTION(module, name)					\
-  p_##name = module ? (t_##name) GetProcAddress(module, #name) : NULL
+/* Windows code to set up the GSSAPI library list. */
 
-DECL_SSPI_FUNCTION(static, SECURITY_STATUS,
-		   AcquireCredentialsHandleA,
-		   (SEC_CHAR *, SEC_CHAR *, ULONG, PLUID,
-		    PVOID, SEC_GET_KEY_FN, PVOID, PCredHandle, PTimeStamp));
-DECL_SSPI_FUNCTION(static, SECURITY_STATUS,
-		   InitializeSecurityContextA,
-		   (PCredHandle, PCtxtHandle, SEC_CHAR *, ULONG, ULONG,
-		   ULONG, PSecBufferDesc, ULONG, PCtxtHandle,
-		    PSecBufferDesc, PULONG, PTimeStamp));
-DECL_SSPI_FUNCTION(static, SECURITY_STATUS,
-		   FreeContextBuffer,
-		   (PVOID));
-DECL_SSPI_FUNCTION(static, SECURITY_STATUS,
-		   FreeCredentialsHandle,
-		   (PCredHandle));
-DECL_SSPI_FUNCTION(static, SECURITY_STATUS,
-		   DeleteSecurityContext,
-		   (PCtxtHandle));
-DECL_SSPI_FUNCTION(static, SECURITY_STATUS,
-		   QueryContextAttributesA,
-		   (PCtxtHandle, ULONG, PVOID));
-DECL_SSPI_FUNCTION(static, SECURITY_STATUS,
-		   MakeSignature,
-		   (PCtxtHandle, ULONG, PSecBufferDesc, ULONG));
+const int ngsslibs = 3;
+const char *const gsslibnames[3] = {
+    "MIT Kerberos GSSAPI32.DLL",
+    "Microsoft SSPI SECUR32.DLL",
+    "User-specified GSSAPI DLL",
+};
+const struct keyvalwhere gsslibkeywords[] = {
+    { "gssapi32", 0, -1, -1 },
+    { "sspi", 1, -1, -1 },
+    { "custom", 2, -1, -1 },
+};
 
-static HMODULE security_module = NULL;
+DECL_WINDOWS_FUNCTION(static, SECURITY_STATUS,
+		      AcquireCredentialsHandleA,
+		      (SEC_CHAR *, SEC_CHAR *, ULONG, PLUID,
+		       PVOID, SEC_GET_KEY_FN, PVOID, PCredHandle, PTimeStamp));
+DECL_WINDOWS_FUNCTION(static, SECURITY_STATUS,
+		      InitializeSecurityContextA,
+		      (PCredHandle, PCtxtHandle, SEC_CHAR *, ULONG, ULONG,
+		       ULONG, PSecBufferDesc, ULONG, PCtxtHandle,
+		       PSecBufferDesc, PULONG, PTimeStamp));
+DECL_WINDOWS_FUNCTION(static, SECURITY_STATUS,
+		      FreeContextBuffer,
+		      (PVOID));
+DECL_WINDOWS_FUNCTION(static, SECURITY_STATUS,
+		      FreeCredentialsHandle,
+		      (PCredHandle));
+DECL_WINDOWS_FUNCTION(static, SECURITY_STATUS,
+		      DeleteSecurityContext,
+		      (PCtxtHandle));
+DECL_WINDOWS_FUNCTION(static, SECURITY_STATUS,
+		      QueryContextAttributesA,
+		      (PCtxtHandle, ULONG, PVOID));
+DECL_WINDOWS_FUNCTION(static, SECURITY_STATUS,
+		      MakeSignature,
+		      (PCtxtHandle, ULONG, PSecBufferDesc, ULONG));
 
 typedef struct winSsh_gss_ctx {
     unsigned long maj_stat;
@@ -54,33 +61,161 @@ typedef struct winSsh_gss_ctx {
 
 const Ssh_gss_buf gss_mech_krb5={9,"\x2A\x86\x48\x86\xF7\x12\x01\x02\x02"};
 
-int ssh_gss_init(void)
-{
-    if (security_module)
-	return 1;		       /* already initialised */
+const char *gsslogmsg = NULL;
 
-    security_module = LoadLibrary("secur32.dll");
-    if (security_module) {
-	GET_SSPI_FUNCTION(security_module, AcquireCredentialsHandleA);
-	GET_SSPI_FUNCTION(security_module, InitializeSecurityContextA);
-	GET_SSPI_FUNCTION(security_module, FreeContextBuffer);
-	GET_SSPI_FUNCTION(security_module, FreeCredentialsHandle);
-	GET_SSPI_FUNCTION(security_module, DeleteSecurityContext);
-	GET_SSPI_FUNCTION(security_module, QueryContextAttributesA);
-	GET_SSPI_FUNCTION(security_module, MakeSignature);
-	return 1;
+static void ssh_sspi_bind_fns(struct ssh_gss_library *lib);
+
+struct ssh_gss_liblist *ssh_gss_setup(const Config *cfg)
+{
+    HMODULE module;
+    HKEY regkey;
+    struct ssh_gss_liblist *list = snew(struct ssh_gss_liblist);
+
+    list->libraries = snewn(3, struct ssh_gss_library);
+    list->nlibraries = 0;
+
+    /* MIT Kerberos GSSAPI implementation */
+    /* TODO: For 64-bit builds, check for gssapi64.dll */
+    module = NULL;
+    if (RegOpenKey(HKEY_LOCAL_MACHINE, "SOFTWARE\\MIT\\Kerberos", &regkey)
+	== ERROR_SUCCESS) {
+	DWORD type, size;
+	LONG ret;
+	char *buffer;
+
+	/* Find out the string length */
+        ret = RegQueryValueEx(regkey, "InstallDir", NULL, &type, NULL, &size);
+
+	if (ret == ERROR_SUCCESS && type == REG_SZ) {
+	    buffer = snewn(size + 20, char);
+	    ret = RegQueryValueEx(regkey, "InstallDir", NULL,
+				  &type, buffer, &size);
+	    if (ret == ERROR_SUCCESS && type == REG_SZ) {
+		strcat(buffer, "\\bin\\gssapi32.dll");
+		module = LoadLibrary(buffer);
+	    }
+	    sfree(buffer);
+	}
+	RegCloseKey(regkey);
     }
-    return 0;
+    if (module) {
+	struct ssh_gss_library *lib =
+	    &list->libraries[list->nlibraries++];
+
+	lib->id = 0;
+	lib->gsslogmsg = "Using GSSAPI from GSSAPI32.DLL";
+	lib->handle = (void *)module;
+
+#define BIND_GSS_FN(name) \
+    lib->u.gssapi.name = (t_gss_##name) GetProcAddress(module, "gss_" #name)
+
+        BIND_GSS_FN(delete_sec_context);
+        BIND_GSS_FN(display_status);
+        BIND_GSS_FN(get_mic);
+        BIND_GSS_FN(import_name);
+        BIND_GSS_FN(init_sec_context);
+        BIND_GSS_FN(release_buffer);
+        BIND_GSS_FN(release_cred);
+        BIND_GSS_FN(release_name);
+
+#undef BIND_GSS_FN
+
+        ssh_gssapi_bind_fns(lib);
+    }
+
+    /* Microsoft SSPI Implementation */
+    module = load_system32_dll("secur32.dll");
+    if (module) {
+	struct ssh_gss_library *lib =
+	    &list->libraries[list->nlibraries++];
+
+	lib->id = 1;
+	lib->gsslogmsg = "Using SSPI from SECUR32.DLL";
+	lib->handle = (void *)module;
+
+	GET_WINDOWS_FUNCTION(module, AcquireCredentialsHandleA);
+	GET_WINDOWS_FUNCTION(module, InitializeSecurityContextA);
+	GET_WINDOWS_FUNCTION(module, FreeContextBuffer);
+	GET_WINDOWS_FUNCTION(module, FreeCredentialsHandle);
+	GET_WINDOWS_FUNCTION(module, DeleteSecurityContext);
+	GET_WINDOWS_FUNCTION(module, QueryContextAttributesA);
+	GET_WINDOWS_FUNCTION(module, MakeSignature);
+
+	ssh_sspi_bind_fns(lib);
+    }
+
+    /*
+     * Custom GSSAPI DLL.
+     */
+    module = NULL;
+    if (cfg->ssh_gss_custom.path[0]) {
+	module = LoadLibrary(cfg->ssh_gss_custom.path);
+    }
+    if (module) {
+	struct ssh_gss_library *lib =
+	    &list->libraries[list->nlibraries++];
+
+	lib->id = 2;
+	lib->gsslogmsg = dupprintf("Using GSSAPI from user-specified"
+				   " library '%s'", cfg->ssh_gss_custom.path);
+	lib->handle = (void *)module;
+
+#define BIND_GSS_FN(name) \
+    lib->u.gssapi.name = (t_gss_##name) GetProcAddress(module, "gss_" #name)
+
+        BIND_GSS_FN(delete_sec_context);
+        BIND_GSS_FN(display_status);
+        BIND_GSS_FN(get_mic);
+        BIND_GSS_FN(import_name);
+        BIND_GSS_FN(init_sec_context);
+        BIND_GSS_FN(release_buffer);
+        BIND_GSS_FN(release_cred);
+        BIND_GSS_FN(release_name);
+
+#undef BIND_GSS_FN
+
+        ssh_gssapi_bind_fns(lib);
+    }
+
+
+    return list;
 }
 
-Ssh_gss_stat ssh_gss_indicate_mech(Ssh_gss_buf *mech)
+void ssh_gss_cleanup(struct ssh_gss_liblist *list)
+{
+    int i;
+
+    /*
+     * LoadLibrary and FreeLibrary are defined to employ reference
+     * counting in the case where the same library is repeatedly
+     * loaded, so even in a multiple-sessions-per-process context
+     * (not that we currently expect ever to have such a thing on
+     * Windows) it's safe to naively FreeLibrary everything here
+     * without worrying about destroying it under the feet of
+     * another SSH instance still using it.
+     */
+    for (i = 0; i < list->nlibraries; i++) {
+	FreeLibrary((HMODULE)list->libraries[i].handle);
+	if (list->libraries[i].id == 2) {
+	    /* The 'custom' id involves a dynamically allocated message.
+	     * Note that we must cast away the 'const' to free it. */
+	    sfree((char *)list->libraries[i].gsslogmsg);
+	}
+    }
+    sfree(list->libraries);
+    sfree(list);
+}
+
+static Ssh_gss_stat ssh_sspi_indicate_mech(struct ssh_gss_library *lib,
+					   Ssh_gss_buf *mech)
 {
     *mech = gss_mech_krb5;
     return SSH_GSS_OK;
 }
 
 
-Ssh_gss_stat ssh_gss_import_name(char *host, Ssh_gss_name *srv_name)
+static Ssh_gss_stat ssh_sspi_import_name(struct ssh_gss_library *lib,
+					 char *host, Ssh_gss_name *srv_name)
 {
     char *pStr;
 
@@ -95,7 +230,8 @@ Ssh_gss_stat ssh_gss_import_name(char *host, Ssh_gss_name *srv_name)
     return SSH_GSS_OK;
 }
 
-Ssh_gss_stat ssh_gss_acquire_cred(Ssh_gss_ctx *ctx)
+static Ssh_gss_stat ssh_sspi_acquire_cred(struct ssh_gss_library *lib,
+					  Ssh_gss_ctx *ctx)
 {
     winSsh_gss_ctx *winctx = snew(winSsh_gss_ctx);
     memset(winctx, 0, sizeof(winSsh_gss_ctx));
@@ -124,11 +260,12 @@ Ssh_gss_stat ssh_gss_acquire_cred(Ssh_gss_ctx *ctx)
 }
 
 
-Ssh_gss_stat ssh_gss_init_sec_context(Ssh_gss_ctx *ctx,
-				      Ssh_gss_name srv_name,
-				      int to_deleg,
-				      Ssh_gss_buf *recv_tok,
-				      Ssh_gss_buf *send_tok)
+static Ssh_gss_stat ssh_sspi_init_sec_context(struct ssh_gss_library *lib,
+					      Ssh_gss_ctx *ctx,
+					      Ssh_gss_name srv_name,
+					      int to_deleg,
+					      Ssh_gss_buf *recv_tok,
+					      Ssh_gss_buf *send_tok)
 {
     winSsh_gss_ctx *winctx = (winSsh_gss_ctx *) *ctx;
     SecBuffer wsend_tok = {send_tok->length,SECBUFFER_TOKEN,send_tok->value};
@@ -166,7 +303,8 @@ Ssh_gss_stat ssh_gss_init_sec_context(Ssh_gss_ctx *ctx,
     return SSH_GSS_FAILURE;
 }
 
-Ssh_gss_stat ssh_gss_free_tok(Ssh_gss_buf *send_tok)
+static Ssh_gss_stat ssh_sspi_free_tok(struct ssh_gss_library *lib,
+				      Ssh_gss_buf *send_tok)
 {
     /* check input */
     if (send_tok == NULL) return SSH_GSS_FAILURE;
@@ -178,7 +316,8 @@ Ssh_gss_stat ssh_gss_free_tok(Ssh_gss_buf *send_tok)
     return SSH_GSS_OK;
 }
 
-Ssh_gss_stat ssh_gss_release_cred(Ssh_gss_ctx *ctx)
+static Ssh_gss_stat ssh_sspi_release_cred(struct ssh_gss_library *lib,
+					  Ssh_gss_ctx *ctx)
 {
     winSsh_gss_ctx *winctx= (winSsh_gss_ctx *) *ctx;
 
@@ -197,7 +336,8 @@ Ssh_gss_stat ssh_gss_release_cred(Ssh_gss_ctx *ctx)
 }
 
 
-Ssh_gss_stat ssh_gss_release_name(Ssh_gss_name *srv_name)
+static Ssh_gss_stat ssh_sspi_release_name(struct ssh_gss_library *lib,
+					  Ssh_gss_name *srv_name)
 {
     char *pStr= (char *) *srv_name;
 
@@ -208,7 +348,8 @@ Ssh_gss_stat ssh_gss_release_name(Ssh_gss_name *srv_name)
     return SSH_GSS_OK;
 }
 
-Ssh_gss_stat ssh_gss_display_status(Ssh_gss_ctx ctx, Ssh_gss_buf *buf)
+static Ssh_gss_stat ssh_sspi_display_status(struct ssh_gss_library *lib,
+					    Ssh_gss_ctx ctx, Ssh_gss_buf *buf)
 {
     winSsh_gss_ctx *winctx = (winSsh_gss_ctx *) ctx;
     char *msg;
@@ -258,8 +399,9 @@ Ssh_gss_stat ssh_gss_display_status(Ssh_gss_ctx ctx, Ssh_gss_buf *buf)
     return SSH_GSS_OK;
 }
 
-Ssh_gss_stat ssh_gss_get_mic(Ssh_gss_ctx ctx, Ssh_gss_buf *buf,
-			     Ssh_gss_buf *hash)
+static Ssh_gss_stat ssh_sspi_get_mic(struct ssh_gss_library *lib,
+				     Ssh_gss_ctx ctx, Ssh_gss_buf *buf,
+				     Ssh_gss_buf *hash)
 {
     winSsh_gss_ctx *winctx= (winSsh_gss_ctx *) ctx;
     SecPkgContext_Sizes ContextSizes;
@@ -303,10 +445,25 @@ Ssh_gss_stat ssh_gss_get_mic(Ssh_gss_ctx ctx, Ssh_gss_buf *buf,
     return winctx->maj_stat;
 }
 
-Ssh_gss_stat ssh_gss_free_mic(Ssh_gss_buf *hash)
+static Ssh_gss_stat ssh_sspi_free_mic(struct ssh_gss_library *lib,
+				      Ssh_gss_buf *hash)
 {
     sfree(hash->value);
     return SSH_GSS_OK;
+}
+
+static void ssh_sspi_bind_fns(struct ssh_gss_library *lib)
+{
+    lib->indicate_mech = ssh_sspi_indicate_mech;
+    lib->import_name = ssh_sspi_import_name;
+    lib->release_name = ssh_sspi_release_name;
+    lib->init_sec_context = ssh_sspi_init_sec_context;
+    lib->free_tok = ssh_sspi_free_tok;
+    lib->acquire_cred = ssh_sspi_acquire_cred;
+    lib->release_cred = ssh_sspi_release_cred;
+    lib->get_mic = ssh_sspi_get_mic;
+    lib->free_mic = ssh_sspi_free_mic;
+    lib->display_status = ssh_sspi_display_status;
 }
 
 #else
@@ -314,9 +471,8 @@ Ssh_gss_stat ssh_gss_free_mic(Ssh_gss_buf *hash)
 /* Dummy function so this source file defines something if NO_GSSAPI
    is defined. */
 
-int ssh_gss_init(void)
+void ssh_gss_init(void)
 {
-    return 0;
 }
 
 #endif

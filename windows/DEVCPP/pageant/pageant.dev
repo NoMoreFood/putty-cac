@@ -9,10 +9,10 @@ IsCpp=1
 Type=0
 Compiler=-W -D__GNUWIN32__ -DWIN32 -DNDEBUG -D_WINDOWS -DNO_MULTIMON -D_MBCS_@@_
 CppCompiler=-W -D__GNUWIN32__ -DWIN32 -DNDEBUG -D_WINDOWS -DNO_MULTIMON -D_MBCS_@@_
-Includes=..\..\..\.;..\..\..\charset;..\..\..\windows;..\..\..\unix;..\..\..\mac;..\..\..\macosx
+Includes=..\..\..\.;..\..\..\charset;..\..\..\windows;..\..\..\unix;..\..\..\macosx
 Linker=-ladvapi32 -lcomctl32 -lcomdlg32 -lgdi32 -limm32 -lshell32 -luser32 -lwinmm -lwinspool_@@_
 Libs=
-UnitCount=41
+UnitCount=35
 Folders="Header Files","Resource Files","Source Files"
 ObjFiles=
 PrivateResource=pageant_private.rc
@@ -43,16 +43,6 @@ OverrideBuildCmd=0
 BuildCmd=
 
 [Unit2]
-FileName=..\..\..\sc.c
-Folder=Source Files
-Compile=1
-CompileCpp=0
-Link=1
-Priority=1000
-OverrideBuildCmd=0
-BuildCmd=
-
-[Unit3]
 FileName=..\..\..\sshaes.c
 Folder=Source Files
 Compile=1
@@ -62,7 +52,7 @@ Priority=1000
 OverrideBuildCmd=0
 BuildCmd=
 
-[Unit4]
+[Unit3]
 FileName=..\..\..\sshbn.c
 Folder=Source Files
 Compile=1
@@ -72,7 +62,7 @@ Priority=1000
 OverrideBuildCmd=0
 BuildCmd=
 
-[Unit5]
+[Unit4]
 FileName=..\..\..\sshdes.c
 Folder=Source Files
 Compile=1
@@ -82,7 +72,7 @@ Priority=1000
 OverrideBuildCmd=0
 BuildCmd=
 
-[Unit6]
+[Unit5]
 FileName=..\..\..\sshdss.c
 Folder=Source Files
 Compile=1
@@ -92,7 +82,7 @@ Priority=1000
 OverrideBuildCmd=0
 BuildCmd=
 
-[Unit7]
+[Unit6]
 FileName=..\..\..\sshmd5.c
 Folder=Source Files
 Compile=1
@@ -102,7 +92,7 @@ Priority=1000
 OverrideBuildCmd=0
 BuildCmd=
 
-[Unit8]
+[Unit7]
 FileName=..\..\..\sshpubk.c
 Folder=Source Files
 Compile=1
@@ -112,7 +102,7 @@ Priority=1000
 OverrideBuildCmd=0
 BuildCmd=
 
-[Unit9]
+[Unit8]
 FileName=..\..\..\sshrsa.c
 Folder=Source Files
 Compile=1
@@ -122,7 +112,7 @@ Priority=1000
 OverrideBuildCmd=0
 BuildCmd=
 
-[Unit10]
+[Unit9]
 FileName=..\..\..\sshsh256.c
 Folder=Source Files
 Compile=1
@@ -132,7 +122,7 @@ Priority=1000
 OverrideBuildCmd=0
 BuildCmd=
 
-[Unit11]
+[Unit10]
 FileName=..\..\..\sshsh512.c
 Folder=Source Files
 Compile=1
@@ -142,7 +132,7 @@ Priority=1000
 OverrideBuildCmd=0
 BuildCmd=
 
-[Unit12]
+[Unit11]
 FileName=..\..\..\sshsha.c
 Folder=Source Files
 Compile=1
@@ -152,7 +142,7 @@ Priority=1000
 OverrideBuildCmd=0
 BuildCmd=
 
-[Unit13]
+[Unit12]
 FileName=..\..\..\tree234.c
 Folder=Source Files
 Compile=1
@@ -162,7 +152,7 @@ Priority=1000
 OverrideBuildCmd=0
 BuildCmd=
 
-[Unit14]
+[Unit13]
 FileName=..\..\..\version.c
 Folder=Source Files
 Compile=1
@@ -172,7 +162,7 @@ Priority=1000
 OverrideBuildCmd=0
 BuildCmd=
 
-[Unit15]
+[Unit14]
 FileName=..\..\..\windows\winhelp.c
 Folder=Source Files
 Compile=1
@@ -182,7 +172,7 @@ Priority=1000
 OverrideBuildCmd=0
 BuildCmd=
 
-[Unit16]
+[Unit15]
 FileName=..\..\..\windows\winmisc.c
 Folder=Source Files
 Compile=1
@@ -192,7 +182,7 @@ Priority=1000
 OverrideBuildCmd=0
 BuildCmd=
 
-[Unit17]
+[Unit16]
 FileName=..\..\..\windows\winpgnt.c
 Folder=Source Files
 Compile=1
@@ -202,7 +192,7 @@ Priority=1000
 OverrideBuildCmd=0
 BuildCmd=
 
-[Unit18]
+[Unit17]
 FileName=..\..\..\windows\winpgntc.c
 Folder=Source Files
 Compile=1
@@ -212,17 +202,7 @@ Priority=1000
 OverrideBuildCmd=0
 BuildCmd=
 
-[Unit19]
-FileName=..\..\..\windows\winstore.c
-Folder=Source Files
-Compile=1
-CompileCpp=0
-Link=1
-Priority=1000
-OverrideBuildCmd=0
-BuildCmd=
-
-[Unit20]
+[Unit18]
 FileName=..\..\..\windows\winutils.c
 Folder=Source Files
 Compile=1
@@ -232,7 +212,7 @@ Priority=1000
 OverrideBuildCmd=0
 BuildCmd=
 
-[Unit21]
+[Unit19]
 FileName=..\..\..\charset\charset.h
 Folder=Header Files
 Compile=1
@@ -242,7 +222,7 @@ Priority=1000
 OverrideBuildCmd=0
 BuildCmd=
 
-[Unit22]
+[Unit20]
 FileName=..\..\..\int64.h
 Folder=Header Files
 Compile=1
@@ -252,17 +232,7 @@ Priority=1000
 OverrideBuildCmd=0
 BuildCmd=
 
-[Unit23]
-FileName=..\..\..\mac\macstuff.h
-Folder=Header Files
-Compile=1
-CompileCpp=1
-Link=1
-Priority=1000
-OverrideBuildCmd=0
-BuildCmd=
-
-[Unit24]
+[Unit21]
 FileName=..\..\..\macosx\osx.h
 Folder=Header Files
 Compile=1
@@ -272,7 +242,7 @@ Priority=1000
 OverrideBuildCmd=0
 BuildCmd=
 
-[Unit25]
+[Unit22]
 FileName=..\..\..\misc.h
 Folder=Header Files
 Compile=1
@@ -282,7 +252,7 @@ Priority=1000
 OverrideBuildCmd=0
 BuildCmd=
 
-[Unit26]
+[Unit23]
 FileName=..\..\..\network.h
 Folder=Header Files
 Compile=1
@@ -292,17 +262,7 @@ Priority=1000
 OverrideBuildCmd=0
 BuildCmd=
 
-[Unit27]
-FileName=..\..\..\pkcs11.h
-Folder=Header Files
-Compile=1
-CompileCpp=1
-Link=1
-Priority=1000
-OverrideBuildCmd=0
-BuildCmd=
-
-[Unit28]
+[Unit24]
 FileName=..\..\..\putty.h
 Folder=Header Files
 Compile=1
@@ -312,7 +272,7 @@ Priority=1000
 OverrideBuildCmd=0
 BuildCmd=
 
-[Unit29]
+[Unit25]
 FileName=..\..\..\puttymem.h
 Folder=Header Files
 Compile=1
@@ -322,7 +282,7 @@ Priority=1000
 OverrideBuildCmd=0
 BuildCmd=
 
-[Unit30]
+[Unit26]
 FileName=..\..\..\puttyps.h
 Folder=Header Files
 Compile=1
@@ -332,17 +292,7 @@ Priority=1000
 OverrideBuildCmd=0
 BuildCmd=
 
-[Unit31]
-FileName=..\..\..\sc.h
-Folder=Header Files
-Compile=1
-CompileCpp=1
-Link=1
-Priority=1000
-OverrideBuildCmd=0
-BuildCmd=
-
-[Unit32]
+[Unit27]
 FileName=..\..\..\ssh.h
 Folder=Header Files
 Compile=1
@@ -352,17 +302,7 @@ Priority=1000
 OverrideBuildCmd=0
 BuildCmd=
 
-[Unit33]
-FileName=..\..\..\storage.h
-Folder=Header Files
-Compile=1
-CompileCpp=1
-Link=1
-Priority=1000
-OverrideBuildCmd=0
-BuildCmd=
-
-[Unit34]
+[Unit28]
 FileName=..\..\..\tree234.h
 Folder=Header Files
 Compile=1
@@ -372,7 +312,7 @@ Priority=1000
 OverrideBuildCmd=0
 BuildCmd=
 
-[Unit35]
+[Unit29]
 FileName=..\..\..\unix\unix.h
 Folder=Header Files
 Compile=1
@@ -382,7 +322,7 @@ Priority=1000
 OverrideBuildCmd=0
 BuildCmd=
 
-[Unit36]
+[Unit30]
 FileName=..\..\..\windows\rcstuff.h
 Folder=Header Files
 Compile=1
@@ -392,7 +332,7 @@ Priority=1000
 OverrideBuildCmd=0
 BuildCmd=
 
-[Unit37]
+[Unit31]
 FileName=..\..\..\windows\winhelp.h
 Folder=Header Files
 Compile=1
@@ -402,7 +342,7 @@ Priority=1000
 OverrideBuildCmd=0
 BuildCmd=
 
-[Unit38]
+[Unit32]
 FileName=..\..\..\windows\winstuff.h
 Folder=Header Files
 Compile=1
@@ -412,7 +352,7 @@ Priority=1000
 OverrideBuildCmd=0
 BuildCmd=
 
-[Unit39]
+[Unit33]
 FileName=..\..\..\windows\pageant.ico
 Folder=Resource Files
 Compile=0
@@ -422,7 +362,7 @@ Priority=1000
 OverrideBuildCmd=0
 BuildCmd=
 
-[Unit40]
+[Unit34]
 FileName=..\..\..\windows\pageant.rc
 Folder=Resource Files
 Compile=1
@@ -432,7 +372,7 @@ Priority=1000
 OverrideBuildCmd=0
 BuildCmd=
 
-[Unit41]
+[Unit35]
 FileName=..\..\..\windows\pageants.ico
 Folder=Resource Files
 Compile=0

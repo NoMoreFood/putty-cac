@@ -2518,7 +2518,8 @@ int from_backend(void *frontend, int is_stderr, const char *data, int datalen)
      */
     if (is_stderr) {
 	if (len > 0)
-	    fwrite(data, 1, len, stderr);
+	    if (fwrite(data, 1, len, stderr) < len)
+		/* oh well */;
 	return 0;
     }
 
@@ -2841,7 +2842,6 @@ int psftp_main(int argc, char *argv[])
     int mode = 0;
     int modeflags = 0;
     char *batchfile = NULL;
-    int errors = 0;
 
     flags = FLAG_STDERR | FLAG_INTERACTIVE
 #ifdef FLAG_SYNCAGENT
@@ -2857,7 +2857,6 @@ int psftp_main(int argc, char *argv[])
     do_defaults(NULL, &cfg);
     loaded_session = FALSE;
 
-    errors = 0;
     for (i = 1; i < argc; i++) {
 	int ret;
 	if (argv[i][0] != '-') {

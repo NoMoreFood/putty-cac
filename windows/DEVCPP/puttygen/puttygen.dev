@@ -9,10 +9,10 @@ IsCpp=1
 Type=0
 Compiler=-W -D__GNUWIN32__ -DWIN32 -DNDEBUG -D_WINDOWS -DNO_MULTIMON -D_MBCS_@@_
 CppCompiler=-W -D__GNUWIN32__ -DWIN32 -DNDEBUG -D_WINDOWS -DNO_MULTIMON -D_MBCS_@@_
-Includes=..\..\..\.;..\..\..\charset;..\..\..\windows;..\..\..\unix;..\..\..\mac;..\..\..\macosx
+Includes=..\..\..\.;..\..\..\charset;..\..\..\windows;..\..\..\unix;..\..\..\macosx
 Linker=-ladvapi32 -lcomctl32 -lcomdlg32 -lgdi32 -limm32 -lshell32 -luser32 -lwinmm -lwinspool_@@_
 Libs=
-UnitCount=47
+UnitCount=46
 Folders="Header Files","Resource Files","Source Files"
 ObjFiles=
 PrivateResource=puttygen_private.rc
@@ -263,7 +263,7 @@ OverrideBuildCmd=0
 BuildCmd=
 
 [Unit24]
-FileName=..\..\..\windows\winpgen.c
+FileName=..\..\..\windows\winnojmp.c
 Folder=Source Files
 Compile=1
 CompileCpp=0
@@ -273,7 +273,7 @@ OverrideBuildCmd=0
 BuildCmd=
 
 [Unit25]
-FileName=..\..\..\windows\winstore.c
+FileName=..\..\..\windows\winpgen.c
 Folder=Source Files
 Compile=1
 CompileCpp=0
@@ -283,7 +283,7 @@ OverrideBuildCmd=0
 BuildCmd=
 
 [Unit26]
-FileName=..\..\..\windows\wintime.c
+FileName=..\..\..\windows\winstore.c
 Folder=Source Files
 Compile=1
 CompileCpp=0
@@ -293,7 +293,7 @@ OverrideBuildCmd=0
 BuildCmd=
 
 [Unit27]
-FileName=..\..\..\windows\winutils.c
+FileName=..\..\..\windows\wintime.c
 Folder=Source Files
 Compile=1
 CompileCpp=0
@@ -303,6 +303,16 @@ OverrideBuildCmd=0
 BuildCmd=
 
 [Unit28]
+FileName=..\..\..\windows\winutils.c
+Folder=Source Files
+Compile=1
+CompileCpp=0
+Link=1
+Priority=1000
+OverrideBuildCmd=0
+BuildCmd=
+
+[Unit29]
 FileName=..\..\..\charset\charset.h
 Folder=Header Files
 Compile=1
@@ -312,7 +322,7 @@ Priority=1000
 OverrideBuildCmd=0
 BuildCmd=
 
-[Unit29]
+[Unit30]
 FileName=..\..\..\dialog.h
 Folder=Header Files
 Compile=1
@@ -322,18 +332,8 @@ Priority=1000
 OverrideBuildCmd=0
 BuildCmd=
 
-[Unit30]
-FileName=..\..\..\int64.h
-Folder=Header Files
-Compile=1
-CompileCpp=1
-Link=1
-Priority=1000
-OverrideBuildCmd=0
-BuildCmd=
-
 [Unit31]
-FileName=..\..\..\mac\macstuff.h
+FileName=..\..\..\int64.h
 Folder=Header Files
 Compile=1
 CompileCpp=1
@@ -373,16 +373,6 @@ OverrideBuildCmd=0
 BuildCmd=
 
 [Unit35]
-FileName=..\..\..\pkcs11.h
-Folder=Header Files
-Compile=1
-CompileCpp=1
-Link=1
-Priority=1000
-OverrideBuildCmd=0
-BuildCmd=
-
-[Unit36]
 FileName=..\..\..\putty.h
 Folder=Header Files
 Compile=1
@@ -392,7 +382,7 @@ Priority=1000
 OverrideBuildCmd=0
 BuildCmd=
 
-[Unit37]
+[Unit36]
 FileName=..\..\..\puttymem.h
 Folder=Header Files
 Compile=1
@@ -402,7 +392,7 @@ Priority=1000
 OverrideBuildCmd=0
 BuildCmd=
 
-[Unit38]
+[Unit37]
 FileName=..\..\..\puttyps.h
 Folder=Header Files
 Compile=1
@@ -412,7 +402,7 @@ Priority=1000
 OverrideBuildCmd=0
 BuildCmd=
 
-[Unit39]
+[Unit38]
 FileName=..\..\..\ssh.h
 Folder=Header Files
 Compile=1
@@ -422,7 +412,7 @@ Priority=1000
 OverrideBuildCmd=0
 BuildCmd=
 
-[Unit40]
+[Unit39]
 FileName=..\..\..\storage.h
 Folder=Header Files
 Compile=1
@@ -432,7 +422,7 @@ Priority=1000
 OverrideBuildCmd=0
 BuildCmd=
 
-[Unit41]
+[Unit40]
 FileName=..\..\..\tree234.h
 Folder=Header Files
 Compile=1
@@ -442,7 +432,7 @@ Priority=1000
 OverrideBuildCmd=0
 BuildCmd=
 
-[Unit42]
+[Unit41]
 FileName=..\..\..\unix\unix.h
 Folder=Header Files
 Compile=1
@@ -452,7 +442,7 @@ Priority=1000
 OverrideBuildCmd=0
 BuildCmd=
 
-[Unit43]
+[Unit42]
 FileName=..\..\..\windows\rcstuff.h
 Folder=Header Files
 Compile=1
@@ -462,7 +452,7 @@ Priority=1000
 OverrideBuildCmd=0
 BuildCmd=
 
-[Unit44]
+[Unit43]
 FileName=..\..\..\windows\winhelp.h
 Folder=Header Files
 Compile=1
@@ -472,7 +462,7 @@ Priority=1000
 OverrideBuildCmd=0
 BuildCmd=
 
-[Unit45]
+[Unit44]
 FileName=..\..\..\windows\winstuff.h
 Folder=Header Files
 Compile=1
@@ -482,7 +472,7 @@ Priority=1000
 OverrideBuildCmd=0
 BuildCmd=
 
-[Unit46]
+[Unit45]
 FileName=..\..\..\windows\puttygen.ico
 Folder=Resource Files
 Compile=0
@@ -492,7 +482,7 @@ Priority=1000
 OverrideBuildCmd=0
 BuildCmd=
 
-[Unit47]
+[Unit46]
 FileName=..\..\..\windows\puttygen.rc
 Folder=Resource Files
 Compile=1

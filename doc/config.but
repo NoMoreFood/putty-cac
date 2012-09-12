@@ -1,4 +1,4 @@
-\define{versionidconfig} \versionid $Id: config.but 8324 2008-11-24 17:51:42Z jacob $
+\define{versionidconfig} \versionid $Id: config.but 9063 2010-12-29 14:11:25Z simon $
 
 \C{config} Configuring PuTTY
 
@@ -1030,7 +1030,9 @@ the terminal will stay the same, and the \i{font size} will change.
 
 \b \q{Change font size when maximised}: when the window is resized,
 the number of rows and columns will change, \e{except} when the window
-is \i{maximise}d (or restored), when the font size will change.
+is \i{maximise}d (or restored), when the font size will change. (In
+this mode, holding down the Alt key while resizing will also cause the
+font size to change.)
 
 \b \q{Forbid resizing completely}: the terminal will refuse to be
 resized at all.
@@ -1094,10 +1096,15 @@ works in any of the cursor modes.
 \cfg{winhelp-topic}{appearance.font}
 
 This option allows you to choose what font, in what \I{font size}size,
-the PuTTY terminal window uses to display the text in the session. You
-will be offered a choice from all the fixed-width fonts installed on the
-system. (VT100-style terminal handling can only deal with fixed-width
-fonts.)
+the PuTTY terminal window uses to display the text in the session.
+
+By default, you will be offered a choice from all the fixed-width
+fonts installed on the system, since VT100-style terminal handling
+expects a fixed-width font. If you tick the box marked \q{Allow
+selection of variable-pitch fonts}, however, PuTTY will offer
+variable-width fonts as well: if you select one of these, the font
+will be coerced into fixed-size character cells, which will probably
+not look very good (but can work OK with some fonts).
 
 \S{config-mouseptr} \q{Hide \i{mouse pointer} when typing in window}
 
@@ -1788,17 +1795,19 @@ it explicitly every time. (Some Telnet servers don't support this.)
 
 In this box you can type that user name.
 
-\S{config-username-from-env} \q{Use of system username}
+\S{config-username-from-env} Use of system username
 
 \cfg{winhelp-topic}{connection.usernamefromenv}
 
 When the previous box (\k{config-username}) is left blank, by default,
 PuTTY will prompt for a username at the time you make a connection.
 
-In some environments, such as large corporate networks with \i{single
-sign-on}, a more sensible default may be to use the name of the user
-logged in to the local operating system (if any). This control allows
-you to change the default behaviour.
+In some environments, such as the networks of large organisations
+implementing \i{single sign-on}, a more sensible default may be to use
+the name of the user logged in to the local operating system (if any);
+this is particularly likely to be useful with \i{GSSAPI} authentication
+(see \k{config-ssh-auth-gssapi}). This control allows you to change
+the default behaviour.
 
 The current system username is displayed in the dialog as a
 convenience. It is not saved in the configuration; if a saved session
@@ -2465,6 +2474,21 @@ unwanted username prompts, you could try checking this option.
 This option only affects SSH-2 connections. SSH-1 connections always
 require an authentication step.
 
+\S{config-ssh-banner} \q{Display pre-authentication banner}
+
+\cfg{winhelp-topic}{ssh.auth.banner}
+
+SSH-2 servers can provide a message for clients to display to the
+prospective user before the user logs in; this is sometimes known as a
+pre-authentication \q{\i{banner}}. Typically this is used to provide
+information about the server and legal notices.
+
+By default, PuTTY displays this message before prompting for a
+password or similar credentials (although, unfortunately, not before
+prompting for a login name, due to the nature of the protocol design).
+By unchecking this option, display of the banner can be suppressed
+entirely.
+
 \S{config-ssh-tryagent} \q{Attempt authentication using Pageant}
 
 \cfg{winhelp-topic}{ssh.auth.pageant}
@@ -2570,6 +2594,76 @@ If a key file is specified here, and \i{Pageant} is running (see
 \k{pageant}), PuTTY will first try asking Pageant to authenticate with
 that key, and ignore any other keys Pageant may have. If that fails,
 PuTTY will ask for a passphrase as normal.
+
+\H{config-ssh-auth-gssapi} The \i{GSSAPI} panel
+
+\cfg{winhelp-topic}{ssh.auth.gssapi}
+
+The \q{GSSAPI} subpanel of the \q{Auth} panel controls the use of
+GSSAPI authentication. This is a mechanism which delegates the
+authentication exchange to a library elsewhere on the client
+machine, which in principle can authenticate in many different ways
+but in practice is usually used with the \i{Kerberos} \i{single sign-on}
+protocol.
+
+GSSAPI is only available in the SSH-2 protocol.
+
+The topmost control on the GSSAPI subpanel is the checkbox labelled
+\q{Attempt GSSAPI authentication}. If this is disabled, GSSAPI will
+not be attempted at all and the rest of this panel is unused. If it
+is enabled, GSSAPI authentication will be attempted, and (typically)
+if your client machine has valid Kerberos credentials loaded, then
+PuTTY should be able to authenticate automatically to servers that
+support Kerberos logins.
+
+\S{config-ssh-auth-gssapi-delegation} \q{Allow GSSAPI credential
+delegation}
+
+\cfg{winhelp-topic}{ssh.auth.gssapi.delegation}
+
+\i{GSSAPI credential delegation} is a mechanism for passing on your
+Kerberos (or other) identity to the session on the SSH server. If
+you enable this option, then not only will PuTTY be able to log in
+automatically to a server that accepts your Kerberos credentials,
+but also you will be able to connect out from that server to other
+Kerberos-supporting services and use the same credentials just as
+automatically.
+
+(This option is the Kerberos analogue of SSH agent forwarding; see
+\k{pageant-forward} for some information on that.)
+
+Note that, like SSH agent forwarding, there is a security
+implication in the use of this option: the administrator of the
+server you connect to, or anyone else who has cracked the
+administrator account on that server, could fake your identity when
+connecting to further Kerberos-supporting services. However,
+Kerberos sites are typically run by a central authority, so the
+administrator of one server is likely to already have access to the
+other services too; so this would typically be less of a risk than
+SSH agent forwarding.
+
+\S{config-ssh-auth-gssapi-libraries} Preference order for GSSAPI
+libraries
+
+\cfg{winhelp-topic}{ssh.auth.gssapi.libraries}
+
+GSSAPI is a mechanism which allows more than one authentication
+method to be accessed through the same interface. Therefore, more
+than one authentication library may exist on your system which can
+be accessed using GSSAPI.
+
+PuTTY contains native support for a few well-known such libraries,
+and will look for all of them on your system and use whichever it
+finds. If more than one exists on your system and you need to use a
+specific one, you can adjust the order in which it will search using
+this preference list control.
+
+One of the options in the preference list is to use a user-specified
+GSSAPI library. If the library you want to use is not mentioned by
+name in PuTTY's list of options, you can enter its full pathname in
+the \q{User-supplied GSSAPI library path} field, and move the
+\q{User-supplied GSSAPI library} option in the preference list to
+make sure it is selected before anything else.
 
 \H{config-ssh-tty} The TTY panel
 
@@ -2948,9 +3042,6 @@ enabled when talking to a correct server, the session will succeed,
 but keepalives will not work and the session might be more
 vulnerable to eavesdroppers than it could be.
 
-This is an SSH-1-specific bug. No known SSH-2 server fails to deal
-with SSH-2 ignore messages.
-
 \S{config-ssh-bug-plainpw1} \q{Refuses all SSH-1 \i{password camouflage}}
 
 \cfg{winhelp-topic}{ssh.bugs.plainpw1}
@@ -2991,6 +3082,23 @@ server, the session will succeed, but of course RSA authentication
 will be impossible.
 
 This is an SSH-1-specific bug.
+
+\S{config-ssh-bug-ignore2} \q{Chokes on SSH-2 \i{ignore message}s}
+
+\cfg{winhelp-topic}{ssh.bugs.ignore2}
+
+An ignore message (SSH_MSG_IGNORE) is a message in the SSH protocol
+which can be sent from the client to the server, or from the server
+to the client, at any time. Either side is required to ignore the
+message whenever it receives it. PuTTY uses ignore messages in SSH-2
+to confuse the encrypted data stream and make it harder to
+cryptanalyse. It also uses ignore messages for connection
+\i{keepalives} (see \k{config-keepalive}).
+
+If it believes the server to have this bug, PuTTY will stop using
+ignore messages. If this bug is enabled when talking to a correct
+server, the session will succeed, but keepalives will not work and
+the session might be less cryptographically secure than it could be.
 
 \S{config-ssh-bug-hmac2} \q{Miscomputes SSH-2 HMAC keys}
 

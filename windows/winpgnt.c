@@ -25,10 +25,10 @@
 
 /* PuTTY CAPI start */
 #ifdef _WINDOWS
-#include "capi.h"
 #include <specstrings.h>
 #include <Wincrypt.h>
 #include <CryptDlg.h>
+#include "capi.h"
 #endif
 /* PuTTY CAPI end */
 

@@ -1,0 +1,97 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN"
+"http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+<meta http-equiv="content-type" content="text/html; charset=US-ASCII">
+<title>SSH-2 names specified for PuTTY</title>
+<link rel="previous" href="AppendixE.html">
+<link rel="ToC" href="index.html">
+<link rel="up" href="index.html">
+<link rel="index" href="IndexPage.html">
+<link rel="next" href="IndexPage.html">
+</head>
+<body>
+<p><a href="AppendixE.html">Previous</a> | <a href="index.html">Contents</a> | <a href="IndexPage.html">Index</a> | <a href="IndexPage.html">Next</a></p>
+
+<ul>
+<li><a href="#sshnames">Appendix F: SSH-2 names specified for PuTTY</a>
+<ul>
+<li><a href="#sshnames-channel">F.1 Connection protocol channel request names</a></li>
+<li><a href="#sshnames-kex">F.2 Key exchange method names</a></li>
+<li><a href="#sshnames-encrypt">F.3 Encryption algorithm names</a></li>
+</ul></li>
+</ul>
+<h1><a name="sshnames"></a><a name="AF"></a>Appendix F: SSH-2 names specified for PuTTY</h1>
+<p>
+There are various parts of the SSH-2 protocol where things are specified using a textual name. Names ending in <code>@putty.projects.tartarus.org</code> are reserved for allocation by the PuTTY team. Allocated names are documented here.
+</p>
+<h2><a name="sshnames-channel"></a><a name="SF.1"></a>F.1 Connection protocol channel request names</h2>
+<p>
+These names can be sent in a <code>SSH_MSG_CHANNEL_REQUEST</code> message.
+</p>
+<dl><dt>
+<code>simple@putty.projects.tartarus.org</code>
+</dt>
+<dd>
+This is sent by a client to announce that it will not have more than one channel open at a time in the current connection (that one being the one the request is sent on). The intention is that the server, knowing this, can set the window on that one channel to something very large, and leave flow control to TCP. There is no message-specific data.
+</dd>
+<dt>
+<code>winadj@putty.projects.tartarus.org</code>
+</dt>
+<dd>
+PuTTY sends this request along with some <code>SSH_MSG_CHANNEL_WINDOW_ADJUST</code> messages as part of its window-size tuning. It can be sent on any type of channel. There is no message-specific data. Servers MUST treat it as an unrecognised request and respond with <code>SSH_MSG_CHANNEL_FAILURE</code>.
+</dd>
+</dl>
+<h2><a name="sshnames-kex"></a><a name="SF.2"></a>F.2 Key exchange method names</h2>
+<dl><dt>
+<code>rsa-sha1-draft-00@putty.projects.tartarus.org</code>
+</dt>
+<dt>
+<code>rsa-sha256-draft-00@putty.projects.tartarus.org</code>
+</dt>
+<dt>
+<code>rsa1024-sha1-draft-01@putty.projects.tartarus.org</code>
+</dt>
+<dt>
+<code>rsa1024-sha256-draft-01@putty.projects.tartarus.org</code>
+</dt>
+<dt>
+<code>rsa2048-sha256-draft-01@putty.projects.tartarus.org</code>
+</dt>
+<dt>
+<code>rsa1024-sha1-draft-02@putty.projects.tartarus.org</code>
+</dt>
+<dt>
+<code>rsa2048-sha512-draft-02@putty.projects.tartarus.org</code>
+</dt>
+<dt>
+<code>rsa1024-sha1-draft-03@putty.projects.tartarus.org</code>
+</dt>
+<dt>
+<code>rsa2048-sha256-draft-03@putty.projects.tartarus.org</code>
+</dt>
+<dt>
+<code>rsa1024-sha1-draft-04@putty.projects.tartarus.org</code>
+</dt>
+<dt>
+<code>rsa2048-sha256-draft-04@putty.projects.tartarus.org</code>
+</dt>
+<dd>
+These appeared in various drafts of what eventually became RFC&nbsp;4432. They have been superseded by <code>rsa1024-sha1</code> and <code>rsa2048-sha256</code>.
+</dd>
+</dl>
+<h2><a name="sshnames-encrypt"></a><a name="SF.3"></a>F.3 Encryption algorithm names</h2>
+<dl><dt>
+<code>arcfour128-draft-00@putty.projects.tartarus.org</code>
+</dt>
+<dt>
+<code>arcfour256-draft-00@putty.projects.tartarus.org</code>
+</dt>
+<dd>
+These were used in drafts of what eventually became RFC&nbsp;4345. They have been superseded by <code>arcfour128</code> and <code>arcfour256</code>.
+</dd>
+</dl>
+
+<hr><p>If you want to provide feedback on this manual or on the PuTTY tools themselves, see the <a href="http://www.chiark.greenend.org.uk/~sgtatham/putty/feedback.html">Feedback page</a>.</p><address>
+[PuTTY release 0.62]</address></body>
+</html>

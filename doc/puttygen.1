@@ -1,0 +1,128 @@
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.TH "puttygen" "1" "2004\(hy03\(hy24" "PuTTY\ tool\ suite" "PuTTY\ tool\ suite"
+.SH "NAME"
+.PP
+\fBputtygen\fP - public-key generator for the PuTTY tools
+.SH "SYNOPSIS"
+.PP
+.nf
+\fBputtygen\fP\ (\ \fIkeyfile\fP\ |\ \fB\-t\fP\ \fIkeytype\fP\ [\ \fB\-b\fP\ \fIbits\fP\ ]\ )
+\ \ \ \ \ \ \ \ \ [\ \fB\-C\fP\ \fInew\-comment\fP\ ]\ [\ \fB\-P\fP\ ]\ [\ \fB\-q\fP\ ]
+\ \ \ \ \ \ \ \ \ [\ \fB\-O\fP\ \fIoutput\-type\fP\ |\ \fB\-l\fP\ |\ \fB\-L\fP\ |\ \fB\-p\fP\ ]
+\ \ \ \ \ \ \ \ \ [\ \fB\-o\fP\ \fIoutput\-file\fP\ ]
+.fi
+.SH "DESCRIPTION"
+.PP
+\fBputtygen\fP is a tool to generate and manipulate SSH public and private key pairs. It is part of the PuTTY suite, although it can also interoperate with the private key formats used by some other SSH clients.
+.PP
+When you run \fBputtygen\fP, it does three things. Firstly, it either loads an existing key file (if you specified \fIkeyfile\fP), or generates a new key (if you specified \fIkeytype\fP). Then, it optionally makes modifications to the key (changing the comment and/or the passphrase); finally, it outputs the key, or some information about the key, to a file.
+.PP
+All three of these phases are controlled by the options described in the following section.
+.SH "OPTIONS"
+.PP
+In the first phase, \fBputtygen\fP either loads or generates a key. Note that generating a key requires random data (from \fB/dev/random\fP), which can cause \fBputtygen\fP to pause, possibly for some time if your system does not have much randomness available.
+.PP
+The options to control this phase are:
+.IP "\fIkeyfile\fP"
+Specify a private key file to be loaded. This private key file can be in the (de facto standard) SSH-1 key format, or in PuTTY's SSH-2 key format, or in either of the SSH-2 private key formats used by OpenSSH and ssh.com's implementation.
+.IP "\fB\-t\fP \fIkeytype\fP"
+Specify a type of key to generate. The acceptable values here are \fBrsa\fP and \fBdsa\fP (to generate SSH-2 keys), and \fBrsa1\fP (to generate SSH-1 keys).
+.IP "\fB\-b\fP \fIbits\fP"
+Specify the size of the key to generate, in bits. Default is 1024.
+.IP "\fB\-q\fP"
+Suppress the progress display when generating a new key.
+.PP
+In the second phase, \fBputtygen\fP optionally alters properties of the key it has loaded or generated. The options to control this are:
+.IP "\fB\-C\fP \fInew\-comment\fP"
+Specify a comment string to describe the key. This comment string will be used by PuTTY to identify the key to you (when asking you to enter the passphrase, for example, so that you know which passphrase to type).
+.IP "\fB\-P\fP"
+Indicate that you want to change the key's passphrase. This is automatic when you are generating a new key, but not when you are modifying an existing key.
+.PP
+In the third phase, \fBputtygen\fP saves the key or information about it. The options to control this are:
+.IP "\fB\-O\fP \fIoutput\-type\fP"
+Specify the type of output you want \fBputtygen\fP to produce. Acceptable options are:
+.RS
+.IP "\fBprivate\fP"
+Save the private key in a format usable by PuTTY. This will either be the standard SSH-1 key format, or PuTTY's own SSH-2 key format.
+.IP "\fBpublic\fP"
+Save the public key only. For SSH-1 keys, the standard public key format will be used (`\fB1024 37 5698745\fP...'). For SSH-2 keys, the public key will be output in the format specified by RFC 4716, which is a multi-line text file beginning with the line `\fB---- BEGIN SSH2 PUBLIC KEY ----\fP'.
+.IP "\fBpublic-openssh\fP"
+Save the public key only, in a format usable by OpenSSH. For SSH-1 keys, this output format behaves identically to \fBpublic\fP. For SSH-2 keys, the public key will be output in the OpenSSH format, which is a single line (`\fBssh-rsa AAAAB3NzaC1yc2\fP...').
+.IP "\fBfingerprint\fP"
+Print the fingerprint of the public key. All fingerprinting algorithms are believed compatible with OpenSSH.
+.IP "\fBprivate-openssh\fP"
+Save an SSH-2 private key in OpenSSH's format. This option is not permitted for SSH-1 keys.
+.IP "\fBprivate-sshcom\fP"
+Save an SSH-2 private key in ssh.com's format. This option is not permitted for SSH-1 keys.
+.PP
+If no output type is specified, the default is \fBprivate\fP.
+.RE
+.IP "\fB\-o\fP \fIoutput\-file\fP"
+Specify the file where \fBputtygen\fP should write its output. If this option is not specified, \fBputtygen\fP will assume you want to overwrite the original file if the input and output file types are the same (changing a comment or passphrase), and will assume you want to output to stdout if you are asking for a public key or fingerprint. Otherwise, the \fB\-o\fP option is required.
+.IP "\fB\-l\fP"
+Synonym for `\fB-O fingerprint\fP'.
+.IP "\fB\-L\fP"
+Synonym for `\fB-O public-openssh\fP'.
+.IP "\fB\-p\fP"
+Synonym for `\fB-O public\fP'.
+.PP
+The following options do not run PuTTYgen as normal, but print informational messages and then quit:
+.IP "\fB\-h\fP, \fB\-\-help\fP"
+Display a message summarizing the available options.
+.IP "\fB\-V\fP, \fB\-\-version\fP"
+Display the version of PuTTYgen.
+.IP "\fB\-\-pgpfp\fP"
+Display the fingerprints of the PuTTY PGP Master Keys, to aid in verifying new files released by the PuTTY team.
+.SH "EXAMPLES"
+.PP
+To generate an SSH-2 RSA key pair and save it in PuTTY's own format (you will be prompted for the passphrase):
+.PP
+.nf
+puttygen\ \-t\ rsa\ \-C\ "my\ home\ key"\ \-o\ mykey.ppk
+.fi
+.PP
+To generate a larger (2048-bit) key:
+.PP
+.nf
+puttygen\ \-t\ rsa\ \-b\ 2048\ \-C\ "my\ home\ key"\ \-o\ mykey.ppk
+.fi
+.PP
+To change the passphrase on a key (you will be prompted for the old and new passphrases):
+.PP
+.nf
+puttygen\ \-P\ mykey.ppk
+.fi
+.PP
+To change the comment on a key:
+.PP
+.nf
+puttygen\ \-C\ "new\ comment"\ mykey.ppk
+.fi
+.PP
+To convert a key into OpenSSH's private key format:
+.PP
+.nf
+puttygen\ mykey.ppk\ \-O\ private\-openssh\ \-o\ my\-openssh\-key
+.fi
+.PP
+To convert a key \fIfrom\fP another format (\fBputtygen\fP will automatically detect the input key type):
+.PP
+.nf
+puttygen\ my\-ssh.com\-key\ \-o\ mykey.ppk
+.fi
+.PP
+To display the fingerprint of a key (some key types require a passphrase to extract even this much information):
+.PP
+.nf
+puttygen\ \-l\ mykey.ppk
+.fi
+.PP
+To add the OpenSSH-format public half of a key to your authorised keys file:
+.PP
+.nf
+puttygen\ \-L\ mykey.ppk\ >>\ $HOME/.ssh/authorized_keys
+.fi
+.SH "BUGS"
+.PP
+There's currently no way to supply passphrases in batch mode, or even just to specify that you don't want a passphrase at all.
