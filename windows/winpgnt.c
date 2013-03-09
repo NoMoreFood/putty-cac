@@ -34,6 +34,10 @@
 
 #ifndef NO_SECURITY
 #include <aclapi.h>
+#ifdef DEBUG_IPC
+#define _WIN32_WINNT 0x0500            /* for ConvertSidToStringSid */
+#include <sddl.h>
+#endif
 #endif
 
 #define IDI_MAINICON 200
@@ -128,10 +132,10 @@ static tree234 *rsakeys, *ssh2keys, *capikeys;
 
 static int has_security;
 #ifndef NO_SECURITY
-typedef DWORD(WINAPI * gsi_fn_t)
- (HANDLE, SE_OBJECT_TYPE, SECURITY_INFORMATION,
-  PSID *, PSID *, PACL *, PACL *, PSECURITY_DESCRIPTOR *);
-static gsi_fn_t getsecurityinfo;
+DECL_WINDOWS_FUNCTION(extern, DWORD, GetSecurityInfo,
+		      (HANDLE, SE_OBJECT_TYPE, SECURITY_INFORMATION,
+		       PSID *, PSID *, PACL *, PACL *,
+		       PSECURITY_DESCRIPTOR *));
 #endif
 
 /*
@@ -2131,6 +2135,53 @@ static void update_sessions(void)
     }
 }
 
+#ifndef NO_SECURITY
+/*
+ * Versions of Pageant prior to 0.61 expected this SID on incoming
+ * communications. For backwards compatibility, and more particularly
+ * for compatibility with derived works of PuTTY still using the old
+ * Pageant client code, we accept it as an alternative to the one
+ * returned from get_user_sid() in winpgntc.c.
+ */
+PSID get_default_sid(void)
+{
+    HANDLE proc = NULL;
+    DWORD sidlen;
+    PSECURITY_DESCRIPTOR psd = NULL;
+    PSID sid = NULL, copy = NULL, ret = NULL;
+
+    if ((proc = OpenProcess(MAXIMUM_ALLOWED, FALSE,
+                            GetCurrentProcessId())) == NULL)
+        goto cleanup;
+
+    if (p_GetSecurityInfo(proc, SE_KERNEL_OBJECT, OWNER_SECURITY_INFORMATION,
+                          &sid, NULL, NULL, NULL, &psd) != ERROR_SUCCESS)
+        goto cleanup;
+
+    sidlen = GetLengthSid(sid);
+
+    copy = (PSID)smalloc(sidlen);
+
+    if (!CopySid(sidlen, copy, sid))
+        goto cleanup;
+
+    /* Success. Move sid into the return value slot, and null it out
+     * to stop the cleanup code freeing it. */
+    ret = copy;
+    copy = NULL;
+
+  cleanup:
+    if (proc != NULL)
+        CloseHandle(proc);
+    if (psd != NULL)
+        LocalFree(psd);
+    if (copy != NULL)
+        sfree(copy);
+
+    return ret;
+}
+#endif
+
 static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 				WPARAM wParam, LPARAM lParam)
 {
@@ -2268,10 +2319,9 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 	    void *p;
 	    HANDLE filemap;
 #ifndef NO_SECURITY
-	    HANDLE proc;
-	    PSID mapowner, procowner;
-	    PSECURITY_DESCRIPTOR psd1 = NULL, psd2 = NULL;
+	    PSID mapowner, ourself, ourself2;
 #endif
+            PSECURITY_DESCRIPTOR psd = NULL;
 	    int ret = 0;
 
 	    cds = (COPYDATASTRUCT *) lParam;
@@ -2291,46 +2341,54 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 #ifndef NO_SECURITY
 		int rc;
 		if (has_security) {
-		    if ((proc = OpenProcess(MAXIMUM_ALLOWED, FALSE,
-					    GetCurrentProcessId())) ==
-			NULL) {
+                    if ((ourself = get_user_sid()) == NULL) {
 #ifdef DEBUG_IPC
-			debug(("couldn't get handle for process\n"));
+			debug(("couldn't get user SID\n"));
 #endif
 			return 0;
-		    }
-		    if (getsecurityinfo(proc, SE_KERNEL_OBJECT,
-					OWNER_SECURITY_INFORMATION,
-					&procowner, NULL, NULL, NULL,
-					&psd2) != ERROR_SUCCESS) {
+                    }
+
+                    if ((ourself2 = get_default_sid()) == NULL) {
 #ifdef DEBUG_IPC
-			debug(("couldn't get owner info for process\n"));
+			debug(("couldn't get default SID\n"));
 #endif
-			CloseHandle(proc);
-			return 0;      /* unable to get security info */
-		    }
-		    CloseHandle(proc);
-		    if ((rc = getsecurityinfo(filemap, SE_KERNEL_OBJECT,
-					      OWNER_SECURITY_INFORMATION,
-					      &mapowner, NULL, NULL, NULL,
-					      &psd1) != ERROR_SUCCESS)) {
+			return 0;
+                    }
+
+		    if ((rc = p_GetSecurityInfo(filemap, SE_KERNEL_OBJECT,
+						OWNER_SECURITY_INFORMATION,
+						&mapowner, NULL, NULL, NULL,
+						&psd) != ERROR_SUCCESS)) {
 #ifdef DEBUG_IPC
-			debug(
-			      ("couldn't get owner info for filemap: %d\n",
-			       rc));
+			debug(("couldn't get owner info for filemap: %d\n",
+                               rc));
 #endif
 			return 0;
 		    }
 #ifdef DEBUG_IPC
-		    debug(("got security stuff\n"));
+                    {
+                        LPTSTR ours, ours2, theirs;
+                        ConvertSidToStringSid(mapowner, &theirs);
+                        ConvertSidToStringSid(ourself, &ours);
+                        ConvertSidToStringSid(ourself2, &ours2);
+                        debug(("got sids:\n  oursnew=%s\n  oursold=%s\n"
+                               "  theirs=%s\n", ours, ours2, theirs));
+                        LocalFree(ours);
+                        LocalFree(ours2);
+                        LocalFree(theirs);
+                    }
 #endif
-		    if (!EqualSid(mapowner, procowner))
+		    if (!EqualSid(mapowner, ourself) &&
+                        !EqualSid(mapowner, ourself2)) {
+                        CloseHandle(filemap);
 			return 0;      /* security ID mismatch! */
+                    }
 #ifdef DEBUG_IPC
 		    debug(("security stuff matched\n"));
 #endif
-		    LocalFree(psd1);
-		    LocalFree(psd2);
+                    LocalFree(psd);
+                    sfree(ourself);
+                    sfree(ourself2);
 		} else {
 #ifdef DEBUG_IPC
 		    debug(("security APIs not present\n"));
@@ -2343,9 +2401,9 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 		{
 		    int i;
 		    for (i = 0; i < 5; i++)
-			debug(
-			      ("p[%d]=%02x\n", i,
-			       ((unsigned char *) p)[i]));}
+			debug(("p[%d]=%02x\n", i,
+			       ((unsigned char *) p)[i]));
+                }
 #endif
 		answer_msg(p);
 		ret = 1;
@@ -2427,10 +2485,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 	/*
 	 * Attempt to get the security API we need.
 	 */
-	advapi = LoadLibrary("ADVAPI32.DLL");
-	getsecurityinfo =
-	    (gsi_fn_t) GetProcAddress(advapi, "GetSecurityInfo");
-	if (!getsecurityinfo) {
+        if (!init_advapi()) {
 	    MessageBox(NULL,
 		       "Unable to access security APIs. Pageant will\n"
 		       "not run, in case it causes a security breach.",
@@ -2459,7 +2514,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
     {
         char b[2048], *p, *q, *r;
         FILE *fp;
-        GetModuleFileName(NULL, b, sizeof(b) - 1);
+        GetModuleFileName(NULL, b, sizeof(b) - 16);
         r = b;
         p = strrchr(b, '\\');
         if (p && p >= r) r = p+1;
