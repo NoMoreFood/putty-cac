@@ -20,4 +20,3 @@
 
 \cfg{html-head-end}{<link rel="stylesheet" type="text/css" href="chm.css">}
 
-\versionid $Id: chm.but 7272 2007-02-11 18:13:56Z jacob $

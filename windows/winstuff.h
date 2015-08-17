@@ -16,16 +16,18 @@
 #include "winhelp.h"
 
 struct Filename {
-    char path[FILENAME_MAX];
+    char *path;
 };
-#define f_open(filename, mode, isprivate) ( fopen((filename).path, (mode)) )
+#define f_open(filename, mode, isprivate) ( fopen((filename)->path, (mode)) )
 
 struct FontSpec {
-    char name[64];
+    char *name;
     int isbold;
     int height;
     int charset;
 };
+struct FontSpec *fontspec_new(const char *name,
+                               int bold, int height, int charset);
 
 #ifndef CLEARTYPE_QUALITY
 #define CLEARTYPE_QUALITY 5
@@ -73,6 +75,10 @@ struct FontSpec {
 #define BOXRESULT (DLGWINDOWEXTRA + sizeof(LONG_PTR))
 #define DF_END 0x0001
 
+#ifndef NO_SECUREZEROMEMORY
+#define PLATFORM_HAS_SMEMCLR /* inhibit cross-platform one in misc.c */
+#endif
+
 /*
  * Dynamically linked functions. These come in two flavours:
  *
@@ -115,7 +121,7 @@ struct FontSpec {
 
 #ifndef DONE_TYPEDEFS
 #define DONE_TYPEDEFS
-typedef struct config_tag Config;
+typedef struct conf_tag Conf;
 typedef struct backend_tag Backend;
 typedef struct terminal_tag Terminal;
 #endif
@@ -143,6 +149,7 @@ typedef struct terminal_tag Terminal;
 #define TICKSPERSEC 1000	       /* GetTickCount returns milliseconds */
 
 #define DEFAULT_CODEPAGE CP_ACP
+#define USES_VTLINE_HACK
 
 typedef HDC Context;
 
@@ -234,13 +241,9 @@ GLOBAL void *logctx;
 				 "All Files (*.*)\0*\0\0\0")
 
 /*
- * On some versions of Windows, it has been known for WM_TIMER to
- * occasionally get its callback time simply wrong, and call us
- * back several minutes early. Defining these symbols enables
- * compensation code in timing.c.
+ * Exports from winnet.c.
  */
-#define TIMING_SYNC
-#define TIMING_SYNC_TICKCOUNT
+extern int select_result(WPARAM, LPARAM);
 
 /*
  * winnet.c dynamically loads WinSock 2 or WinSock 1 depending on
@@ -285,6 +288,7 @@ BOOL request_file(filereq *state, OPENFILENAME *of, int preserve, int save);
 filereq *filereq_new(void);
 void filereq_free(filereq *state);
 int message_box(LPCTSTR text, LPCTSTR caption, DWORD style, DWORD helpctxid);
+char *GetDlgItemText_alloc(HWND hwnd, int id);
 void split_into_argv(char *, int *, char ***, char ***);
 
 /*
@@ -462,6 +466,7 @@ void show_help(HWND hwnd);
 extern OSVERSIONINFO osVersion;
 BOOL init_winver(void);
 HMODULE load_system32_dll(const char *libname);
+const char *win_strerror(int error);
 
 /*
  * Exports from sizetip.c.
@@ -473,7 +478,7 @@ void EnableSizeTip(int bEnable);
  * Exports from unicode.c.
  */
 struct unicode_data;
-void init_ucs(Config *, struct unicode_data *);
+void init_ucs(Conf *, struct unicode_data *);
 
 /*
  * Exports from winhandl.c.
@@ -489,12 +494,15 @@ struct handle *handle_input_new(HANDLE handle, handle_inputfn_t gotdata,
 struct handle *handle_output_new(HANDLE handle, handle_outputfn_t sentdata,
 				 void *privdata, int flags);
 int handle_write(struct handle *h, const void *data, int len);
+void handle_write_eof(struct handle *h);
 HANDLE *handle_get_events(int *nevents);
 void handle_free(struct handle *h);
 void handle_got_event(HANDLE event);
 void handle_unthrottle(struct handle *h, int backlog);
 int handle_backlog(struct handle *h);
 void *handle_get_privdata(struct handle *h);
+struct handle *handle_add_foreign_event(HANDLE event,
+                                        void (*callback)(void *), void *ctx);
 
 /*
  * winpgntc.c needs to schedule callbacks for asynchronous agent
@@ -507,14 +515,6 @@ void *handle_get_privdata(struct handle *h);
 void agent_schedule_callback(void (*callback)(void *, void *, int),
 			     void *callback_ctx, void *data, int len);
 #define FLAG_SYNCAGENT 0x1000
-
-/*
- * winpgntc.c also exports these two functions which are used by the
- * server side of Pageant as well, to get the user SID for comparing
- * with clients'.
- */
-int init_advapi(void);  /* initialises everything needed by get_user_sid */
-PSID get_user_sid(void);
 
 /*
  * Exports from winser.c.

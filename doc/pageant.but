@@ -1,5 +1,3 @@
-\define{versionidpageant} \versionid $Id: pageant.but 6610 2006-03-14 11:21:59Z jacob $
-
 \C{pageant} Using \i{Pageant} for authentication
 
 \cfg{winhelp-topic}{pageant.general}

@@ -5,14 +5,6 @@
 #
 # Extra options you can set:
 #
-#  - VER="-DSNAPSHOT=1999-01-25 -DSVN_REV=1234"
-#      Generates executables whose About box report them as being a
-#      development snapshot. SVN_REV is a Subversion revision number.
-#
-#  - VER=-DRELEASE=0.43
-#      Generates executables whose About box report them as being a
-#      release version.
-#
 #  - COMPAT=-DAUTO_WINSOCK (Windows only)
 #      Causes PuTTY to assume that <windows.h> includes its own WinSock
 #      header file, so that it won't try to include <winsock.h>.
@@ -77,11 +69,10 @@
 #      Makes a couple of minor changes so that PuTTY compiles using
 #      MSVC 4. You will also need -DNO_SECURITY and -DNO_MULTIMON.
 #
-#  - RCFL=-DASCIICTLS (Windows only)
-#      Uses ASCII rather than Unicode to specify the tab control in
-#      the resource file. Probably most useful when compiling with
-#      Cygnus/mingw32, whose resource compiler may have less of a
-#      problem with it.
+#  - COMPAT=-DNO_SECUREZEROMEMORY (Windows only)
+#      Disables PuTTY's use of SecureZeroMemory(), which is missing
+#      from some environments' header files.  This is enabled by
+#      default in the Cygwin Makefile.
 #
 #  - XFLAGS=-DTELNET_DEFAULT
 #      Causes PuTTY to default to the Telnet protocol (in the absence
@@ -128,7 +119,21 @@ PuTTY: PuTTY.app/Contents/MacOS/PuTTY \
 		PuTTY.app/Contents/Resources/PuTTY.icns \
 		PuTTY.app/Contents/Info.plist $(PuTTY_extra)
 
-PuTTY.app/Contents/MacOS/PuTTY: PuTTY.app/Contents/MacOS be_all_s.o config.o \
+PuTTY.app/Contents/MacOS/PuTTY: PuTTY.app/Contents/MacOS be_all_s.o \
+		callback.o conf.o config.o cproxy.o dialog.o fromucs.o \
+		ldisc.o ldiscucs.o localenc.o logging.o macenc.o mimeenc.o \
+		minibidi.o misc.o osxctrls.o osxdlg.o osxmain.o osxsel.o \
+		osxwin.o pgssapi.o pinger.o portfwd.o proxy.o raw.o rlogin.o \
+		sbcs.o sbcsdat.o sercfg.o settings.o slookup.o ssh.o \
+		sshaes.o ssharcf.o sshblowf.o sshbn.o sshcrc.o sshcrcda.o \
+		sshdes.o sshdh.o sshdss.o sshgssc.o sshmd5.o sshpubk.o \
+		sshrand.o sshrsa.o sshsh256.o sshsh512.o sshsha.o sshshare.o \
+		sshzlib.o telnet.o terminal.o testback.o time.o timing.o \
+		toucs.o tree234.o utf8.o ux_x11.o uxagentc.o uxcfg.o uxgss.o \
+		uxmisc.o uxnet.o uxnoise.o uxpeer.o uxprint.o uxproxy.o \
+		uxpty.o uxsel.o uxser.o uxshare.o uxsignal.o uxstore.o \
+		uxucs.o version.o wcwidth.o wildcard.o x11fwd.o xenc.o
+	$(CC) $(MLDFLAGS) -o $@ be_all_s.o callback.o conf.o config.o \
 		cproxy.o dialog.o fromucs.o ldisc.o ldiscucs.o localenc.o \
 		logging.o macenc.o mimeenc.o minibidi.o misc.o osxctrls.o \
 		osxdlg.o osxmain.o osxsel.o osxwin.o pgssapi.o pinger.o \
@@ -136,90 +141,82 @@ PuTTY.app/Contents/MacOS/PuTTY: PuTTY.app/Contents/MacOS be_all_s.o config.o \
 		settings.o slookup.o ssh.o sshaes.o ssharcf.o sshblowf.o \
 		sshbn.o sshcrc.o sshcrcda.o sshdes.o sshdh.o sshdss.o \
 		sshgssc.o sshmd5.o sshpubk.o sshrand.o sshrsa.o sshsh256.o \
-		sshsh512.o sshsha.o sshzlib.o telnet.o terminal.o testback.o \
-		time.o timing.o toucs.o tree234.o utf8.o ux_x11.o uxagentc.o \
-		uxcfg.o uxgss.o uxmisc.o uxnet.o uxnoise.o uxprint.o \
-		uxproxy.o uxpty.o uxsel.o uxser.o uxsignal.o uxstore.o \
-		uxucs.o version.o wcwidth.o wildcard.o x11fwd.o xenc.o
-	$(CC) $(MLDFLAGS) -o $@ be_all_s.o config.o cproxy.o dialog.o \
-		fromucs.o ldisc.o ldiscucs.o localenc.o logging.o macenc.o \
-		mimeenc.o minibidi.o misc.o osxctrls.o osxdlg.o osxmain.o \
-		osxsel.o osxwin.o pgssapi.o pinger.o portfwd.o proxy.o raw.o \
-		rlogin.o sbcs.o sbcsdat.o sercfg.o settings.o slookup.o \
-		ssh.o sshaes.o ssharcf.o sshblowf.o sshbn.o sshcrc.o \
-		sshcrcda.o sshdes.o sshdh.o sshdss.o sshgssc.o sshmd5.o \
-		sshpubk.o sshrand.o sshrsa.o sshsh256.o sshsh512.o sshsha.o \
-		sshzlib.o telnet.o terminal.o testback.o time.o timing.o \
-		toucs.o tree234.o utf8.o ux_x11.o uxagentc.o uxcfg.o uxgss.o \
-		uxmisc.o uxnet.o uxnoise.o uxprint.o uxproxy.o uxpty.o \
-		uxsel.o uxser.o uxsignal.o uxstore.o uxucs.o version.o \
-		wcwidth.o wildcard.o x11fwd.o xenc.o 
+		sshsh512.o sshsha.o sshshare.o sshzlib.o telnet.o terminal.o \
+		testback.o time.o timing.o toucs.o tree234.o utf8.o ux_x11.o \
+		uxagentc.o uxcfg.o uxgss.o uxmisc.o uxnet.o uxnoise.o \
+		uxpeer.o uxprint.o uxproxy.o uxpty.o uxsel.o uxser.o \
+		uxshare.o uxsignal.o uxstore.o uxucs.o version.o wcwidth.o \
+		wildcard.o x11fwd.o xenc.o 
 
-plink: be_all_s.o cmdline.o cproxy.o ldisc.o logging.o misc.o pgssapi.o \
-		pinger.o portfwd.o proxy.o raw.o rlogin.o settings.o ssh.o \
-		sshaes.o ssharcf.o sshblowf.o sshbn.o sshcrc.o sshcrcda.o \
-		sshdes.o sshdh.o sshdss.o sshgssc.o sshmd5.o sshpubk.o \
-		sshrand.o sshrsa.o sshsh256.o sshsh512.o sshsha.o sshzlib.o \
-		telnet.o time.o timing.o tree234.o ux_x11.o uxagentc.o \
-		uxcons.o uxgss.o uxmisc.o uxnet.o uxnoise.o uxplink.o \
-		uxproxy.o uxsel.o uxser.o uxsignal.o uxstore.o version.o \
-		wildcard.o x11fwd.o
-	$(CC) $(ULDFLAGS) -o $@ be_all_s.o cmdline.o cproxy.o ldisc.o \
-		logging.o misc.o pgssapi.o pinger.o portfwd.o proxy.o raw.o \
+plink: be_all_s.o callback.o cmdline.o conf.o cproxy.o ldisc.o logging.o \
+		misc.o noterm.o pgssapi.o pinger.o portfwd.o proxy.o raw.o \
 		rlogin.o settings.o ssh.o sshaes.o ssharcf.o sshblowf.o \
 		sshbn.o sshcrc.o sshcrcda.o sshdes.o sshdh.o sshdss.o \
 		sshgssc.o sshmd5.o sshpubk.o sshrand.o sshrsa.o sshsh256.o \
-		sshsh512.o sshsha.o sshzlib.o telnet.o time.o timing.o \
-		tree234.o ux_x11.o uxagentc.o uxcons.o uxgss.o uxmisc.o \
-		uxnet.o uxnoise.o uxplink.o uxproxy.o uxsel.o uxser.o \
-		uxsignal.o uxstore.o version.o wildcard.o x11fwd.o 
-
-pscp: be_ssh.o cmdline.o cproxy.o int64.o logging.o misc.o pgssapi.o \
-		pinger.o portfwd.o proxy.o pscp.o settings.o sftp.o ssh.o \
+		sshsh512.o sshsha.o sshshare.o sshzlib.o telnet.o time.o \
+		timing.o tree234.o ux_x11.o uxagentc.o uxcons.o uxgss.o \
+		uxmisc.o uxnet.o uxnoise.o uxpeer.o uxplink.o uxproxy.o \
+		uxsel.o uxser.o uxshare.o uxsignal.o uxstore.o version.o \
+		wildcard.o x11fwd.o
+	$(CC) $(ULDFLAGS) -o $@ be_all_s.o callback.o cmdline.o conf.o \
+		cproxy.o ldisc.o logging.o misc.o noterm.o pgssapi.o \
+		pinger.o portfwd.o proxy.o raw.o rlogin.o settings.o ssh.o \
 		sshaes.o ssharcf.o sshblowf.o sshbn.o sshcrc.o sshcrcda.o \
 		sshdes.o sshdh.o sshdss.o sshgssc.o sshmd5.o sshpubk.o \
-		sshrand.o sshrsa.o sshsh256.o sshsh512.o sshsha.o sshzlib.o \
+		sshrand.o sshrsa.o sshsh256.o sshsh512.o sshsha.o sshshare.o \
+		sshzlib.o telnet.o time.o timing.o tree234.o ux_x11.o \
+		uxagentc.o uxcons.o uxgss.o uxmisc.o uxnet.o uxnoise.o \
+		uxpeer.o uxplink.o uxproxy.o uxsel.o uxser.o uxshare.o \
+		uxsignal.o uxstore.o version.o wildcard.o x11fwd.o 
+
+pscp: be_ssh.o callback.o cmdline.o conf.o cproxy.o int64.o logging.o misc.o \
+		pgssapi.o pinger.o portfwd.o proxy.o pscp.o settings.o \
+		sftp.o ssh.o sshaes.o ssharcf.o sshblowf.o sshbn.o sshcrc.o \
+		sshcrcda.o sshdes.o sshdh.o sshdss.o sshgssc.o sshmd5.o \
+		sshpubk.o sshrand.o sshrsa.o sshsh256.o sshsh512.o sshsha.o \
+		sshshare.o sshzlib.o time.o timing.o tree234.o uxagentc.o \
+		uxcons.o uxgss.o uxmisc.o uxnet.o uxnoise.o uxpeer.o \
+		uxproxy.o uxsel.o uxsftp.o uxshare.o uxstore.o version.o \
+		wildcard.o x11fwd.o
+	$(CC) $(ULDFLAGS) -o $@ be_ssh.o callback.o cmdline.o conf.o \
+		cproxy.o int64.o logging.o misc.o pgssapi.o pinger.o \
+		portfwd.o proxy.o pscp.o settings.o sftp.o ssh.o sshaes.o \
+		ssharcf.o sshblowf.o sshbn.o sshcrc.o sshcrcda.o sshdes.o \
+		sshdh.o sshdss.o sshgssc.o sshmd5.o sshpubk.o sshrand.o \
+		sshrsa.o sshsh256.o sshsh512.o sshsha.o sshshare.o sshzlib.o \
 		time.o timing.o tree234.o uxagentc.o uxcons.o uxgss.o \
-		uxmisc.o uxnet.o uxnoise.o uxproxy.o uxsel.o uxsftp.o \
-		uxstore.o version.o wildcard.o x11fwd.o
-	$(CC) $(ULDFLAGS) -o $@ be_ssh.o cmdline.o cproxy.o int64.o \
-		logging.o misc.o pgssapi.o pinger.o portfwd.o proxy.o pscp.o \
+		uxmisc.o uxnet.o uxnoise.o uxpeer.o uxproxy.o uxsel.o \
+		uxsftp.o uxshare.o uxstore.o version.o wildcard.o x11fwd.o 
+
+psftp: be_ssh.o callback.o cmdline.o conf.o cproxy.o int64.o logging.o \
+		misc.o pgssapi.o pinger.o portfwd.o proxy.o psftp.o \
 		settings.o sftp.o ssh.o sshaes.o ssharcf.o sshblowf.o \
 		sshbn.o sshcrc.o sshcrcda.o sshdes.o sshdh.o sshdss.o \
 		sshgssc.o sshmd5.o sshpubk.o sshrand.o sshrsa.o sshsh256.o \
-		sshsh512.o sshsha.o sshzlib.o time.o timing.o tree234.o \
-		uxagentc.o uxcons.o uxgss.o uxmisc.o uxnet.o uxnoise.o \
-		uxproxy.o uxsel.o uxsftp.o uxstore.o version.o wildcard.o \
-		x11fwd.o 
-
-psftp: be_ssh.o cmdline.o cproxy.o int64.o logging.o misc.o pgssapi.o \
-		pinger.o portfwd.o proxy.o psftp.o settings.o sftp.o ssh.o \
-		sshaes.o ssharcf.o sshblowf.o sshbn.o sshcrc.o sshcrcda.o \
-		sshdes.o sshdh.o sshdss.o sshgssc.o sshmd5.o sshpubk.o \
-		sshrand.o sshrsa.o sshsh256.o sshsh512.o sshsha.o sshzlib.o \
-		time.o timing.o tree234.o uxagentc.o uxcons.o uxgss.o \
-		uxmisc.o uxnet.o uxnoise.o uxproxy.o uxsel.o uxsftp.o \
-		uxstore.o version.o wildcard.o x11fwd.o
-	$(CC) $(ULDFLAGS) -o $@ be_ssh.o cmdline.o cproxy.o int64.o \
-		logging.o misc.o pgssapi.o pinger.o portfwd.o proxy.o \
-		psftp.o settings.o sftp.o ssh.o sshaes.o ssharcf.o \
-		sshblowf.o sshbn.o sshcrc.o sshcrcda.o sshdes.o sshdh.o \
-		sshdss.o sshgssc.o sshmd5.o sshpubk.o sshrand.o sshrsa.o \
-		sshsh256.o sshsh512.o sshsha.o sshzlib.o time.o timing.o \
+		sshsh512.o sshsha.o sshshare.o sshzlib.o time.o timing.o \
 		tree234.o uxagentc.o uxcons.o uxgss.o uxmisc.o uxnet.o \
-		uxnoise.o uxproxy.o uxsel.o uxsftp.o uxstore.o version.o \
-		wildcard.o x11fwd.o 
+		uxnoise.o uxpeer.o uxproxy.o uxsel.o uxsftp.o uxshare.o \
+		uxstore.o version.o wildcard.o x11fwd.o
+	$(CC) $(ULDFLAGS) -o $@ be_ssh.o callback.o cmdline.o conf.o \
+		cproxy.o int64.o logging.o misc.o pgssapi.o pinger.o \
+		portfwd.o proxy.o psftp.o settings.o sftp.o ssh.o sshaes.o \
+		ssharcf.o sshblowf.o sshbn.o sshcrc.o sshcrcda.o sshdes.o \
+		sshdh.o sshdss.o sshgssc.o sshmd5.o sshpubk.o sshrand.o \
+		sshrsa.o sshsh256.o sshsh512.o sshsha.o sshshare.o sshzlib.o \
+		time.o timing.o tree234.o uxagentc.o uxcons.o uxgss.o \
+		uxmisc.o uxnet.o uxnoise.o uxpeer.o uxproxy.o uxsel.o \
+		uxsftp.o uxshare.o uxstore.o version.o wildcard.o x11fwd.o 
 
-puttygen: cmdgen.o import.o misc.o notiming.o sshaes.o sshbn.o sshdes.o \
-		sshdss.o sshdssg.o sshmd5.o sshprime.o sshpubk.o sshrand.o \
-		sshrsa.o sshrsag.o sshsh256.o sshsh512.o sshsha.o time.o \
-		tree234.o uxcons.o uxgen.o uxmisc.o uxnoise.o uxstore.o \
-		version.o
-	$(CC) $(ULDFLAGS) -o $@ cmdgen.o import.o misc.o notiming.o sshaes.o \
-		sshbn.o sshdes.o sshdss.o sshdssg.o sshmd5.o sshprime.o \
-		sshpubk.o sshrand.o sshrsa.o sshrsag.o sshsh256.o sshsh512.o \
-		sshsha.o time.o tree234.o uxcons.o uxgen.o uxmisc.o \
-		uxnoise.o uxstore.o version.o 
+puttygen: cmdgen.o conf.o import.o misc.o notiming.o sshaes.o sshbn.o \
+		sshdes.o sshdss.o sshdssg.o sshmd5.o sshprime.o sshpubk.o \
+		sshrand.o sshrsa.o sshrsag.o sshsh256.o sshsh512.o sshsha.o \
+		time.o tree234.o uxcons.o uxgen.o uxmisc.o uxnoise.o \
+		uxstore.o version.o
+	$(CC) $(ULDFLAGS) -o $@ cmdgen.o conf.o import.o misc.o notiming.o \
+		sshaes.o sshbn.o sshdes.o sshdss.o sshdssg.o sshmd5.o \
+		sshprime.o sshpubk.o sshrand.o sshrsa.o sshrsag.o sshsh256.o \
+		sshsh512.o sshsha.o time.o tree234.o uxcons.o uxgen.o \
+		uxmisc.o uxnoise.o uxstore.o version.o 
 
 be_all_s.o: ../be_all_s.c ../putty.h ../puttyps.h ../network.h ../misc.h \
 		../windows/winstuff.h ../macosx/osx.h ../unix/unix.h \
@@ -241,6 +238,11 @@ be_ssh.o: ../be_ssh.c ../putty.h ../puttyps.h ../network.h ../misc.h \
 		../puttymem.h ../tree234.h ../windows/winhelp.h \
 		../charset/charset.h
 	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
+callback.o: ../callback.c ../putty.h ../puttyps.h ../network.h ../misc.h \
+		../windows/winstuff.h ../macosx/osx.h ../unix/unix.h \
+		../puttymem.h ../tree234.h ../windows/winhelp.h \
+		../charset/charset.h
+	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
 cmdgen.o: ../cmdgen.c ../putty.h ../ssh.h ../puttyps.h ../network.h \
 		../misc.h ../puttymem.h ../tree234.h ../int64.h \
 		../windows/winstuff.h ../macosx/osx.h ../unix/unix.h \
@@ -249,6 +251,11 @@ cmdgen.o: ../cmdgen.c ../putty.h ../ssh.h ../puttyps.h ../network.h \
 cmdline.o: ../cmdline.c ../putty.h ../puttyps.h ../network.h ../misc.h \
 		../windows/winstuff.h ../macosx/osx.h ../unix/unix.h \
 		../puttymem.h ../tree234.h ../windows/winhelp.h \
+		../charset/charset.h
+	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
+conf.o: ../conf.c ../tree234.h ../putty.h ../puttyps.h ../network.h \
+		../misc.h ../windows/winstuff.h ../macosx/osx.h \
+		../unix/unix.h ../puttymem.h ../windows/winhelp.h \
 		../charset/charset.h
 	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
 config.o: ../config.c ../putty.h ../dialog.h ../storage.h ../puttyps.h \
@@ -265,6 +272,11 @@ dialog.o: ../dialog.c ../putty.h ../dialog.h ../puttyps.h ../network.h \
 		../misc.h ../windows/winstuff.h ../macosx/osx.h \
 		../unix/unix.h ../puttymem.h ../tree234.h \
 		../windows/winhelp.h ../charset/charset.h
+	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
+errsock.o: ../errsock.c ../tree234.h ../putty.h ../network.h ../puttyps.h \
+		../misc.h ../windows/winstuff.h ../macosx/osx.h \
+		../unix/unix.h ../puttymem.h ../windows/winhelp.h \
+		../charset/charset.h
 	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
 fromucs.o: ../charset/fromucs.c ../charset/charset.h ../charset/internal.h
 	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
@@ -334,6 +346,11 @@ nocproxy.o: ../nocproxy.c ../putty.h ../network.h ../proxy.h ../puttyps.h \
 nogss.o: ../nogss.c ../putty.h ../puttyps.h ../network.h ../misc.h \
 		../windows/winstuff.h ../macosx/osx.h ../unix/unix.h \
 		../puttymem.h ../tree234.h ../windows/winhelp.h \
+		../charset/charset.h
+	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
+noterm.o: ../noterm.c ../putty.h ../terminal.h ../puttyps.h ../network.h \
+		../misc.h ../tree234.h ../windows/winstuff.h ../macosx/osx.h \
+		../unix/unix.h ../puttymem.h ../windows/winhelp.h \
 		../charset/charset.h
 	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
 notiming.o: ../notiming.c ../putty.h ../puttyps.h ../network.h ../misc.h \
@@ -445,7 +462,7 @@ ssharcf.o: ../ssharcf.c ../ssh.h ../puttymem.h ../tree234.h ../network.h \
 sshblowf.o: ../sshblowf.c ../ssh.h ../puttymem.h ../tree234.h ../network.h \
 		../int64.h ../misc.h
 	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
-sshbn.o: ../sshbn.c ../misc.h ../ssh.h ../puttymem.h ../tree234.h \
+sshbn.o: ../sshbn.c ../misc.h ../sshbn.h ../ssh.h ../puttymem.h ../tree234.h \
 		../network.h ../int64.h
 	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
 sshcrc.o: ../sshcrc.c ../ssh.h ../puttymem.h ../tree234.h ../network.h \
@@ -502,6 +519,11 @@ sshsh512.o: ../sshsh512.c ../ssh.h ../puttymem.h ../tree234.h ../network.h \
 sshsha.o: ../sshsha.c ../ssh.h ../puttymem.h ../tree234.h ../network.h \
 		../int64.h ../misc.h
 	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
+sshshare.o: ../sshshare.c ../putty.h ../tree234.h ../ssh.h ../puttyps.h \
+		../network.h ../misc.h ../puttymem.h ../int64.h \
+		../windows/winstuff.h ../macosx/osx.h ../unix/unix.h \
+		../windows/winhelp.h ../charset/charset.h
+	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
 sshzlib.o: ../sshzlib.c ../ssh.h ../puttymem.h ../tree234.h ../network.h \
 		../int64.h ../misc.h
 	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
@@ -529,7 +551,7 @@ timing.o: ../timing.c ../putty.h ../tree234.h ../puttyps.h ../network.h \
 	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
 toucs.o: ../charset/toucs.c ../charset/charset.h ../charset/internal.h
 	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
-tree234.o: ../tree234.c ../puttymem.h ../tree234.h
+tree234.o: ../tree234.c ../tree234.h ../puttymem.h
 	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
 utf8.o: ../charset/utf8.c ../charset/charset.h ../charset/internal.h
 	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
@@ -578,6 +600,11 @@ uxnoise.o: ../unix/uxnoise.c ../putty.h ../ssh.h ../storage.h ../puttyps.h \
 		../windows/winstuff.h ../macosx/osx.h ../unix/unix.h \
 		../windows/winhelp.h ../charset/charset.h
 	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
+uxpeer.o: ../unix/uxpeer.c ../putty.h ../puttyps.h ../network.h ../misc.h \
+		../windows/winstuff.h ../macosx/osx.h ../unix/unix.h \
+		../puttymem.h ../tree234.h ../windows/winhelp.h \
+		../charset/charset.h
+	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
 uxplink.o: ../unix/uxplink.c ../putty.h ../storage.h ../tree234.h \
 		../puttyps.h ../network.h ../misc.h ../windows/winstuff.h \
 		../macosx/osx.h ../unix/unix.h ../puttymem.h \
@@ -623,6 +650,11 @@ uxsftp.o: ../unix/uxsftp.c ../putty.h ../ssh.h ../psftp.h ../int64.h \
 		../tree234.h ../windows/winstuff.h ../macosx/osx.h \
 		../unix/unix.h ../windows/winhelp.h ../charset/charset.h
 	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
+uxshare.o: ../unix/uxshare.c ../tree234.h ../putty.h ../network.h ../proxy.h \
+		../ssh.h ../puttyps.h ../misc.h ../puttymem.h ../int64.h \
+		../windows/winstuff.h ../macosx/osx.h ../unix/unix.h \
+		../windows/winhelp.h ../charset/charset.h
+	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
 uxsignal.o: ../unix/uxsignal.c
 	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
 uxstore.o: ../unix/uxstore.c ../putty.h ../storage.h ../tree234.h \
@@ -635,7 +667,7 @@ uxucs.o: ../unix/uxucs.c ../putty.h ../charset/charset.h ../terminal.h \
 		../puttymem.h ../windows/winstuff.h ../macosx/osx.h \
 		../unix/unix.h ../windows/winhelp.h
 	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
-version.o: ../version.c
+version.o: ../version.c ../version.h
 	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
 wcwidth.o: ../wcwidth.c ../putty.h ../puttyps.h ../network.h ../misc.h \
 		../windows/winstuff.h ../macosx/osx.h ../unix/unix.h \
@@ -696,6 +728,11 @@ winhelp.o: ../windows/winhelp.c ../putty.h ../puttyps.h ../network.h \
 		../unix/unix.h ../puttymem.h ../tree234.h \
 		../windows/winhelp.h ../charset/charset.h
 	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
+winhsock.o: ../windows/winhsock.c ../tree234.h ../putty.h ../network.h \
+		../puttyps.h ../misc.h ../windows/winstuff.h ../macosx/osx.h \
+		../unix/unix.h ../puttymem.h ../windows/winhelp.h \
+		../charset/charset.h
+	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
 winjump.o: ../windows/winjump.c ../putty.h ../storage.h ../puttyps.h \
 		../network.h ../misc.h ../windows/winstuff.h ../macosx/osx.h \
 		../unix/unix.h ../puttymem.h ../tree234.h \
@@ -719,19 +756,32 @@ winnoise.o: ../windows/winnoise.c ../putty.h ../ssh.h ../storage.h \
 	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
 winnojmp.o: ../windows/winnojmp.c
 	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
+winnpc.o: ../windows/winnpc.c ../tree234.h ../putty.h ../network.h \
+		../proxy.h ../ssh.h ../windows/winsecur.h ../puttyps.h \
+		../misc.h ../puttymem.h ../int64.h ../windows/winstuff.h \
+		../macosx/osx.h ../unix/unix.h ../windows/winhelp.h \
+		../charset/charset.h
+	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
+winnps.o: ../windows/winnps.c ../tree234.h ../putty.h ../network.h \
+		../proxy.h ../ssh.h ../windows/winsecur.h ../puttyps.h \
+		../misc.h ../puttymem.h ../int64.h ../windows/winstuff.h \
+		../macosx/osx.h ../unix/unix.h ../windows/winhelp.h \
+		../charset/charset.h
+	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
 winpgen.o: ../windows/winpgen.c ../putty.h ../ssh.h ../puttyps.h \
 		../network.h ../misc.h ../puttymem.h ../tree234.h ../int64.h \
 		../windows/winstuff.h ../macosx/osx.h ../unix/unix.h \
 		../windows/winhelp.h ../charset/charset.h
 	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
 winpgnt.o: ../windows/winpgnt.c ../putty.h ../ssh.h ../misc.h ../tree234.h \
-		../puttyps.h ../network.h ../puttymem.h ../int64.h \
-		../windows/winstuff.h ../macosx/osx.h ../unix/unix.h \
-		../windows/winhelp.h ../charset/charset.h
+		../windows/winsecur.h ../puttyps.h ../network.h \
+		../puttymem.h ../int64.h ../windows/winstuff.h \
+		../macosx/osx.h ../unix/unix.h ../windows/winhelp.h \
+		../charset/charset.h
 	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
-winpgntc.o: ../windows/winpgntc.c ../putty.h ../puttyps.h ../network.h \
-		../misc.h ../windows/winstuff.h ../macosx/osx.h \
-		../unix/unix.h ../puttymem.h ../tree234.h \
+winpgntc.o: ../windows/winpgntc.c ../putty.h ../windows/winsecur.h \
+		../puttyps.h ../network.h ../misc.h ../windows/winstuff.h \
+		../macosx/osx.h ../unix/unix.h ../puttymem.h ../tree234.h \
 		../windows/winhelp.h ../charset/charset.h
 	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
 winplink.o: ../windows/winplink.c ../putty.h ../storage.h ../tree234.h \
@@ -749,6 +799,11 @@ winproxy.o: ../windows/winproxy.c ../tree234.h ../putty.h ../network.h \
 		../macosx/osx.h ../unix/unix.h ../puttymem.h \
 		../windows/winhelp.h ../charset/charset.h
 	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
+winsecur.o: ../windows/winsecur.c ../putty.h ../windows/winsecur.h \
+		../puttyps.h ../network.h ../misc.h ../windows/winstuff.h \
+		../macosx/osx.h ../unix/unix.h ../puttymem.h ../tree234.h \
+		../windows/winhelp.h ../charset/charset.h
+	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
 winser.o: ../windows/winser.c ../putty.h ../puttyps.h ../network.h ../misc.h \
 		../windows/winstuff.h ../macosx/osx.h ../unix/unix.h \
 		../puttymem.h ../tree234.h ../windows/winhelp.h \
@@ -758,6 +813,12 @@ winsftp.o: ../windows/winsftp.c ../putty.h ../psftp.h ../ssh.h ../int64.h \
 		../puttyps.h ../network.h ../misc.h ../puttymem.h \
 		../tree234.h ../windows/winstuff.h ../macosx/osx.h \
 		../unix/unix.h ../windows/winhelp.h ../charset/charset.h
+	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
+winshare.o: ../windows/winshare.c ../tree234.h ../putty.h ../network.h \
+		../proxy.h ../ssh.h ../windows/winsecur.h ../noshare.c \
+		../puttyps.h ../misc.h ../puttymem.h ../int64.h \
+		../windows/winstuff.h ../macosx/osx.h ../unix/unix.h \
+		../windows/winhelp.h ../charset/charset.h
 	$(CC) $(COMPAT) $(FWHACK) $(CFLAGS) $(XFLAGS) -c $<
 winstore.o: ../windows/winstore.c ../putty.h ../storage.h ../puttyps.h \
 		../network.h ../misc.h ../windows/winstuff.h ../macosx/osx.h \
