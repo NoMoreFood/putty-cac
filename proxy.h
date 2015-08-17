@@ -30,6 +30,7 @@ struct Socket_proxy_tag {
     bufchain pending_oob_output_data;
     int pending_flush;
     bufchain pending_input_data;
+    int pending_eof;
 
 #define PROXY_STATE_NEW    -1
 #define PROXY_STATE_ACTIVE  0
@@ -77,10 +78,11 @@ struct Socket_proxy_tag {
     int sent_bufsize;
 
     /* accepting */
-    OSSocket accepting_sock;
+    accept_fn_t accepting_constructor;
+    accept_ctx_t accepting_ctx;
 
     /* configuration, used to look up proxy settings */
-    Config cfg;
+    Conf *conf;
 
     /* CHAP transient data */
     int chap_num_attributes;
@@ -110,7 +112,7 @@ extern int proxy_socks5_negotiate (Proxy_Socket, int);
  * This may be reused by local-command proxies on individual
  * platforms.
  */
-char *format_telnet_command(SockAddr addr, int port, const Config *cfg);
+char *format_telnet_command(SockAddr addr, int port, Conf *conf);
 
 /*
  * These are implemented in cproxy.c or nocproxy.c, depending on

@@ -99,8 +99,10 @@
 #define WINHELP_CTX_ssh_protocol "ssh.protocol:config-ssh-prot"
 #define WINHELP_CTX_ssh_command "ssh.command:config-command"
 #define WINHELP_CTX_ssh_compress "ssh.compress:config-ssh-comp"
+#define WINHELP_CTX_ssh_share "ssh.sharing:config-ssh-sharing"
 #define WINHELP_CTX_ssh_kexlist "ssh.kex.order:config-ssh-kex-order"
 #define WINHELP_CTX_ssh_kex_repeat "ssh.kex.repeat:config-ssh-kex-rekey"
+#define WINHELP_CTX_ssh_kex_manual_hostkeys "ssh.kex.manualhostkeys:config-ssh-kex-manual-hostkeys"
 #define WINHELP_CTX_ssh_auth_bypass "ssh.auth.bypass:config-ssh-noauth"
 #define WINHELP_CTX_ssh_auth_banner "ssh.auth.banner:config-ssh-banner"
 #define WINHELP_CTX_ssh_auth_privkey "ssh.auth.privkey:config-ssh-privkey"
@@ -144,6 +146,9 @@
 #define WINHELP_CTX_ssh_bugs_pksessid2 "ssh.bugs.pksessid2:config-ssh-bug-pksessid2"
 #define WINHELP_CTX_ssh_bugs_rekey2 "ssh.bugs.rekey2:config-ssh-bug-rekey"
 #define WINHELP_CTX_ssh_bugs_maxpkt2 "ssh.bugs.maxpkt2:config-ssh-bug-maxpkt2"
+#define WINHELP_CTX_ssh_bugs_winadj "ssh.bugs.winadj:config-ssh-bug-winadj"
+#define WINHELP_CTX_ssh_bugs_chanreq "ssh.bugs.winadj:config-ssh-bug-chanreq"
+#define WINHELP_CTX_ssh_bugs_oldgex2 "ssh.bugs.oldgex2:config-ssh-bug-oldgex2"
 #define WINHELP_CTX_serial_line "serial.line:config-serial-line"
 #define WINHELP_CTX_serial_speed "serial.speed:config-serial-speed"
 #define WINHELP_CTX_serial_databits "serial.databits:config-serial-databits"
@@ -168,13 +173,6 @@
 #define WINHELP_CTX_puttygen_pastekey "puttygen.pastekey:puttygen-pastekey"
 #define WINHELP_CTX_puttygen_load "puttygen.load:puttygen-load"
 #define WINHELP_CTX_puttygen_conversions "puttygen.conversions:puttygen-conversions"
-/* PuTTY SC start */
-#define WINHELP_CTX_ssh_write_syslog "ssh.write.syslog"
-#define WINHELP_CTX_ssh_auth_pkcs11 "ssh.auth.pkcs11"
-#define WINHELP_CTX_ssh_auth_pkcs11_libfile "ssh.auth.pkcs11libfile"
-#define WINHELP_CTX_ssh_auth_pkcs11_token_label "ssh.auth.pkcs11tokenlabel"
-#define WINHELP_CTX_ssh_auth_pkcs11_cert_label "ssh.auth.pkcs11certlabel"
-/* PuTTY SC end */
 /* PuTTY CAPI start */
 #ifdef _WINDOWS
 #define WINHELP_CTX_ssh_auth_capi "ssh.auth.capi"

@@ -210,6 +210,7 @@ void MD5Simple(void const *p, unsigned len, unsigned char output[16])
     MD5Init(&s);
     MD5Update(&s, (unsigned char const *)p, len);
     MD5Final(output, &s);
+    smemclr(&s, sizeof(s));
 }
 
 /* ----------------------------------------------------------------------
@@ -227,6 +228,7 @@ void *hmacmd5_make_context(void)
 
 void hmacmd5_free_context(void *handle)
 {
+    smemclr(handle, 3*sizeof(struct MD5Context));
     sfree(handle);
 }
 
@@ -249,7 +251,7 @@ void hmacmd5_key(void *handle, void const *keyv, int len)
     MD5Init(&keys[1]);
     MD5Update(&keys[1], foo, 64);
 
-    memset(foo, 0, 64);		       /* burn the evidence */
+    smemclr(foo, 64);		       /* burn the evidence */
 }
 
 static void hmacmd5_key_16(void *handle, unsigned char *key)
@@ -287,7 +289,7 @@ static int hmacmd5_verresult(void *handle, unsigned char const *hmac)
 {
     unsigned char correct[16];
     hmacmd5_genresult(handle, correct);
-    return !memcmp(correct, hmac, 16);
+    return smemeq(correct, hmac, 16);
 }
 
 static void hmacmd5_do_hmac_internal(void *handle,
@@ -312,11 +314,7 @@ static void hmacmd5_do_hmac_ssh(void *handle, unsigned char const *blk, int len,
 {
     unsigned char seqbuf[16];
 
-    seqbuf[0] = (unsigned char) ((seq >> 24) & 0xFF);
-    seqbuf[1] = (unsigned char) ((seq >> 16) & 0xFF);
-    seqbuf[2] = (unsigned char) ((seq >> 8) & 0xFF);
-    seqbuf[3] = (unsigned char) ((seq) & 0xFF);
-
+    PUT_32BIT_MSB_FIRST(seqbuf, seq);
     hmacmd5_do_hmac_internal(handle, seqbuf, 4, blk, len, hmac);
 }
 
@@ -331,7 +329,7 @@ static int hmacmd5_verify(void *handle, unsigned char *blk, int len,
 {
     unsigned char correct[16];
     hmacmd5_do_hmac_ssh(handle, blk, len, seq, correct);
-    return !memcmp(correct, blk + len, 16);
+    return smemeq(correct, blk + len, 16);
 }
 
 const struct ssh_mac ssh_hmac_md5 = {

@@ -98,7 +98,15 @@ SOURCE=..\..\..\be_nos_s.c
 # End Source File
 # Begin Source File
 
+SOURCE=..\..\..\callback.c
+# End Source File
+# Begin Source File
+
 SOURCE=..\..\..\cmdline.c
+# End Source File
+# Begin Source File
+
+SOURCE=..\..\..\conf.c
 # End Source File
 # Begin Source File
 
@@ -107,6 +115,10 @@ SOURCE=..\..\..\config.c
 # Begin Source File
 
 SOURCE=..\..\..\dialog.c
+# End Source File
+# Begin Source File
+
+SOURCE=..\..\..\errsock.c
 # End Source File
 # Begin Source File
 
@@ -218,6 +230,10 @@ SOURCE=..\..\..\windows\winhelp.c
 # End Source File
 # Begin Source File
 
+SOURCE=..\..\..\windows\winhsock.c
+# End Source File
+# Begin Source File
+
 SOURCE=..\..\..\windows\winjump.c
 # End Source File
 # Begin Source File
@@ -323,6 +339,10 @@ SOURCE=..\..\..\tree234.h
 # Begin Source File
 
 SOURCE=..\..\..\unix\unix.h
+# End Source File
+# Begin Source File
+
+SOURCE=..\..\..\version.h
 # End Source File
 # Begin Source File
 

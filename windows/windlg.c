@@ -44,7 +44,7 @@ static struct dlgparam dp;
 static char **events = NULL;
 static int nevents = 0, negsize = 0;
 
-extern Config cfg;		       /* defined in window.c */
+extern Conf *conf;		       /* defined in window.c */
 
 #define PRINTER_DISABLED_STRING "None (printing disabled)"
 
@@ -454,6 +454,7 @@ static int CALLBACK GenericMainDlgProc(HWND hwnd, UINT msg,
 	    HTREEITEM hfirst = NULL;
 	    int i;
 	    char *path = NULL;
+            char *firstpath = NULL;
 
 	    for (i = 0; i < ctrlbox->nctrlsets; i++) {
 		struct controlset *s = ctrlbox->ctrlsets[i];
@@ -486,18 +487,26 @@ static int CALLBACK GenericMainDlgProc(HWND hwnd, UINT msg,
 			c++;
 
 		item = treeview_insert(&tvfaff, j, c, s->pathname);
-		if (!hfirst)
+		if (!hfirst) {
 		    hfirst = item;
+                    firstpath = s->pathname;
+                }
 
 		path = s->pathname;
 	    }
 
 	    /*
-	     * Put the treeview selection on to the Session panel.
-	     * This should also cause creation of the relevant
-	     * controls.
+	     * Put the treeview selection on to the first panel in the
+	     * ctrlbox.
 	     */
 	    TreeView_SelectItem(treeview, hfirst);
+
+            /*
+             * And create the actual control set for that panel, to
+             * match the initial treeview selection.
+             */
+            create_controls(hwnd, firstpath);
+	    dlg_refresh(NULL, &dp);    /* and set up control values */
 	}
 
 	/*
@@ -516,6 +525,18 @@ static int CALLBACK GenericMainDlgProc(HWND hwnd, UINT msg,
 	    }
 	}
 
+        /*
+         * Now we've finished creating our initial set of controls,
+         * it's safe to actually show the window without risking setup
+         * flicker.
+         */
+        ShowWindow(hwnd, SW_SHOWNORMAL);
+
+        /*
+         * Set the flag that activates a couple of the other message
+         * handlers below, which were disabled until now to avoid
+         * spurious firing during the above setup procedure.
+         */
 	SetWindowLongPtr(hwnd, GWLP_USERDATA, 1);
 	return 0;
       case WM_LBUTTONUP:
@@ -530,10 +551,21 @@ static int CALLBACK GenericMainDlgProc(HWND hwnd, UINT msg,
       case WM_NOTIFY:
 	if (LOWORD(wParam) == IDCX_TREEVIEW &&
 	    ((LPNMHDR) lParam)->code == TVN_SELCHANGED) {
-	    HTREEITEM i =
-		TreeView_GetSelection(((LPNMHDR) lParam)->hwndFrom);
+            /*
+             * Selection-change events on the treeview cause us to do
+             * a flurry of control deletion and creation - but only
+             * after WM_INITDIALOG has finished. The initial
+             * selection-change event(s) during treeview setup are
+             * ignored.
+             */
+	    HTREEITEM i;
 	    TVITEM item;
 	    char buffer[64];
+
+            if (GetWindowLongPtr(hwnd, GWLP_USERDATA) != 1)
+                return 0;
+
+            i = TreeView_GetSelection(((LPNMHDR) lParam)->hwndFrom);
  
  	    SendMessage (hwnd, WM_SETREDRAW, FALSE, 0);
  
@@ -648,7 +680,7 @@ int do_config(void)
     dp_add_tree(&dp, &ctrls_panel);
     dp.wintitle = dupprintf("%s Configuration", appname);
     dp.errtitle = dupprintf("%s Error", appname);
-    dp.data = &cfg;
+    dp.data = conf;
     dlg_auto_set_fixed_pitch_flag(&dp);
     dp.shortcuts['g'] = TRUE;	       /* the treeview: `Cate&gory' */
 
@@ -666,15 +698,15 @@ int do_config(void)
 
 int do_reconfig(HWND hwnd, int protcfginfo)
 {
-    Config backup_cfg;
-    int ret;
+    Conf *backup_conf;
+    int ret, protocol;
 
-    backup_cfg = cfg;		       /* structure copy */
+    backup_conf = conf_copy(conf);
 
     ctrlbox = ctrl_new_box();
-    setup_config_box(ctrlbox, TRUE, cfg.protocol, protcfginfo);
-    win_setup_config_box(ctrlbox, &dp.hwnd, has_help(), TRUE,
-                         cfg.protocol);
+    protocol = conf_get_int(conf, CONF_protocol);
+    setup_config_box(ctrlbox, TRUE, protocol, protcfginfo);
+    win_setup_config_box(ctrlbox, &dp.hwnd, has_help(), TRUE, protocol);
     dp_init(&dp);
     winctrl_init(&ctrls_base);
     winctrl_init(&ctrls_panel);
@@ -682,7 +714,7 @@ int do_reconfig(HWND hwnd, int protcfginfo)
     dp_add_tree(&dp, &ctrls_panel);
     dp.wintitle = dupprintf("%s Reconfiguration", appname);
     dp.errtitle = dupprintf("%s Error", appname);
-    dp.data = &cfg;
+    dp.data = conf;
     dlg_auto_set_fixed_pitch_flag(&dp);
     dp.shortcuts['g'] = TRUE;	       /* the treeview: `Cate&gory' */
 
@@ -695,7 +727,9 @@ int do_reconfig(HWND hwnd, int protcfginfo)
     dp_cleanup(&dp);
 
     if (!ret)
-	cfg = backup_cfg;	       /* structure copy */
+	conf_copy_into(conf, backup_conf);
+
+    conf_free(backup_conf);
 
     return ret;
 }
@@ -856,7 +890,7 @@ int askalg(void *frontend, const char *algtype, const char *algname,
  * Ask whether to wipe a session log file before writing to it.
  * Returns 2 for wipe, 1 for append, 0 for cancel (don't log).
  */
-int askappend(void *frontend, Filename filename,
+int askappend(void *frontend, Filename *filename,
 	      void (*callback)(void *ctx, int result), void *ctx)
 {
     static const char msgtemplate[] =
@@ -870,7 +904,7 @@ int askappend(void *frontend, Filename filename,
     char *mbtitle;
     int mbret;
 
-    message = dupprintf(msgtemplate, FILENAME_MAX, filename.path);
+    message = dupprintf(msgtemplate, FILENAME_MAX, filename->path);
     mbtitle = dupprintf("%s Log to File", appname);
 
     mbret = MessageBox(NULL, message, mbtitle,

@@ -94,6 +94,10 @@ LINK32=link.exe
 # PROP Default_Filter "cpp;c;cxx;rc;def;r;odl;idl;hpj;bat"
 # Begin Source File
 
+SOURCE=..\..\..\conf.c
+# End Source File
+# Begin Source File
+
 SOURCE=..\..\..\import.c
 # End Source File
 # Begin Source File
@@ -250,6 +254,10 @@ SOURCE=..\..\..\ssh.h
 # End Source File
 # Begin Source File
 
+SOURCE=..\..\..\sshbn.h
+# End Source File
+# Begin Source File
+
 SOURCE=..\..\..\storage.h
 # End Source File
 # Begin Source File
@@ -259,6 +267,10 @@ SOURCE=..\..\..\tree234.h
 # Begin Source File
 
 SOURCE=..\..\..\unix\unix.h
+# End Source File
+# Begin Source File
+
+SOURCE=..\..\..\version.h
 # End Source File
 # Begin Source File
 
