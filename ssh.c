@@ -19,7 +19,7 @@
 
 /* PuTTY CAPI start */
 #ifdef _WINDOWS
-    #include "capi.h"
+        #include "capi.h"
 #endif
 /* PuTTY CAPI end */
 
@@ -8834,14 +8834,14 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
 	
         /* PuTTY CAPI start */
         else if (conf_get_int(ssh->conf, CONF_try_capi_auth)) {
-            logeventf(ssh, "Using cert (%s) from CAPI", conf_get_str(ssh->conf, CONF_capi_certID));
-			if (capi_get_pubkey(ssh->frontend, conf_get_str(ssh->conf, CONF_capi_certID), (unsigned char**) &s->publickey_blob, &s->publickey_algorithm, &s->publickey_bloblen)) {
-				s->capi_key_loaded = TRUE;
-				s->publickey_encrypted = FALSE; // never encrypted (as far as PuTTY knows)
-				s->publickey_comment = calloc(sizeof(conf_get_str(ssh->conf, CONF_capi_certID)) + 6, 1);
-				_snprintf(s->publickey_comment, sizeof(conf_get_str(ssh->conf, CONF_capi_certID)) + 5, "CAPI:%s", conf_get_str(ssh->conf, CONF_capi_certID));
-			}
-		}
+            logeventf(ssh, "Use CAPI cert (%s)", conf_get_str(ssh->conf, CONF_capi_certID));
+                        if (capi_get_pubkey(ssh->frontend, conf_get_str(ssh->conf, CONF_capi_certID), (unsigned char**) &s->publickey_blob, &s->publickey_algorithm, &s->publickey_bloblen)) {
+                                s->capi_key_loaded = TRUE;
+                                s->publickey_encrypted = FALSE; // never encrypted (as far as PuTTY knows)
+                                s->publickey_comment = calloc(strlen(conf_get_str(ssh->conf, CONF_capi_certID)) + 6, 1);
+                                _snprintf(s->publickey_comment, strlen(conf_get_str(ssh->conf, CONF_capi_certID)) + 6, "CAPI:%s", conf_get_str(ssh->conf, CONF_capi_certID));
+                        }
+                }
         /* PuTTY CAPI end */
 	
 	/*
@@ -9340,7 +9340,7 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
 		}
 
                 /* PuTTY CAPI marker */
-		} else if ((s->can_pubkey && s->publickey_blob &&
+            } else if ((s->can_pubkey && s->publickey_blob &&
                         !s->tried_pubkey_config) ||
                         (s->can_capi && s->publickey_blob && !s->tried_capi)) {
 
@@ -9349,7 +9349,7 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
 
 	    /* PuTTY CAPI start */
                 if (s->can_capi)
-                    s->tried_capi = TRUE;
+                        s->tried_capi = TRUE;
         /* PuTTY CAPI end */	
 		
 		ssh->pkt_actx = SSH2_PKTCTX_PUBLICKEY;
@@ -9437,20 +9437,21 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
 		    /*
 		     * Try decrypting the key.
 		     */
+			s->keyfile = conf_get_filename(ssh->conf, CONF_keyfile);
+
 			 /* PuTTY CAPI start */
             if(s->can_capi && s->capi_key_loaded) {/*chained off the else above*/
-				if (capi_get_key_handle(ssh->frontend, conf_get_str(ssh->conf, CONF_capi_certID), &s->capi_keyhandle)) {
-					key = &capi_key_ssh2_userkey; // special flag-struct
-				}
-				else {
-					logeventf(ssh, "capi_get_key_handle(%s) returned false. s->capi_keyhandle=%08x", conf_get_str(ssh->conf, CONF_capi_certID), s->capi_keyhandle);
-					error = "Failed to load CAPI key";
-				}
-			}
+                                if (capi_get_key_handle(ssh->frontend, conf_get_str(ssh->conf, CONF_capi_certID), &s->capi_keyhandle)) {
+                                        key = &capi_key_ssh2_userkey; // special flag-struct
+                                }
+                                else {
+                                        logeventf(ssh, "capi_get_key_handle(%s) returned false. s->capi_keyhandle=%08x", conf_get_str(ssh->conf, CONF_capi_certID), s->capi_keyhandle);
+                                        error = "Failed to load CAPI key";
+                                }
+                        }
 			else
-            /* PuTTY CAPI end */
-		    s->keyfile = conf_get_filename(ssh->conf, CONF_keyfile);
-		    key = ssh2_load_userkey(s->keyfile, passphrase, &error);
+				/* PuTTY CAPI end */
+			key = ssh2_load_userkey(s->keyfile, passphrase, &error);
 		    if (passphrase) {
 			/* burn the evidence */
 			smemclr(passphrase, strlen(passphrase));
@@ -9473,99 +9474,100 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
 		}
 
 		if (key) {
-		    unsigned char *pkblob, *sigblob, *sigdata;
-		    int pkblob_len, sigblob_len, sigdata_len;
-		    int p;
+			unsigned char *pkblob, *sigblob, *sigdata;
+			int pkblob_len, sigblob_len, sigdata_len;
+			int p;
 
-		    /*
-		     * We have loaded the private key and the server
-		     * has announced that it's willing to accept it.
-		     * Hallelujah. Generate a signature and send it.
-		     */
-		    s->pktout = ssh2_pkt_init(SSH2_MSG_USERAUTH_REQUEST);
-		    ssh2_pkt_addstring(s->pktout, ssh->username);
-		    ssh2_pkt_addstring(s->pktout, "ssh-connection");
-						    /* service requested */
-		    ssh2_pkt_addstring(s->pktout, "publickey");
-						    /* method */
-		    ssh2_pkt_addbool(s->pktout, TRUE);
-						    /* signature follows */
-			 /* PuTTY CAPI start */ 
-			 if (s->capi_keyhandle) {
-				 ssh2_pkt_addstring(s->pktout, s->capi_keyhandle->algorithm);
-				 pkblob_len = s->capi_keyhandle->pubkey_len;
-				 pkblob = calloc(pkblob_len,1);
-				 memcpy(pkblob, s->capi_keyhandle->pubkey, pkblob_len);
-			 } else {
-             /* PuTTY CAPI end */   
-		    ssh2_pkt_addstring(s->pktout, key->alg->name);
-		    pkblob = key->alg->public_blob(key->data,
-						   &pkblob_len);
-		    ssh2_pkt_addstring_start(s->pktout);
-		    ssh2_pkt_addstring_data(s->pktout, (char *)pkblob,
-					    pkblob_len);
+			/*
+			 * We have loaded the private key and the server
+			 * has announced that it's willing to accept it.
+			 * Hallelujah. Generate a signature and send it.
+			 */
+			s->pktout = ssh2_pkt_init(SSH2_MSG_USERAUTH_REQUEST);
+			ssh2_pkt_addstring(s->pktout, ssh->username);
+			ssh2_pkt_addstring(s->pktout, "ssh-connection");
+			/* service requested */
+			ssh2_pkt_addstring(s->pktout, "publickey");
+			/* method */
+			ssh2_pkt_addbool(s->pktout, TRUE);
+			/* signature follows */
+/* PuTTY CAPI start */
+			if (s->capi_keyhandle) {
+				ssh2_pkt_addstring(s->pktout, s->capi_keyhandle->algorithm);
+				pkblob_len = s->capi_keyhandle->pubkey_len;
+				pkblob = calloc(pkblob_len, 1);
+				memcpy(pkblob, s->capi_keyhandle->pubkey, pkblob_len);
+			}
+			else {
+				/* PuTTY CAPI end */
+				ssh2_pkt_addstring(s->pktout, key->alg->name);
+				pkblob = key->alg->public_blob(key->data,
+					&pkblob_len);
+			}
+			ssh2_pkt_addstring_start(s->pktout);
+			ssh2_pkt_addstring_data(s->pktout, (char *)pkblob,
+				pkblob_len);
 
-		    /*
-		     * The data to be signed is:
-		     *
-		     *   string  session-id
-		     *
-		     * followed by everything so far placed in the
-		     * outgoing packet.
-		     */
-		    sigdata_len = s->pktout->length - 5 + 4 +
-			ssh->v2_session_id_len;
-		    if (ssh->remote_bugs & BUG_SSH2_PK_SESSIONID)
-			sigdata_len -= 4;
-		    sigdata = snewn(sigdata_len, unsigned char);
-		    p = 0;
-		    if (!(ssh->remote_bugs & BUG_SSH2_PK_SESSIONID)) {
-			PUT_32BIT(sigdata+p, ssh->v2_session_id_len);
-			p += 4;
-		    }
-		    memcpy(sigdata+p, ssh->v2_session_id,
-			   ssh->v2_session_id_len);
-		    p += ssh->v2_session_id_len;
-		    memcpy(sigdata+p, s->pktout->data + 5,
-			   s->pktout->length - 5);
-		    p += s->pktout->length - 5;
-		    assert(p == sigdata_len);
-            /* PuTTY CAPI start */
-            if(s->capi_key_loaded && (s->capi_keyhandle != NULL)) { /* chained off else from above */
-                if ((sigblob = capi_sig(s->capi_keyhandle, sigdata, sigdata_len, &sigblob_len)) == NULL) {
-                    capi_release_key(&s->capi_keyhandle);
-                    sfree(pkblob);
-                    sfree(sigdata);
-                    bombout(("CAPI failed to sign data"));
-                    crStopV;
-                }
-            }
-            else
-            /* PuTTY CAPI end */    
-		    sigblob = key->alg->sign(key->data, (char *)sigdata,
-					     sigdata_len, &sigblob_len);
-		    ssh2_add_sigblob(ssh, s->pktout, pkblob, pkblob_len,
-				     sigblob, sigblob_len);
-		    sfree(pkblob);
-		    sfree(sigblob);
-		    sfree(sigdata);
+			/*
+			 * The data to be signed is:
+			 *
+			 *   string  session-id
+			 *
+			 * followed by everything so far placed in the
+			 * outgoing packet.
+			 */
+			sigdata_len = s->pktout->length - 5 + 4 +
+				ssh->v2_session_id_len;
+			if (ssh->remote_bugs & BUG_SSH2_PK_SESSIONID)
+				sigdata_len -= 4;
+			sigdata = snewn(sigdata_len, unsigned char);
+			p = 0;
+			if (!(ssh->remote_bugs & BUG_SSH2_PK_SESSIONID)) {
+				PUT_32BIT(sigdata + p, ssh->v2_session_id_len);
+				p += 4;
+			}
+			memcpy(sigdata + p, ssh->v2_session_id,
+				ssh->v2_session_id_len);
+			p += ssh->v2_session_id_len;
+			memcpy(sigdata + p, s->pktout->data + 5,
+				s->pktout->length - 5);
+			p += s->pktout->length - 5;
+			assert(p == sigdata_len);
+			/* PuTTY CAPI start */
+			if (s->capi_key_loaded && (s->capi_keyhandle != NULL)) { /* chained off else from above */
+				if ((sigblob = capi_sig(s->capi_keyhandle, sigdata, sigdata_len, &sigblob_len)) == NULL) {
+					capi_release_key(&s->capi_keyhandle);
+					sfree(pkblob);
+					sfree(sigdata);
+					bombout(("CAPI failed to sign data"));
+					crStopV;
+				}
+			}
+			else
+				/* PuTTY CAPI end */
+				sigblob = key->alg->sign(key->data, (char *)sigdata,
+					sigdata_len, &sigblob_len);
+			ssh2_add_sigblob(ssh, s->pktout, pkblob, pkblob_len,
+				sigblob, sigblob_len);
+			sfree(pkblob);
+			sfree(sigblob);
+			sfree(sigdata);
 
-		    ssh2_pkt_send(ssh, s->pktout);
-                    logevent("Sent public key signature");
-		    s->type = AUTH_TYPE_PUBLICKEY;
-            /* PuTTY CAPI start */
-            if (s->capi_key_loaded || s->capi_keyhandle) { /* chained off else from above */
+			ssh2_pkt_send(ssh, s->pktout);
+			logevent("Sent public key signature");
+			s->type = AUTH_TYPE_PUBLICKEY;
+			/* PuTTY CAPI start */
+			if (s->capi_key_loaded || s->capi_keyhandle) { /* chained off else from above */
 				capi_release_key(&s->capi_keyhandle);
 				s->capi_key_loaded = FALSE;
 				key = NULL;
+			} else {
+				/* PuTTY CAPI end */
+				key->alg->freekey(key->data);
+				sfree(key->comment);
+				sfree(key);
 			}
-			else
-            /* PuTTY CAPI end */
-		    key->alg->freekey(key->data);
-                    sfree(key->comment);
-                    sfree(key);
 		}
-}
 
 #ifndef NO_GSSAPI
 	    } else if (s->can_gssapi && !s->tried_gssapi) {
