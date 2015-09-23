@@ -5,6 +5,7 @@
 
 #include <windows.h>
 #include <Cryptuiapi.h>
+#include <ntstatus.h>
 #include "capi.h"
 #include "ssh.h"
 #define SHA1_BYTES 20
