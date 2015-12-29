@@ -146,6 +146,10 @@ SOURCE=..\..\..\misc.c
 # End Source File
 # Begin Source File
 
+SOURCE=..\..\..\miscucs.c
+# End Source File
+# Begin Source File
+
 SOURCE=..\..\..\noshare.c
 # End Source File
 # Begin Source File

@@ -311,6 +311,11 @@ misc.o: ../misc.c ../putty.h ../puttyps.h ../network.h ../misc.h \
 		../puttymem.h ../tree234.h ../windows/winhelp.h \
 		../charset/charset.h
 	$(CC) $(COMPAT) $(CFLAGS) $(XFLAGS) -c ../misc.c
+miscucs.o: ../miscucs.c ../putty.h ../misc.h ../puttyps.h ../network.h \
+		../puttymem.h ../windows/winstuff.h ../macosx/osx.h \
+		../unix/unix.h ../tree234.h ../windows/winhelp.h \
+		../charset/charset.h
+	$(CC) $(COMPAT) $(CFLAGS) $(XFLAGS) -c ../miscucs.c
 nocproxy.o: ../nocproxy.c ../putty.h ../network.h ../proxy.h ../puttyps.h \
 		../misc.h ../windows/winstuff.h ../macosx/osx.h \
 		../unix/unix.h ../puttymem.h ../tree234.h \
