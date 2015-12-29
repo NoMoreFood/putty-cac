@@ -164,20 +164,21 @@ psftp.exe: be_ssh.obj callback.obj cmdline.obj conf.obj cproxy.obj \
 
 putty.exe: be_all_s.obj callback.obj cmdline.obj conf.obj capi.obj config.obj \
 		cproxy.obj dialog.obj errsock.obj ldisc.obj ldiscucs.obj \
-		logging.obj minibidi.obj misc.obj pgssapi.obj pinger.obj \
-		portfwd.obj proxy.obj putty.res raw.obj rlogin.obj \
-		sercfg.obj settings.obj sizetip.obj ssh.obj sshaes.obj \
-		ssharcf.obj sshblowf.obj sshbn.obj sshcrc.obj sshcrcda.obj \
-		sshdes.obj sshdh.obj sshdss.obj sshgssc.obj sshmd5.obj \
-		sshpubk.obj sshrand.obj sshrsa.obj sshsh256.obj sshsh512.obj \
-		sshsha.obj sshshare.obj sshzlib.obj telnet.obj terminal.obj \
-		timing.obj tree234.obj version.obj wcwidth.obj wildcard.obj \
-		wincfg.obj winctrls.obj windefs.obj windlg.obj window.obj \
-		wingss.obj winhandl.obj winhelp.obj winhsock.obj winjump.obj \
-		winmisc.obj winnet.obj winnoise.obj winnpc.obj winnps.obj \
-		winpgntc.obj winprint.obj winproxy.obj winsecur.obj \
-		winser.obj winshare.obj winstore.obj wintime.obj winucs.obj \
-		winutils.obj winx11.obj x11fwd.obj putty.rsp
+		logging.obj minibidi.obj misc.obj miscucs.obj pgssapi.obj \
+		pinger.obj portfwd.obj proxy.obj putty.res raw.obj \
+		rlogin.obj sercfg.obj settings.obj sizetip.obj ssh.obj \
+		sshaes.obj ssharcf.obj sshblowf.obj sshbn.obj sshcrc.obj \
+		sshcrcda.obj sshdes.obj sshdh.obj sshdss.obj sshgssc.obj \
+		sshmd5.obj sshpubk.obj sshrand.obj sshrsa.obj sshsh256.obj \
+		sshsh512.obj sshsha.obj sshshare.obj sshzlib.obj telnet.obj \
+		terminal.obj timing.obj tree234.obj version.obj wcwidth.obj \
+		wildcard.obj wincfg.obj winctrls.obj windefs.obj windlg.obj \
+		window.obj wingss.obj winhandl.obj winhelp.obj winhsock.obj \
+		winjump.obj winmisc.obj winnet.obj winnoise.obj winnpc.obj \
+		winnps.obj winpgntc.obj winprint.obj winproxy.obj \
+		winsecur.obj winser.obj winshare.obj winstore.obj \
+		wintime.obj winucs.obj winutils.obj winx11.obj x11fwd.obj \
+		putty.rsp
 	link $(LFLAGS) $(XLFLAGS) -out:putty.exe -map:putty.map @putty.rsp
 
 puttygen.exe: conf.obj import.obj misc.obj notiming.obj puttygen.res \
@@ -191,14 +192,14 @@ puttygen.exe: conf.obj import.obj misc.obj notiming.obj puttygen.res \
 
 puttytel.exe: be_nos_s.obj callback.obj cmdline.obj conf.obj config.obj \
 		dialog.obj errsock.obj ldisc.obj ldiscucs.obj logging.obj \
-		minibidi.obj misc.obj nocproxy.obj nogss.obj pinger.obj \
-		proxy.obj puttytel.res raw.obj rlogin.obj sercfg.obj \
-		settings.obj sizetip.obj telnet.obj terminal.obj timing.obj \
-		tree234.obj version.obj wcwidth.obj wincfg.obj winctrls.obj \
-		windefs.obj windlg.obj window.obj winhandl.obj winhelp.obj \
-		winhsock.obj winjump.obj winmisc.obj winnet.obj winprint.obj \
-		winproxy.obj winser.obj winstore.obj wintime.obj winucs.obj \
-		winutils.obj puttytel.rsp
+		minibidi.obj misc.obj miscucs.obj nocproxy.obj nogss.obj \
+		pinger.obj proxy.obj puttytel.res raw.obj rlogin.obj \
+		sercfg.obj settings.obj sizetip.obj telnet.obj terminal.obj \
+		timing.obj tree234.obj version.obj wcwidth.obj wincfg.obj \
+		winctrls.obj windefs.obj windlg.obj window.obj winhandl.obj \
+		winhelp.obj winhsock.obj winjump.obj winmisc.obj winnet.obj \
+		winprint.obj winproxy.obj winser.obj winstore.obj \
+		wintime.obj winucs.obj winutils.obj puttytel.rsp
 	link $(LFLAGS) $(XLFLAGS) -out:puttytel.exe -map:puttytel.map @puttytel.rsp
 
 pageant.rsp: $(MAKEFILE)
@@ -286,9 +287,9 @@ putty.rsp: $(MAKEFILE)
 	echo cmdline.obj comctl32.lib comdlg32.lib conf.obj >> putty.rsp
 	echo config.obj cproxy.obj dialog.obj errsock.obj >> putty.rsp
 	echo gdi32.lib imm32.lib ldisc.obj ldiscucs.obj >> putty.rsp
-	echo logging.obj minibidi.obj misc.obj ole32.lib >> putty.rsp
-	echo pgssapi.obj pinger.obj portfwd.obj proxy.obj >> putty.rsp
-	echo putty.res raw.obj rlogin.obj sercfg.obj >> putty.rsp
+	echo logging.obj minibidi.obj misc.obj miscucs.obj >> putty.rsp
+	echo ole32.lib pgssapi.obj pinger.obj portfwd.obj >> putty.rsp
+	echo proxy.obj putty.res raw.obj rlogin.obj sercfg.obj >> putty.rsp
 	echo settings.obj shell32.lib sizetip.obj ssh.obj >> putty.rsp
 	echo sshaes.obj ssharcf.obj sshblowf.obj sshbn.obj >> putty.rsp
 	echo sshcrc.obj sshcrcda.obj sshdes.obj sshdh.obj >> putty.rsp
@@ -327,17 +328,17 @@ puttytel.rsp: $(MAKEFILE)
 	echo cmdline.obj comctl32.lib comdlg32.lib conf.obj >> puttytel.rsp
 	echo config.obj dialog.obj errsock.obj gdi32.lib >> puttytel.rsp
 	echo imm32.lib ldisc.obj ldiscucs.obj logging.obj >> puttytel.rsp
-	echo minibidi.obj misc.obj nocproxy.obj nogss.obj >> puttytel.rsp
-	echo ole32.lib pinger.obj proxy.obj puttytel.res >> puttytel.rsp
-	echo raw.obj rlogin.obj sercfg.obj settings.obj >> puttytel.rsp
-	echo shell32.lib sizetip.obj telnet.obj terminal.obj >> puttytel.rsp
-	echo timing.obj tree234.obj user32.lib version.obj >> puttytel.rsp
-	echo wcwidth.obj wincfg.obj winctrls.obj windefs.obj >> puttytel.rsp
-	echo windlg.obj window.obj winhandl.obj winhelp.obj >> puttytel.rsp
-	echo winhsock.obj winjump.obj winmisc.obj winmm.lib >> puttytel.rsp
-	echo winnet.obj winprint.obj winproxy.obj winser.obj >> puttytel.rsp
-	echo winspool.lib winstore.obj wintime.obj winucs.obj >> puttytel.rsp
-	echo winutils.obj >> puttytel.rsp
+	echo minibidi.obj misc.obj miscucs.obj nocproxy.obj >> puttytel.rsp
+	echo nogss.obj ole32.lib pinger.obj proxy.obj >> puttytel.rsp
+	echo puttytel.res raw.obj rlogin.obj sercfg.obj >> puttytel.rsp
+	echo settings.obj shell32.lib sizetip.obj telnet.obj >> puttytel.rsp
+	echo terminal.obj timing.obj tree234.obj user32.lib >> puttytel.rsp
+	echo version.obj wcwidth.obj wincfg.obj winctrls.obj >> puttytel.rsp
+	echo windefs.obj windlg.obj window.obj winhandl.obj >> puttytel.rsp
+	echo winhelp.obj winhsock.obj winjump.obj winmisc.obj >> puttytel.rsp
+	echo winmm.lib winnet.obj winprint.obj winproxy.obj >> puttytel.rsp
+	echo winser.obj winspool.lib winstore.obj wintime.obj >> puttytel.rsp
+	echo winucs.obj winutils.obj >> puttytel.rsp
 
 capi.obj: ..\capi.c ..\ssh.h ..\capi.h ..\puttymem.h ..\tree234.h \
 		..\network.h ..\int64.h ..\misc.h
@@ -490,6 +491,12 @@ misc.obj: ..\misc.c ..\putty.h ..\puttyps.h ..\network.h ..\misc.h \
 		..\puttymem.h ..\tree234.h ..\windows\winhelp.h \
 		..\charset\charset.h
 	cl $(COMPAT) $(CFLAGS) $(XFLAGS) /c ..\misc.c
+
+miscucs.obj: ..\miscucs.c ..\putty.h ..\misc.h ..\puttyps.h ..\network.h \
+		..\puttymem.h ..\windows\winstuff.h ..\macosx\osx.h \
+		..\unix\unix.h ..\tree234.h ..\windows\winhelp.h \
+		..\charset\charset.h
+	cl $(COMPAT) $(CFLAGS) $(XFLAGS) /c ..\miscucs.c
 
 nocproxy.obj: ..\nocproxy.c ..\putty.h ..\network.h ..\proxy.h ..\puttyps.h \
 		..\misc.h ..\windows\winstuff.h ..\macosx\osx.h \
