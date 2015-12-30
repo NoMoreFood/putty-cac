@@ -8,6 +8,8 @@ known to build correctly with Microsoft Visual C, at this time.
 
 But it supports the DoD Common Access Card (CAC) and a number of other smartcards.  
 
+Note: check 0.66-sync branch for most current.
+
 PuTTY-CAC is now updated to 0.65 and is in sync with the newest PuTTY
 Suite 0.65. I synced the PuTTY-CAC code with the latest version of PuTTY
 0.65 to get PuTTY-CAC 0.65. This is a non-official release. If and/or
