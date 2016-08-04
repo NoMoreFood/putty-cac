@@ -214,8 +214,8 @@ psftp.exe: be_ssh.o callback.o cmdline.o conf.o cproxy.o errsock.o int64.o \
 
 putty.exe: be_all_s.o callback.o cmdline.o conf.o config.o cproxy.o dialog.o \
 		errsock.o ldisc.o ldiscucs.o logging.o minibidi.o misc.o \
-		pgssapi.o pinger.o portfwd.o proxy.o putty.res.o raw.o \
-		rlogin.o sercfg.o settings.o sizetip.o ssh.o sshaes.o \
+		miscucs.o pgssapi.o pinger.o portfwd.o proxy.o putty.res.o \
+		raw.o rlogin.o sercfg.o settings.o sizetip.o ssh.o sshaes.o \
 		ssharcf.o sshblowf.o sshbn.o sshcrc.o sshcrcda.o sshdes.o \
 		sshdh.o sshdss.o sshgssc.o sshmd5.o sshpubk.o sshrand.o \
 		sshrsa.o sshsh256.o sshsh512.o sshsha.o sshshare.o sshzlib.o \
@@ -228,8 +228,8 @@ putty.exe: be_all_s.o callback.o cmdline.o conf.o config.o cproxy.o dialog.o \
 	$(CC) -mwindows $(LDFLAGS) -o $@ -Wl,-Map,putty.map be_all_s.o \
 		callback.o cmdline.o conf.o config.o cproxy.o dialog.o \
 		errsock.o ldisc.o ldiscucs.o logging.o minibidi.o misc.o \
-		pgssapi.o pinger.o portfwd.o proxy.o putty.res.o raw.o \
-		rlogin.o sercfg.o settings.o sizetip.o ssh.o sshaes.o \
+		miscucs.o pgssapi.o pinger.o portfwd.o proxy.o putty.res.o \
+		raw.o rlogin.o sercfg.o settings.o sizetip.o ssh.o sshaes.o \
 		ssharcf.o sshblowf.o sshbn.o sshcrc.o sshcrcda.o sshdes.o \
 		sshdh.o sshdss.o sshgssc.o sshmd5.o sshpubk.o sshrand.o \
 		sshrsa.o sshsh256.o sshsh512.o sshsha.o sshshare.o sshzlib.o \
@@ -259,23 +259,23 @@ puttygen.exe: conf.o import.o misc.o notiming.o puttygen.res.o sshaes.o \
 
 puttytel.exe: be_nos_s.o callback.o cmdline.o conf.o config.o dialog.o \
 		errsock.o ldisc.o ldiscucs.o logging.o minibidi.o misc.o \
+		miscucs.o nocproxy.o nogss.o pinger.o proxy.o puttytel.res.o \
+		raw.o rlogin.o sercfg.o settings.o sizetip.o telnet.o \
+		terminal.o timing.o tree234.o version.o wcwidth.o wincfg.o \
+		winctrls.o windefs.o windlg.o window.o winhandl.o winhelp.o \
+		winhsock.o winjump.o winmisc.o winnet.o winprint.o \
+		winproxy.o winser.o winstore.o wintime.o winucs.o winutils.o
+	$(CC) -mwindows $(LDFLAGS) -o $@ -Wl,-Map,puttytel.map be_nos_s.o \
+		callback.o cmdline.o conf.o config.o dialog.o errsock.o \
+		ldisc.o ldiscucs.o logging.o minibidi.o misc.o miscucs.o \
 		nocproxy.o nogss.o pinger.o proxy.o puttytel.res.o raw.o \
 		rlogin.o sercfg.o settings.o sizetip.o telnet.o terminal.o \
 		timing.o tree234.o version.o wcwidth.o wincfg.o winctrls.o \
 		windefs.o windlg.o window.o winhandl.o winhelp.o winhsock.o \
 		winjump.o winmisc.o winnet.o winprint.o winproxy.o winser.o \
-		winstore.o wintime.o winucs.o winutils.o
-	$(CC) -mwindows $(LDFLAGS) -o $@ -Wl,-Map,puttytel.map be_nos_s.o \
-		callback.o cmdline.o conf.o config.o dialog.o errsock.o \
-		ldisc.o ldiscucs.o logging.o minibidi.o misc.o nocproxy.o \
-		nogss.o pinger.o proxy.o puttytel.res.o raw.o rlogin.o \
-		sercfg.o settings.o sizetip.o telnet.o terminal.o timing.o \
-		tree234.o version.o wcwidth.o wincfg.o winctrls.o windefs.o \
-		windlg.o window.o winhandl.o winhelp.o winhsock.o winjump.o \
-		winmisc.o winnet.o winprint.o winproxy.o winser.o winstore.o \
-		wintime.o winucs.o winutils.o -ladvapi32 -lcomctl32 \
-		-lcomdlg32 -lgdi32 -limm32 -lole32 -lshell32 -luser32 \
-		-lwinmm -lwinspool
+		winstore.o wintime.o winucs.o winutils.o -ladvapi32 \
+		-lcomctl32 -lcomdlg32 -lgdi32 -limm32 -lole32 -lshell32 \
+		-luser32 -lwinmm -lwinspool
 
 be_all_s.o: ../be_all_s.c ../putty.h ../puttyps.h ../network.h ../misc.h \
 		../windows/winstuff.h ../macosx/osx.h ../unix/unix.h \
@@ -424,6 +424,12 @@ misc.o: ../misc.c ../putty.h ../puttyps.h ../network.h ../misc.h \
 		../puttymem.h ../tree234.h ../windows/winhelp.h \
 		../charset/charset.h
 	$(CC) $(COMPAT) $(CFLAGS) $(XFLAGS) -c ../misc.c
+
+miscucs.o: ../miscucs.c ../putty.h ../misc.h ../puttyps.h ../network.h \
+		../puttymem.h ../windows/winstuff.h ../macosx/osx.h \
+		../unix/unix.h ../tree234.h ../windows/winhelp.h \
+		../charset/charset.h
+	$(CC) $(COMPAT) $(CFLAGS) $(XFLAGS) -c ../miscucs.c
 
 nocproxy.o: ../nocproxy.c ../putty.h ../network.h ../proxy.h ../puttyps.h \
 		../misc.h ../windows/winstuff.h ../macosx/osx.h \
