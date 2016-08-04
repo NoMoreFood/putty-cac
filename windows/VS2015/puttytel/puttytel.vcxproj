@@ -151,6 +151,7 @@
     <ClCompile Include="..\..\..\logging.c" />
     <ClCompile Include="..\..\..\minibidi.c" />
     <ClCompile Include="..\..\..\misc.c" />
+    <ClCompile Include="..\..\..\miscucs.c" />
     <ClCompile Include="..\..\..\nocproxy.c" />
     <ClCompile Include="..\..\..\nogss.c" />
     <ClCompile Include="..\..\..\pinger.c" />

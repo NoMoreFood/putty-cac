@@ -202,17 +202,17 @@ psftp: be_ssh.o callback.o cmdline.o conf.o cproxy.o int64.o logging.o \
 pterm: be_none.o callback.o cmdline.o conf.o config.o dialog.o fromucs.o \
 		gtkcfg.o gtkcols.o gtkdlg.o gtkfont.o gtkwin.o ldisc.o \
 		ldiscucs.o localenc.o logging.o macenc.o mimeenc.o \
-		minibidi.o misc.o nocproxy.o nogss.o sbcs.o sbcsdat.o \
-		sercfg.o settings.o slookup.o terminal.o time.o timing.o \
-		toucs.o tree234.o utf8.o uxcfg.o uxmisc.o uxprint.o \
+		minibidi.o misc.o miscucs.o nocproxy.o nogss.o sbcs.o \
+		sbcsdat.o sercfg.o settings.o slookup.o terminal.o time.o \
+		timing.o toucs.o tree234.o utf8.o uxcfg.o uxmisc.o uxprint.o \
 		uxpterm.o uxpty.o uxsel.o uxsignal.o uxstore.o uxucs.o \
 		version.o wcwidth.o xenc.o xkeysym.o xpmptcfg.o xpmpterm.o
 	$(CC) -o $@ be_none.o callback.o cmdline.o conf.o config.o dialog.o \
 		fromucs.o gtkcfg.o gtkcols.o gtkdlg.o gtkfont.o gtkwin.o \
 		ldisc.o ldiscucs.o localenc.o logging.o macenc.o mimeenc.o \
-		minibidi.o misc.o nocproxy.o nogss.o sbcs.o sbcsdat.o \
-		sercfg.o settings.o slookup.o terminal.o time.o timing.o \
-		toucs.o tree234.o utf8.o uxcfg.o uxmisc.o uxprint.o \
+		minibidi.o misc.o miscucs.o nocproxy.o nogss.o sbcs.o \
+		sbcsdat.o sercfg.o settings.o slookup.o terminal.o time.o \
+		timing.o toucs.o tree234.o utf8.o uxcfg.o uxmisc.o uxprint.o \
 		uxpterm.o uxpty.o uxsel.o uxsignal.o uxstore.o uxucs.o \
 		version.o wcwidth.o xenc.o xkeysym.o xpmptcfg.o xpmpterm.o \
 		$(XLDFLAGS) 
@@ -220,27 +220,27 @@ pterm: be_none.o callback.o cmdline.o conf.o config.o dialog.o fromucs.o \
 putty: be_all_s.o callback.o cmdline.o conf.o config.o cproxy.o dialog.o \
 		fromucs.o gtkcfg.o gtkcols.o gtkdlg.o gtkfont.o gtkwin.o \
 		ldisc.o ldiscucs.o localenc.o logging.o macenc.o mimeenc.o \
-		minibidi.o misc.o pgssapi.o pinger.o portfwd.o proxy.o raw.o \
-		rlogin.o sbcs.o sbcsdat.o sercfg.o settings.o slookup.o \
-		ssh.o sshaes.o ssharcf.o sshblowf.o sshbn.o sshcrc.o \
-		sshcrcda.o sshdes.o sshdh.o sshdss.o sshgssc.o sshmd5.o \
-		sshpubk.o sshrand.o sshrsa.o sshsh256.o sshsh512.o sshsha.o \
-		sshshare.o sshzlib.o telnet.o terminal.o time.o timing.o \
-		toucs.o tree234.o utf8.o ux_x11.o uxagentc.o uxcfg.o uxgss.o \
-		uxmisc.o uxnet.o uxnoise.o uxpeer.o uxprint.o uxproxy.o \
-		uxputty.o uxsel.o uxser.o uxshare.o uxsignal.o uxstore.o \
-		uxucs.o version.o wcwidth.o wildcard.o x11fwd.o xenc.o \
-		xkeysym.o xpmpucfg.o xpmputty.o
-	$(CC) -o $@ be_all_s.o callback.o cmdline.o conf.o config.o cproxy.o \
-		dialog.o fromucs.o gtkcfg.o gtkcols.o gtkdlg.o gtkfont.o \
-		gtkwin.o ldisc.o ldiscucs.o localenc.o logging.o macenc.o \
-		mimeenc.o minibidi.o misc.o pgssapi.o pinger.o portfwd.o \
+		minibidi.o misc.o miscucs.o pgssapi.o pinger.o portfwd.o \
 		proxy.o raw.o rlogin.o sbcs.o sbcsdat.o sercfg.o settings.o \
 		slookup.o ssh.o sshaes.o ssharcf.o sshblowf.o sshbn.o \
 		sshcrc.o sshcrcda.o sshdes.o sshdh.o sshdss.o sshgssc.o \
 		sshmd5.o sshpubk.o sshrand.o sshrsa.o sshsh256.o sshsh512.o \
 		sshsha.o sshshare.o sshzlib.o telnet.o terminal.o time.o \
 		timing.o toucs.o tree234.o utf8.o ux_x11.o uxagentc.o \
+		uxcfg.o uxgss.o uxmisc.o uxnet.o uxnoise.o uxpeer.o \
+		uxprint.o uxproxy.o uxputty.o uxsel.o uxser.o uxshare.o \
+		uxsignal.o uxstore.o uxucs.o version.o wcwidth.o wildcard.o \
+		x11fwd.o xenc.o xkeysym.o xpmpucfg.o xpmputty.o
+	$(CC) -o $@ be_all_s.o callback.o cmdline.o conf.o config.o cproxy.o \
+		dialog.o fromucs.o gtkcfg.o gtkcols.o gtkdlg.o gtkfont.o \
+		gtkwin.o ldisc.o ldiscucs.o localenc.o logging.o macenc.o \
+		mimeenc.o minibidi.o misc.o miscucs.o pgssapi.o pinger.o \
+		portfwd.o proxy.o raw.o rlogin.o sbcs.o sbcsdat.o sercfg.o \
+		settings.o slookup.o ssh.o sshaes.o ssharcf.o sshblowf.o \
+		sshbn.o sshcrc.o sshcrcda.o sshdes.o sshdh.o sshdss.o \
+		sshgssc.o sshmd5.o sshpubk.o sshrand.o sshrsa.o sshsh256.o \
+		sshsh512.o sshsha.o sshshare.o sshzlib.o telnet.o terminal.o \
+		time.o timing.o toucs.o tree234.o utf8.o ux_x11.o uxagentc.o \
 		uxcfg.o uxgss.o uxmisc.o uxnet.o uxnoise.o uxpeer.o \
 		uxprint.o uxproxy.o uxputty.o uxsel.o uxser.o uxshare.o \
 		uxsignal.o uxstore.o uxucs.o version.o wcwidth.o wildcard.o \
@@ -260,22 +260,23 @@ puttygen: cmdgen.o conf.o import.o misc.o notiming.o sshaes.o sshbn.o \
 puttytel: be_nos_s.o callback.o cmdline.o conf.o config.o dialog.o fromucs.o \
 		gtkcfg.o gtkcols.o gtkdlg.o gtkfont.o gtkwin.o ldisc.o \
 		ldiscucs.o localenc.o logging.o macenc.o mimeenc.o \
-		minibidi.o misc.o nocproxy.o nogss.o pinger.o proxy.o raw.o \
-		rlogin.o sbcs.o sbcsdat.o sercfg.o settings.o slookup.o \
-		telnet.o terminal.o time.o timing.o toucs.o tree234.o utf8.o \
-		uxcfg.o uxmisc.o uxnet.o uxpeer.o uxprint.o uxproxy.o \
-		uxputty.o uxsel.o uxser.o uxsignal.o uxstore.o uxucs.o \
-		version.o wcwidth.o xenc.o xkeysym.o xpmpucfg.o xpmputty.o
+		minibidi.o misc.o miscucs.o nocproxy.o nogss.o pinger.o \
+		proxy.o raw.o rlogin.o sbcs.o sbcsdat.o sercfg.o settings.o \
+		slookup.o telnet.o terminal.o time.o timing.o toucs.o \
+		tree234.o utf8.o uxcfg.o uxmisc.o uxnet.o uxpeer.o uxprint.o \
+		uxproxy.o uxputty.o uxsel.o uxser.o uxsignal.o uxstore.o \
+		uxucs.o version.o wcwidth.o xenc.o xkeysym.o xpmpucfg.o \
+		xpmputty.o
 	$(CC) -o $@ be_nos_s.o callback.o cmdline.o conf.o config.o dialog.o \
 		fromucs.o gtkcfg.o gtkcols.o gtkdlg.o gtkfont.o gtkwin.o \
 		ldisc.o ldiscucs.o localenc.o logging.o macenc.o mimeenc.o \
-		minibidi.o misc.o nocproxy.o nogss.o pinger.o proxy.o raw.o \
-		rlogin.o sbcs.o sbcsdat.o sercfg.o settings.o slookup.o \
-		telnet.o terminal.o time.o timing.o toucs.o tree234.o utf8.o \
-		uxcfg.o uxmisc.o uxnet.o uxpeer.o uxprint.o uxproxy.o \
-		uxputty.o uxsel.o uxser.o uxsignal.o uxstore.o uxucs.o \
-		version.o wcwidth.o xenc.o xkeysym.o xpmpucfg.o xpmputty.o \
-		$(XLDFLAGS) 
+		minibidi.o misc.o miscucs.o nocproxy.o nogss.o pinger.o \
+		proxy.o raw.o rlogin.o sbcs.o sbcsdat.o sercfg.o settings.o \
+		slookup.o telnet.o terminal.o time.o timing.o toucs.o \
+		tree234.o utf8.o uxcfg.o uxmisc.o uxnet.o uxpeer.o uxprint.o \
+		uxproxy.o uxputty.o uxsel.o uxser.o uxsignal.o uxstore.o \
+		uxucs.o version.o wcwidth.o xenc.o xkeysym.o xpmpucfg.o \
+		xpmputty.o $(XLDFLAGS) 
 
 be_all_s.o: ../be_all_s.c ../putty.h ../puttyps.h ../network.h ../misc.h \
 		../windows/winstuff.h ../macosx/osx.h ../unix/unix.h \
@@ -397,6 +398,11 @@ misc.o: ../misc.c ../putty.h ../puttyps.h ../network.h ../misc.h \
 		../puttymem.h ../tree234.h ../windows/winhelp.h \
 		../charset/charset.h
 	$(CC) $(COMPAT) $(CFLAGS) $(XFLAGS) -c ../misc.c
+miscucs.o: ../miscucs.c ../putty.h ../misc.h ../puttyps.h ../network.h \
+		../puttymem.h ../windows/winstuff.h ../macosx/osx.h \
+		../unix/unix.h ../tree234.h ../windows/winhelp.h \
+		../charset/charset.h
+	$(CC) $(COMPAT) $(CFLAGS) $(XFLAGS) -c ../miscucs.c
 nocproxy.o: ../nocproxy.c ../putty.h ../network.h ../proxy.h ../puttyps.h \
 		../misc.h ../windows/winstuff.h ../macosx/osx.h \
 		../unix/unix.h ../puttymem.h ../tree234.h \
