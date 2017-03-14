@@ -1163,7 +1163,9 @@ char *buildinfo(const char *newline)
     strbuf_catf(buf, "%sCompiler: gcc %s", newline, __VERSION__);
 #elif defined _MSC_VER
     strbuf_catf(buf, "%sCompiler: Visual Studio", newline);
-#if _MSC_VER == 1900
+#if _MSC_VER == 1910
+	strbuf_catf(buf, " 2017 / MSVC++ 15.0");
+#elif _MSC_VER == 1900
     strbuf_catf(buf, " 2015 / MSVC++ 14.0");
 #elif _MSC_VER == 1800
     strbuf_catf(buf, " 2013 / MSVC++ 12.0");

@@ -19,6 +19,10 @@
 #include "sshgss.h"
 #endif
 
+#ifdef PUTTY_CAC
+#include "capi.h"
+#endif // PUTTY_CAC
+
 #ifndef FALSE
 #define FALSE 0
 #endif
@@ -9223,6 +9227,10 @@ static void do_ssh2_authconn(Ssh ssh, const unsigned char *in, int inlen,
 	} type;
 	int done_service_req;
 	int gotit, need_pw, can_pubkey, can_passwd, can_keyb_inter;
+#ifdef PUTTY_CAC
+    int can_capi, tried_capi, capi_key_loaded;
+    struct capi_keyhandle_struct* capi_keyhandle;
+#endif // PUTTY_CAC
 	int tried_pubkey_config, done_agent;
 #ifndef NO_GSSAPI
 	int can_gssapi;
@@ -9292,6 +9300,13 @@ static void do_ssh2_authconn(Ssh ssh, const unsigned char *in, int inlen,
     s->tried_gssapi = FALSE;
 #endif
 
+#ifdef PUTTY_CAC
+    s->tried_capi = FALSE;
+    s->can_capi = FALSE;
+    s->capi_key_loaded = FALSE;
+    s->capi_keyhandle = NULL;
+#endif // PUTTY_CAC
+	
     if (!ssh->bare_connection) {
         if (!conf_get_int(ssh->conf, CONF_ssh_no_userauth)) {
             /*
@@ -9385,6 +9400,17 @@ static void do_ssh2_authconn(Ssh ssh, const unsigned char *in, int inlen,
 	    }
 	}
 
+#ifdef PUTTY_CAC
+        else if (conf_get_int(ssh->conf, CONF_try_capi_auth)) {
+            logeventf(ssh, "Use CAPI cert (%s)", conf_get_str(ssh->conf, CONF_capi_certID));
+                        if (capi_get_pubkey(ssh->frontend, conf_get_str(ssh->conf, CONF_capi_certID), (unsigned char**) &s->publickey_blob, &s->publickey_algorithm, &s->publickey_bloblen)) {
+                                s->capi_key_loaded = TRUE;
+                                s->publickey_comment = calloc(strlen(conf_get_str(ssh->conf, CONF_capi_certID)) + 6, 1);
+                                _snprintf(s->publickey_comment, strlen(conf_get_str(ssh->conf, CONF_capi_certID)) + 6, "CAPI:%s", conf_get_str(ssh->conf, CONF_capi_certID));
+                        }
+                }
+#endif // PUTTY_CAC
+		
 	/*
 	 * Find out about any keys Pageant has (but if there's a
 	 * public key configured, filter out all others).
@@ -9719,6 +9745,9 @@ static void do_ssh2_authconn(Ssh ssh, const unsigned char *in, int inlen,
 
 		s->can_pubkey =
 		    in_commasep_string("publickey", methods, methlen);
+#ifdef PUTTY_CAC
+        s->can_capi = conf_get_int(ssh->conf, CONF_try_capi_auth) && s->can_pubkey && s->capi_key_loaded;
+#endif // PUTTY_CAC
 		s->can_passwd =
 		    in_commasep_string("password", methods, methlen);
 		s->can_keyb_inter = conf_get_int(ssh->conf, CONF_try_ki_auth) &&
@@ -9892,13 +9921,22 @@ static void do_ssh2_authconn(Ssh ssh, const unsigned char *in, int inlen,
 		    if (s->keyi >= s->nkeys)
 			s->done_agent = TRUE;
 		}
-
+#ifdef PUTTY_CAC
+	    } else if ((s->can_pubkey && s->publickey_blob &&
+		       s->privatekey_available && !s->tried_pubkey_config) ||
+   			   (s->can_capi && s->publickey_blob && !s->tried_capi)) {
+#else
 	    } else if (s->can_pubkey && s->publickey_blob &&
 		       s->privatekey_available && !s->tried_pubkey_config) {
-
+#endif
 		struct ssh2_userkey *key;   /* not live over crReturn */
 		char *passphrase;	    /* not live over crReturn */
 
+#ifdef PUTTY_CAC
+                if (s->can_capi)
+                        s->tried_capi = TRUE;
+#endif // PUTTY_CAC
+		
 		ssh->pkt_actx = SSH2_PKTCTX_PUBLICKEY;
 
 		s->tried_pubkey_config = TRUE;
@@ -9985,6 +10023,18 @@ static void do_ssh2_authconn(Ssh ssh, const unsigned char *in, int inlen,
 		     * Try decrypting the key.
 		     */
 		    s->keyfile = conf_get_filename(ssh->conf, CONF_keyfile);
+#ifdef PUTTY_CAC
+            if(s->can_capi && s->capi_key_loaded) {/*chained off the else above*/
+                                if (capi_get_key_handle(ssh->frontend, conf_get_str(ssh->conf, CONF_capi_certID), &s->capi_keyhandle)) {
+                                        key = &capi_key_ssh2_userkey; // special flag-struct
+                                }
+                                else {
+                                        logeventf(ssh, "capi_get_key_handle(%s) returned false. s->capi_keyhandle=%08x", conf_get_str(ssh->conf, CONF_capi_certID), s->capi_keyhandle);
+                                        error = "Failed to load CAPI key";
+                                }
+                        }
+			else
+#endif // PUTTY_CAC
 		    key = ssh2_load_userkey(s->keyfile, passphrase, &error);
 		    if (passphrase) {
 			/* burn the evidence */
@@ -10025,9 +10075,21 @@ static void do_ssh2_authconn(Ssh ssh, const unsigned char *in, int inlen,
 						    /* method */
 		    ssh2_pkt_addbool(s->pktout, TRUE);
 						    /* signature follows */
+#ifdef PUTTY_CAC
+			if (s->capi_keyhandle) {
+				ssh2_pkt_addstring(s->pktout, s->capi_keyhandle->algorithm);
+				pkblob_len = s->capi_keyhandle->pubkey_len;
+				pkblob = calloc(pkblob_len, 1);
+				memcpy(pkblob, s->capi_keyhandle->pubkey, pkblob_len);
+			}
+			else {
+#endif // PUTTY_CAC
 		    ssh2_pkt_addstring(s->pktout, key->alg->name);
 		    pkblob = key->alg->public_blob(key->data,
 						   &pkblob_len);
+#ifdef PUTTY_CAC
+			}
+#endif // PUTTY_CAC			
 		    ssh2_pkt_addstring_start(s->pktout);
 		    ssh2_pkt_addstring_data(s->pktout, (char *)pkblob,
 					    pkblob_len);
@@ -10057,6 +10119,18 @@ static void do_ssh2_authconn(Ssh ssh, const unsigned char *in, int inlen,
 			   s->pktout->length - 5);
 		    p += s->pktout->length - 5;
 		    assert(p == sigdata_len);
+#ifdef PUTTY_CAC
+			if (s->capi_key_loaded && (s->capi_keyhandle != NULL)) { /* chained off else from above */
+				if ((sigblob = capi_sig(s->capi_keyhandle, sigdata, sigdata_len, &sigblob_len)) == NULL) {
+					capi_release_key(&s->capi_keyhandle);
+					sfree(pkblob);
+					sfree(sigdata);
+					bombout(("CAPI failed to sign data"));
+					crStopV;
+				}
+			}
+			else
+#endif // PUTTY_CAC
 		    sigblob = key->alg->sign(key->data, (char *)sigdata,
 					     sigdata_len, &sigblob_len);
 		    ssh2_add_sigblob(ssh, s->pktout, pkblob, pkblob_len,
@@ -10068,9 +10142,19 @@ static void do_ssh2_authconn(Ssh ssh, const unsigned char *in, int inlen,
 		    ssh2_pkt_send(ssh, s->pktout);
                     logevent("Sent public key signature");
 		    s->type = AUTH_TYPE_PUBLICKEY;
+#ifdef PUTTY_CAC
+			if (s->capi_key_loaded || s->capi_keyhandle) { /* chained off else from above */
+				capi_release_key(&s->capi_keyhandle);
+				s->capi_key_loaded = FALSE;
+				key = NULL;
+			} else {
+#endif // PUTTY_CAC
 		    key->alg->freekey(key->data);
                     sfree(key->comment);
                     sfree(key);
+#ifdef PUTTY_CAC					
+			}
+#endif // PUTTY_CAC		
 		}
 
 #ifndef NO_GSSAPI

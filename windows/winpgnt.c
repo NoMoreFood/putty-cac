@@ -20,6 +20,15 @@
 
 #include <shellapi.h>
 
+#ifdef PUTTY_CAC
+#ifdef _WINDOWS
+#include <specstrings.h>
+#include <Wincrypt.h>
+#include <CryptDlg.h>
+#include "capi.h"
+#endif
+#endif // PUTTY_CAC
+
 #ifndef NO_SECURITY
 #include <aclapi.h>
 #ifdef DEBUG_IPC
@@ -46,6 +55,7 @@
 #define IDM_ADDKEY   0x0030
 #define IDM_HELP     0x0040
 #define IDM_ABOUT    0x0050
+#define IDM_ADDCAPI  0x0070
 
 #define APPNAME "Pageant"
 
@@ -110,6 +120,8 @@ static void unmungestr(char *in, char *out, int outlen)
     *out = '\0';
     return;
 }
+
+static tree234 *rsakeys, *ssh2keys;
 
 static int has_security;
 
@@ -280,6 +292,10 @@ void keylist_update(void)
     struct ssh2_userkey *skey;
     int i;
 
+#ifdef PUTTY_CAC
+    struct capi_userkey *ckey;
+#endif // PUTTY_CAC
+
     if (keylist) {
 	SendDlgItemMessage(keylist, 100, LB_RESETCONTENT, 0, 0);
 	for (i = 0; NULL != (rkey = pageant_nth_ssh1_key(i)); i++) {
@@ -365,9 +381,114 @@ void keylist_update(void)
 			       (LPARAM) listentry);
             sfree(listentry);
 	}
+#ifdef PUTTY_CAC
+	for (i = 0; NULL != (ckey = pageant_nth_capi_key(i)); i++) {
+		char listentry[512];
+		memset(listentry, 0, sizeof(listentry));
+		_snprintf(listentry, sizeof(listentry)-1, "CAPI\t%s", ckey->certID);
+		SendDlgItemMessage(keylist, 100, LB_ADDSTRING, 0, (LPARAM) listentry);
+	}
+#endif // PUTTY_CAC
 	SendDlgItemMessage(keylist, 100, LB_SETCURSEL, (WPARAM) - 1, 0);
     }
 }
+
+#ifdef PUTTY_CAC
+typedef BOOL (WINAPI *PCertSelectCertificateA)(
+__inout  PCERT_SELECT_STRUCT_A pCertSelectInfo
+);
+
+static void prompt_add_CAPIkey(HWND hwnd) {
+	HCERTSTORE hStore = NULL;
+	CERT_SELECT_STRUCT_A* css = NULL;
+	CERT_CONTEXT** acc = NULL;
+	unsigned int tmpSHA1size = 0, dwCertStoreUser;
+	unsigned char tmpSHA1[20];
+	char tmpSHA1hex[41] = "";
+	char tmpCertID[100] = "";
+	char* tmpCertID_alloced = NULL;
+	HMODULE hCertDlgDLL = NULL;
+	PCertSelectCertificateA f_csca = NULL;
+	int i = 0; // TODO: Let the user choose this
+	struct capi_userkey* ckey = NULL;
+
+	if ((hCertDlgDLL = LoadLibrary("CryptDlg.dll")) == NULL)
+		goto cleanup;
+	if ((f_csca = (PCertSelectCertificateA) GetProcAddress(hCertDlgDLL, "CertSelectCertificateA")) == NULL)
+		goto cleanup;
+
+	dwCertStoreUser = CERT_SYSTEM_STORE_CURRENT_USER;
+	if (i == 1)
+		dwCertStoreUser = CERT_SYSTEM_STORE_LOCAL_MACHINE;
+
+	if ((hStore = CertOpenStore(CERT_STORE_PROV_SYSTEM_A, PKCS_7_ASN_ENCODING | X509_ASN_ENCODING, 0 /*hCryptProv*/, dwCertStoreUser | CERT_STORE_READONLY_FLAG | CERT_STORE_OPEN_EXISTING_FLAG | CERT_STORE_ENUM_ARCHIVED_FLAG, "MY")) == NULL)
+		goto cleanup;
+
+	acc = (CERT_CONTEXT**) malloc(sizeof(CERT_CONTEXT*));
+	acc[0] = NULL;
+	css = (CERT_SELECT_STRUCT_A*) malloc(sizeof(CERT_SELECT_STRUCT_A));
+	memset(css, 0, sizeof(CERT_SELECT_STRUCT_A));
+	css->dwSize = sizeof(CERT_SELECT_STRUCT_A);
+	css->hwndParent = hwnd;
+	css->hInstance = NULL;
+	css->pTemplateName = NULL;
+	css->dwFlags = 0;
+	css->szTitle = "PuTTY: Select Certificate for CAPI Authentication";
+	css->cCertStore = 1;
+	css->arrayCertStore = &hStore;
+	css->szPurposeOid = szOID_PKIX_KP_CLIENT_AUTH;
+	css->cCertContext = 1; // count of arrayCertContext indexes allocated
+	css->arrayCertContext = acc;
+
+	if (!f_csca(css)) // GetProcAddress(hCertDlgDLL, "CertSelectCertificateA")
+		goto cleanup;
+
+	if (css->cCertContext != 1)
+		goto cleanup;
+	if (acc[0] == NULL)
+		goto cleanup;
+
+	tmpSHA1size = sizeof(tmpSHA1);
+	if (!CertGetCertificateContextProperty(acc[0], CERT_HASH_PROP_ID, tmpSHA1, &tmpSHA1size))
+		memset(tmpSHA1, 0, sizeof(tmpSHA1));
+	_snprintf(tmpSHA1hex, sizeof(tmpSHA1hex)-1, "%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X", tmpSHA1[0], tmpSHA1[1], tmpSHA1[2], tmpSHA1[3], tmpSHA1[4], tmpSHA1[5], tmpSHA1[6], tmpSHA1[7], tmpSHA1[8], tmpSHA1[9], tmpSHA1[10], tmpSHA1[11], tmpSHA1[12], tmpSHA1[13], tmpSHA1[14], tmpSHA1[15], tmpSHA1[16], tmpSHA1[17], tmpSHA1[18], tmpSHA1[19]);
+	tmpSHA1hex[sizeof(tmpSHA1hex)-1] = '\0';
+
+	_snprintf(tmpCertID, sizeof(tmpCertID)-1, "%s\\%s", i == 1 ? "Machine\\MY" : "User\\MY", tmpSHA1hex);
+	tmpCertID[sizeof(tmpCertID)-1] = '\0';
+
+	if ((ckey = Create_capi_userkey(tmpCertID, acc[0])) == NULL)
+		goto cleanup;
+	if (!pageant_add_capi_key(ckey))
+		Free_capi_userkey(ckey);
+
+	keylist_update();
+
+cleanup:
+	if (hCertDlgDLL) {
+		FreeLibrary(hCertDlgDLL);
+		f_csca = NULL;
+		hCertDlgDLL = NULL;
+	}
+	if (acc) {
+		if (acc[0])
+			CertFreeCertificateContext(acc[0]);
+		acc[0] = NULL;
+		free(acc);
+		acc = NULL;
+	}
+
+	if (css)
+		free(css);
+	css = NULL;
+
+	if (hStore)
+		CertCloseStore(hStore, 0);
+	hStore = NULL;
+
+	return;
+}
+#endif // PUTTY_CAC
 
 static void answer_msg(void *msgv)
 {
@@ -518,6 +639,9 @@ static INT_PTR CALLBACK KeyListProc(HWND hwnd, UINT msg,
 {
     struct RSAKey *rkey;
     struct ssh2_userkey *skey;
+#ifdef PUTTY_CAC
+    struct capi_userkey *ckey;
+#endif // PUTTY_CAC
 
     switch (msg) {
       case WM_INITDIALOG:
@@ -577,7 +701,7 @@ static INT_PTR CALLBACK KeyListProc(HWND hwnd, UINT msg,
 	    if (HIWORD(wParam) == BN_CLICKED ||
 		HIWORD(wParam) == BN_DOUBLECLICKED) {
 		int i;
-		int rCount, sCount;
+		int rCount, sCount, cCount; /* PuTTY CAPI marker */
 		int *selectedArray;
 		
 		/* our counter within the array of selected items */
@@ -602,12 +726,27 @@ static INT_PTR CALLBACK KeyListProc(HWND hwnd, UINT msg,
 		rCount = pageant_count_ssh1_keys();
 		sCount = pageant_count_ssh2_keys();
 		
+#ifdef PUTTY_CAC
+        cCount = pageant_count_capi_keys();
+#endif // PUTTY_CAC
+
 		/* go through the non-rsakeys until we've covered them all, 
 		 * and/or we're out of selected items to check. note that
 		 * we go *backwards*, to avoid complications from deleting
 		 * things hence altering the offset of subsequent items
 		 */
-                for (i = sCount - 1; (itemNum >= 0) && (i >= 0); i--) {
+#ifdef PUTTY_CAC
+		for (i = cCount - 1; (itemNum >= 0) && (i >= 0); i--) {
+			ckey = pageant_nth_capi_key(i);
+
+			if (selectedArray[itemNum] == rCount + i) {
+				pageant_delete_capi_key(ckey);
+				sfree(ckey);
+				itemNum--;
+			}
+		}
+#endif // PUTTY_CAC
+	    for (i = sCount - 1; (itemNum >= 0) && (i >= 0); i--) {
                     skey = pageant_nth_ssh2_key(i);
 			
                     if (selectedArray[itemNum] == rCount + i) {
@@ -640,6 +779,45 @@ static INT_PTR CALLBACK KeyListProc(HWND hwnd, UINT msg,
 		launch_help(hwnd, WINHELP_CTX_pageant_general);
             }
 	    return 0;
+#ifdef PUTTY_CAC
+		case 100: { // listbox
+			if (HIWORD(wParam) == LBN_DBLCLK) {
+				int i, rCount, sCount, cCount;
+				int selected;
+				int numSelected;
+
+				numSelected = SendDlgItemMessage(hwnd, 100, LB_GETSELCOUNT, 0, 0);
+				if (numSelected != 1)
+						break;
+				SendDlgItemMessage(hwnd, 100, LB_GETSELITEMS, numSelected, (WPARAM) &selected);
+
+				rCount = pageant_count_ssh1_keys();
+				sCount = pageant_count_ssh2_keys();
+		        cCount = pageant_count_capi_keys();
+
+				// since numSelected is garunteed to be 1, we can skip a few checks...
+				for (i = cCount - 1; i >= 0; i--) {
+					if (selected == rCount + sCount + i) {
+						PCCERT_CONTEXT pCertContext = NULL;
+						ckey = pageant_nth_capi_key(i);
+						capi_display_cert_ui(hwnd, ckey->certID, L"Pageant Certificate");
+					}
+				}
+			}
+			return 0;
+		}
+		case 110: {
+			if (HIWORD(wParam) == BN_CLICKED || HIWORD(wParam) == BN_DOUBLECLICKED) {
+				if (passphrase_box) {
+					MessageBeep(MB_ICONERROR);
+					SetForegroundWindow(passphrase_box);
+					break;
+				}
+				prompt_add_CAPIkey(hwnd);
+			}
+			return 0;
+		}
+#endif // PUTTY_CAC
 	}
 	return 0;
       case WM_HELP:
@@ -684,7 +862,7 @@ static BOOL AddTrayIcon(HWND hwnd)
     tnid.uFlags = NIF_MESSAGE | NIF_ICON | NIF_TIP;
     tnid.uCallbackMessage = WM_SYSTRAY;
     tnid.hIcon = hicon = LoadIcon(hinst, MAKEINTRESOURCE(201));
-    strcpy(tnid.szTip, "Pageant (PuTTY authentication agent)");
+    strcpy(tnid.szTip, "Pageant (PuTTY-CAC authentication agent)");
 
     res = Shell_NotifyIcon(NIM_ADD, &tnid);
 
@@ -877,6 +1055,16 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 	    }
 	    prompt_add_keyfile();
 	    break;
+#ifdef PUTTY_CAC
+	  case IDM_ADDCAPI:
+		if (passphrase_box) {
+		MessageBeep(MB_ICONERROR);
+		SetForegroundWindow(passphrase_box);
+		break;
+		}
+		prompt_add_CAPIkey(hwnd);
+		break;
+#endif // PUTTY_CAC
 	  case IDM_ABOUT:
 	    if (!aboutbox) {
 		aboutbox = CreateDialog(hinst, MAKEINTRESOURCE(213),
@@ -1249,8 +1437,9 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 	AppendMenu(systray_menu, MF_SEPARATOR, 0, 0);
     }
     AppendMenu(systray_menu, MF_ENABLED, IDM_VIEWKEYS,
-	   "&View Keys");
+	   "&View Keys/CAPI Certs");
     AppendMenu(systray_menu, MF_ENABLED, IDM_ADDKEY, "Add &Key");
+	AppendMenu(systray_menu, MF_ENABLED, IDM_ADDCAPI, "Add CAPI Cert");
     AppendMenu(systray_menu, MF_SEPARATOR, 0, 0);
     if (has_help())
 	AppendMenu(systray_menu, MF_ENABLED, IDM_HELP, "&Help");

@@ -10,6 +10,10 @@
 #include "ssh.h"
 #include "pageant.h"
 
+#ifdef PUTTY_CAC
+#include "capi.h"
+#endif // PUTTY_CAC
+
 /*
  * We need this to link with the RSA code, because rsaencrypt()
  * pads its data with random bytes. Since we only use rsadecrypt()
@@ -33,6 +37,9 @@ static int pageant_local = FALSE;
  * rsakeys stores SSH-1 RSA keys. ssh2keys stores all SSH-2 keys.
  */
 static tree234 *rsakeys, *ssh2keys;
+#ifdef PUTTY_CAC
+static tree234 *capikeys;
+#endif // PUTTY_CAC
 
 /*
  * Blob structure for passing to the asymmetric SSH-2 key compare
@@ -164,6 +171,19 @@ static int cmpkeys_ssh2_asymm(void *av, void *bv)
     return c;
 }
 
+#ifdef PUTTY_CAC
+/*
+* Key comparison function for looking up a blob in the 2-3-4 tree
+* of CAPI keys.
+*/
+static int cmpkeys_capi(void *av, void *bv) {
+	struct capi_userkey *a, *b;
+	a = (struct capi_userkey *) av;
+	b = (struct capi_userkey *) bv;
+	return strcmp(a->certID, b->certID);
+}
+#endif // PUTTY_CAC
+
 /*
  * Create an SSH-1 key list in a malloc'ed buffer; return its
  * length.
@@ -214,6 +234,10 @@ void *pageant_make_keylist1(int *length)
  */
 void *pageant_make_keylist2(int *length)
 {
+#ifdef PUTTY_CAC
+	struct capi_userkey *ckey;
+	char *comment;
+#endif PUTTY_CAC
     struct ssh2_userkey *key;
     int i, len, nkeys;
     unsigned char *blob, *p, *ret;
@@ -232,6 +256,15 @@ void *pageant_make_keylist2(int *length)
 	sfree(blob);
 	len += 4 + strlen(key->comment);
     }
+
+#ifdef PUTTY_CAC
+	for (i = 0; NULL != (ckey = index234(capikeys, i)); i++) {
+		nkeys++;
+		len += 4;              /* length field */
+		len += ckey->bloblen;
+		len += 4 + strlen(ckey->certID) + 5; /* "CAPI:" */
+	}
+#endif /* PUTTY_CAC */
 
     /* Allocate the buffer. */
     p = ret = snewn(len, unsigned char);
@@ -254,6 +287,20 @@ void *pageant_make_keylist2(int *length)
 	memcpy(p + 4, key->comment, strlen(key->comment));
 	p += 4 + strlen(key->comment);
     }
+
+#ifdef PUTTY_CAC
+	for (i = 0; NULL != (ckey = index234(capikeys, i)); i++) {
+		PUT_32BIT(p, ckey->bloblen);
+		p += 4;
+		memcpy(p, ckey->blob, ckey->bloblen);
+		p += ckey->bloblen;
+		comment = capi_userkey_getcomment(ckey);
+		PUT_32BIT(p, strlen(comment));
+		memcpy(p + 4, comment, strlen(comment));
+		p += 4 + strlen(comment);
+		free(comment);
+	}
+#endif /* PUTTY_CAC */
 
     assert(p - ret == len);
     return ret;
@@ -282,6 +329,39 @@ static void plog(void *logctx, pageant_logfn_t logfn, const char *fmt, ...)
         va_end(ap);
     }
 }
+
+#ifdef PUTTY_CAC
+// Key comparison function for the 2-3-4 tree of CAPI keys (struct capi_userkey) where the first argument is a blob.
+static int cmpkeys_capi_blob(void *av, void *bv) {
+	struct blob {
+		unsigned char *blob;
+		int len;
+	};
+	struct blob *a = (struct blob *) av;
+	struct capi_userkey *b = (struct capi_userkey *) bv;
+	int i;
+	int c;
+
+	// Compare purely by public blob.
+	c = 0;
+	for (i = 0; i < a->len && i < b->bloblen; i++) {
+		if (a->blob[i] < b->blob[i]) {
+			c = -1;
+			break;
+		}
+		else if (a->blob[i] > b->blob[i]) {
+			c = +1;
+			break;
+		}
+	}
+	if (c == 0 && i < a->len)
+		c = +1;                        /* a is longer */
+	if (c == 0 && i < b->bloblen)
+		c = -1;                        /* b is longer */
+
+	return c;
+}
+#endif // PUTTY_CAC
 
 void *pageant_handle_msg(const void *msg, int msglen, int *outlen,
                          void *logctx, pageant_logfn_t logfn)
@@ -479,6 +559,9 @@ void *pageant_handle_msg(const void *msg, int msglen, int *outlen,
 	 * or not.
 	 */
 	{
+#ifdef PUTTY_CAC
+		struct capi_userkey *ckey;
+#endif // PUTTY_CAC
 	    struct ssh2_userkey *key;
 	    struct blob b;
 	    const unsigned char *data;
@@ -515,6 +598,14 @@ void *pageant_handle_msg(const void *msg, int msglen, int *outlen,
                 plog(logctx, logfn, "requested key: %s", fingerprint);
                 sfree(fingerprint);
             }
+#ifdef PUTTY_CAC
+		ckey = find234(capikeys, &b, cmpkeys_capi_blob);
+		if (ckey) {
+			if ((signature = capi_sig_certID(ckey->certID, data, datalen, &siglen)) == NULL)
+				goto failure;
+		}
+		else {
+#endif // PUTTY_CAC
 	    key = find234(ssh2keys, &b, cmpkeys_ssh2_asymm);
 	    if (!key) {
                 fail_reason = "key not found";
@@ -522,6 +613,9 @@ void *pageant_handle_msg(const void *msg, int msglen, int *outlen,
             }
 	    signature = key->alg->sign(key->data, (const char *)data,
                                        datalen, &siglen);
+#ifdef PUTTY_CAC
+		}
+#endif // PUTTY_CAC
 	    len = 5 + 4 + siglen;
 	    PUT_32BIT(ret, len - 4);
 	    ret[4] = SSH2_AGENT_SIGN_RESPONSE;
@@ -665,6 +759,33 @@ void *pageant_handle_msg(const void *msg, int msglen, int *outlen,
             }
 	    alg = (const char *)p;
 	    p += alglen;
+
+#ifdef PUTTY_CAC
+		if (alglen == 4 && memcmp(alg, "CAPI", 4) == 0) {
+			struct capi_userkey *ckey;
+			const char *certID;
+			int certIDlen;
+
+			if (msgend < p + 4)
+				goto failure;
+			certIDlen = GET_32BIT(p);
+			p += 4;
+
+			if (msgend < p + certIDlen)
+				goto failure;
+			certID = p;
+
+			if ((ckey = Create_capi_userkey(certID, NULL)) == NULL)
+				goto failure;
+			if (add234(capikeys, ckey) != ckey)
+				Free_capi_userkey(ckey); // already loaded, free our (unused) copy
+
+			PUT_32BIT(ret, 1);
+			ret[4] = SSH_AGENT_SUCCESS;
+			keylist_update();
+			break;
+		}
+#endif // PUTTY_CAC
 
 	    key = snew(struct ssh2_userkey);
             key->alg = find_pubkey_alg_len(alglen, alg);
@@ -905,7 +1026,10 @@ void pageant_init(void)
 {
     pageant_local = TRUE;
     rsakeys = newtree234(cmpkeys_rsa);
-    ssh2keys = newtree234(cmpkeys_ssh2);
+	ssh2keys = newtree234(cmpkeys_ssh2);
+#ifdef PUTTY_CAC
+	capikeys = newtree234(cmpkeys_capi);
+#endif // PUTTY_CAC
 }
 
 struct RSAKey *pageant_nth_ssh1_key(int i)
@@ -918,6 +1042,13 @@ struct ssh2_userkey *pageant_nth_ssh2_key(int i)
     return index234(ssh2keys, i);
 }
 
+#ifdef PUTTY_CAC
+struct capi_userkey *pageant_nth_capi_key(int i)
+{
+	return index234(capikeys, i);
+}
+#endif // PUTTY_CAC
+
 int pageant_count_ssh1_keys(void)
 {
     return count234(rsakeys);
@@ -928,6 +1059,13 @@ int pageant_count_ssh2_keys(void)
     return count234(ssh2keys);
 }
 
+#ifdef PUTTY_CAC
+int pageant_count_capi_keys(void)
+{
+	return count234(capikeys);
+}
+#endif // PUTTY_CAC
+
 int pageant_add_ssh1_key(struct RSAKey *rkey)
 {
     return add234(rsakeys, rkey) == rkey;
@@ -937,6 +1075,13 @@ int pageant_add_ssh2_key(struct ssh2_userkey *skey)
 {
     return add234(ssh2keys, skey) == skey;
 }
+
+#ifdef PUTTY_CAC
+int pageant_add_capi_key(struct capi_userkey *ckey)
+{
+	return add234(capikeys, ckey) == ckey;
+}
+#endif PUTTY_CAC
 
 int pageant_delete_ssh1_key(struct RSAKey *rkey)
 {
@@ -955,6 +1100,18 @@ int pageant_delete_ssh2_key(struct ssh2_userkey *skey)
     assert(deleted == skey);
     return TRUE;
 }
+
+#ifdef PUTTY_CAC
+int pageant_delete_capi_key(struct capi_userkey *ckey)
+{
+	struct capi_userkey *deleted = del234(capikeys, ckey);
+	if (!deleted)
+		return FALSE;
+	Free_capi_userkey(ckey);
+	assert(deleted == ckey);
+	return TRUE;
+}
+#endif // PUTTY_CAC
 
 /* ----------------------------------------------------------------------
  * The agent plug.
@@ -1270,6 +1427,23 @@ int pageant_add_keyfile(Filename *filename, const char *passphrase,
     }
 
     *retstr = NULL;
+
+#ifdef PUTTY_CAC
+	BOOL CAPI_KEY = FALSE;
+	struct capi_userkey *ckey = NULL;
+
+	if (strnicmp(filename_to_str(filename), "CAPI:", 5) == 0) {
+		const char *fn = filename_to_str(filename);
+		const char *certID = &fn[5];
+		CAPI_KEY = TRUE;
+		if ((ckey = Create_capi_userkey(certID, NULL)) == NULL) {
+			char *msg = dupprintf("Couldn't load CAPI certificate/key: %s", certID);
+			message_box(msg, "Pageant", MB_OK | MB_ICONERROR, HELPCTXID(errors_cantloadkey));
+			sfree(msg);
+			return PAGEANT_ACTION_FAILURE;
+		}
+	}
+#endif // PUTTY_CAC
 
     type = key_type(filename);
     if (type != SSH_KEYTYPE_SSH1 && type != SSH_KEYTYPE_SSH2) {
