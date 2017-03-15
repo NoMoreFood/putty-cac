@@ -701,7 +701,10 @@ static INT_PTR CALLBACK KeyListProc(HWND hwnd, UINT msg,
 	    if (HIWORD(wParam) == BN_CLICKED ||
 		HIWORD(wParam) == BN_DOUBLECLICKED) {
 		int i;
-		int rCount, sCount, cCount; /* PuTTY CAPI marker */
+		int rCount, sCount;
+#ifdef PUTTY_CAC
+		int cCount; 
+#endif // PUTTY_CAC 
 		int *selectedArray;
 		
 		/* our counter within the array of selected items */
@@ -739,9 +742,8 @@ static INT_PTR CALLBACK KeyListProc(HWND hwnd, UINT msg,
 		for (i = cCount - 1; (itemNum >= 0) && (i >= 0); i--) {
 			ckey = pageant_nth_capi_key(i);
 
-			if (selectedArray[itemNum] == rCount + i) {
+			if (selectedArray[itemNum] == rCount + sCount + i) {
 				pageant_delete_capi_key(ckey);
-				sfree(ckey);
 				itemNum--;
 			}
 		}
