@@ -168,7 +168,7 @@
     <Link>
       <SuppressStartupBanner>true</SuppressStartupBanner>
       <SubSystem>Windows</SubSystem>
-      <OutputFile>..\..\..\executables\$(TargetFileName)</OutputFile>
+      <OutputFile>..\..\..\executables\x64\$(TargetFileName)</OutputFile>
       <AdditionalDependencies>gdi32.lib;comctl32.lib;imm32.lib;winmm.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <GenerateDebugInformation>false</GenerateDebugInformation>
       <IgnoreAllDefaultLibraries>
@@ -256,7 +256,7 @@
       <SuppressStartupBanner>true</SuppressStartupBanner>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <SubSystem>Windows</SubSystem>
-      <OutputFile>..\..\..\executables\$(TargetFileName)</OutputFile>
+      <OutputFile>..\..\..\executables\x64\$(TargetFileName)</OutputFile>
       <AdditionalDependencies>advapi32.lib;comctl32.lib;comdlg32.lib;gdi32.lib;imm32.lib;ole32.lib;shell32.lib;user32.lib;winmm.lib;winspool.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>

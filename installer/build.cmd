@@ -1,5 +1,6 @@
 @ECHO OFF
 
+PUSHD "%~dp0"
 SET VER=0.68
 IF DEFINED ProgramFiles SET PATH=%PATH%;%ProgramFiles%\WiX Toolset v3.11\bin
 IF DEFINED ProgramFiles(x86) SET PATH=%PATH%;%ProgramFiles(x86)%\WiX Toolset v3.11\bin
