@@ -55,7 +55,10 @@
 #define IDM_ADDKEY   0x0030
 #define IDM_HELP     0x0040
 #define IDM_ABOUT    0x0050
+#ifdef PUTTY_CAC
 #define IDM_ADDCAPI  0x0070
+#define IDM_AUTOCERT 0x0080
+#endif // PUTTY_CAC
 
 #define APPNAME "Pageant"
 
@@ -120,8 +123,6 @@ static void unmungestr(char *in, char *out, int outlen)
     *out = '\0';
     return;
 }
-
-static tree234 *rsakeys, *ssh2keys;
 
 static int has_security;
 
@@ -398,30 +399,71 @@ typedef BOOL (WINAPI *PCertSelectCertificateA)(
 __inout  PCERT_SELECT_STRUCT_A pCertSelectInfo
 );
 
-static void prompt_add_CAPIkey(HWND hwnd) {
+void add_all_capikey() {
+
+	// get a hangle to the cert store
+	HCERTSTORE hCertStore = NULL;
+	hCertStore = CertOpenStore(CERT_STORE_PROV_SYSTEM_A, PKCS_7_ASN_ENCODING | X509_ASN_ENCODING, 0,
+		CERT_SYSTEM_STORE_CURRENT_USER | CERT_STORE_READONLY_FLAG | CERT_STORE_OPEN_EXISTING_FLAG | CERT_STORE_ENUM_ARCHIVED_FLAG, "MY");
+	if (hCertStore == NULL) return;
+
+	// enumerate all certs
+	CTL_USAGE tItem;
+	CHAR * sUsage[] = { szOID_PKIX_KP_CLIENT_AUTH };
+	tItem.cUsageIdentifier = 1;
+	tItem.rgpszUsageIdentifier = sUsage;
+	PCCERT_CONTEXT pCertContext = NULL;
+	while (pCertContext = CertFindCertificateInStore(hCertStore, X509_ASN_ENCODING | PKCS_7_ASN_ENCODING, 
+		CERT_FIND_VALID_ENHKEY_USAGE_FLAG, CERT_FIND_ENHKEY_USAGE, &tItem, pCertContext))
+	{	
+		unsigned char tmpSHA1[20];
+		DWORD tmpSHA1size = sizeof(tmpSHA1);
+		if (!CertGetCertificateContextProperty(pCertContext, CERT_HASH_PROP_ID, tmpSHA1, &tmpSHA1size))
+			memset(tmpSHA1, 0, sizeof(tmpSHA1));
+
+		char tmpSHA1hex[sizeof(tmpSHA1) * 2 + 1] = "";
+		DWORD tmpSHA1hexsize = sizeof(tmpSHA1hex);
+		CryptBinaryToStringA(tmpSHA1, tmpSHA1size, CRYPT_STRING_HEXRAW | CRYPT_STRING_NOCRLF, tmpSHA1hex, &tmpSHA1hexsize);
+		strupr(tmpSHA1hex);
+
+		char tmpCertID[100] = "";
+		_snprintf(tmpCertID, sizeof(tmpCertID) - 1, "User\\MY\\%s", tmpSHA1hex);
+		tmpCertID[sizeof(tmpCertID) - 1] = '\0';
+
+		struct capi_userkey* ckey = create_capi_userkey(tmpCertID, pCertContext);
+		if (ckey == NULL) continue;
+			
+		if (!pageant_add_capi_key(ckey))
+			free_capi_userkey(ckey);
+	} 
+
+	keylist_update();
+	
+	CertFreeCertificateContext(pCertContext);
+	CertCloseStore(hCertStore, 0);
+}
+
+void prompt_add_capikey(HWND hwnd) {
 	HCERTSTORE hStore = NULL;
 	CERT_SELECT_STRUCT_A* css = NULL;
 	CERT_CONTEXT** acc = NULL;
-	unsigned int tmpSHA1size = 0, dwCertStoreUser;
+	unsigned int tmpSHA1size = 0;
 	unsigned char tmpSHA1[20];
-	char tmpSHA1hex[41] = "";
+	char tmpSHA1hex[sizeof(tmpSHA1) * 2 + 1] = "";
+	DWORD tmpSHA1hexsize = sizeof(tmpSHA1hex);
 	char tmpCertID[100] = "";
 	char* tmpCertID_alloced = NULL;
 	HMODULE hCertDlgDLL = NULL;
-	PCertSelectCertificateA f_csca = NULL;
-	int i = 0; // TODO: Let the user choose this
+	PCertSelectCertificateA CertSelectCertificate = NULL;
 	struct capi_userkey* ckey = NULL;
 
 	if ((hCertDlgDLL = LoadLibrary("CryptDlg.dll")) == NULL)
 		goto cleanup;
-	if ((f_csca = (PCertSelectCertificateA) GetProcAddress(hCertDlgDLL, "CertSelectCertificateA")) == NULL)
+	if ((CertSelectCertificate = (PCertSelectCertificateA) GetProcAddress(hCertDlgDLL, "CertSelectCertificateA")) == NULL)
 		goto cleanup;
 
-	dwCertStoreUser = CERT_SYSTEM_STORE_CURRENT_USER;
-	if (i == 1)
-		dwCertStoreUser = CERT_SYSTEM_STORE_LOCAL_MACHINE;
-
-	if ((hStore = CertOpenStore(CERT_STORE_PROV_SYSTEM_A, PKCS_7_ASN_ENCODING | X509_ASN_ENCODING, 0 /*hCryptProv*/, dwCertStoreUser | CERT_STORE_READONLY_FLAG | CERT_STORE_OPEN_EXISTING_FLAG | CERT_STORE_ENUM_ARCHIVED_FLAG, "MY")) == NULL)
+	if ((hStore = CertOpenStore(CERT_STORE_PROV_SYSTEM_A, PKCS_7_ASN_ENCODING | X509_ASN_ENCODING, 0, 
+		CERT_SYSTEM_STORE_CURRENT_USER | CERT_STORE_READONLY_FLAG | CERT_STORE_OPEN_EXISTING_FLAG | CERT_STORE_ENUM_ARCHIVED_FLAG, "MY")) == NULL)
 		goto cleanup;
 
 	acc = (CERT_CONTEXT**) malloc(sizeof(CERT_CONTEXT*));
@@ -440,7 +482,7 @@ static void prompt_add_CAPIkey(HWND hwnd) {
 	css->cCertContext = 1; // count of arrayCertContext indexes allocated
 	css->arrayCertContext = acc;
 
-	if (!f_csca(css)) // GetProcAddress(hCertDlgDLL, "CertSelectCertificateA")
+	if (!CertSelectCertificate(css)) // GetProcAddress(hCertDlgDLL, "CertSelectCertificateA")
 		goto cleanup;
 
 	if (css->cCertContext != 1)
@@ -451,23 +493,24 @@ static void prompt_add_CAPIkey(HWND hwnd) {
 	tmpSHA1size = sizeof(tmpSHA1);
 	if (!CertGetCertificateContextProperty(acc[0], CERT_HASH_PROP_ID, tmpSHA1, &tmpSHA1size))
 		memset(tmpSHA1, 0, sizeof(tmpSHA1));
-	_snprintf(tmpSHA1hex, sizeof(tmpSHA1hex)-1, "%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X", tmpSHA1[0], tmpSHA1[1], tmpSHA1[2], tmpSHA1[3], tmpSHA1[4], tmpSHA1[5], tmpSHA1[6], tmpSHA1[7], tmpSHA1[8], tmpSHA1[9], tmpSHA1[10], tmpSHA1[11], tmpSHA1[12], tmpSHA1[13], tmpSHA1[14], tmpSHA1[15], tmpSHA1[16], tmpSHA1[17], tmpSHA1[18], tmpSHA1[19]);
-	tmpSHA1hex[sizeof(tmpSHA1hex)-1] = '\0';
+	
+	CryptBinaryToStringA(tmpSHA1, tmpSHA1size, CRYPT_STRING_HEXRAW | CRYPT_STRING_NOCRLF, tmpSHA1hex, &tmpSHA1hexsize);
+	strupr(tmpSHA1hex);
 
-	_snprintf(tmpCertID, sizeof(tmpCertID)-1, "%s\\%s", i == 1 ? "Machine\\MY" : "User\\MY", tmpSHA1hex);
+	_snprintf(tmpCertID, sizeof(tmpCertID)-1, "User\\MY\\%s", tmpSHA1hex);
 	tmpCertID[sizeof(tmpCertID)-1] = '\0';
 
-	if ((ckey = Create_capi_userkey(tmpCertID, acc[0])) == NULL)
+	if ((ckey = create_capi_userkey(tmpCertID, acc[0])) == NULL)
 		goto cleanup;
 	if (!pageant_add_capi_key(ckey))
-		Free_capi_userkey(ckey);
+		free_capi_userkey(ckey);
 
 	keylist_update();
 
 cleanup:
 	if (hCertDlgDLL) {
 		FreeLibrary(hCertDlgDLL);
-		f_csca = NULL;
+		CertSelectCertificate = NULL;
 		hCertDlgDLL = NULL;
 	}
 	if (acc) {
@@ -815,7 +858,7 @@ static INT_PTR CALLBACK KeyListProc(HWND hwnd, UINT msg,
 					SetForegroundWindow(passphrase_box);
 					break;
 				}
-				prompt_add_CAPIkey(hwnd);
+				prompt_add_capikey(hwnd);
 			}
 			return 0;
 		}
@@ -864,8 +907,11 @@ static BOOL AddTrayIcon(HWND hwnd)
     tnid.uFlags = NIF_MESSAGE | NIF_ICON | NIF_TIP;
     tnid.uCallbackMessage = WM_SYSTRAY;
     tnid.hIcon = hicon = LoadIcon(hinst, MAKEINTRESOURCE(201));
+#ifdef PUTTY_CAC
     strcpy(tnid.szTip, "Pageant (PuTTY-CAC authentication agent)");
-
+#else
+	strcpy(tnid.szTip, "Pageant (PuTTY authentication agent)");
+#endif
     res = Shell_NotifyIcon(NIM_ADD, &tnid);
 
     if (hicon) DestroyIcon(hicon);
@@ -1064,8 +1110,19 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 		SetForegroundWindow(passphrase_box);
 		break;
 		}
-		prompt_add_CAPIkey(hwnd);
+		prompt_add_capikey(GetDesktopWindow());
 		break;
+	  case IDM_AUTOCERT: {
+		  DWORD iItem = CheckMenuItem(systray_menu, IDM_AUTOCERT, MF_CHECKED);
+		  DWORD iNewState = (iItem == MF_CHECKED) ? MF_UNCHECKED : MF_CHECKED;
+		  CheckMenuItem(systray_menu, IDM_AUTOCERT, iNewState);
+		  DWORD AutoloadOn = FALSE;
+		  if (iNewState == MF_CHECKED) {
+			  add_all_capikey();
+			  AutoloadOn = TRUE;
+		  }
+		  RegSetKeyValue(HKEY_CURRENT_USER, PUTTY_REG_POS, "AutoloadCerts", REG_DWORD, &AutoloadOn, sizeof(DWORD));
+	  } break;
 #endif // PUTTY_CAC
 	  case IDM_ABOUT:
 	    if (!aboutbox) {
@@ -1429,6 +1486,18 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
     /* Set up a system tray icon */
     AddTrayIcon(hwnd);
 
+#ifdef PUTTY_CAC
+	/* Get Autoload Certificate Settings */
+	DWORD AutoloadCerts = 0;
+	DWORD AutoloadCertsSize = sizeof(AutoloadCerts);
+	RegGetValue(HKEY_CURRENT_USER, PUTTY_REG_POS, "AutoloadCerts", 
+		RRF_RT_REG_DWORD, NULL, &AutoloadCerts, &AutoloadCertsSize);
+	if (AutoloadCerts)
+	{
+		add_all_capikey();
+	}
+#endif // PUTTY_CAC
+
     /* Accelerators used: nsvkxa */
     systray_menu = CreatePopupMenu();
     if (putty_path) {
@@ -1439,9 +1508,18 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 	AppendMenu(systray_menu, MF_SEPARATOR, 0, 0);
     }
     AppendMenu(systray_menu, MF_ENABLED, IDM_VIEWKEYS,
-	   "&View Keys/CAPI Certs");
+#ifdef PUTTY_CAC
+	   "&View Keys && Certs");
+#else
+	   "&View Keys");
+#endif // PUTTY_CAC
     AppendMenu(systray_menu, MF_ENABLED, IDM_ADDKEY, "Add &Key");
-	AppendMenu(systray_menu, MF_ENABLED, IDM_ADDCAPI, "Add CAPI Cert");
+#ifdef PUTTY_CAC	
+	AppendMenu(systray_menu, MF_ENABLED, IDM_ADDCAPI, "Add &Cert");
+	AppendMenu(systray_menu, MF_SEPARATOR, 0, 0);
+	AppendMenu(systray_menu, MF_ENABLED | (AutoloadCerts)
+		? MF_CHECKED : MF_UNCHECKED, IDM_AUTOCERT, "Autoload Certs");
+#endif // PUTTY_CAC
     AppendMenu(systray_menu, MF_SEPARATOR, 0, 0);
     if (has_help())
 	AppendMenu(systray_menu, MF_ENABLED, IDM_HELP, "&Help");
