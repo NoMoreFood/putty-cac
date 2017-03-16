@@ -9305,6 +9305,7 @@ static void do_ssh2_authconn(Ssh ssh, const unsigned char *in, int inlen,
     s->can_capi = FALSE;
     s->capi_key_loaded = FALSE;
     s->capi_keyhandle = NULL;
+	s->privatekey_encrypted = FALSE;
 #endif // PUTTY_CAC
 	
     if (!ssh->bare_connection) {
