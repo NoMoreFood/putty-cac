@@ -2,10 +2,11 @@
  * CAPI: Windows Crypto API support file.
  * Andrew Prout, aprout at ll mit edu
  */
+#define UMDF_USING_NTSTATUS
+#include <ntstatus.h>
 
 #include <windows.h>
 #include <Cryptuiapi.h>
-#include <ntstatus.h>
 #include "capi.h"
 #include "ssh.h"
 #define SHA1_BYTES 20
@@ -14,7 +15,6 @@ typedef unsigned char		uint8;
 typedef  signed  char		sint8;
 typedef unsigned short		uint16;
 typedef  signed  short		sint16;
-//typedef unsigned long		uint32;
 typedef  signed  long		sint32;
 
 #pragma comment(lib, "Crypt32.lib")
@@ -429,23 +429,10 @@ BOOL capi_get_pubkey(void *f, char* certID, unsigned char** pubkey, char **algor
 }
 
 char *capi_base64key(char *data, int len) {
-    int bi, bn;
-    char out[4];
-    int datalen = len;
-    char *buffi = calloc(len + len, sizeof(char *));
-    int buffi_pos = 0;
-    for(bi=0;bi<(len + len); bi++) buffi[bi] = '\0';
-    while (datalen > 0) {
-        bn = (datalen < 3 ? datalen : 3);
-        base64_encode_atom(data, bn, out);
-        data += bn;
-        datalen -= bn;
-        for (bi = 0; bi < 4; bi++) {
-            buffi[buffi_pos] = out[bi];
-            buffi_pos++;
-        }
-    }
-    return buffi;
+	DWORD iBufferSize = (int) ((4.0 * (len / 3.0)) + 1 +  1);
+    char *buffer = calloc(iBufferSize, 1);
+	CryptBinaryToStringA(data, len, CRYPT_STRING_BASE64 | CRYPT_STRING_NOCRLF, buffer, &iBufferSize);
+    return buffer;
 }
 
 char* capi_get_key_string(char* certID) {
@@ -476,7 +463,6 @@ BOOL capi_get_key_handle(void *f, char* certID, struct capi_keyhandle_struct** k
 	BOOL retval = FALSE;
 	struct capi_keyhandle_struct* newkeyhandle = NULL;
 	PCCERT_CONTEXT pCertContext = NULL;
-	HCRYPTKEY privkey = 0;
 	DWORD ckpi_size;
 	CRYPT_KEY_PROV_INFO* ckpi = NULL;
 
@@ -546,17 +532,17 @@ cleanup:
 	return retval;
 }
 
-unsigned char* capi_sig_certID(char* certID, const char *sigdata, int sigdata_len, int *sigblob_len) {
+unsigned char* capi_sig_certid(char* certID, const char *sigdata, int sigdata_len, int *sigblob_len) {
 	BOOL success = FALSE;
 	unsigned char* retval = NULL, *rawsig = NULL, *p;
 	HCRYPTHASH hash = 0;
-	DWORD ckpi_size, tmpSize, tmpHashLen, rawsig_len, x;
+	DWORD ckpi_size = 0, tmpSize, tmpHashLen, rawsig_len, x;
 	Bignum bn = NULL;
 	HCRYPTPROV hProv = 0;
 	CRYPT_KEY_PROV_INFO* ckpi = NULL;
 	PCCERT_CONTEXT pCertContext = NULL;
 
-	debuglog("capi_sig_certID called. sigdata_len=%d\n", sigdata_len);
+	debuglog("capi_sig_certid called. sigdata_len=%d\n", sigdata_len);
 	debuglog_buffer(sigdata, sigdata_len);
 
 	// Find cert context from certID
@@ -574,12 +560,12 @@ unsigned char* capi_sig_certID(char* certID, const char *sigdata, int sigdata_le
 		goto cleanup;
 	if (ckpi->dwProvType == 0) { // CNG
 		// eh, later...
-debuglog("capi_sig_certID: CNG Key, bailing...\n");
+debuglog("capi_sig_certid: CNG Key, bailing...\n");
 		goto cleanup;
 	}
 	else { // CAPI
 		if (!CryptAcquireContextW(&hProv, ckpi->pwszContainerName, ckpi->pwszProvName, ckpi->dwProvType, ((ckpi->dwFlags & CRYPT_MACHINE_KEYSET) ? CRYPT_MACHINE_KEYSET : 0) )) {
-			debuglog("capi_sig_certID: Error calling CryptAcquireContext. GetLastError()=%i (0x%08x)\n", GetLastError(), GetLastError());
+			debuglog("capi_sig_certid: Error calling CryptAcquireContext. GetLastError()=%i (0x%08x)\n", GetLastError(), GetLastError());
 			goto cleanup;
 		}
 	}
@@ -749,34 +735,34 @@ void capi_release_key(struct capi_keyhandle_struct** keyhandle) {
 	return;
 }
 
-struct capi_userkey* Create_capi_userkey(const char* certID, PCERT_CONTEXT pCertContext) {
+struct capi_userkey* create_capi_userkey(const char* certID, PCERT_CONTEXT pCertContext) {
 	BOOL success = FALSE;
 	struct capi_userkey* retval = NULL;
 	PCERT_CONTEXT LpCertContext = NULL;
 
 	if (pCertContext == NULL) {
 		if (!capi_get_cert_handle(certID, &LpCertContext)) {
-			debuglog("Create_capi_userkey: capi_get_cert_handle failed\n");
+			debuglog("create_capi_userkey: capi_get_cert_handle failed\n");
 			goto cleanup;
 		}
 		pCertContext = LpCertContext;
 	}
 
 	if ((retval = malloc(sizeof(struct capi_userkey))) == NULL) {
-		debuglog("Create_capi_userkey: malloc for retval failed\n");
+		debuglog("create_capi_userkey: malloc for retval failed\n");
 		goto cleanup;
 	}
 	retval->certID = NULL;
 	retval->blob = NULL;
 
 	if ((retval->certID = malloc(strlen(certID) + 1)) == NULL) {
-		debuglog("Create_capi_userkey: malloc for certID failed\n");
+		debuglog("create_capi_userkey: malloc for certID failed\n");
 		goto cleanup;
 	}
 	strcpy(retval->certID, certID);
 
 	if (!capi_get_pubkey_blob(pCertContext, &retval->blob, &retval->bloblen)) {
-		debuglog("Create_capi_userkey: capi_get_pubkey_blob failed\n");
+		debuglog("create_capi_userkey: capi_get_pubkey_blob failed\n");
 		goto cleanup;
 	}
 
@@ -787,12 +773,12 @@ cleanup:
 	LpCertContext = NULL;
 
 	if (!success) {
-		Free_capi_userkey(retval);
+		if (retval) free_capi_userkey(retval);
 		retval = NULL;
 	}
 	return retval;
 }
-void Free_capi_userkey(struct capi_userkey* ckey) {
+void free_capi_userkey(struct capi_userkey* ckey) {
 	if (ckey->certID)
 		free(ckey->certID);
 	ckey->certID = NULL;
@@ -807,14 +793,11 @@ void Free_capi_userkey(struct capi_userkey* ckey) {
 char* capi_userkey_getcomment(struct capi_userkey* ckey) {
 	char *retval = NULL;
 	
-	debuglog("capi_userkey_GetComment: called\n");
+	debuglog("capi_userkey_getcomment: called\n");
 	if ((retval = malloc(5 + strlen(ckey->certID) + 1)) == NULL) {
-		debuglog("capi_userkey_GetComment: malloc failed\n");
+		debuglog("capi_userkey_getcomment: malloc failed\n");
 		return NULL;
 	}
 	sprintf(retval, "CAPI:%s", ckey->certID);
 	return retval;
 }
-
-
-
