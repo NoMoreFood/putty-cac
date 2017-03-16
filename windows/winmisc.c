@@ -10,6 +10,10 @@
 #endif
 #include <security.h>
 
+#ifdef PUTTY_CAC
+#include <VersionHelpers.h>
+#endif // PUTTY_CAC
+
 OSVERSIONINFO osVersion;
 
 char *platform_get_x_display(void) {
@@ -151,6 +155,13 @@ char *get_username(void)
 
 void dll_hijacking_protection(void)
 {
+#ifdef PUTTY_CAC
+	/* Windows 7 has a bug that prevents loading of smart card libaries if
+	 * a non-default search order is used;
+	 */
+	if (!IsWindows8OrGreater()) return;
+#endif // PUTTY_CAC
+
     /*
      * If the OS provides it, call SetDefaultDllDirectories() to
      * prevent DLLs from being loaded from the directory containing
