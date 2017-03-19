@@ -10,6 +10,10 @@
 #include <limits.h>
 #include <assert.h>
 
+#ifdef __WINE__
+#define NO_MULTIMON                    /* winelib doesn't have this */
+#endif
+
 #ifndef NO_MULTIMON
 #define COMPILE_MULTIMON_STUBS
 #endif
@@ -19,6 +23,7 @@
 #include "terminal.h"
 #include "storage.h"
 #include "win_res.h"
+#include "winsecur.h"
 
 #ifndef NO_MULTIMON
 #include <multimon.h>
@@ -224,8 +229,13 @@ const int share_can_be_downstream = TRUE;
 const int share_can_be_upstream = TRUE;
 
 /* Dummy routine, only required in plink. */
-void ldisc_update(void *frontend, int echo, int edit)
+void frontend_echoedit_update(void *frontend, int echo, int edit)
 {
+}
+
+int frontend_is_utf8(void *frontend)
+{
+    return ucsdata.line_codepage == CP_UTF8;
 }
 
 char *get_ttymode(void *frontend, const char *mode)
@@ -341,6 +351,8 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
     HRESULT hr;
     int guess_width, guess_height;
 
+    dll_hijacking_protection();
+
     hinst = inst;
     hwnd = NULL;
     flags = FLAG_VERBOSE | FLAG_INTERACTIVE;
@@ -348,6 +360,11 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
     sk_init();
 
     InitCommonControls();
+
+    /* Set Explicit App User Model Id so that jump lists don't cause
+       PuTTY to hang on to removable media. */
+
+    set_explicit_app_user_model_id();
 
     /* Ensure a Maximize setting in Explorer doesn't maximise the
      * config box. */
@@ -419,11 +436,20 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 	 * Process a couple of command-line options which are more
 	 * easily dealt with before the line is broken up into words.
 	 * These are the old-fashioned but convenient @sessionname and
-	 * the internal-use-only &sharedmemoryhandle, neither of which
-	 * are combined with anything else.
+	 * the internal-use-only &sharedmemoryhandle, plus the &R
+	 * prefix for -restrict-acl, all of which are used by PuTTYs
+	 * auto-launching each other via System-menu options.
 	 */
 	while (*p && isspace(*p))
 	    p++;
+        if (*p == '&' && p[1] == 'R' &&
+            (!p[2] || p[2] == '@' || p[2] == '&')) {
+            /* &R restrict-acl prefix */
+            restrict_process_acl();
+            restricted_acl = TRUE;
+            p += 2;
+        }
+
 	if (*p == '@') {
             /*
              * An initial @ means that the whole of the rest of the
@@ -461,7 +487,11 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 		cleanup_exit(0);
 	    }
 	    allow_launch = TRUE;
-	} else {
+	} else if (!*p) {
+            /* Do-nothing case for an empty command line - or rather,
+             * for a command line that's empty _after_ we strip off
+             * the &R prefix. */
+        } else {
 	    /*
 	     * Otherwise, break up the command line and deal with
 	     * it sensibly.
@@ -483,39 +513,22 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 		    i++;	       /* skip next argument */
 		} else if (ret == 1) {
 		    continue;	       /* nothing further needs doing */
-		} else if (!strcmp(p, "-cleanup") ||
-			   !strcmp(p, "-cleanup-during-uninstall")) {
+		} else if (!strcmp(p, "-cleanup")) {
 		    /*
 		     * `putty -cleanup'. Remove all registry
 		     * entries associated with PuTTY, and also find
 		     * and delete the random seed file.
 		     */
 		    char *s1, *s2;
-		    /* Are we being invoked from an uninstaller? */
-		    if (!strcmp(p, "-cleanup-during-uninstall")) {
-			s1 = dupprintf("Remove saved sessions and random seed file?\n"
-				       "\n"
-				       "If you hit Yes, ALL Registry entries associated\n"
-				       "with %s will be removed, as well as the\n"
-				       "random seed file. THIS PROCESS WILL\n"
-				       "DESTROY YOUR SAVED SESSIONS.\n"
-				       "(This only affects the currently logged-in user.)\n"
-				       "\n"
-				       "If you hit No, uninstallation will proceed, but\n"
-				       "saved sessions etc will be left on the machine.",
-				       appname);
-			s2 = dupprintf("%s Uninstallation", appname);
-		    } else {
-			s1 = dupprintf("This procedure will remove ALL Registry entries\n"
-				       "associated with %s, and will also remove\n"
-				       "the random seed file. (This only affects the\n"
-				       "currently logged-in user.)\n"
-				       "\n"
-				       "THIS PROCESS WILL DESTROY YOUR SAVED SESSIONS.\n"
-				       "Are you really sure you want to continue?",
-				       appname);
-			s2 = dupprintf("%s Warning", appname);
-		    }
+		    s1 = dupprintf("This procedure will remove ALL Registry entries\n"
+				   "associated with %s, and will also remove\n"
+				   "the random seed file. (This only affects the\n"
+				   "currently logged-in user.)\n"
+				   "\n"
+				   "THIS PROCESS WILL DESTROY YOUR SAVED SESSIONS.\n"
+				   "Are you really sure you want to continue?",
+				   appname);
+		    s2 = dupprintf("%s Warning", appname);
 		    if (message_box(s1, s2,
 				    MB_YESNO | MB_ICONWARNING | MB_DEFBUTTON2,
 				    HELPCTXID(option_cleanup)) == IDYES) {
@@ -706,9 +719,9 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 	if (conf_get_int(conf, CONF_sunken_edge))
 	    exwinmode |= WS_EX_CLIENTEDGE;
 	hwnd = CreateWindowExW(exwinmode, uappname, uappname,
-			      winmode, CW_USEDEFAULT, CW_USEDEFAULT,
-			      guess_width, guess_height,
-			      NULL, NULL, inst, NULL);
+                               winmode, CW_USEDEFAULT, CW_USEDEFAULT,
+                               guess_width, guess_height,
+                               NULL, NULL, inst, NULL);
         sfree(uappname);
     }
 
@@ -811,7 +824,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 	    AppendMenu(m, MF_SEPARATOR, 0, 0);
 	    AppendMenu(m, MF_ENABLED, IDM_NEWSESS, "Ne&w Session...");
 	    AppendMenu(m, MF_ENABLED, IDM_DUPSESS, "&Duplicate Session");
-	    AppendMenu(m, MF_POPUP | MF_ENABLED, (UINT) savedsess_menu,
+	    AppendMenu(m, MF_POPUP | MF_ENABLED, (UINT_PTR) savedsess_menu,
 		       "Sa&ved Sessions");
 	    AppendMenu(m, MF_ENABLED, IDM_RECONF, "Chan&ge Settings...");
 	    AppendMenu(m, MF_SEPARATOR, 0, 0);
@@ -829,6 +842,10 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 	    AppendMenu(m, MF_ENABLED, IDM_ABOUT, str);
 	    sfree(str);
 	}
+    }
+
+    if (restricted_acl) {
+	logevent(NULL, "Running with restricted process ACL");
     }
 
     start_backend();
@@ -1038,7 +1055,7 @@ void update_specials_menu(void *frontend)
 		saved_menu = new_menu; /* XXX lame stacking */
 		new_menu = CreatePopupMenu();
 		AppendMenu(saved_menu, MF_POPUP | MF_ENABLED,
-			   (UINT) new_menu, specials[i].name);
+			   (UINT_PTR) new_menu, specials[i].name);
 		break;
 	      case TS_EXITMENU:
 		nesting--;
@@ -1063,13 +1080,14 @@ void update_specials_menu(void *frontend)
     for (j = 0; j < lenof(popup_menus); j++) {
 	if (specials_menu) {
 	    /* XXX does this free up all submenus? */
-	    DeleteMenu(popup_menus[j].menu, (UINT)specials_menu, MF_BYCOMMAND);
+	    DeleteMenu(popup_menus[j].menu, (UINT_PTR)specials_menu,
+                       MF_BYCOMMAND);
 	    DeleteMenu(popup_menus[j].menu, IDM_SPECIALSEP, MF_BYCOMMAND);
 	}
 	if (new_menu) {
 	    InsertMenu(popup_menus[j].menu, IDM_SHOWLOG,
 		       MF_BYCOMMAND | MF_POPUP | MF_ENABLED,
-		       (UINT) new_menu, "S&pecial Command");
+		       (UINT_PTR) new_menu, "S&pecial Command");
 	    InsertMenu(popup_menus[j].menu, IDM_SHOWLOG,
 		       MF_BYCOMMAND | MF_SEPARATOR, IDM_SPECIALSEP, 0);
 	}
@@ -1134,7 +1152,7 @@ void set_raw_mouse_mode(void *frontend, int activate)
 /*
  * Print a message box and close the connection.
  */
-void connection_fatal(void *frontend, char *fmt, ...)
+void connection_fatal(void *frontend, const char *fmt, ...)
 {
     va_list ap;
     char *stuff, morestuff[100];
@@ -1156,7 +1174,7 @@ void connection_fatal(void *frontend, char *fmt, ...)
 /*
  * Report an error at the command-line parsing stage.
  */
-void cmdline_error(char *fmt, ...)
+void cmdline_error(const char *fmt, ...)
 {
     va_list ap;
     char *stuff, morestuff[100];
@@ -1516,7 +1534,8 @@ static void init_fonts(int pick_width, int pick_height)
 	if (cset == OEM_CHARSET)
 	    ucsdata.font_codepage = GetOEMCP();
 	else
-	    if (TranslateCharsetInfo ((DWORD *) cset, &info, TCI_SRCCHARSET))
+	    if (TranslateCharsetInfo ((DWORD *)(ULONG_PTR)cset,
+                                      &info, TCI_SRCCHARSET))
 		ucsdata.font_codepage = info.ciACP;
 	else
 	    ucsdata.font_codepage = -1;
@@ -2134,12 +2153,17 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 	  case IDM_SAVEDSESS:
 	    {
 		char b[2048];
-		char c[30], *cl;
-		int freecl = FALSE;
+		char *cl;
+                const char *argprefix;
 		BOOL inherit_handles;
 		STARTUPINFO si;
 		PROCESS_INFORMATION pi;
 		HANDLE filemap = NULL;
+
+                if (restricted_acl)
+                    argprefix = "&R";
+                else
+                    argprefix = "";
 
 		if (wParam == IDM_DUPSESS) {
 		    /*
@@ -2167,20 +2191,21 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 			}
 		    }
 		    inherit_handles = TRUE;
-		    sprintf(c, "putty &%p:%u", filemap, (unsigned)size);
-		    cl = c;
+		    cl = dupprintf("putty %s&%p:%u", argprefix,
+                                   filemap, (unsigned)size);
 		} else if (wParam == IDM_SAVEDSESS) {
 		    unsigned int sessno = ((lParam - IDM_SAVED_MIN)
 					   / MENU_SAVED_STEP) + 1;
 		    if (sessno < (unsigned)sesslist.nsessions) {
-			char *session = sesslist.sessions[sessno];
-			cl = dupprintf("putty @%s", session);
+			const char *session = sesslist.sessions[sessno];
+			cl = dupprintf("putty %s@%s", argprefix, session);
 			inherit_handles = FALSE;
-			freecl = TRUE;
 		    } else
 			break;
 		} else /* IDM_NEWSESS */ {
-		    cl = NULL;
+                    cl = dupprintf("putty%s%s",
+                                   *argprefix ? " " : "",
+                                   argprefix);
 		    inherit_handles = FALSE;
 		}
 
@@ -2199,8 +2224,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 
 		if (filemap)
 		    CloseHandle(filemap);
-		if (freecl)
-		    sfree(cl);
+                sfree(cl);
 	    }
 	    break;
 	  case IDM_RESTART:
@@ -2266,7 +2290,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 		 */
 		if (ldisc) {
                     ldisc_configure(ldisc, conf);
-		    ldisc_send(ldisc, NULL, 0, 0);
+		    ldisc_echoedit_update(ldisc);
                 }
 		if (pal)
 		    DeleteObject(pal);
@@ -2409,7 +2433,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 	  case IDM_RESET:
 	    term_pwron(term, TRUE);
 	    if (ldisc)
-		ldisc_send(ldisc, NULL, 0, 0);
+		ldisc_echoedit_update(ldisc);
 	    break;
 	  case IDM_ABOUT:
 	    showabout(hwnd);
@@ -3117,7 +3141,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 		     */
 		    term_seen_key_event(term);
 		    if (ldisc)
-			ldisc_send(ldisc, buf, len, 1);
+			ldisc_send(ldisc, (char *)buf, len, 1);
 		    show_mouseptr(0);
 		}
 	    }
@@ -3185,7 +3209,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 
       case WM_IME_CHAR:
 	if (wParam & 0xFF00) {
-	    unsigned char buf[2];
+	    char buf[2];
 
 	    buf[1] = wParam;
 	    buf[0] = wParam >> 8;
@@ -3217,7 +3241,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
                 wchar_t pair[2];
                 pair[0] = pending_surrogate;
                 pair[1] = c;
-	    term_seen_key_event(term);
+                term_seen_key_event(term);
                 luni_send(ldisc, pair, 2, 1);
             } else if (!IS_SURROGATE(c)) {
                 term_seen_key_event(term);
@@ -4225,7 +4249,7 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
 		*p++ = "hH\010\010"[shift_state & 3];
 		return p - output;
 	      case VK_NUMPAD5:
-		*p++ = shift_state ? '.' : '.';
+		*p++ = '.';
 		return p - output;
 	      case VK_NUMPAD6:
 		*p++ = "lL\014\014"[shift_state & 3];
@@ -4590,7 +4614,7 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
 		break;
 	    }
 	    if (xkey) {
-		p += format_arrow_key(p, term, xkey, shift_state);
+		p += format_arrow_key((char *)p, term, xkey, shift_state);
 		return p - output;
 	    }
 	}
@@ -5365,7 +5389,7 @@ void optimised_move(void *frontend, int to, int from, int lines)
 /*
  * Print a message box and perform a fatal exit.
  */
-void fatalbox(char *fmt, ...)
+void fatalbox(const char *fmt, ...)
 {
     va_list ap;
     char *stuff, morestuff[100];
@@ -5382,7 +5406,7 @@ void fatalbox(char *fmt, ...)
 /*
  * Print a modal (Really Bad) message box and perform a fatal exit.
  */
-void modalfatalbox(char *fmt, ...)
+void modalfatalbox(const char *fmt, ...)
 {
     va_list ap;
     char *stuff, morestuff[100];
@@ -5400,7 +5424,7 @@ void modalfatalbox(char *fmt, ...)
 /*
  * Print a message box and don't close the connection.
  */
-void nonfatal(char *fmt, ...)
+void nonfatal(const char *fmt, ...)
 {
     va_list ap;
     char *stuff, morestuff[100];
@@ -5807,7 +5831,7 @@ int from_backend_eof(void *frontend)
     return TRUE;   /* do respond to incoming EOF with outgoing */
 }
 
-int get_userpass_input(prompts_t *p, unsigned char *in, int inlen)
+int get_userpass_input(prompts_t *p, const unsigned char *in, int inlen)
 {
     int ret;
     ret = cmdline_get_passwd_input(p, in, inlen);

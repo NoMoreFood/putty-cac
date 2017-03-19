@@ -45,8 +45,8 @@ void timer_change_notify(unsigned long next)
 {
 }
 
-int verify_ssh_host_key(void *frontend, char *host, int port, char *keytype,
-                        char *keystr, char *fingerprint,
+int verify_ssh_host_key(void *frontend, char *host, int port,
+                        const char *keytype, char *keystr, char *fingerprint,
                         void (*callback)(void *ctx, int result), void *ctx)
 {
     int ret;
@@ -131,6 +131,8 @@ int verify_ssh_host_key(void *frontend, char *host, int port, char *keytype,
 	fflush(stderr);
     }
 
+    line[0] = '\0';         /* fail safe if ReadFile returns no data */
+
     hin = GetStdHandle(STD_INPUT_HANDLE);
     GetConsoleMode(hin, &savemode);
     SetConsoleMode(hin, (savemode | ENABLE_ECHO_INPUT |
@@ -180,6 +182,53 @@ int askalg(void *frontend, const char *algtype, const char *algname,
     }
 
     fprintf(stderr, msg, algtype, algname);
+    fflush(stderr);
+
+    hin = GetStdHandle(STD_INPUT_HANDLE);
+    GetConsoleMode(hin, &savemode);
+    SetConsoleMode(hin, (savemode | ENABLE_ECHO_INPUT |
+			 ENABLE_PROCESSED_INPUT | ENABLE_LINE_INPUT));
+    ReadFile(hin, line, sizeof(line) - 1, &i, NULL);
+    SetConsoleMode(hin, savemode);
+
+    if (line[0] == 'y' || line[0] == 'Y') {
+	return 1;
+    } else {
+	fprintf(stderr, abandoned);
+	return 0;
+    }
+}
+
+int askhk(void *frontend, const char *algname, const char *betteralgs,
+          void (*callback)(void *ctx, int result), void *ctx)
+{
+    HANDLE hin;
+    DWORD savemode, i;
+
+    static const char msg[] =
+	"The first host key type we have stored for this server\n"
+	"is %s, which is below the configured warning threshold.\n"
+	"The server also provides the following types of host key\n"
+        "above the threshold, which we do not have stored:\n"
+        "%s\n"
+	"Continue with connection? (y/n) ";
+    static const char msg_batch[] =
+	"The first host key type we have stored for this server\n"
+	"is %s, which is below the configured warning threshold.\n"
+	"The server also provides the following types of host key\n"
+        "above the threshold, which we do not have stored:\n"
+        "%s\n"
+	"Connection abandoned.\n";
+    static const char abandoned[] = "Connection abandoned.\n";
+
+    char line[32];
+
+    if (console_batch_mode) {
+	fprintf(stderr, msg_batch, algname, betteralgs);
+	return 0;
+    }
+
+    fprintf(stderr, msg, algname, betteralgs);
     fflush(stderr);
 
     hin = GetStdHandle(STD_INPUT_HANDLE);
@@ -306,7 +355,8 @@ static void console_data_untrusted(HANDLE hout, const char *data, int len)
     WriteFile(hout, data, len, &dummy, NULL);
 }
 
-int console_get_userpass_input(prompts_t *p, unsigned char *in, int inlen)
+int console_get_userpass_input(prompts_t *p,
+                               const unsigned char *in, int inlen)
 {
     HANDLE hin, hout;
     size_t curr_prompt;
