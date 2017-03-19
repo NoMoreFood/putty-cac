@@ -10,14 +10,12 @@
 #include "dialog.h"
 #include "storage.h"
 
-/* PuTTY CAPI start */
-#ifdef _WINDOWS
+#ifdef PUTTY_CAC
 #include "capi.h"
 #include <Specstrings.h>
 #include <Wincrypt.h>
 #include <CryptDlg.h>
-#endif
-/* PuTTY CAPI end */
+#endif // PUTTY_CAC
 
 #define PRINTER_DISABLED_STRING "None (printing disabled)"
 
@@ -365,7 +363,8 @@ static void cipherlist_handler(union control *ctrl, void *dlg,
     if (event == EVENT_REFRESH) {
 	int i;
 
-	static const struct { char *s; int c; } ciphers[] = {
+	static const struct { const char *s; int c; } ciphers[] = {
+            { "ChaCha20 (SSH-2 only)",  CIPHER_CHACHA20 },
 	    { "3DES",			CIPHER_3DES },
 	    { "Blowfish",		CIPHER_BLOWFISH },
 	    { "DES",			CIPHER_DES },
@@ -381,7 +380,7 @@ static void cipherlist_handler(union control *ctrl, void *dlg,
 	for (i = 0; i < CIPHER_MAX; i++) {
 	    int c = conf_get_int_int(conf, CONF_ssh_cipherlist, i);
 	    int j;
-	    char *cstr = NULL;
+	    const char *cstr = NULL;
 	    for (j = 0; j < (sizeof ciphers) / (sizeof ciphers[0]); j++) {
 		if (ciphers[j].c == c) {
 		    cstr = ciphers[j].s;
@@ -437,11 +436,12 @@ static void kexlist_handler(union control *ctrl, void *dlg,
     if (event == EVENT_REFRESH) {
 	int i;
 
-	static const struct { char *s; int k; } kexes[] = {
+	static const struct { const char *s; int k; } kexes[] = {
 	    { "Diffie-Hellman group 1",		KEX_DHGROUP1 },
 	    { "Diffie-Hellman group 14",	KEX_DHGROUP14 },
 	    { "Diffie-Hellman group exchange",	KEX_DHGEX },
 	    { "RSA-based key exchange", 	KEX_RSA },
+            { "ECDH key exchange",              KEX_ECDH },
 	    { "-- warn below here --",		KEX_WARN }
 	};
 
@@ -452,7 +452,7 @@ static void kexlist_handler(union control *ctrl, void *dlg,
 	for (i = 0; i < KEX_MAX; i++) {
 	    int k = conf_get_int_int(conf, CONF_ssh_kexlist, i);
 	    int j;
-	    char *kstr = NULL;
+	    const char *kstr = NULL;
 	    for (j = 0; j < (sizeof kexes) / (sizeof kexes[0]); j++) {
 		if (kexes[j].k == k) {
 		    kstr = kexes[j].s;
@@ -473,6 +473,49 @@ static void kexlist_handler(union control *ctrl, void *dlg,
     }
 }
 
+static void hklist_handler(union control *ctrl, void *dlg,
+                            void *data, int event)
+{
+    Conf *conf = (Conf *)data;
+    if (event == EVENT_REFRESH) {
+        int i;
+
+        static const struct { const char *s; int k; } hks[] = {
+            { "Ed25519",               HK_ED25519 },
+            { "ECDSA",                 HK_ECDSA },
+            { "DSA",                   HK_DSA },
+            { "RSA",                   HK_RSA },
+            { "-- warn below here --", HK_WARN }
+        };
+
+        /* Set up the "host key preference" box. */
+        /* (hklist assumed to contain all algorithms) */
+        dlg_update_start(ctrl, dlg);
+        dlg_listbox_clear(ctrl, dlg);
+        for (i = 0; i < HK_MAX; i++) {
+            int k = conf_get_int_int(conf, CONF_ssh_hklist, i);
+            int j;
+            const char *kstr = NULL;
+            for (j = 0; j < lenof(hks); j++) {
+                if (hks[j].k == k) {
+                    kstr = hks[j].s;
+                    break;
+                }
+            }
+            dlg_listbox_addwithid(ctrl, dlg, kstr, k);
+        }
+        dlg_update_done(ctrl, dlg);
+
+    } else if (event == EVENT_VALCHANGE) {
+        int i;
+
+        /* Update array to match the list box. */
+        for (i=0; i < HK_MAX; i++)
+            conf_set_int_int(conf, CONF_ssh_hklist, i,
+                             dlg_listbox_getid(ctrl, dlg, i));
+    }
+}
+
 static void printerbox_handler(union control *ctrl, void *dlg,
 			       void *data, int event)
 {
@@ -480,7 +523,7 @@ static void printerbox_handler(union control *ctrl, void *dlg,
     if (event == EVENT_REFRESH) {
 	int nprinters, i;
 	printer_enum *pe;
-	char *printer;
+	const char *printer;
 
 	dlg_update_start(ctrl, dlg);
 	/*
@@ -574,10 +617,9 @@ struct sessionsaver_data {
     char *savedsession;     /* the current contents of ssd->editbox */
 };
 
-/* PuTTY CAPI begin */
-#ifdef _WINDOWS
+#ifdef PUTTY_CAC
 struct capi_data {
-        union control *certstore_droplist, *certID_text, *cert_browse, *keystring_text;
+        union control *certstore_droplist, *certid_text, *cert_browse, *keystring_text;
 };
 
 void capi_certstore_handler(union control *ctrl, void *dlg, void *data, int event ) {
@@ -590,7 +632,7 @@ void capi_certstore_handler(union control *ctrl, void *dlg, void *data, int even
                         dlg_listbox_clear(ctrl, dlg);
                         dlg_listbox_add(ctrl, dlg, "User\\MY (Personal Certificates)");
                         dlg_listbox_add(ctrl, dlg, "System\\MY (Personal Certificates)");
-                        if (strncmp(conf_get_str(conf, CONF_capi_certID), "System\\MY", 9) == 0)
+                        if (strncmp(conf_get_str(conf, CONF_capi_certid), "System\\MY", 9) == 0)
                                 dlg_listbox_select(ctrl, dlg, 1);
                         else
                                 dlg_listbox_select(ctrl, dlg, 0); /* *shrug* */
@@ -599,20 +641,20 @@ void capi_certstore_handler(union control *ctrl, void *dlg, void *data, int even
     }
 }
 
-void capi_certID_handler(union control *ctrl, void *dlg, void *data, int event ) {
+void capi_certid_handler(union control *ctrl, void *dlg, void *data, int event ) {
     Conf *conf = (Conf *)data;
     struct capi_data *capid = (struct capi_data *)ctrl->generic.context.p;
         char* tmpKeystring = NULL;
 
         if (event == EVENT_REFRESH) {
-            dlg_editbox_set(ctrl, dlg, conf_get_str(conf, CONF_capi_certID));
+            dlg_editbox_set(ctrl, dlg, conf_get_str(conf, CONF_capi_certid));
         } else if (event == EVENT_VALCHANGE) {
-            //dlg_editbox_get(ctrl, dlg, conf_get_str(conf, CONF_capi_certID), sizeof(conf_get_str(conf, CONF_capi_certID)));
-			conf_set_str(conf, CONF_capi_certID, dlg_editbox_get(ctrl, dlg));
+            //dlg_editbox_get(ctrl, dlg, conf_get_str(conf, CONF_capi_certid), sizeof(conf_get_str(conf, CONF_capi_certid)));
+			conf_set_str(conf, CONF_capi_certid, dlg_editbox_get(ctrl, dlg));
         }
 
-        if (conf_get_str(conf, CONF_capi_certID)) { //[0]
-                if ((tmpKeystring = capi_get_key_string(conf_get_str(conf, CONF_capi_certID))) != NULL) {
+        if (conf_get_str(conf, CONF_capi_certid)) { //[0]
+                if ((tmpKeystring = capi_get_key_string(conf_get_str(conf, CONF_capi_certid))) != NULL) {
                        dlg_editbox_set(capid->keystring_text, dlg, tmpKeystring);
                        free(tmpKeystring);
                        tmpKeystring = NULL;
@@ -687,11 +729,11 @@ void capi_certstore_browse_handler(union control *ctrl, void *dlg, void *data, i
                 tmpSHA1hex[sizeof(tmpSHA1hex)-1] = '\0';
                 _snprintf(tmpCertID, sizeof(tmpCertID)-1, "%s\\%s", i == 1 ? "Machine\\MY" : "User\\MY", tmpSHA1hex);
                 tmpCertID[sizeof(tmpCertID)-1] = '\0';
-                dlg_editbox_set(capid->certID_text, dlg, tmpCertID);
+                dlg_editbox_set(capid->certid_text, dlg, tmpCertID);
 
-                //strncpy(conf_get_str(conf, CONF_capi_certID), tmpCertID, sizeof(conf_get_str(conf, CONF_capi_certID)));
-                //conf_get_str(conf, CONF_capi_certID)[sizeof(conf_get_str(conf, CONF_capi_certID))-1] = '\0';
-				conf_set_str(conf, CONF_capi_certID, tmpCertID);
+                //strncpy(conf_get_str(conf, CONF_capi_certid), tmpCertID, sizeof(conf_get_str(conf, CONF_capi_certid)));
+                //conf_get_str(conf, CONF_capi_certid)[sizeof(conf_get_str(conf, CONF_capi_certid))-1] = '\0';
+				conf_set_str(conf, CONF_capi_certid, tmpCertID);
 
                 if ((tmpKeystring = capi_get_key_string(tmpCertID)) != NULL) {
                        dlg_editbox_set(capid->keystring_text, dlg, tmpKeystring);
@@ -723,8 +765,7 @@ cleanup:
 
         return;
 }
-#endif
-/* PuTTY CAPI end */
+#endif // PUTTY_CAC
 
 static void sessionsaver_data_free(void *ssdv)
 {
@@ -1279,7 +1320,8 @@ static void portfwd_handler(union control *ctrl, void *dlg,
 	}
     } else if (event == EVENT_ACTION) {
 	if (ctrl == pfd->addbutton) {
-	    char *family, *type, *src, *key, *val;
+	    const char *family, *type;
+            char *src, *key, *val;
 	    int whichbutton;
 
 #ifndef NO_IPV6
@@ -1338,7 +1380,8 @@ static void portfwd_handler(union control *ctrl, void *dlg,
 	    if (i < 0) {
 		dlg_beep(dlg);
 	    } else {
-		char *key, *val, *p;
+		char *key, *p;
+                const char *val;
 
 		key = conf_get_str_nthstrkey(conf, CONF_portfwd, i);
 		if (key) {
@@ -1461,11 +1504,9 @@ void setup_config_box(struct controlbox *b, int midsession,
     struct sessionsaver_data *ssd;
     struct charclass_data *ccd;
     struct colour_data *cd;
-        /* PuTTY CAPI start */
-#ifdef _WINDOWS
-        struct capi_data *capid;
-#endif
-        /* PuTTY CAPI end */ 
+#ifdef PUTTY_CAC
+    struct capi_data *capid;
+#endif // PUTTY_CAC 
     struct ttymodes_data *td;
     struct environ_data *ed;
     struct portfwd_data *pfd;
@@ -1615,7 +1656,7 @@ void setup_config_box(struct controlbox *b, int midsession,
      * logging can sensibly be available.
      */
     {
-	char *sshlogname, *sshrawlogname;
+	const char *sshlogname, *sshrawlogname;
 	if ((midsession && protocol == PROT_SSH) ||
 	    (!midsession && backend_from_proto(PROT_SSH))) {
 	    sshlogname = "SSH packets";
@@ -1809,6 +1850,10 @@ void setup_config_box(struct controlbox *b, int midsession,
 		  HELPCTX(features_retitle),
 		  conf_checkbox_handler,
 		  I(CONF_no_remote_wintitle));
+    ctrl_checkbox(s, "Disable remote-controlled clearing of scrollback", 'e',
+		  HELPCTX(features_clearscroll),
+		  conf_checkbox_handler,
+		  I(CONF_no_remote_clearscroll));
     ctrl_radiobuttons(s, "Response to remote title query (SECURITY):", 'q', 3,
 		      HELPCTX(features_qtitle),
 		      conf_radiobutton_handler,
@@ -2092,7 +2137,7 @@ void setup_config_box(struct controlbox *b, int midsession,
 #endif
 
 	    {
-		char *label = backend_from_proto(PROT_SSH) ?
+		const char *label = backend_from_proto(PROT_SSH) ?
 		    "Logical name of remote host (e.g. for SSH key lookup):" :
 		    "Logical name of remote host:";
 		s = ctrl_getset(b, "Connection", "identity",
@@ -2234,6 +2279,15 @@ void setup_config_box(struct controlbox *b, int midsession,
 		     HELPCTX(proxy_command),
 		     conf_editbox_handler,
 		     I(CONF_proxy_telnet_command), I(1));
+
+	ctrl_radiobuttons(s, "Print proxy diagnostics "
+                          "in the terminal window", 'r', 5,
+			  HELPCTX(proxy_logging),
+			  conf_radiobutton_handler,
+			  I(CONF_proxy_log_to_term),
+			  "No", I(FORCE_OFF),
+			  "Yes", I(FORCE_ON),
+			  "Only until session starts", I(AUTO), NULL);
     }
 
     /*
@@ -2358,14 +2412,12 @@ void setup_config_box(struct controlbox *b, int midsession,
 	if (!midsession) {
 	    s = ctrl_getset(b, "Connection/SSH", "protocol", "Protocol options");
 
-	    ctrl_radiobuttons(s, "Preferred SSH protocol version:", NO_SHORTCUT, 4,
+	    ctrl_radiobuttons(s, "SSH protocol version:", NO_SHORTCUT, 2,
 			      HELPCTX(ssh_protocol),
 			      conf_radiobutton_handler,
 			      I(CONF_sshprot),
-			      "1 only", 'l', I(0),
-			      "1", '1', I(1),
-			      "2", '2', I(2),
-			      "2 only", 'y', I(3), NULL);
+			      "2", '2', I(3),
+			      "1 (INSECURE)", '1', I(0), NULL);
 	}
 
 	/*
@@ -2403,12 +2455,27 @@ void setup_config_box(struct controlbox *b, int midsession,
 	}
 
 	/*
+	 * The 'Connection/SSH/Host keys' panel.
+	 */
+	if (protcfginfo != 1 && protcfginfo != -1) {
+	    ctrl_settitle(b, "Connection/SSH/Host keys",
+			  "Options controlling SSH host keys");
+
+	    s = ctrl_getset(b, "Connection/SSH/Host keys", "main",
+			    "Host key algorithm preference");
+	    c = ctrl_draglist(s, "Algorithm selection policy:", 's',
+			      HELPCTX(ssh_hklist),
+			      hklist_handler, P(NULL));
+	    c->listbox.height = 5;
+	}
+
+	/*
 	 * Manual host key configuration is irrelevant mid-session,
 	 * as we enforce that the host key for rekeys is the
 	 * same as that used at the start of the session.
 	 */
 	if (!midsession) {
-	    s = ctrl_getset(b, "Connection/SSH/Kex", "hostkeys",
+	    s = ctrl_getset(b, "Connection/SSH/Host keys", "hostkeys",
 			    "Manually configure host keys for this connection");
 
             ctrl_columns(s, 2, 75, 25);
@@ -2466,13 +2533,7 @@ void setup_config_box(struct controlbox *b, int midsession,
 	}
 
 	if (!midsession) {
-	                 /* PuTTY CAPI start */
-
-
-
-
-
-#ifdef _WINDOWS
+#ifdef PUTTY_CAC
           /*
            * The Connection/SSH/CAPI panel.
            */
@@ -2494,80 +2555,21 @@ void setup_config_box(struct controlbox *b, int midsession,
                                          capi_certstore_handler, P(capid));
 
             ctrl_columns(s, 2, 75, 25);
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-                capid->certID_text =
+                capid->certid_text =
                         ctrl_editbox(s, "Cert:", NO_SHORTCUT, 80,
                         HELPCTX(ssh_auth_capi_certstore_label),
-                        capi_certID_handler
+                        capi_certid_handler
                         , P(capid), P(NULL)
                         );
-            capid->certID_text->generic.column = 0;
+            capid->certid_text->generic.column = 0;
             capid->cert_browse = ctrl_pushbutton(s, "Browse", NO_SHORTCUT,
-
-
                         HELPCTX(ssh_auth_capi),
                         capi_certstore_browse_handler, P(capid));
             capid->cert_browse->generic.column = 1;
-
-
-
-
-
-
-
-
-
-
-
-
-
                 capid->keystring_text = ctrl_editbox(s, "SSH keystring:",
                         NO_SHORTCUT, 100, HELPCTX(ssh_auth_capi),
                         conf_editbox_handler, P(NULL), P(NULL));
-
-                
-
-
-/*                m_label_ctrl = ctrl_combobox(s, "Certificate Store:",
-                        NO_SHORTCUT, 70, HELPCTX(ssh_auth_capi_certstore_label),
-                        capi_certstore_handler, P(NULL), P(NULL));
-          m_cert_ctrl = ctrl_combobox(s, "Certificate fingerprint:",
-                        NO_SHORTCUT, 70, HELPCTX(ssh_auth_capi_certfingerprint_label),
-                        capi_certfingerprint_handler, P(NULL), P(NULL));
-
-
-          m_keystring_ctrl = ctrl_editbox(s, "SSH keystring:",
-                        NO_SHORTCUT, 100, HELPCTX(ssh_auth_pkcs11_cert_label),
-                        capi_keystring_handler, P(NULL), P(NULL));
-*/
-
-
-#endif
-                /* PuTTY CAPI end */
+#endif // PUTTY_CAC
 
 	    /*
 	     * The Connection/SSH/Auth panel.
@@ -2576,14 +2578,14 @@ void setup_config_box(struct controlbox *b, int midsession,
 			  "Options controlling SSH authentication");
 
 	    s = ctrl_getset(b, "Connection/SSH/Auth", "main", NULL);
-	    ctrl_checkbox(s, "Bypass authentication entirely (SSH-2 only)", 'b',
-			  HELPCTX(ssh_auth_bypass),
-			  conf_checkbox_handler,
-			  I(CONF_ssh_no_userauth));
 	    ctrl_checkbox(s, "Display pre-authentication banner (SSH-2 only)",
 			  'd', HELPCTX(ssh_auth_banner),
 			  conf_checkbox_handler,
 			  I(CONF_ssh_show_banner));
+	    ctrl_checkbox(s, "Bypass authentication entirely (SSH-2 only)", 'b',
+			  HELPCTX(ssh_auth_bypass),
+			  conf_checkbox_handler,
+			  I(CONF_ssh_no_userauth));
 
 	    s = ctrl_getset(b, "Connection/SSH/Auth", "methods",
 			    "Authentication methods");
@@ -2839,27 +2841,21 @@ void setup_config_box(struct controlbox *b, int midsession,
 
 	    s = ctrl_getset(b, "Connection/SSH/Bugs", "main",
 			    "Detection of known bugs in SSH servers");
-	    ctrl_droplist(s, "Chokes on SSH-1 ignore messages", 'i', 20,
-			  HELPCTX(ssh_bugs_ignore1),
-			  sshbug_handler, I(CONF_sshbug_ignore1));
-	    ctrl_droplist(s, "Refuses all SSH-1 password camouflage", 's', 20,
-			  HELPCTX(ssh_bugs_plainpw1),
-			  sshbug_handler, I(CONF_sshbug_plainpw1));
-	    ctrl_droplist(s, "Chokes on SSH-1 RSA authentication", 'r', 20,
-			  HELPCTX(ssh_bugs_rsa1),
-			  sshbug_handler, I(CONF_sshbug_rsa1));
 	    ctrl_droplist(s, "Chokes on SSH-2 ignore messages", '2', 20,
 			  HELPCTX(ssh_bugs_ignore2),
 			  sshbug_handler, I(CONF_sshbug_ignore2));
+	    ctrl_droplist(s, "Handles SSH-2 key re-exchange badly", 'k', 20,
+			  HELPCTX(ssh_bugs_rekey2),
+			  sshbug_handler, I(CONF_sshbug_rekey2));
 	    ctrl_droplist(s, "Chokes on PuTTY's SSH-2 'winadj' requests", 'j',
                           20, HELPCTX(ssh_bugs_winadj),
 			  sshbug_handler, I(CONF_sshbug_winadj));
-	    ctrl_droplist(s, "Miscomputes SSH-2 HMAC keys", 'm', 20,
-			  HELPCTX(ssh_bugs_hmac2),
-			  sshbug_handler, I(CONF_sshbug_hmac2));
-	    ctrl_droplist(s, "Miscomputes SSH-2 encryption keys", 'e', 20,
-			  HELPCTX(ssh_bugs_derivekey2),
-			  sshbug_handler, I(CONF_sshbug_derivekey2));
+	    ctrl_droplist(s, "Replies to requests on closed channels", 'q', 20,
+			  HELPCTX(ssh_bugs_chanreq),
+			  sshbug_handler, I(CONF_sshbug_chanreq));
+	    ctrl_droplist(s, "Ignores SSH-2 maximum packet size", 'x', 20,
+			  HELPCTX(ssh_bugs_maxpkt2),
+			  sshbug_handler, I(CONF_sshbug_maxpkt2));
 
 	    ctrl_settitle(b, "Connection/SSH/More bugs",
 			  "Further workarounds for SSH server bugs");
@@ -2869,21 +2865,27 @@ void setup_config_box(struct controlbox *b, int midsession,
 	    ctrl_droplist(s, "Requires padding on SSH-2 RSA signatures", 'p', 20,
 			  HELPCTX(ssh_bugs_rsapad2),
 			  sshbug_handler, I(CONF_sshbug_rsapad2));
-	    ctrl_droplist(s, "Misuses the session ID in SSH-2 PK auth", 'n', 20,
-			  HELPCTX(ssh_bugs_pksessid2),
-			  sshbug_handler, I(CONF_sshbug_pksessid2));
-	    ctrl_droplist(s, "Handles SSH-2 key re-exchange badly", 'k', 20,
-			  HELPCTX(ssh_bugs_rekey2),
-			  sshbug_handler, I(CONF_sshbug_rekey2));
-	    ctrl_droplist(s, "Ignores SSH-2 maximum packet size", 'x', 20,
-			  HELPCTX(ssh_bugs_maxpkt2),
-			  sshbug_handler, I(CONF_sshbug_maxpkt2));
 	    ctrl_droplist(s, "Only supports pre-RFC4419 SSH-2 DH GEX", 'd', 20,
 			  HELPCTX(ssh_bugs_oldgex2),
 			  sshbug_handler, I(CONF_sshbug_oldgex2));
-	    ctrl_droplist(s, "Replies to requests on closed channels", 'q', 20,
-			  HELPCTX(ssh_bugs_chanreq),
-			  sshbug_handler, I(CONF_sshbug_chanreq));
+	    ctrl_droplist(s, "Miscomputes SSH-2 HMAC keys", 'm', 20,
+			  HELPCTX(ssh_bugs_hmac2),
+			  sshbug_handler, I(CONF_sshbug_hmac2));
+	    ctrl_droplist(s, "Misuses the session ID in SSH-2 PK auth", 'n', 20,
+			  HELPCTX(ssh_bugs_pksessid2),
+			  sshbug_handler, I(CONF_sshbug_pksessid2));
+	    ctrl_droplist(s, "Miscomputes SSH-2 encryption keys", 'e', 20,
+			  HELPCTX(ssh_bugs_derivekey2),
+			  sshbug_handler, I(CONF_sshbug_derivekey2));
+	    ctrl_droplist(s, "Chokes on SSH-1 ignore messages", 'i', 20,
+			  HELPCTX(ssh_bugs_ignore1),
+			  sshbug_handler, I(CONF_sshbug_ignore1));
+	    ctrl_droplist(s, "Refuses all SSH-1 password camouflage", 's', 20,
+			  HELPCTX(ssh_bugs_plainpw1),
+			  sshbug_handler, I(CONF_sshbug_plainpw1));
+	    ctrl_droplist(s, "Chokes on SSH-1 RSA authentication", 'r', 20,
+			  HELPCTX(ssh_bugs_rsa1),
+			  sshbug_handler, I(CONF_sshbug_rsa1));
 	}
     }
 }
