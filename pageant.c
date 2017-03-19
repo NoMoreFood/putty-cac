@@ -174,12 +174,8 @@ static int cmpkeys_ssh2_asymm(void *av, void *bv)
 #ifdef PUTTY_CAC
 // Key comparison function for the 2-3-4 tree of CAPI keys (struct capi_userkey) where the first argument is a blob.
 static int cmpkeys_capi(void *av, void *bv) {
-	struct blob {
-		unsigned char *blob;
-		int len;
-	};
-	struct blob *a = (struct blob *) av;
-	struct blob *b = (struct blob *) bv;
+	struct capi_userkey *a = (struct capi_userkey *) av;
+	struct capi_userkey *b = (struct capi_userkey *) bv;
 	int i;
 	int c;
 	
@@ -187,7 +183,7 @@ static int cmpkeys_capi(void *av, void *bv) {
 	* Compare purely by public blob.
 	*/
 	c = 0;
-	for (i = 0; i < a->len && i < b->len; i++) {
+	for (i = 0; i < a->bloblen && i < b->bloblen; i++) {
 		if (a->blob[i] < b->blob[i]) {
 			c = -1;
 			break;
@@ -197,9 +193,9 @@ static int cmpkeys_capi(void *av, void *bv) {
 			break;
 		}
 	}
-	if (c == 0 && i < a->len)
+	if (c == 0 && i < a->bloblen)
 		c = +1;                        /* a is longer */
-	if (c == 0 && i < b->len)
+	if (c == 0 && i < b->bloblen)
 		c = -1;                        /* b is longer */
 
 	return c;
@@ -284,7 +280,7 @@ void *pageant_make_keylist2(int *length)
 		nkeys++;
 		len += 4;              /* length field */
 		len += ckey->bloblen;
-		len += 4 + strlen(ckey->certID) + 5; /* "CAPI:" */
+		len += 4 + strlen(ckey->certid) + 5; /* "CAPI:" */
 	}
 #endif /* PUTTY_CAC */
 
@@ -590,7 +586,7 @@ void *pageant_handle_msg(const void *msg, int msglen, int *outlen,
 #ifdef PUTTY_CAC
 		ckey = find234(capikeys, &b, cmpkeys_capi);
 		if (ckey) {
-			if ((signature = capi_sig_certid(ckey->certID, data, datalen, &siglen)) == NULL)
+			if ((signature = capi_sig_certid(ckey->certid, data, datalen, &siglen)) == NULL)
 				goto failure;
 		}
 		else {
@@ -752,19 +748,19 @@ void *pageant_handle_msg(const void *msg, int msglen, int *outlen,
 #ifdef PUTTY_CAC
 		if (alglen == 4 && memcmp(alg, "CAPI", 4) == 0) {
 			struct capi_userkey *ckey;
-			const char *certID;
-			int certIDlen;
+			const char *certid;
+			int certidlen;
 
 			if (msgend < p + 4)
 				goto failure;
-			certIDlen = GET_32BIT(p);
+			certidlen = GET_32BIT(p);
 			p += 4;
 
-			if (msgend < p + certIDlen)
+			if (msgend < p + certidlen)
 				goto failure;
-			certID = p;
+			certid = p;
 
-			if ((ckey = create_capi_userkey(certID, NULL)) == NULL)
+			if ((ckey = create_capi_userkey(certid, NULL)) == NULL)
 				goto failure;
 			if (add234(capikeys, ckey) != ckey)
 				free_capi_userkey(ckey); // already loaded, free our (unused) copy
@@ -1424,10 +1420,10 @@ int pageant_add_keyfile(Filename *filename, const char *passphrase,
 
 	if (strnicmp(filename_to_str(filename), "CAPI:", 5) == 0) {
 		const char *fn = filename_to_str(filename);
-		const char *certID = &fn[5];
+		const char *certid = &fn[5];
 		CAPI_KEY = TRUE;
-		if ((ckey = create_capi_userkey(certID, NULL)) == NULL) {
-			char *msg = dupprintf("Couldn't load CAPI certificate/key: %s", certID);
+		if ((ckey = create_capi_userkey(certid, NULL)) == NULL) {
+			char *msg = dupprintf("Couldn't load CAPI certificate/key: %s", certid);
 			message_box(msg, "Pageant", MB_OK | MB_ICONERROR, HELPCTXID(errors_cantloadkey));
 			sfree(msg);
 			return PAGEANT_ACTION_FAILURE;
@@ -1450,7 +1446,7 @@ int pageant_add_keyfile(Filename *filename, const char *passphrase,
      * which may or may not be us).
      */
     {
-	void *blob;
+	void *blob = NULL;
 	unsigned char *keylist, *p;
 	int i, nkeys, bloblen, keylistlen;
 
@@ -1592,7 +1588,7 @@ int pageant_add_keyfile(Filename *filename, const char *passphrase,
 
 			reqlen =	4 + 1 +                // length, message type
 						4 + 4 +                     // length, "CAPI"
-						4 + strlen(ckey->certID);   // length + certID string
+						4 + strlen(ckey->certid);   // length + certid string
 
 			p = request = snewn(reqlen, unsigned char);
 			PUT_32BIT(p, reqlen - 4);
@@ -1604,10 +1600,10 @@ int pageant_add_keyfile(Filename *filename, const char *passphrase,
 			memcpy(p, "CAPI", 4);
 			p += 4;
 
-			PUT_32BIT(p, strlen(ckey->certID));
+			PUT_32BIT(p, strlen(ckey->certid));
 			p += 4;
-			memcpy(p, ckey->certID, strlen(ckey->certID));
-			p += strlen(ckey->certID);
+			memcpy(p, ckey->certid, strlen(ckey->certid));
+			p += strlen(ckey->certid);
 
 			ret = agent_query(request, reqlen, &response, &resplen, NULL, NULL);
 			assert(ret == NULL);
