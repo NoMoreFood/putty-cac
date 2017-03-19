@@ -21,12 +21,10 @@
 #include <shellapi.h>
 
 #ifdef PUTTY_CAC
-#ifdef _WINDOWS
 #include <specstrings.h>
 #include <Wincrypt.h>
 #include <CryptDlg.h>
 #include "capi.h"
-#endif
 #endif // PUTTY_CAC
 
 #ifndef NO_SECURITY
@@ -386,7 +384,7 @@ void keylist_update(void)
 	for (i = 0; NULL != (ckey = pageant_nth_capi_key(i)); i++) {
 		char listentry[512];
 		memset(listentry, 0, sizeof(listentry));
-		_snprintf(listentry, sizeof(listentry)-1, "CAPI\t%s", ckey->certID);
+		_snprintf(listentry, sizeof(listentry)-1, "CAPI\t%s", ckey->certid);
 		SendDlgItemMessage(keylist, 100, LB_ADDSTRING, 0, (LPARAM) listentry);
 	}
 #endif // PUTTY_CAC
@@ -439,7 +437,6 @@ void add_all_capikey() {
 
 	keylist_update();
 	
-	CertFreeCertificateContext(pCertContext);
 	CertCloseStore(hCertStore, 0);
 }
 
@@ -482,14 +479,16 @@ void prompt_add_capikey(HWND hwnd) {
 	css->cCertContext = 1; // count of arrayCertContext indexes allocated
 	css->arrayCertContext = acc;
 
-	if (!CertSelectCertificate(css)) // GetProcAddress(hCertDlgDLL, "CertSelectCertificateA")
+	if (!CertSelectCertificate(css))
+	{
 		goto cleanup;
+	}
 
-	if (css->cCertContext != 1)
+	if (css->cCertContext != 1 || acc[0] == NULL)
+	{
 		goto cleanup;
-	if (acc[0] == NULL)
-		goto cleanup;
-
+	}
+		
 	tmpSHA1size = sizeof(tmpSHA1);
 	if (!CertGetCertificateContextProperty(acc[0], CERT_HASH_PROP_ID, tmpSHA1, &tmpSHA1size))
 		memset(tmpSHA1, 0, sizeof(tmpSHA1));
@@ -508,26 +507,30 @@ void prompt_add_capikey(HWND hwnd) {
 	keylist_update();
 
 cleanup:
-	if (hCertDlgDLL) {
+
+	if (hCertDlgDLL) 
+	{
 		FreeLibrary(hCertDlgDLL);
-		CertSelectCertificate = NULL;
-		hCertDlgDLL = NULL;
 	}
-	if (acc) {
+
+	if (acc) 
+	{
 		if (acc[0])
+		{
 			CertFreeCertificateContext(acc[0]);
-		acc[0] = NULL;
+		}
 		free(acc);
-		acc = NULL;
 	}
 
 	if (css)
+	{
 		free(css);
-	css = NULL;
+	}
 
 	if (hStore)
+	{
 		CertCloseStore(hStore, 0);
-	hStore = NULL;
+	}
 
 	return;
 }
@@ -845,7 +848,7 @@ static INT_PTR CALLBACK KeyListProc(HWND hwnd, UINT msg,
 					if (selected == rCount + sCount + i) {
 						PCCERT_CONTEXT pCertContext = NULL;
 						ckey = pageant_nth_capi_key(i);
-						capi_display_cert_ui(hwnd, ckey->certID, L"Pageant Certificate");
+						capi_display_cert_ui(hwnd, ckey->certid, L"Pageant Certificate");
 					}
 				}
 			}

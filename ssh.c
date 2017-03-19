@@ -9403,11 +9403,11 @@ static void do_ssh2_authconn(Ssh ssh, const unsigned char *in, int inlen,
 
 #ifdef PUTTY_CAC
         else if (conf_get_int(ssh->conf, CONF_try_capi_auth)) {
-            logeventf(ssh, "Use CAPI cert (%s)", conf_get_str(ssh->conf, CONF_capi_certID));
-                        if (capi_get_pubkey(ssh->frontend, conf_get_str(ssh->conf, CONF_capi_certID), (unsigned char**) &s->publickey_blob, &s->publickey_algorithm, &s->publickey_bloblen)) {
+            logeventf(ssh, "Use CAPI cert (%s)", conf_get_str(ssh->conf, CONF_capi_certid));
+                        if (capi_get_pubkey(conf_get_str(ssh->conf, CONF_capi_certid), (unsigned char**) &s->publickey_blob, &s->publickey_algorithm, &s->publickey_bloblen)) {
                                 s->capi_key_loaded = TRUE;
-                                s->publickey_comment = calloc(strlen(conf_get_str(ssh->conf, CONF_capi_certID)) + 6, 1);
-                                _snprintf(s->publickey_comment, strlen(conf_get_str(ssh->conf, CONF_capi_certID)) + 6, "CAPI:%s", conf_get_str(ssh->conf, CONF_capi_certID));
+                                s->publickey_comment = calloc(strlen(conf_get_str(ssh->conf, CONF_capi_certid)) + 6, 1);
+                                _snprintf(s->publickey_comment, strlen(conf_get_str(ssh->conf, CONF_capi_certid)) + 6, "CAPI:%s", conf_get_str(ssh->conf, CONF_capi_certid));
                         }
                 }
 #endif // PUTTY_CAC
@@ -10025,15 +10025,15 @@ static void do_ssh2_authconn(Ssh ssh, const unsigned char *in, int inlen,
 		     */
 		    s->keyfile = conf_get_filename(ssh->conf, CONF_keyfile);
 #ifdef PUTTY_CAC
-            if(s->can_capi && s->capi_key_loaded) {/*chained off the else above*/
-                                if (capi_get_key_handle(ssh->frontend, conf_get_str(ssh->conf, CONF_capi_certID), &s->capi_keyhandle)) {
-                                        key = &capi_key_ssh2_userkey; // special flag-struct
-                                }
-                                else {
-                                        logeventf(ssh, "capi_get_key_handle(%s) returned false. s->capi_keyhandle=%08x", conf_get_str(ssh->conf, CONF_capi_certID), s->capi_keyhandle);
-                                        error = "Failed to load CAPI key";
-                                }
-                        }
+			if (s->can_capi && s->capi_key_loaded) {/*chained off the else above*/
+				if (capi_get_key_handle(conf_get_str(ssh->conf, CONF_capi_certid), &s->capi_keyhandle)) {
+					key = &capi_key_ssh2_userkey; // special flag-struct
+				}
+				else {
+					logeventf(ssh, "capi_get_key_handle(%s) returned false. s->capi_keyhandle=%08x", conf_get_str(ssh->conf, CONF_capi_certid), s->capi_keyhandle);
+					error = "Failed to load CAPI key";
+				}
+			}
 			else
 #endif // PUTTY_CAC
 		    key = ssh2_load_userkey(s->keyfile, passphrase, &error);
@@ -10122,7 +10122,8 @@ static void do_ssh2_authconn(Ssh ssh, const unsigned char *in, int inlen,
 		    assert(p == sigdata_len);
 #ifdef PUTTY_CAC
 			if (s->capi_key_loaded && (s->capi_keyhandle != NULL)) { /* chained off else from above */
-				if ((sigblob = capi_sig(s->capi_keyhandle, sigdata, sigdata_len, &sigblob_len)) == NULL) {
+				if ((sigblob = capi_sig(s->capi_keyhandle->win_provider, 
+					s->capi_keyhandle->win_keyspec, sigdata, sigdata_len, &sigblob_len)) == NULL) {
 					capi_release_key(&s->capi_keyhandle);
 					sfree(pkblob);
 					sfree(sigdata);

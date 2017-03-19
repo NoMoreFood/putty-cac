@@ -5,6 +5,7 @@ FOR %%X IN (Win32 x64 Debug Release .vs) DO (
 )
 FOR %%X IN (Win32 x64 Debug Release) DO (
   FORFILES /S /P "%~dp0..\executables" /M "*.pdb" /C "CMD /C DEL /Q @path"
+  FORFILES /S /P "%~dp0..\executables" /M "*.log" /C "CMD /C DEL /Q @path"
 )
 
 PAUSE
