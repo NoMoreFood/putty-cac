@@ -19,7 +19,7 @@ page</a>.</p>}
 \cfg{winhelp-filename}{putty.hlp}
 \cfg{info-filename}{putty.info}
 
-PuTTY is a free (MIT-licensed) Win32 Telnet and SSH client. This
+PuTTY is a free (MIT-licensed) Windows Telnet and SSH client. This
 manual documents PuTTY, and its companion utilities PSCP, PSFTP,
 Plink, Pageant and PuTTYgen.
 
@@ -31,6 +31,6 @@ features not described here; and the \i\cw{pterm} and command-line
 Unix-specific documentation that currently exists is the
 \I{man pages for PuTTY tools}man pages.
 
-\copyright This manual is copyright 2001-2015 Simon Tatham. All
+\copyright This manual is copyright \shortcopyrightdetails. All
 rights reserved. You may distribute this documentation under the MIT
 licence. See \k{licence} for the licence text in full.

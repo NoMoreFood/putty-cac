@@ -12,6 +12,10 @@
 #define WINSECUR_GLOBAL
 #include "winsecur.h"
 
+/* Initialised once, then kept around to reuse forever */
+static PSID worldsid, networksid, usersid;
+
+
 int got_advapi(void)
 {
     static int attempted = FALSE;
@@ -23,26 +27,12 @@ int got_advapi(void)
         advapi = load_system32_dll("advapi32.dll");
         successful = advapi &&
             GET_WINDOWS_FUNCTION(advapi, GetSecurityInfo) &&
+            GET_WINDOWS_FUNCTION(advapi, SetSecurityInfo) &&
             GET_WINDOWS_FUNCTION(advapi, OpenProcessToken) &&
             GET_WINDOWS_FUNCTION(advapi, GetTokenInformation) &&
             GET_WINDOWS_FUNCTION(advapi, InitializeSecurityDescriptor) &&
             GET_WINDOWS_FUNCTION(advapi, SetSecurityDescriptorOwner) &&
             GET_WINDOWS_FUNCTION(advapi, SetEntriesInAclA);
-    }
-    return successful;
-}
-
-int got_crypt(void)
-{
-    static int attempted = FALSE;
-    static int successful;
-    static HMODULE crypt;
-
-    if (!attempted) {
-        attempted = TRUE;
-        crypt = load_system32_dll("crypt32.dll");
-        successful = crypt &&
-            GET_WINDOWS_FUNCTION(crypt, CryptProtectMemory);
     }
     return successful;
 }
@@ -53,6 +43,9 @@ PSID get_user_sid(void)
     TOKEN_USER *user = NULL;
     DWORD toklen, sidlen;
     PSID sid = NULL, ret = NULL;
+
+    if (usersid)
+        return usersid;
 
     if (!got_advapi())
         goto cleanup;
@@ -83,7 +76,7 @@ PSID get_user_sid(void)
 
     /* Success. Move sid into the return value slot, and null it out
      * to stop the cleanup code freeing it. */
-    ret = sid;
+    ret = usersid = sid;
     sid = NULL;
 
   cleanup:
@@ -99,28 +92,21 @@ PSID get_user_sid(void)
     return ret;
 }
 
-int make_private_security_descriptor(DWORD permissions,
-                                     PSECURITY_DESCRIPTOR *psd,
-                                     PACL *acl,
-                                     char **error)
+int getsids(char **error)
 {
+#ifdef __clang__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wmissing-braces"
+#endif
     SID_IDENTIFIER_AUTHORITY world_auth = SECURITY_WORLD_SID_AUTHORITY;
     SID_IDENTIFIER_AUTHORITY nt_auth = SECURITY_NT_AUTHORITY;
-    EXPLICIT_ACCESS ea[3];
-    int acl_err;
+#ifdef __clang__
+#pragma clang diagnostic pop
+#endif
+
     int ret = FALSE;
 
-    /* Initialised once, then kept around to reuse forever */
-    static PSID worldsid, networksid, usersid;
-
-    *psd = NULL;
-    *acl = NULL;
     *error = NULL;
-
-    if (!got_advapi()) {
-        *error = dupprintf("unable to load advapi32.dll");
-        goto cleanup;
-    }
 
     if (!usersid) {
         if ((usersid = get_user_sid()) == NULL) {
@@ -148,6 +134,30 @@ int make_private_security_descriptor(DWORD permissions,
             goto cleanup;
         }
     }
+
+    ret = TRUE;
+
+ cleanup:
+    return ret;
+}
+  
+
+int make_private_security_descriptor(DWORD permissions,
+                                     PSECURITY_DESCRIPTOR *psd,
+                                     PACL *acl,
+                                     char **error)
+{
+    EXPLICIT_ACCESS ea[3];
+    int acl_err;
+    int ret = FALSE;
+
+
+    *psd = NULL;
+    *acl = NULL;
+    *error = NULL;
+
+    if (!getsids(error))
+      goto cleanup;
 
     memset(ea, 0, sizeof(ea));
     ea[0].grfAccessPermissions = permissions;
@@ -218,4 +228,98 @@ int make_private_security_descriptor(DWORD permissions,
     return ret;
 }
 
+static int really_restrict_process_acl(char **error)
+{
+    EXPLICIT_ACCESS ea[2];
+    int acl_err;
+    int ret=FALSE;
+    PACL acl = NULL;
+
+    static const DWORD nastyace=WRITE_DAC | WRITE_OWNER |
+	PROCESS_CREATE_PROCESS | PROCESS_CREATE_THREAD |
+	PROCESS_DUP_HANDLE |
+	PROCESS_SET_QUOTA | PROCESS_SET_INFORMATION |
+	PROCESS_VM_OPERATION | PROCESS_VM_READ | PROCESS_VM_WRITE |
+	PROCESS_SUSPEND_RESUME;
+
+    if (!getsids(error))
+	goto cleanup;
+
+    memset(ea, 0, sizeof(ea));
+
+    /* Everyone: deny */
+    ea[0].grfAccessPermissions = nastyace;
+    ea[0].grfAccessMode = DENY_ACCESS;
+    ea[0].grfInheritance = SUB_CONTAINERS_AND_OBJECTS_INHERIT;
+    ea[0].Trustee.TrusteeForm = TRUSTEE_IS_SID;
+    ea[0].Trustee.ptstrName = (LPTSTR)worldsid;
+
+    /* User: user ace */
+    ea[1].grfAccessPermissions = ~nastyace & 0x1fff;
+    ea[1].grfAccessMode = GRANT_ACCESS;
+    ea[1].grfInheritance = SUB_CONTAINERS_AND_OBJECTS_INHERIT;
+    ea[1].Trustee.TrusteeForm = TRUSTEE_IS_SID;
+    ea[1].Trustee.ptstrName = (LPTSTR)usersid;
+
+    acl_err = p_SetEntriesInAclA(2, ea, NULL, &acl);
+
+    if (acl_err != ERROR_SUCCESS || acl == NULL) {
+	*error = dupprintf("unable to construct ACL: %s",
+                           win_strerror(acl_err));
+        goto cleanup;
+    }
+
+    if (ERROR_SUCCESS != p_SetSecurityInfo
+        (GetCurrentProcess(), SE_KERNEL_OBJECT,
+         OWNER_SECURITY_INFORMATION | DACL_SECURITY_INFORMATION,
+         usersid, NULL, acl, NULL)) {
+	*error = dupprintf("Unable to set process ACL: %s",
+                           win_strerror(GetLastError()));
+	goto cleanup;
+    }
+		      
+
+    ret=TRUE;
+    
+  cleanup:
+    if (!ret) {
+        if (acl) {
+            LocalFree(acl);
+            acl = NULL;
+        }
+    }
+    return ret;
+}
 #endif /* !defined NO_SECURITY */
+
+/*
+ * Lock down our process's ACL, to present an obstacle to malware
+ * trying to write into its memory. This can't be a full defence,
+ * because well timed malware could attack us before this code runs -
+ * even if it was unconditionally run at the very start of main(),
+ * which we wouldn't want to do anyway because it turns out in practie
+ * that interfering with other processes in this way has significant
+ * non-infringing uses on Windows (e.g. screen reader software).
+ *
+ * If we've been requested to do this and are unsuccessful, bomb out
+ * via modalfatalbox rather than continue in a less protected mode.
+ *
+ * This function is intentionally outside the #ifndef NO_SECURITY that
+ * covers the rest of this file, because when PuTTY is compiled
+ * without the ability to restrict its ACL, we don't want it to
+ * silently pretend to honour the instruction to do so.
+ */
+void restrict_process_acl(void)
+{
+    char *error = NULL;
+    int ret;
+
+#if !defined NO_SECURITY
+    ret = really_restrict_process_acl(&error);
+#else
+    ret = FALSE;
+    error = dupstr("ACL restrictions not compiled into this binary");
+#endif
+    if (!ret)
+        modalfatalbox("Could not restrict process ACL: %s", error);
+}

@@ -94,7 +94,7 @@ void filereq_free(filereq *state)
 /* Callback function to launch context help. */
 static VOID CALLBACK message_box_help_callback(LPHELPINFO lpHelpInfo)
 {
-    char *context = NULL;
+    const char *context = NULL;
 #define CHECK_CTX(name) \
     do { \
 	if (lpHelpInfo->dwContextId == WINHELP_CTXID_ ## name) \
@@ -145,9 +145,9 @@ void pgp_fingerprints(void)
                 "PuTTY Master Key as of 2015 (RSA, 4096-bit):\n"
                 "  " PGP_MASTER_KEY_FP "\n\n"
                 "Original PuTTY Master Key (RSA, 1024-bit):\n"
-		"  " PGP_RSA_MASTER_KEY_FP "\n"
+                "  " PGP_RSA_MASTER_KEY_FP "\n"
                 "Original PuTTY Master Key (DSA, 1024-bit):\n"
-		"  " PGP_DSA_MASTER_KEY_FP,
+                "  " PGP_DSA_MASTER_KEY_FP,
 		"PGP fingerprints", MB_ICONINFORMATION | MB_OK,
 		HELPCTXID(pgp_fingerprints));
 }
@@ -365,7 +365,7 @@ void split_into_argv(char *cmdline, int *argc, char ***argv,
 
 		    if (quotes > 0) {
 			/* Outside a quote segment, a quote starts one. */
-			if (!quote) quotes--, quote = 1;
+			if (!quote) quotes--;
 
 			/* Now we produce (n+1)/3 literal quotes... */
 			for (i = 3; i <= quotes+1; i += 3) *q++ = '"';

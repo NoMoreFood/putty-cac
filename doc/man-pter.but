@@ -51,6 +51,7 @@ sets of defaults and choose between them.
 \dt \cw{\-fn} \e{font-name}
 
 \dd Specify the font to use for normal text displayed in the terminal.
+For example, \cw{\-fn\_fixed}, \cw{\-fn\_"Monospace\_12"}.
 
 \dt \cw{\-fb} \e{font-name}
 
@@ -153,7 +154,7 @@ default using the \cw{LoginShell} resource.
 to specify it explicitly if you have changed the default using the
 \cw{ScrollBar} resource.
 
-\dt \cw{\-log} \e{filename}
+\dt \cw{\-log} \e{logfile}, \cw{\-sessionlog} \e{logfile}
 
 \dd This option makes \cw{pterm} log all the terminal output to a file
 as well as displaying it in the terminal.
