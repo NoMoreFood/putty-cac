@@ -101,7 +101,7 @@
       <ProgramDataBaseFileName>.\Release\</ProgramDataBaseFileName>
       <WholeProgramOptimization>true</WholeProgramOptimization>
       <DebugInformationFormat>None</DebugInformationFormat>
-      <ExceptionHandling>false</ExceptionHandling>
+      <ExceptionHandling>Sync</ExceptionHandling>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <DisableSpecificWarnings>4018;4267</DisableSpecificWarnings>
     </ClCompile>
@@ -149,7 +149,7 @@
       <ProgramDataBaseFileName>.\Release\</ProgramDataBaseFileName>
       <WholeProgramOptimization>true</WholeProgramOptimization>
       <DebugInformationFormat>None</DebugInformationFormat>
-      <ExceptionHandling>false</ExceptionHandling>
+      <ExceptionHandling>Sync</ExceptionHandling>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>NDEBUG;_WIN32_WINNT=_WIN32_WINNT_WIN6;WINVER=_WIN32_WINNT_WIN6;_WINDOWS;POSIX;_CRT_SECURE_NO_WARNINGS;_CRT_NONSTDC_NO_DEPRECATE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <DisableSpecificWarnings>4018;4267;4244</DisableSpecificWarnings>
@@ -223,6 +223,7 @@
       <SubSystem>Windows</SubSystem>
       <OutputFile>..\..\..\executables\$(TargetFileName)</OutputFile>
       <AdditionalDependencies>advapi32.lib;comctl32.lib;comdlg32.lib;gdi32.lib;imm32.lib;ole32.lib;shell32.lib;user32.lib;winmm.lib;winspool.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <Profile>true</Profile>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
@@ -235,7 +236,7 @@
       <WarningLevel>Level4</WarningLevel>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <AdditionalIncludeDirectories>..\..\..\./;..\..\..\charset/;..\..\..\windows/;..\..\..\unix/;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>PUTTY_CAC;_DEBUG;_WIN32_WINNT=_WIN32_WINNT_WIN6;WINVER=_WIN32_WINNT_WIN6;_WINDOWS;POSIX;_CRT_SECURE_NO_WARNINGS;_CRT_NONSTDC_NO_DEPRECATE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_DEBUG;_WIN32_WINNT=_WIN32_WINNT_WIN6;WINVER=_WIN32_WINNT_WIN6;_WINDOWS;POSIX;_CRT_SECURE_NO_WARNINGS;_CRT_NONSTDC_NO_DEPRECATE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <AssemblerListingLocation>.\Debug\</AssemblerListingLocation>
       <PrecompiledHeaderOutputFile>.\Debug\puttytel.pch</PrecompiledHeaderOutputFile>
       <ObjectFileName>.\Debug\</ObjectFileName>
@@ -264,6 +265,7 @@
       <SubSystem>Windows</SubSystem>
       <OutputFile>..\..\..\executables\x64\$(TargetFileName)</OutputFile>
       <AdditionalDependencies>advapi32.lib;comctl32.lib;comdlg32.lib;gdi32.lib;imm32.lib;ole32.lib;shell32.lib;user32.lib;winmm.lib;winspool.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <Profile>true</Profile>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>

@@ -619,7 +619,7 @@ struct sessionsaver_data {
 
 #ifdef PUTTY_CAC
 struct capi_data {
-        union control *certstore_droplist, *certID_text, *cert_browse, *keystring_text;
+        union control *certstore_droplist, *certid_text, *cert_browse, *keystring_text;
 };
 
 void capi_certstore_handler(union control *ctrl, void *dlg, void *data, int event ) {
@@ -632,7 +632,7 @@ void capi_certstore_handler(union control *ctrl, void *dlg, void *data, int even
                         dlg_listbox_clear(ctrl, dlg);
                         dlg_listbox_add(ctrl, dlg, "User\\MY (Personal Certificates)");
                         dlg_listbox_add(ctrl, dlg, "System\\MY (Personal Certificates)");
-                        if (strncmp(conf_get_str(conf, CONF_capi_certID), "System\\MY", 9) == 0)
+                        if (strncmp(conf_get_str(conf, CONF_capi_certid), "System\\MY", 9) == 0)
                                 dlg_listbox_select(ctrl, dlg, 1);
                         else
                                 dlg_listbox_select(ctrl, dlg, 0); /* *shrug* */
@@ -641,20 +641,20 @@ void capi_certstore_handler(union control *ctrl, void *dlg, void *data, int even
     }
 }
 
-void capi_certID_handler(union control *ctrl, void *dlg, void *data, int event ) {
+void capi_certid_handler(union control *ctrl, void *dlg, void *data, int event ) {
     Conf *conf = (Conf *)data;
     struct capi_data *capid = (struct capi_data *)ctrl->generic.context.p;
         char* tmpKeystring = NULL;
 
         if (event == EVENT_REFRESH) {
-            dlg_editbox_set(ctrl, dlg, conf_get_str(conf, CONF_capi_certID));
+            dlg_editbox_set(ctrl, dlg, conf_get_str(conf, CONF_capi_certid));
         } else if (event == EVENT_VALCHANGE) {
-            //dlg_editbox_get(ctrl, dlg, conf_get_str(conf, CONF_capi_certID), sizeof(conf_get_str(conf, CONF_capi_certID)));
-			conf_set_str(conf, CONF_capi_certID, dlg_editbox_get(ctrl, dlg));
+            //dlg_editbox_get(ctrl, dlg, conf_get_str(conf, CONF_capi_certid), sizeof(conf_get_str(conf, CONF_capi_certid)));
+			conf_set_str(conf, CONF_capi_certid, dlg_editbox_get(ctrl, dlg));
         }
 
-        if (conf_get_str(conf, CONF_capi_certID)) { //[0]
-                if ((tmpKeystring = capi_get_key_string(conf_get_str(conf, CONF_capi_certID))) != NULL) {
+        if (conf_get_str(conf, CONF_capi_certid)) { //[0]
+                if ((tmpKeystring = capi_get_key_string(conf_get_str(conf, CONF_capi_certid))) != NULL) {
                        dlg_editbox_set(capid->keystring_text, dlg, tmpKeystring);
                        free(tmpKeystring);
                        tmpKeystring = NULL;
@@ -729,11 +729,11 @@ void capi_certstore_browse_handler(union control *ctrl, void *dlg, void *data, i
                 tmpSHA1hex[sizeof(tmpSHA1hex)-1] = '\0';
                 _snprintf(tmpCertID, sizeof(tmpCertID)-1, "%s\\%s", i == 1 ? "Machine\\MY" : "User\\MY", tmpSHA1hex);
                 tmpCertID[sizeof(tmpCertID)-1] = '\0';
-                dlg_editbox_set(capid->certID_text, dlg, tmpCertID);
+                dlg_editbox_set(capid->certid_text, dlg, tmpCertID);
 
-                //strncpy(conf_get_str(conf, CONF_capi_certID), tmpCertID, sizeof(conf_get_str(conf, CONF_capi_certID)));
-                //conf_get_str(conf, CONF_capi_certID)[sizeof(conf_get_str(conf, CONF_capi_certID))-1] = '\0';
-				conf_set_str(conf, CONF_capi_certID, tmpCertID);
+                //strncpy(conf_get_str(conf, CONF_capi_certid), tmpCertID, sizeof(conf_get_str(conf, CONF_capi_certid)));
+                //conf_get_str(conf, CONF_capi_certid)[sizeof(conf_get_str(conf, CONF_capi_certid))-1] = '\0';
+				conf_set_str(conf, CONF_capi_certid, tmpCertID);
 
                 if ((tmpKeystring = capi_get_key_string(tmpCertID)) != NULL) {
                        dlg_editbox_set(capid->keystring_text, dlg, tmpKeystring);
@@ -2555,13 +2555,13 @@ void setup_config_box(struct controlbox *b, int midsession,
                                          capi_certstore_handler, P(capid));
 
             ctrl_columns(s, 2, 75, 25);
-                capid->certID_text =
+                capid->certid_text =
                         ctrl_editbox(s, "Cert:", NO_SHORTCUT, 80,
                         HELPCTX(ssh_auth_capi_certstore_label),
-                        capi_certID_handler
+                        capi_certid_handler
                         , P(capid), P(NULL)
                         );
-            capid->certID_text->generic.column = 0;
+            capid->certid_text->generic.column = 0;
             capid->cert_browse = ctrl_pushbutton(s, "Browse", NO_SHORTCUT,
                         HELPCTX(ssh_auth_capi),
                         capi_certstore_browse_handler, P(capid));

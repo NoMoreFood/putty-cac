@@ -537,7 +537,7 @@ void save_open_settings(void *sesskey, Conf *conf)
     write_setting_i(sesskey, "RFCEnviron", conf_get_int(conf, CONF_rfc_environ));
 #ifdef PUTTY_CAC
     write_setting_i(sesskey, "AuthCAPI", conf_get_int(conf, CONF_try_capi_auth));
-    write_setting_s(sesskey, "CAPICertID", conf_get_str(conf, CONF_capi_certID));
+    write_setting_s(sesskey, "CAPICertID", conf_get_str(conf, CONF_capi_certid));
 #endif // PUTTY_CAC
     write_setting_i(sesskey, "PassiveTelnet", conf_get_int(conf, CONF_passive_telnet));
     write_setting_i(sesskey, "BackspaceIsDelete", conf_get_int(conf, CONF_bksp_is_delete));
@@ -874,7 +874,7 @@ void load_open_settings(void *sesskey, Conf *conf)
     gppi(sesskey, "PassiveTelnet", 0, conf, CONF_passive_telnet);
 #ifdef PUTTY_CAC
     gppi(sesskey, "AuthCAPI", 0, conf, CONF_try_capi_auth);
-    gpps(sesskey, "CAPICertID", "", conf, CONF_capi_certID);
+    gpps(sesskey, "CAPICertID", "", conf, CONF_capi_certid);
 #endif // PUTTY_CAC
     gppi(sesskey, "BackspaceIsDelete", 1, conf, CONF_bksp_is_delete);
     gppi(sesskey, "RXVTHomeEnd", 0, conf, CONF_rxvt_homeend);
