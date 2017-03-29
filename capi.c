@@ -123,8 +123,8 @@ void debuglogx(char* file, char* function, int line, int error, char* format, ..
 
 #define debuglog(error,format,...) debuglogx(__FILE__,__FUNCTION__,__LINE__,error,format, __VA_ARGS__)
 #else //#ifdef CAPI_DEBUG
-#define debuglog_buffer
-#define debuglog
+#define debuglog_buffer(...)
+#define debuglog(...)
 #endif //#ifdef CAPI_DEBUG
 
 #define CAPI_PUT_32BIT(cp, value) { \

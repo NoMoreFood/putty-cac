@@ -68,22 +68,22 @@
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
-    <OutDir>..\..\..\executables\</OutDir>
+    <OutDir>..\..\..\binaries\x86\</OutDir>
     <IntDir>$(Platform)\$(Configuration)\</IntDir>
     <LinkIncremental>false</LinkIncremental>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
-    <OutDir>..\..\..\executables\x64\</OutDir>
+    <OutDir>..\..\..\binaries\x64\</OutDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
-    <OutDir>..\..\..\executables\</OutDir>
+    <OutDir>..\..\..\binaries\x86\</OutDir>
     <LinkIncremental>true</LinkIncremental>
     <IntDir>$(Platform)\$(Configuration)\</IntDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
-    <OutDir>..\..\..\executables\x64\</OutDir>
+    <OutDir>..\..\..\binaries\x64\</OutDir>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <ClCompile>
@@ -124,7 +124,7 @@
     <Link>
       <SuppressStartupBanner>true</SuppressStartupBanner>
       <SubSystem>Console</SubSystem>
-      <OutputFile>..\..\..\executables\$(TargetFileName)</OutputFile>
+      <OutputFile>..\..\..\binaries\x86\$(TargetFileName)</OutputFile>
       <AdditionalDependencies>gdi32.lib;comctl32.lib;imm32.lib;winmm.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <GenerateDebugInformation>false</GenerateDebugInformation>
       <IgnoreAllDefaultLibraries>
@@ -172,7 +172,7 @@
     <Link>
       <SuppressStartupBanner>true</SuppressStartupBanner>
       <SubSystem>Console</SubSystem>
-      <OutputFile>..\..\..\executables\x64\$(TargetFileName)</OutputFile>
+      <OutputFile>..\..\..\binaries\x64\$(TargetFileName)</OutputFile>
       <AdditionalDependencies>gdi32.lib;comctl32.lib;imm32.lib;winmm.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <GenerateDebugInformation>false</GenerateDebugInformation>
       <IgnoreAllDefaultLibraries>
@@ -221,7 +221,7 @@
       <SuppressStartupBanner>true</SuppressStartupBanner>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <SubSystem>Console</SubSystem>
-      <OutputFile>..\..\..\executables\$(TargetFileName)</OutputFile>
+      <OutputFile>..\..\..\binaries\x86\$(TargetFileName)</OutputFile>
       <AdditionalDependencies>advapi32.lib;comctl32.lib;comdlg32.lib;gdi32.lib;imm32.lib;ole32.lib;shell32.lib;user32.lib;winmm.lib;winspool.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <Profile>true</Profile>
     </Link>
@@ -263,7 +263,7 @@
       <SuppressStartupBanner>true</SuppressStartupBanner>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <SubSystem>Console</SubSystem>
-      <OutputFile>..\..\..\executables\x64\$(TargetFileName)</OutputFile>
+      <OutputFile>..\..\..\binaries\x64\$(TargetFileName)</OutputFile>
       <AdditionalDependencies>advapi32.lib;comctl32.lib;comdlg32.lib;gdi32.lib;imm32.lib;ole32.lib;shell32.lib;user32.lib;winmm.lib;winspool.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <Profile>true</Profile>
     </Link>
