@@ -1,36 +1,65 @@
 @ECHO OFF
 
-SET VER=0.68u1
-SET VERN=0.68.0.1
+:: version information
+SET VER=0.68u2
+SET VERN=0.68.0.2
 
-PUSHD "%~dp0"
-IF DEFINED ProgramFiles SET PATH=%PATH%;%ProgramFiles%\WiX Toolset v3.11\bin
-IF DEFINED ProgramFiles(x86) SET PATH=%PATH%;%ProgramFiles(x86)%\WiX Toolset v3.11\bin
+:: cert to use for signing
+SET CERT=9CC90E20ABF21CDEF09EE4C467A79FD454140C5A
+
+:: setup environment variables based on location of this script
+SET INSTDIR=%~dp0
+SET INSTDIR=%INSTDIR:~0,-1%
+SET BASEDIR=%INSTDIR%\..
+SET BINDIR=%BASEDIR%\binaries
+
+:: determine 32-bit program files directory
+IF DEFINED ProgramFiles SET PX86=%ProgramFiles%
+IF DEFINED ProgramFiles(x86) SET PX86=%ProgramFiles(x86)%
+
+:: setup paths
+SET PATH=%WINDIR%\system32;%WINDIR%\system32\WindowsPowerShell\v1.0
+SET PATH=%PATH%;%PX86%\Windows Kits\10\bin\x86
+SET PATH=%PATH%;%PX86%\Windows Kits\8.1\bin\x86
+SET PATH=%PATH%;%PX86%\WiX Toolset v3.11\bin
+
+:: sign the exe files
+signtool sign /tr http://time.certum.pl /td sha256 /sha1 %CERT% "%BINDIR%\x86\*.exe" 
+signtool sign /tr http://time.certum.pl /td sha256 /sha1 %CERT% "%BINDIR%\x64\*.exe" 
 
 :: copy prereqs from build dir and 'real' installer
-COPY /Y "%ProgramFiles(x86)%\PuTTY\PuTTY.chm" "..\doc"
-COPY /Y "%ProgramFiles%\PuTTY\PuTTY.chm" "..\doc"
-COPY /Y "%ProgramFiles(x86)%\PuTTY\*.url" ".\"
-COPY /Y "%ProgramFiles%\PuTTY\PuTTY\*.url" ".\"
-COPY /Y "..\windows\*.ico" .
-COPY /Y "..\windows\README-msi.txt" .
-
-:: copy binaries locally
-MKDIR .\x86
-MKDIR .\x64
-COPY /Y "..\executables\*.exe" ".\x86"
-COPY /Y "..\executables\x64\*.exe" ".\x64"
+COPY /Y "%ProgramFiles(x86)%\PuTTY\PuTTY.chm" "%BASEDIR%\doc\"
+COPY /Y "%ProgramFiles%\PuTTY\PuTTY.chm" "%BASEDIR%\doc\"
+COPY /Y "%ProgramFiles(x86)%\PuTTY\*.url" "%INSTDIR%\"
+COPY /Y "%ProgramFiles%\PuTTY\PuTTY\*.url" "%INSTDIR%\"
+COPY /Y "%BASEDIR%\windows\*.ico" "%INSTDIR%\"
+COPY /Y "%BASEDIR%\windows\README-msi.txt" "%INSTDIR%\"
 
 :: do the build
-candle -arch x86 -dWin64=no -dBuilddir=.\x86\ -dWinver="%VERN%" -dPuttytextver="PuTTY CAC %VERN%" ..\windows\installer.wxs && light -ext WixUIExtension -ext WixUtilExtension -sval installer.wixobj -o "puttycac-%VER%-installer.msi"
-candle -arch x64 -dWin64=yes -dBuilddir=.\x64\ -dWinver="%VERN%" -dPuttytextver="PuTTY CAC %VERN%" ..\windows\installer.wxs && light -ext WixUIExtension -ext WixUtilExtension -sval installer.wixobj -o "puttycac-64bit-%VER%-installer.msi"
+PUSHD "%INSTDIR%"
+candle -arch x86 -dWin64=no -dBuilddir="%BINDIR%\x86\\" -dWinver="%VERN%" -dPuttytextver="PuTTY CAC %VERN%" "%BASEDIR%\windows\installer.wxs"
+light -ext WixUIExtension -ext WixUtilExtension -sval installer.wixobj -o "%BINDIR%\puttycac-%VER%-installer.msi"
+candle -arch x64 -dWin64=yes -dBuilddir="%BINDIR%\x64\\" -dWinver="%VERN%" -dPuttytextver="PuTTY CAC %VERN%" "%BASEDIR%\windows\installer.wxs"
+light -ext WixUIExtension -ext WixUtilExtension -sval installer.wixobj -o "%BINDIR%\puttycac-64bit-%VER%-installer.msi"
+POPD
 
-DEL /Q "..\doc\PuTTY.chm"
-RD /S /Q ".\x86"
-RD /S /Q ".\x64"
-DEL /Q "*.url"
-DEL /Q "*.ico"
-DEL /Q "*.wix*"
-DEL /Q "*.txt*"
+:: sign the msi files
+signtool sign /tr http://time.certum.pl /td sha256 /sha1 %CERT% "%BINDIR%\*.msi" 
+
+:: cleanup
+DEL /Q "%BASEDIR%\doc\PuTTY.chm"
+DEL /Q "%INSTDIR%\*.url"
+DEL /Q "%INSTDIR%\*.ico"
+DEL /Q "%INSTDIR%\*.wix*"
+DEL /Q "%INSTDIR%\*.txt*"
+DEL /Q "%BINDIR%\*.wixpdb"
+
+:: output hash information
+SET HASHFILE=%BINDIR%\puttycac-hash.txt
+IF EXIST "%HASHFILE%" DEL /F "%HASHFILE%"
+POWERSHELL -NoProfile -NonInteractive -NoLogo -Command "Get-ChildItem -Include @('*.msi','*.exe') -Path '%BINDIR%' -Recurse | Get-FileHash -Algorithm SHA256 | Out-File -Append '%HASHFILE%' -Width 256"
+POWERSHELL -NoProfile -NonInteractive -NoLogo -Command "Get-ChildItem -Include @('*.msi','*.exe') -Path '%BINDIR%' -Recurse | Get-FileHash -Algorithm SHA1 | Out-File -Append '%HASHFILE%' -Width 256"
+POWERSHELL -NoProfile -NonInteractive -NoLogo -Command "Get-ChildItem -Include @('*.msi','*.exe') -Path '%BINDIR%' -Recurse | Get-FileHash -Algorithm MD5 | Out-File -Append '%HASHFILE%' -Width 256"
+POWERSHELL -NoProfile -NonInteractive -NoLogo -Command "$Data = Get-Content '%HASHFILE%'; $Data.Replace((Get-Item -LiteralPath '%BASEDIR%').FullName,'').Trim() | Set-Content '%HASHFILE%'"
 
 PAUSE
