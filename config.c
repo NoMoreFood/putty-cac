@@ -657,11 +657,8 @@ void cert_event_handler(union control *ctrl, void *dlg, void *data, int event)
 	{
 		dlg_text_set(certd->cert_thumbprint_text, dlg, "<no certificate selected>");
 		conf_set_str(conf, CONF_cert_certid, "");
-<<<<<<< HEAD
 		conf_set_int(conf, CONF_try_cert_auth, 0);
 		dlg_checkbox_set(certd->cert_auth_checkbox, dlg, 0);
-=======
->>>>>>> origin/master
 	}
 
 	// handle capi certificate set button press
@@ -670,10 +667,7 @@ void cert_event_handler(union control *ctrl, void *dlg, void *data, int event)
 		char * szCert = cert_prompt(IDEN_CAPI, hwnd);
 		if (szCert == NULL) return;
 		conf_set_str(conf, CONF_cert_certid, szCert);
-<<<<<<< HEAD
 		conf_set_int(conf, CONF_try_cert_auth, 1);
-=======
->>>>>>> origin/master
 		dlg_checkbox_set(certd->cert_auth_checkbox, dlg, 1);
 		dlg_text_set(certd->cert_thumbprint_text, dlg, szCert);
 		sfree(szCert);
@@ -685,10 +679,7 @@ void cert_event_handler(union control *ctrl, void *dlg, void *data, int event)
 		char * szCert = cert_prompt(IDEN_PKCS, hwnd);
 		if (szCert == NULL) return;
 		conf_set_str(conf, CONF_cert_certid, szCert);
-<<<<<<< HEAD
 		conf_set_int(conf, CONF_try_cert_auth, 1);
-=======
->>>>>>> origin/master
 		dlg_checkbox_set(certd->cert_auth_checkbox, dlg, 1);
 		*strrchr(szCert, '=') = '\0';
 		dlg_text_set(certd->cert_thumbprint_text, dlg, szCert);

@@ -4094,7 +4094,7 @@ static int do_ssh1_login(Ssh ssh, const unsigned char *in, int inlen,
         const unsigned char *keystr1, *keystr2;
 	unsigned long supported_ciphers_mask, supported_auths_mask;
 	int tried_publickey, tried_agent;
-	int tis_auth_refused, ccert_auth_refused;
+	int tis_auth_refused, ccard_auth_refused;
 	unsigned char session_id[16];
 	int cipher_type;
 	void *publickey_blob;
@@ -4430,7 +4430,7 @@ static int do_ssh1_login(Ssh ssh, const unsigned char *in, int inlen,
     } else {
 	s->tried_publickey = s->tried_agent = 0;
     }
-    s->tis_auth_refused = s->ccert_auth_refused = 0;
+    s->tis_auth_refused = s->ccard_auth_refused = 0;
     /*
      * Load the public half of any configured keyfile for later use.
      */
@@ -4857,7 +4857,7 @@ static int do_ssh1_login(Ssh ssh, const unsigned char *in, int inlen,
 	}
 	if (conf_get_int(ssh->conf, CONF_try_tis_auth) &&
 	    (s->supported_auths_mask & (1 << SSH1_AUTH_CCARD)) &&
-	    !s->ccert_auth_refused) {
+	    !s->ccard_auth_refused) {
 	    s->pwpkt_type = SSH1_CMSG_AUTH_CCARD_RESPONSE;
 	    logevent("Requested CryptoCard authentication");
 	    send_packet(ssh, SSH1_CMSG_AUTH_CCARD, PKT_END);
@@ -4865,7 +4865,7 @@ static int do_ssh1_login(Ssh ssh, const unsigned char *in, int inlen,
 	    if (pktin->type != SSH1_SMSG_AUTH_CCARD_CHALLENGE) {
 		logevent("CryptoCard authentication declined");
 		c_write_str(ssh, "CryptoCard authentication refused.\r\n");
-		s->ccert_auth_refused = 1;
+		s->ccard_auth_refused = 1;
 		continue;
 	    } else {
 		char *challenge;
@@ -9348,7 +9348,6 @@ static void do_ssh2_authconn(Ssh ssh, const unsigned char *in, int inlen,
 			conf_set_filename(ssh->conf, CONF_keyfile, entry);
 			filename_free(entry);
 		}
-		//else
 #endif
 
 	/*
@@ -10081,7 +10080,6 @@ static void do_ssh2_authconn(Ssh ssh, const unsigned char *in, int inlen,
 #endif
 			sigblob = key->alg->sign(key->data, (char *)sigdata,
 				sigdata_len, &sigblob_len);
-			int a = key->alg->verifysig(key->data, sigblob, sigblob_len, sigdata, sigdata_len);
 		    ssh2_add_sigblob(ssh, s->pktout, pkblob, pkblob_len,
 				     sigblob, sigblob_len);
 		    sfree(pkblob);

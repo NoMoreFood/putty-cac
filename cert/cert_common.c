@@ -118,10 +118,7 @@ unsigned char * cert_sign(struct ssh2_userkey * userkey, const char* pDataToSign
 {
 	BYTE * pRawSig = NULL;
 	int iRawSigLen = 0;
-<<<<<<< HEAD
 	*iWrappedSigLen = 0;
-=======
->>>>>>> origin/master
 
 	// sanity check
 	if (userkey->comment == NULL) return NULL;
