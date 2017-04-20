@@ -13,6 +13,10 @@
 #include "ssh.h"
 #include "misc.h"
 
+#ifdef PUTTY_CAC
+#include "cert_common.h"
+#endif // PUTTY_CAC
+
 #define rsa_signature "SSH PRIVATE KEY FILE FORMAT 1.1\n"
 
 #define BASE64_TOINT(x) ( (x)-'A'<26 ? (x)-'A'+0 :\
@@ -649,6 +653,15 @@ struct ssh2_userkey *ssh2_load_userkey(const Filename *filename,
     int passlen = passphrase ? strlen(passphrase) : 0;
     const char *error = NULL;
 
+#ifdef PUTTY_CAC
+	if(cert_is_certpath(filename->path)) {
+		ret = cert_load_key(filename->path);
+		if (ret == NULL) {
+			*errorstr = "load key from certificate failed";
+		}
+		return ret;
+	}
+#endif // PUTTY_CAC	
     ret = NULL;			       /* return NULL for most errors */
     encryption = comment = mac = NULL;
     public_blob = private_blob = NULL;
@@ -1117,7 +1130,23 @@ unsigned char *ssh2_userkey_loadpub(const Filename *filename, char **algorithm,
     const char *error = NULL;
     char *comment = NULL;
 
-    public_blob = NULL;
+#ifdef PUTTY_CAC
+	cert_convert_legacy(filename->path);
+	if (cert_is_certpath(filename->path)) {
+		struct ssh2_userkey * userkey = cert_load_key(filename->path);
+		if (userkey == NULL || userkey->alg == NULL) {
+			*errorstr = "load key from certificate failed";
+			return NULL;
+		}
+		if (algorithm) { *algorithm = dupstr(userkey->alg->name); }
+		if(commentptr) { *commentptr = userkey->comment; }
+		public_blob = userkey->alg->public_blob(userkey->data, pub_blob_len);
+		userkey->alg->freekey(userkey->data);
+		sfree(userkey);
+		return public_blob;
+	}
+#endif // PUTTY_CAC
+	public_blob = NULL;
 
     fp = f_open(filename, "rb", FALSE);
     if (!fp) {
@@ -1642,7 +1671,7 @@ static int key_type_fp(FILE *fp)
     int i;
     char *p;
 
-    i = fread(buf, 1, sizeof(buf)-1, fp);
+	i = fread(buf, 1, sizeof(buf)-1, fp);
     rewind(fp);
 
     if (i < 0)
@@ -1680,7 +1709,13 @@ int key_type(const Filename *filename)
     FILE *fp;
     int ret;
 
-    fp = f_open(filename, "r", FALSE);
+#ifdef PUTTY_CAC
+	cert_convert_legacy(filename->path);
+	if (cert_is_certpath(filename->path)) {
+		return SSH_KEYTYPE_SSH2;
+	}
+#endif // PUTTY_CAC
+	fp = f_open(filename, "r", FALSE);
     if (!fp)
 	return SSH_KEYTYPE_UNOPENABLE;
     ret = key_type_fp(fp);

@@ -4,8 +4,11 @@
 SET VER=0.68u2
 SET VERN=0.68.0.2
 
-:: cert to use for signing
+:: cert info to use for signing
 SET CERT=9CC90E20ABF21CDEF09EE4C467A79FD454140C5A
+set TSAURL=http://time.certum.pl/
+set LIBNAME=PuTTY-CAC
+set LIBURL=https://github.com/NoMoreFood/putty-cac
 
 :: setup environment variables based on location of this script
 SET INSTDIR=%~dp0
@@ -19,13 +22,13 @@ IF DEFINED ProgramFiles(x86) SET PX86=%ProgramFiles(x86)%
 
 :: setup paths
 SET PATH=%WINDIR%\system32;%WINDIR%\system32\WindowsPowerShell\v1.0
-SET PATH=%PATH%;%PX86%\Windows Kits\10\bin\x86
-SET PATH=%PATH%;%PX86%\Windows Kits\8.1\bin\x86
+SET PATH=%PATH%;%PX86%\Windows Kits\10\bin\x64
+SET PATH=%PATH%;%PX86%\Windows Kits\8.1\bin\x64
 SET PATH=%PATH%;%PX86%\WiX Toolset v3.11\bin
 
-:: sign the exe files
-signtool sign /tr http://time.certum.pl /td sha256 /sha1 %CERT% "%BINDIR%\x86\*.exe" 
-signtool sign /tr http://time.certum.pl /td sha256 /sha1 %CERT% "%BINDIR%\x64\*.exe" 
+:: sign the main executables
+signtool sign /sha1 %CERT% /fd sha1 /tr %TSAURL% /td sha1 /d %LIBNAME% /du %LIBURL% "%BINDIR%\x86\*.exe" "%BINDIR%\x64\*.exe" 
+signtool sign /sha1 %CERT% /as /fd sha256 /tr %TSAURL% /td sha256 /d %LIBNAME% /du %LIBURL% "%BINDIR%\x86\*.exe" "%BINDIR%\x64\*.exe" 
 
 :: copy prereqs from build dir and 'real' installer
 COPY /Y "%ProgramFiles(x86)%\PuTTY\PuTTY.chm" "%BASEDIR%\doc\"
@@ -44,7 +47,7 @@ light -ext WixUIExtension -ext WixUtilExtension -sval installer.wixobj -o "%BIND
 POPD
 
 :: sign the msi files
-signtool sign /tr http://time.certum.pl /td sha256 /sha1 %CERT% "%BINDIR%\*.msi" 
+signtool sign /sha1 %CERT% /fd sha256 /tr %TSAURL% /td sha256 /d %LIBNAME% /du %LIBURL% "%BINDIR%\*.msi"
 
 :: cleanup
 DEL /Q "%BASEDIR%\doc\PuTTY.chm"

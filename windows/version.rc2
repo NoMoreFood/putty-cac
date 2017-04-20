@@ -39,7 +39,7 @@ BEGIN
 	BLOCK "080904B0"
 	BEGIN
 #ifdef PUTTY_CAC	
-	    VALUE "CompanyName",	"Simon Tatham & Daniel Risacher"  /* required :/ */
+	    VALUE "CompanyName",	"Simon Tatham & Bryan Berns"  /* required :/ */
 	    VALUE "ProductName",	"PuTTY-CAC suite"
 #else
 	    VALUE "CompanyName",	"Simon Tatham"  /* required :/ */
