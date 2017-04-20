@@ -736,8 +736,8 @@ void cleanup_exit(int);
     X(INT, NONE, try_tis_auth) \
     X(INT, NONE, try_ki_auth) \
 /* PUTTY_CAC START */ \
-    X(INT, NONE, try_capi_auth) /* check box */ \
-    X(STR, NONE, capi_certid) /* {Machine|User}\{Store Name}\cert sha-1 fingerprint (in hex) */ \
+    X(INT, NONE, try_cert_auth) /* check box */ \
+    X(STR, NONE, cert_certid) /* cert sha-1 fingerprint (in hex) */ \
 /* PUTTY_CAC END */ \
     X(INT, NONE, try_gssapi_auth) /* attempt gssapi auth */ \
     X(INT, NONE, gssapifwd) /* forward tgt via gss */ \

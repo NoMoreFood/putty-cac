@@ -54,16 +54,12 @@ void *pageant_make_keylist2(int *length);
  */
 struct RSAKey *pageant_nth_ssh1_key(int i);
 struct ssh2_userkey *pageant_nth_ssh2_key(int i);
-struct capi_userkey *pageant_nth_capi_key(int i);
 int pageant_count_ssh1_keys(void);
 int pageant_count_ssh2_keys(void);
-int pageant_count_capi_keys(void);
 int pageant_add_ssh1_key(struct RSAKey *rkey);
 int pageant_add_ssh2_key(struct ssh2_userkey *skey);
-int pageant_add_capi_key(struct capi_userkey *ckey);
 int pageant_delete_ssh1_key(struct RSAKey *rkey);
 int pageant_delete_ssh2_key(struct ssh2_userkey *skey);
-int pageant_delete_capi_key(struct capi_userkey *skey);
 
 /*
  * This callback must be provided by the Pageant front end code.
