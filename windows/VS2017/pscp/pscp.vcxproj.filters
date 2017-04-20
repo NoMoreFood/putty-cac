@@ -1,16 +1,6 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
-    <CustomBuild Include="..\..\pscp.ico">
-      <Filter>Resource Files</Filter>
-    </CustomBuild>
-  </ItemGroup>
-  <ItemGroup>
-    <ResourceCompile Include="..\..\pscp.rc">
-      <Filter>Resource Files</Filter>
-    </ResourceCompile>
-  </ItemGroup>
-  <ItemGroup>
     <ClCompile Include="..\..\..\aqsync.c">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -21,6 +11,15 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="..\..\..\callback.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\cert\cert_capi.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\cert\cert_common.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\cert\cert_pkcs.c">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="..\..\..\cmdline.c">
@@ -203,13 +202,19 @@
     <ClCompile Include="..\..\..\x11fwd.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\capi.c">
-      <Filter>Source Files</Filter>
+    <ClCompile Include="..\..\..\cert\cert_capi.h">
+      <Filter>Header Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\cert\cert_common.h">
+      <Filter>Header Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\cert\cert_pkcs.h">
+      <Filter>Header Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\..\..\charset\charset.h">
-      <Filter>Header Files</Filter>
+    <ClInclude Include="..\..\..\noshare.c">
+      <Filter>Source Files</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\empty.h">
       <Filter>Header Files</Filter>
@@ -224,9 +229,6 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\network.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\noshare.c">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\pageant.h">
@@ -248,6 +250,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\puttyps.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\rcstuff.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\sftp.h">
@@ -280,9 +285,6 @@
     <ClInclude Include="..\..\..\version.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\rcstuff.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="..\..\wincapi.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -295,19 +297,31 @@
     <ClInclude Include="..\..\winstuff.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\capi.h">
+    <ClInclude Include="..\..\..\charset\charset.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <Filter Include="Source Files">
-      <UniqueIdentifier>{22ad16c0-10f2-4c9e-88ce-19909db06db1}</UniqueIdentifier>
-    </Filter>
     <Filter Include="Header Files">
-      <UniqueIdentifier>{1939563c-d990-4021-aabb-fe01df059ed9}</UniqueIdentifier>
+      <UniqueIdentifier>{a8a48795-3e00-4707-b3cc-bc073153bcfb}</UniqueIdentifier>
     </Filter>
     <Filter Include="Resource Files">
-      <UniqueIdentifier>{a470e852-120c-47b4-8b4b-2caf18dec71c}</UniqueIdentifier>
+      <UniqueIdentifier>{cdb04f0f-b6eb-40f2-899a-f3272cc8d956}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source Files">
+      <UniqueIdentifier>{3a9a8e23-3b07-4424-9abb-ba61610a9e3b}</UniqueIdentifier>
+      <Extensions>
+      </Extensions>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="..\..\pscp.ico">
+      <Filter>Resource Files</Filter>
+    </CustomBuild>
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="..\..\pscp.rc">
+      <Filter>Resource Files</Filter>
+    </ResourceCompile>
   </ItemGroup>
 </Project>

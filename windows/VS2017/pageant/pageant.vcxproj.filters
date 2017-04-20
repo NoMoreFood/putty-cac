@@ -1,20 +1,16 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
-    <CustomBuild Include="..\..\pageant.ico">
-      <Filter>Resource Files</Filter>
-    </CustomBuild>
-    <CustomBuild Include="..\..\pageants.ico">
-      <Filter>Resource Files</Filter>
-    </CustomBuild>
-  </ItemGroup>
-  <ItemGroup>
-    <ResourceCompile Include="..\..\pageant.rc">
-      <Filter>Resource Files</Filter>
-    </ResourceCompile>
-  </ItemGroup>
-  <ItemGroup>
     <ClCompile Include="..\..\..\aqsync.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\cert\cert_capi.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\cert\cert_common.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\cert\cert_pkcs.c">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="..\..\..\conf.c">
@@ -83,8 +79,14 @@
     <ClCompile Include="..\..\winutils.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\capi.c">
-      <Filter>Source Files</Filter>
+    <ClCompile Include="..\..\..\cert\cert_capi.h">
+      <Filter>Header Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\cert\cert_common.h">
+      <Filter>Header Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\cert\cert_pkcs.h">
+      <Filter>Header Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -118,6 +120,12 @@
     <ClInclude Include="..\..\..\puttyps.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\rcstuff.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\resource.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
     <ClInclude Include="..\..\..\ssh.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -133,9 +141,6 @@
     <ClInclude Include="..\..\..\version.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\rcstuff.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="..\..\winhelp.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -145,19 +150,34 @@
     <ClInclude Include="..\..\winstuff.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\capi.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <Filter Include="Source Files">
-      <UniqueIdentifier>{700cfdc0-1885-4a48-9760-6fd8f3f62b09}</UniqueIdentifier>
-    </Filter>
+    <CustomBuild Include="..\..\pageant.ico">
+      <Filter>Resource Files</Filter>
+    </CustomBuild>
+    <CustomBuild Include="..\..\pageants.ico">
+      <Filter>Resource Files</Filter>
+    </CustomBuild>
+  </ItemGroup>
+  <ItemGroup>
     <Filter Include="Header Files">
-      <UniqueIdentifier>{25d39962-0c67-4b83-a85f-ca32bded1354}</UniqueIdentifier>
+      <UniqueIdentifier>{68b7558d-92a2-4f07-b316-371934abfe53}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files">
+      <UniqueIdentifier>{7294135e-32c0-421e-a87d-f913ca051ca1}</UniqueIdentifier>
     </Filter>
     <Filter Include="Resource Files">
-      <UniqueIdentifier>{f84c3ab7-54fe-48c4-be65-5115ae325892}</UniqueIdentifier>
+      <UniqueIdentifier>{7131b624-6a00-4e0f-90e5-1b02cec1e8ac}</UniqueIdentifier>
     </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="..\..\pageant.rc">
+      <Filter>Resource Files</Filter>
+    </ResourceCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\..\pageant.mft">
+      <Filter>Resource Files</Filter>
+    </None>
   </ItemGroup>
 </Project>
