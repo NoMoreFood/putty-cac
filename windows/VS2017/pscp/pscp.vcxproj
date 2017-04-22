@@ -103,7 +103,7 @@
       <DebugInformationFormat>None</DebugInformationFormat>
       <ExceptionHandling>Sync</ExceptionHandling>
       <IntrinsicFunctions>true</IntrinsicFunctions>
-      <DisableSpecificWarnings>4018;4267;4244;4201;4204</DisableSpecificWarnings>
+      <DisableSpecificWarnings>4018;4267;4244;4201;4204;4221</DisableSpecificWarnings>
       <PrecompiledHeaderOutputFile />
     </ClCompile>
     <Midl>
@@ -151,7 +151,7 @@
       <ExceptionHandling>Sync</ExceptionHandling>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>PUTTY_CAC;NDEBUG;_WIN32_WINNT=_WIN32_WINNT_WIN6;WINVER=_WIN32_WINNT_WIN6;_WINDOWS;POSIX;_CRT_SECURE_NO_WARNINGS;_CRT_NONSTDC_NO_DEPRECATE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <DisableSpecificWarnings>4018;4267;4244;4201;4204</DisableSpecificWarnings>
+      <DisableSpecificWarnings>4018;4267;4244;4201;4204;4221</DisableSpecificWarnings>
       <PrecompiledHeaderOutputFile />
     </ClCompile>
     <Midl>
@@ -198,7 +198,7 @@
       </PrecompiledHeaderOutputFile>
       <ObjectFileName>$(IntDir)\%(Filename)%(Extension).obj</ObjectFileName>
       <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
-      <DisableSpecificWarnings>4018;4267;4244;4201;4204</DisableSpecificWarnings>
+      <DisableSpecificWarnings>4018;4267;4244;4201;4204;4221</DisableSpecificWarnings>
     </ClCompile>
     <Midl>
       <SuppressStartupBanner>true</SuppressStartupBanner>
@@ -240,7 +240,7 @@
       </PrecompiledHeaderOutputFile>
       <ObjectFileName>$(IntDir)\%(Filename)%(Extension).obj</ObjectFileName>
       <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
-      <DisableSpecificWarnings>4018;4267;4244;4201;4204</DisableSpecificWarnings>
+      <DisableSpecificWarnings>4018;4267;4244;4201;4204;4221</DisableSpecificWarnings>
     </ClCompile>
     <Midl>
       <SuppressStartupBanner>true</SuppressStartupBanner>
