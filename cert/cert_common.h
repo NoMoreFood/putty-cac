@@ -19,18 +19,19 @@
 #endif
 
 // functions used only by the capi and pkcs addon modules
-EXTERN void cert_reverse_array(PBYTE pb, DWORD cb);
+EXTERN void cert_reverse_array(LPBYTE pb, DWORD cb);
 EXTERN void cert_prompt_cert(HCERTSTORE hStore, HWND hWnd, LPSTR * szCert, LPCSTR szIden, LPCSTR szHint);
 EXTERN LPSTR cert_get_cert_hash(LPCSTR szIden, PCCERT_CONTEXT pCertContext, LPCSTR szHint);
 
 // functions used by putty code 
 EXTERN LPSTR cert_key_string(LPCSTR szCert);
 EXTERN LPSTR cert_prompt(LPCSTR szIden, HWND hWnd);
-EXTERN unsigned char * cert_sign(struct ssh2_userkey * userkey, const char* pDataToSign, int iDataToSignLen, int * iWrappedSigLen, HWND hWnd);
+EXTERN unsigned char * cert_sign(struct ssh2_userkey * userkey, LPCBYTE pDataToSign, int iDataToSignLen, int * iWrappedSigLen, HWND hWnd);
 EXTERN struct ssh2_userkey * cert_load_key(LPCSTR szCert);
-EXTERN VOID cert_display_cert(LPSTR szCert, HWND hWnd);
+EXTERN VOID cert_display_cert(LPCSTR szCert, HWND hWnd);
 EXTERN int cert_all_certs(LPSTR ** pszCert);
-void cert_convert_legacy(LPSTR szCert);
+EXTERN void cert_convert_legacy(LPSTR szCert);
+EXTERN LPBYTE cert_get_hash(LPCSTR szAlgo, LPCBYTE pDataToHash, DWORD iDataToHashSize, DWORD * iHashedDataSize);
 
 #define SHA1_BINARY_SIZE (160 / 8)
 #define SHA1_HEX_SIZE (SHA1_BINARY_SIZE * 2)

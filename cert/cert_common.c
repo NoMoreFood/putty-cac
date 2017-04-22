@@ -19,7 +19,7 @@
 #include "ssh.h"
 #endif
 
-void cert_reverse_array(PBYTE pb, DWORD cb)
+void cert_reverse_array(LPBYTE pb, DWORD cb)
 {
 	for (DWORD i = 0, j = cb - 1; i < cb / 2; i++, j--) 
 	{
@@ -114,7 +114,7 @@ LPSTR cert_prompt(LPCSTR szIden, HWND hWnd)
 	return NULL;
 }
 
-unsigned char * cert_sign(struct ssh2_userkey * userkey, const char* pDataToSign, int iDataToSignLen, int * iWrappedSigLen, HWND hWnd)
+unsigned char * cert_sign(struct ssh2_userkey * userkey, LPCBYTE pDataToSign, int iDataToSignLen, int * iWrappedSigLen, HWND hWnd)
 {
 	BYTE * pRawSig = NULL;
 	int iRawSigLen = 0;
@@ -194,25 +194,18 @@ struct ssh2_userkey * cert_get_ssh_userkey(LPCSTR szCert, PCERT_CONTEXT pCertCon
 	struct ssh2_userkey * pUserKey = NULL;
 
 	// allocate and fetch key provider information
-	DWORD dwKeySpec = 0;
-	DWORD dwKeySpecSize = sizeof(DWORD);
-	CertGetCertificateContextProperty(pCertContext, CERT_KEY_SPEC_PROP_ID, &dwKeySpec, &dwKeySpecSize);
+	WCHAR sAlgoId[16] = L"";
+	DWORD iAlgoIdSize = sizeof(sAlgoId);
+	CertGetCertificateContextProperty(pCertContext, CERT_SIGN_HASH_CNG_ALG_PROP_ID, &sAlgoId, &iAlgoIdSize);
 
-	// if pkcs just assume it as an rsa key since we do not support
-	// ecc for pkcs at this time
-	if (cert_is_pkcspath(szCert))
-	{
-		dwKeySpec = AT_SIGNATURE;
-	}
-
-	// Assume RSA Keys
-	if (dwKeySpec == AT_KEYEXCHANGE || dwKeySpec == AT_SIGNATURE)
+	// Handle RSA Keys
+	if (wcsstr(sAlgoId, L"RSA/") == sAlgoId)
 	{
 		// get the size of the space required
 		PCRYPT_BIT_BLOB pKeyData = _ADDRESSOF(pCertContext->pCertInfo->SubjectPublicKeyInfo.PublicKey);
 
 		DWORD cbPublicKeyBlob = 0;
-		PBYTE pbPublicKeyBlob = NULL;
+		LPBYTE pbPublicKeyBlob = NULL;
 		if (CryptDecodeObject(X509_ASN_ENCODING, RSA_CSP_PUBLICKEYBLOB, pKeyData->pbData,
 			pKeyData->cbData, 0, NULL, &cbPublicKeyBlob) != FALSE && cbPublicKeyBlob != 0 &&
 			CryptDecodeObject(X509_ASN_ENCODING, RSA_CSP_PUBLICKEYBLOB, pKeyData->pbData,
@@ -242,8 +235,8 @@ struct ssh2_userkey * cert_get_ssh_userkey(LPCSTR szCert, PCERT_CONTEXT pCertCon
 		if (pbPublicKeyBlob != NULL) free(pbPublicKeyBlob);
 	}
 
-	// Assume ECC Keys
-	else
+	// Handle ECC Keys
+	else if(wcsstr(sAlgoId, L"ECDSA/") == sAlgoId) 
 	{
 		BCRYPT_KEY_HANDLE hBCryptKey = NULL;
 		if (CryptImportPublicKeyInfoEx2(X509_ASN_ENCODING, &(pCertContext->pCertInfo->SubjectPublicKeyInfo),
@@ -251,7 +244,7 @@ struct ssh2_userkey * cert_get_ssh_userkey(LPCSTR szCert, PCERT_CONTEXT pCertCon
 		{
 			DWORD iKeyLength = 0;
 			ULONG iKeyLengthSize = sizeof(DWORD);
-			PBYTE pEccKey = NULL;
+			LPBYTE pEccKey = NULL;
 			ULONG iKeyBlobSize = 0;
 			if (BCryptGetProperty(hBCryptKey, BCRYPT_KEY_LENGTH, (PUCHAR) &iKeyLength, iKeyLengthSize, &iKeyLength, 0) == STATUS_SUCCESS &&
 				BCryptExportKey(hBCryptKey, NULL, BCRYPT_ECCPUBLIC_BLOB, NULL, iKeyBlobSize, &iKeyBlobSize, 0) == STATUS_SUCCESS && iKeyBlobSize != 0 &&
@@ -259,10 +252,11 @@ struct ssh2_userkey * cert_get_ssh_userkey(LPCSTR szCert, PCERT_CONTEXT pCertCon
 			{
 				struct ec_key *ec = snew(struct ec_key);
 				ZeroMemory(ec, sizeof(struct ec_key));
-				ec_nist_alg_and_curve_by_bits(0x100, &(ec->publicKey.curve), &(ec->signalg));
+				ec_nist_alg_and_curve_by_bits(iKeyLength, &(ec->publicKey.curve), &(ec->signalg));
 				ec->publicKey.infinity = 0;
-				ec->publicKey.x = bignum_from_bytes(pEccKey + sizeof(BCRYPT_ECCKEY_BLOB), iKeyLength / 8);
-				ec->publicKey.y = bignum_from_bytes(pEccKey + sizeof(BCRYPT_ECCKEY_BLOB) + iKeyLength / 8, iKeyLength / 8);
+				int iKeyBytes = (iKeyLength + 7) / 8; // round up
+				ec->publicKey.x = bignum_from_bytes(pEccKey + sizeof(BCRYPT_ECCKEY_BLOB), iKeyBytes);
+				ec->publicKey.y = bignum_from_bytes(pEccKey + sizeof(BCRYPT_ECCKEY_BLOB) + iKeyBytes, iKeyBytes);
 
 				// fill out the user key
 				pUserKey = snew(struct ssh2_userkey);
@@ -346,7 +340,7 @@ LPSTR cert_key_string(LPCSTR szCert)
 	return szKey;
 }
 
-VOID cert_display_cert(LPSTR szCert, HWND hWnd)
+VOID cert_display_cert(LPCSTR szCert, HWND hWnd)
 {
 	PCERT_CONTEXT pCertContext = NULL;
 	HCERTSTORE hCertStore = NULL;
@@ -426,6 +420,40 @@ void cert_convert_legacy(LPSTR szCert)
 		strcpy(&szCert[IDEN_CAPI_SIZE], &szCert[strlen(szIdenLegacySys)]);
 		strlwr(&szCert[IDEN_CAPI_SIZE]);
 	}
+}
+
+LPBYTE cert_get_hash(LPCSTR szAlgo, LPCBYTE pDataToHash, DWORD iDataToHashSize, DWORD * iHashedDataSize)
+{
+	HCRYPTPROV hHashProv = (ULONG_PTR) NULL;
+	HCRYPTHASH hHash = (ULONG_PTR) NULL;
+	LPBYTE pHashData = NULL;
+	*iHashedDataSize = 0;
+
+	// determine algo to use for hashing
+	ALG_ID iHashAlg = CALG_SHA1;
+	if (strcmp(szAlgo, "ecdsa-sha2-nistp256") == 0) iHashAlg = CALG_SHA_256;
+	if (strcmp(szAlgo, "ecdsa-sha2-nistp384") == 0) iHashAlg = CALG_SHA_384;
+	if (strcmp(szAlgo, "ecdsa-sha2-nistp521") == 0) iHashAlg = CALG_SHA_512;
+
+	// acquire crytpo provider, hash data, and export hashed binary data
+	if (CryptAcquireContext(&hHashProv, NULL, NULL, PROV_RSA_AES, 0) == FALSE ||
+		CryptCreateHash(hHashProv, iHashAlg, 0, 0, &hHash) == FALSE ||
+		CryptHashData(hHash, pDataToHash, iDataToHashSize, 0) == FALSE ||
+		CryptGetHashParam(hHash, HP_HASHVAL, NULL, iHashedDataSize, 0) == FALSE ||
+		CryptGetHashParam(hHash, HP_HASHVAL, pHashData = snewn(iDataToHashSize, BYTE), iHashedDataSize, 0) == FALSE)
+	{
+		// something failed
+		if (pHashData != NULL)
+		{
+			sfree(pHashData);
+			pHashData = NULL;
+		}
+	}
+
+	// cleanup and return
+	if (hHash != (ULONG_PTR) NULL) CryptDestroyHash(hHash);
+	if (hHashProv != (ULONG_PTR) NULL) CryptReleaseContext(hHashProv, 0);
+	return pHashData;
 }
 
 #endif // PUTTY_CAC

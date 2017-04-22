@@ -37,16 +37,6 @@
 #include "pkcs\pkcs11.h"
 #pragma pack(pop, cryptoki)
 
-// id-sha1 OBJECT IDENTIFIER 
-static const BYTE OID_SHA1[] = {
-	0x30, 0x21, /* type Sequence, length 0x21 (33) */
-	0x30, 0x09, /* type Sequence, length 0x09 */
-	0x06, 0x05, /* type OID, length 0x05 */
-	0x2b, 0x0e, 0x03, 0x02, 0x1a, /* id-sha1 OID */
-	0x05, 0x00, /* NULL */
-	0x04, 0x14  /* Octet string, length 0x14 (20), followed by sha1 hash */
-};
-
 typedef struct PROGRAM_ITEM
 {
 	struct PROGRAM_ITEM * NextItem;
@@ -62,36 +52,88 @@ void * pkcs_get_attribute_value(CK_FUNCTION_LIST_PTR FunctionList, CK_SESSION_HA
 void pkcs_lookup_token_cert(LPCSTR szCert, CK_SESSION_HANDLE_PTR phSession, CK_OBJECT_HANDLE_PTR phObject,
 	CK_ATTRIBUTE aFindCriteria[], CK_ULONG iFindCriteria, BOOL bReturnFirst);
 
-BYTE *  cert_pkcs_sign(struct ssh2_userkey * userkey, const char* data, int datalen, int * siglen, HWND hwnd)
+BYTE * cert_pkcs_sign(struct ssh2_userkey * userkey, LPCBYTE pDataToSign, int iDataToSignLen, int * iSigLen, HWND hwnd)
 {
 	// get the library to load from based on comment
 	LPSTR szLibrary = strrchr(userkey->comment, '=') + 1;
 	PROGRAM_ITEM * hItem = cert_pkcs_load_library(szLibrary);
 	if (hItem == NULL) return NULL;
 
-	// convert the modulus back to the form that will be stored in the token
-	struct RSAKey * rsa = userkey->data;
-	byte * tBigData = malloc(rsa->bytes);
-	for (int i = 0; i < rsa->bytes; i++)
+	// handle lookup of rsa key
+	LPBYTE pLookupValue = NULL;
+	CK_ULONG iLookupSize = 0;
+	CK_KEY_TYPE oType = 0;
+	CK_ATTRIBUTE_TYPE oAttribute = 0;
+
+	// ecdsa
+	if (strstr(userkey->alg->name, "ecdsa-") == userkey->alg->name)
 	{
-		tBigData[rsa->bytes - i - 1] = bignum_byte(rsa->modulus, i);
+		oType = CKK_EC;
+		oAttribute = CKA_EC_POINT;
+		struct ec_key *ec = userkey->data;
+
+		// determine key size (assume x and y are same key size)
+		int iKeySize = ((bignum_bitcount(ec->publicKey.x) + 7) / 8);
+
+		// combine the x and y bytes in to a continue structures
+		LPBYTE pDataToEncode = malloc(1 + iKeySize + iKeySize);
+		pDataToEncode[0] = 0x04;
+		for (int i = 0; i < iKeySize; i++)
+		{
+			pDataToEncode[1 + i] = bignum_byte(ec->publicKey.x, i);
+			pDataToEncode[1 + i + iKeySize] = bignum_byte(ec->publicKey.y, i);
+		}
+
+		// reverse for big-endian
+		cert_reverse_array(1 + pDataToEncode, iKeySize);
+		cert_reverse_array(1 + pDataToEncode + iKeySize, iKeySize);
+
+		// encode the structure and an der octet string
+		CRYPT_DATA_BLOB tDataToEncode = { 1 + iKeySize + iKeySize, pDataToEncode };
+		CRYPT_ENCODE_PARA tParam = { sizeof(CRYPT_ENCODE_PARA),
+			(PFN_CRYPT_ALLOC)malloc, (PFN_CRYPT_FREE)free };
+		BOOL bEncodeResult = CryptEncodeObjectEx(PKCS_7_ASN_ENCODING, X509_OCTET_STRING,
+			&tDataToEncode, CRYPT_ENCODE_ALLOC_FLAG, &tParam, &pLookupValue, &iLookupSize);
+		free(pDataToEncode);
+
+		// ensure encoding was successful
+		if (bEncodeResult == FALSE)
+		{
+			if (pLookupValue != NULL) free(pLookupValue);
+			return NULL;
+		}
+	}
+
+	// rsa
+	else
+	{
+		oType = CKK_RSA;
+		oAttribute = CKA_MODULUS;
+		struct RSAKey * rsa = userkey->data;
+		iLookupSize = rsa->bytes;
+		pLookupValue = malloc(iLookupSize);
+		for (int i = 0; i < iLookupSize; i++)
+		{
+			pLookupValue[iLookupSize - i - 1] = bignum_byte(rsa->modulus, i);
+		}
 	}
 
 	// setup the find structure to identiy the public key on the token
-	static CK_OBJECT_CLASS iPublicType = CKO_PUBLIC_KEY;
+	CK_OBJECT_CLASS iPublicType = CKO_PUBLIC_KEY;
 	CK_ATTRIBUTE aFindPubCriteria[] = {
-		{ CKA_CLASS,    &iPublicType,  sizeof(CK_OBJECT_CLASS) },
-		{ CKA_MODULUS,  tBigData,      rsa->bytes },
+		{ CKA_CLASS,     &iPublicType,  sizeof(CK_OBJECT_CLASS) },
+		{ oAttribute,    pLookupValue,  iLookupSize },
+		{ CKA_KEY_TYPE,  &oType,        sizeof(CK_KEY_TYPE) }
 	};
 
 	// get a handle to the session of the token and the public key object
-	CK_SESSION_HANDLE hSession;
-	CK_OBJECT_HANDLE hPublicKey;
-	pkcs_lookup_token_cert(rsa->comment, &hSession, &hPublicKey, aFindPubCriteria,
-		_countof(aFindPubCriteria), TRUE);
+	CK_SESSION_HANDLE hSession = 0;
+	CK_OBJECT_HANDLE hPublicKey = 0;
+	pkcs_lookup_token_cert(userkey->comment, &hSession,
+		&hPublicKey, aFindPubCriteria, _countof(aFindPubCriteria), TRUE);
 
 	// cleanup the modulus since we no longer need it
-	free(tBigData);
+	free(pLookupValue);
 
 	// check for error
 	if (hSession == 0 || hPublicKey == 0)
@@ -103,21 +145,22 @@ BYTE *  cert_pkcs_sign(struct ssh2_userkey * userkey, const char* data, int data
 	// fetch the id of the public key so we can find 
 	// the corresponding private key id
 	CK_ULONG iSize = 0;
-	char * id = pkcs_get_attribute_value(hItem->FunctionList,
+	LPBYTE pSharedKeyId = pkcs_get_attribute_value(hItem->FunctionList,
 		hSession, hPublicKey, CKA_ID, &iSize);
 
 	// check for error
-	if (id == NULL)
+	if (pSharedKeyId == NULL)
 	{
 		// error
+		hItem->FunctionList->C_CloseSession(hSession);
 		return NULL;
 	}
 
 	// setup the find structure to identiy the private key on the token
-	static CK_OBJECT_HANDLE iPrivateType = CKO_PRIVATE_KEY;
+	CK_OBJECT_HANDLE iPrivateType = CKO_PRIVATE_KEY;
 	CK_ATTRIBUTE aFindPrivateCriteria[] = {
 		{ CKA_CLASS,    &iPrivateType,	sizeof(CK_OBJECT_CLASS) },
-		{ CKA_ID,		id,				iSize },
+		{ CKA_ID,		pSharedKeyId,	iSize },
 	};
 
 	// attempt to lookup the private key without logging in
@@ -128,8 +171,9 @@ BYTE *  cert_pkcs_sign(struct ssh2_userkey * userkey, const char* data, int data
 		hItem->FunctionList->C_FindObjectsFinal(hSession) != CKR_OK)
 	{
 		// error
-		free(id);
-		return FALSE;
+		free(pSharedKeyId);
+		hItem->FunctionList->C_CloseSession(hSession);
+		return NULL;
 	}
 
 	// if could not find the key, prompt the user for the pin
@@ -148,8 +192,9 @@ BYTE *  cert_pkcs_sign(struct ssh2_userkey * userkey, const char* data, int data
 			szPassword, _countof(szPassword), NULL, CREDUI_FLAGS_GENERIC_CREDENTIALS | CREDUI_FLAGS_KEEP_USERNAME) != ERROR_SUCCESS)
 		{
 			// error
-			free(id);
 			SecureZeroMemory(szPassword, sizeof(szPassword));
+			free(pSharedKeyId);
+			hItem->FunctionList->C_CloseSession(hSession);
 			return NULL;
 		}
 
@@ -157,8 +202,9 @@ BYTE *  cert_pkcs_sign(struct ssh2_userkey * userkey, const char* data, int data
 		if (hItem->FunctionList->C_Login(hSession, CKU_USER, (CK_UTF8CHAR_PTR)szPassword, strlen(szPassword)) != CKR_OK)
 		{
 			// error
-			free(id);
 			SecureZeroMemory(szPassword, sizeof(szPassword));
+			free(pSharedKeyId);
+			hItem->FunctionList->C_CloseSession(hSession);
 			return NULL;
 		}
 
@@ -172,7 +218,8 @@ BYTE *  cert_pkcs_sign(struct ssh2_userkey * userkey, const char* data, int data
 			hItem->FunctionList->C_FindObjectsFinal(hSession) != CKR_OK)
 		{
 			// error
-			free(id);
+			free(pSharedKeyId);
+			hItem->FunctionList->C_CloseSession(hSession);
 			return FALSE;
 		}
 
@@ -180,38 +227,46 @@ BYTE *  cert_pkcs_sign(struct ssh2_userkey * userkey, const char* data, int data
 		if (iCertListSize == 0)
 		{
 			// error
-			free(id);
+			free(pSharedKeyId);
+			hItem->FunctionList->C_CloseSession(hSession);
 			return NULL;
 		}
 	}
 
+	// no longer need the shared key identifier
+	free(pSharedKeyId);
+
 	// the message to send contains the static sha1 oid header
 	// followed by a sha1 hash of the data sent from the host
-	BYTE pMessageToSign[sizeof(OID_SHA1) + SHA1_BINARY_SIZE];
-	memcpy(pMessageToSign, OID_SHA1, sizeof(OID_SHA1));
-	SHA_Simple(data, datalen, &pMessageToSign[sizeof(OID_SHA1)]);
+	DWORD iHashSize = 0;
+	LPBYTE pHashData = cert_get_hash(userkey->alg->name, pDataToSign, iDataToSignLen, &iHashSize);
 
 	// setup the signature process to sign using the rsa private key on the card 
-	CK_MECHANISM sign_mechanism;
-	sign_mechanism.mechanism = CKM_RSA_PKCS;
-	sign_mechanism.pParameter = NULL;
-	sign_mechanism.ulParameterLen = 0;
+	CK_MECHANISM tSignMech;
+	tSignMech.mechanism = (oType == CKK_RSA) ? CKM_RSA_PKCS : CKM_ECDSA;
+	tSignMech.pParameter = NULL;
+	tSignMech.ulParameterLen = 0;
 
-	// sign the data
-	CK_ULONG iSignatureLen = rsa->bytes;
-	void * aSignature = malloc(rsa->bytes);
-	if (hItem->FunctionList->C_SignInit(hSession, &sign_mechanism, hPrivateKey) != CKR_OK ||
-		hItem->FunctionList->C_Sign(hSession, pMessageToSign, sizeof(pMessageToSign), aSignature, &iSignatureLen) != CKR_OK)
+	// create the hash value
+	CK_BYTE_PTR pSignature = NULL;
+	CK_ULONG iSignatureLen = 0;
+	if (hItem->FunctionList->C_SignInit(hSession, &tSignMech, hPrivateKey) != CKR_OK ||
+		hItem->FunctionList->C_Sign(hSession, pHashData, iHashSize, NULL, &iSignatureLen) != CKR_OK ||
+		hItem->FunctionList->C_Sign(hSession, pHashData, iHashSize,
+			pSignature = snewn(iSignatureLen, CK_BYTE), &iSignatureLen) != CKR_OK)
 	{
-		// error
-		free(id);
-		return NULL;
+		// something failed so cleanup signature
+		if (pSignature != NULL)
+		{
+			sfree(pSignature);
+			pSignature = NULL;
+		}
 	}
 
 	// return the signature to the caller
-	free(id);
-	*siglen = iSignatureLen;
-	return aSignature;
+	*iSigLen = iSignatureLen;
+	hItem->FunctionList->C_CloseSession(hSession);
+	return pSignature;
 }
 
 void cert_pkcs_load_cert(LPCSTR szCert, PCCERT_CONTEXT* ppCertCtx, HCERTSTORE* phStore)
@@ -224,9 +279,9 @@ void cert_pkcs_load_cert(LPCSTR szCert, PCCERT_CONTEXT* ppCertCtx, HCERTSTORE* p
 	PROGRAM_ITEM * hItem = cert_pkcs_load_library(szLibrary);
 	if (hItem == NULL) return;
 
-	static CK_BBOOL bFalse = 0;
-	static CK_BBOOL bTrue = 1;
-	static CK_OBJECT_CLASS iObjectType = CKO_CERTIFICATE;
+	CK_BBOOL bFalse = 0;
+	CK_BBOOL bTrue = 1;
+	CK_OBJECT_CLASS iObjectType = CKO_CERTIFICATE;
 	CK_ATTRIBUTE aFindCriteria[] = {
 		{ CKA_CLASS,    &iObjectType, sizeof(CK_OBJECT_CLASS) },
 		{ CKA_TOKEN,    &bTrue,       sizeof(CK_BBOOL) },
@@ -329,11 +384,6 @@ HCERTSTORE cert_pkcs_get_cert_store(LPCSTR * szHint, HWND hWnd)
 	PROGRAM_ITEM * hItem = cert_pkcs_load_library(tFileNameInfo.lpstrFile);
 	if (hItem == NULL) return NULL;
 
-	// create a memory store for this certificate
-	HCERTSTORE hMemoryStore = CertOpenStore(CERT_STORE_PROV_MEMORY,
-		X509_ASN_ENCODING | PKCS_7_ASN_ENCODING,
-		0, CERT_STORE_CREATE_NEW_FLAG, NULL);
-
 	// get slots -- assume a safe maximum
 	CK_SLOT_ID pSlotList[32];
 	CK_ULONG iSlotCount = _countof(pSlotList);
@@ -341,6 +391,11 @@ HCERTSTORE cert_pkcs_get_cert_store(LPCSTR * szHint, HWND hWnd)
 	{
 		return NULL;
 	}
+
+	// create a memory store for this certificate
+	HCERTSTORE hMemoryStore = CertOpenStore(CERT_STORE_PROV_MEMORY,
+		X509_ASN_ENCODING | PKCS_7_ASN_ENCODING,
+		0, CERT_STORE_CREATE_NEW_FLAG, NULL);
 
 	// enumerate all slot counts
 	for (CK_ULONG iSlot = 0; iSlot < iSlotCount; iSlot++)
@@ -358,9 +413,9 @@ HCERTSTORE cert_pkcs_get_cert_store(LPCSTR * szHint, HWND hWnd)
 			continue;
 		}
 
-		static CK_BBOOL bFalse = 0;
-		static CK_BBOOL bTrue = 1;
-		static CK_OBJECT_CLASS iObjectType = CKO_CERTIFICATE;
+		CK_BBOOL bFalse = 0;
+		CK_BBOOL bTrue = 1;
+		CK_OBJECT_CLASS iObjectType = CKO_CERTIFICATE;
 		CK_ATTRIBUTE aFindCriteria[] = {
 			{ CKA_CLASS,    &iObjectType, sizeof(CK_OBJECT_CLASS) },
 			{ CKA_TOKEN,    &bTrue,       sizeof(CK_BBOOL) },

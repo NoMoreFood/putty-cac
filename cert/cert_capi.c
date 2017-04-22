@@ -16,7 +16,7 @@
 #include "cert_capi.h"
 #undef DEFINE_VARIABLES
 
-BYTE * cert_capi_sign(struct ssh2_userkey * userkey, const char* data, int datalen, int * siglen, HWND hWnd)
+BYTE * cert_capi_sign(struct ssh2_userkey * userkey, LPCBYTE pDataToSign, int iDataToSignLen, int * iSigLen, HWND hWnd)
 {
 	// get a handle to the certificate
 	HCERTSTORE hCertStore = NULL;
@@ -29,33 +29,33 @@ BYTE * cert_capi_sign(struct ssh2_userkey * userkey, const char* data, int datal
 		return bignum_from_long(0);
 	}
 
-	BYTE * pSignedData = NULL;
+	LPBYTE pSignedData = NULL;
 	HCRYPTPROV_OR_NCRYPT_KEY_HANDLE hCrypt = (ULONG_PTR)NULL;
 	DWORD dwKeySpec = 0;
 	BOOL bMustFreeProvier = FALSE;
 
 	if (CryptAcquireCertificatePrivateKey(pCertCtx, CRYPT_ACQUIRE_ALLOW_NCRYPT_KEY_FLAG , NULL, &hCrypt, &dwKeySpec, &bMustFreeProvier) != FALSE)
 	{
-		PBYTE pbSig = NULL;
-		DWORD cbSig = 0;
+		LPBYTE pSig = NULL;
+		DWORD iSig = 0;
 
 		// calculate hashed data 
 		if (dwKeySpec == AT_KEYEXCHANGE || dwKeySpec == AT_SIGNATURE)
 		{
 			// set window for any client 
-			CryptSetProvParam(hCrypt, PP_CLIENT_HWND, (PBYTE) &hWnd, 0);
+			CryptSetProvParam(hCrypt, PP_CLIENT_HWND, (LPBYTE) &hWnd, 0);
 
 			// CSP implementation
 			HCRYPTHASH hHash = (ULONG_PTR)NULL;
 			if (CryptCreateHash((HCRYPTPROV)hCrypt, CALG_SHA1, 0, 0, &hHash) != FALSE &&
-				CryptHashData(hHash, (PBYTE)data, datalen, 0) != FALSE &&
-				CryptSignHash(hHash, dwKeySpec, NULL, 0, NULL, &cbSig) != FALSE &&
-				CryptSignHash(hHash, dwKeySpec, NULL, 0, pbSig = snewn(cbSig, BYTE), &cbSig) != FALSE)
+				CryptHashData(hHash, (LPBYTE)pDataToSign, iDataToSignLen, 0) != FALSE &&
+				CryptSignHash(hHash, dwKeySpec, NULL, 0, NULL, &iSig) != FALSE &&
+				CryptSignHash(hHash, dwKeySpec, NULL, 0, pSig = snewn(iSig, BYTE), &iSig) != FALSE)
 			{
-				cert_reverse_array(pbSig, cbSig);
-				pSignedData = pbSig;
-				*siglen = cbSig;
-				pbSig = NULL;
+				cert_reverse_array(pSig, iSig);
+				pSignedData = pSig;
+				*iSigLen = iSig;
+				pSig = NULL;
 			}
 
 			// cleanup hash structure
@@ -64,43 +64,37 @@ BYTE * cert_capi_sign(struct ssh2_userkey * userkey, const char* data, int datal
 		else if (dwKeySpec == CERT_NCRYPT_KEY_SPEC)
 		{
 			// set window for any client 
-			NCryptSetProperty(hCrypt, NCRYPT_WINDOW_HANDLE_PROPERTY, (PBYTE) &hWnd, sizeof(HWND), 0);
+			NCryptSetProperty(hCrypt, NCRYPT_WINDOW_HANDLE_PROPERTY, (LPBYTE) &hWnd, sizeof(HWND), 0);
 
-			// create a hash of the data to be signed
-			ALG_ID iHashAlg = CALG_SHA1;
-			if (strstr(userkey->alg->name, "ecdsa-") == userkey->alg->name) 
+			// setup structure padding 
+			DWORD iPadFlag = 0;
+			BCRYPT_PKCS1_PADDING_INFO tInfo = { 0 };
+			PVOID pPadInfo = NULL;
+			if (strcmp(userkey->alg->name, "ssh-rsa") == 0)
 			{
-				if (strcmp(userkey->alg->name, "ecdsa-sha2-nistp256") == 0) iHashAlg = CALG_SHA_256;
-				if (strcmp(userkey->alg->name, "ecdsa-sha2-nistp384") == 0) iHashAlg = CALG_SHA_384;
-				if (strcmp(userkey->alg->name, "ecdsa-sha2-nistp521") == 0) iHashAlg = CALG_SHA_512;
+				tInfo.pszAlgId = NCRYPT_SHA1_ALGORITHM;
+				iPadFlag = BCRYPT_PAD_PKCS1;
+				pPadInfo = &tInfo;
 			}
 
-			HCRYPTPROV hHashProv = (ULONG_PTR) NULL;
-			HCRYPTHASH hHash = (ULONG_PTR) NULL;
-			unsigned char pHashData[512 / 8];
-			DWORD iHashDataSize = sizeof(pHashData);
-			if (CryptAcquireContext(&hHashProv, NULL, NULL, PROV_RSA_AES, 0) != FALSE &&
-				CryptCreateHash(hHashProv, iHashAlg, 0, 0, &hHash) != FALSE &&
-				CryptHashData(hHash, (PBYTE)data, datalen, 0) != FALSE &&
-				CryptGetHashParam(hHash, HP_HASHVAL, pHashData, &iHashDataSize, 0) != FALSE);
+			// hash and sign
+			DWORD iHashDataSize = 0;
+			LPBYTE pHashData = cert_get_hash(userkey->alg->name, pDataToSign, iDataToSignLen, &iHashDataSize);
+			if (pHashData != NULL &&
+				NCryptSignHash(hCrypt, pPadInfo, pHashData, iHashDataSize, NULL, 0, &iSig, iPadFlag) == ERROR_SUCCESS &&
+				NCryptSignHash(hCrypt, pPadInfo, pHashData, iHashDataSize, pSig = snewn(iSig, BYTE), iSig, &iSig, iPadFlag) == ERROR_SUCCESS)
 			{
-				if (NCryptSignHash(hCrypt, NULL, pHashData, iHashDataSize, NULL, 0, &cbSig, 0) == ERROR_SUCCESS &&
-					NCryptSignHash(hCrypt, NULL, pHashData, iHashDataSize, pbSig = snewn(cbSig, BYTE), cbSig, &cbSig, 0) == ERROR_SUCCESS)
-				{
-					// shift the r and s integers down one to make a leading zero
-					pSignedData = pbSig;
-					*siglen = cbSig;
-					pbSig = NULL;
-				}
+				pSignedData = pSig;
+				*iSigLen = iSig;
+				pSig = NULL;
 			}
 
 			// cleanup hash structure
-			if (hHash != (ULONG_PTR)NULL) { CryptDestroyHash(hHash); }
-			if (hHashProv != (ULONG_PTR)NULL) { CryptDestroyHash(hHashProv); }
+			if (pHashData != NULL) { free(pHashData); }
 		}
 
 		// cleanup intermediate signing data
-		if (pbSig != NULL) { sfree(pbSig); }
+		if (pSig != NULL) { sfree(pSig); }
 	}
 
 	// cleanup certificate handles and return
