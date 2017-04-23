@@ -32,9 +32,10 @@ BYTE * cert_capi_sign(struct ssh2_userkey * userkey, LPCBYTE pDataToSign, int iD
 	LPBYTE pSignedData = NULL;
 	HCRYPTPROV_OR_NCRYPT_KEY_HANDLE hCrypt = (ULONG_PTR)NULL;
 	DWORD dwKeySpec = 0;
-	BOOL bMustFreeProvier = FALSE;
+	BOOL bMustFreeProvider = FALSE;
 
-	if (CryptAcquireCertificatePrivateKey(pCertCtx, CRYPT_ACQUIRE_ALLOW_NCRYPT_KEY_FLAG , NULL, &hCrypt, &dwKeySpec, &bMustFreeProvier) != FALSE)
+	if (CryptAcquireCertificatePrivateKey(pCertCtx, CRYPT_ACQUIRE_ALLOW_NCRYPT_KEY_FLAG , 
+		NULL, &hCrypt, &dwKeySpec, &bMustFreeProvider) != FALSE)
 	{
 		LPBYTE pSig = NULL;
 		DWORD iSig = 0;
@@ -58,8 +59,9 @@ BYTE * cert_capi_sign(struct ssh2_userkey * userkey, LPCBYTE pDataToSign, int iD
 				pSig = NULL;
 			}
 
-			// cleanup hash structure
+			// cleanup hash structure and crypto provider
 			if (hHash != (ULONG_PTR)NULL) { CryptDestroyHash(hHash); }
+			if (bMustFreeProvider == TRUE) { CryptReleaseContext(hCrypt, 0); }
 		}
 		else if (dwKeySpec == CERT_NCRYPT_KEY_SPEC)
 		{
@@ -89,8 +91,9 @@ BYTE * cert_capi_sign(struct ssh2_userkey * userkey, LPCBYTE pDataToSign, int iD
 				pSig = NULL;
 			}
 
-			// cleanup hash structure
+			// cleanup hash structure and crypto provider
 			if (pHashData != NULL) { free(pHashData); }
+			if (bMustFreeProvider == TRUE) { NCryptFreeObject(hCrypt); }
 		}
 
 		// cleanup intermediate signing data
@@ -99,7 +102,7 @@ BYTE * cert_capi_sign(struct ssh2_userkey * userkey, LPCBYTE pDataToSign, int iD
 
 	// cleanup certificate handles and return
 	if (pCertCtx != NULL) { CertFreeCertificateContext(pCertCtx); }
-	if (hCertStore != NULL) { CertCloseStore(hCertStore, CERT_CLOSE_STORE_FORCE_FLAG); }
+	if (hCertStore != NULL) { CertCloseStore(hCertStore, 0); }
 	return pSignedData;
 }
 
@@ -107,15 +110,14 @@ HCERTSTORE cert_capi_get_cert_store(LPCSTR * szHint, HWND hWnd)
 {
 	UNREFERENCED_PARAMETER(hWnd);
 
-	szHint = NULL;
+	if (szHint != NULL) *szHint = NULL;
 	return CertOpenStore(CERT_STORE_PROV_SYSTEM_W, PKCS_7_ASN_ENCODING | X509_ASN_ENCODING, 0,
 		CERT_SYSTEM_STORE_CURRENT_USER | CERT_STORE_READONLY_FLAG | CERT_STORE_OPEN_EXISTING_FLAG | CERT_STORE_ENUM_ARCHIVED_FLAG, L"MY");
 }
 
 void cert_capi_load_cert(LPCSTR szCert, PCCERT_CONTEXT* ppCertCtx, HCERTSTORE* phStore)
 {
-	HCERTSTORE hStore = CertOpenStore(CERT_STORE_PROV_SYSTEM_W, PKCS_7_ASN_ENCODING | X509_ASN_ENCODING, 0,
-		CERT_SYSTEM_STORE_CURRENT_USER | CERT_STORE_READONLY_FLAG | CERT_STORE_OPEN_EXISTING_FLAG | CERT_STORE_ENUM_ARCHIVED_FLAG, L"MY");
+	HCERTSTORE hStore = cert_capi_get_cert_store(NULL, NULL);
 	if (hStore == NULL)
 	{
 		return;
@@ -144,7 +146,7 @@ void cert_capi_load_cert(LPCSTR szCert, PCCERT_CONTEXT* ppCertCtx, HCERTSTORE* p
 	}
 
 	// cleanup
-	CertCloseStore(hStore, CERT_CLOSE_STORE_FORCE_FLAG);
+	CertCloseStore(hStore, 0);
 }
 
 #endif // PUTTY_CAC
