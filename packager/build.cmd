@@ -34,7 +34,7 @@ signtool sign /sha1 %CERT% /as /fd sha256 /tr %TSAURL% /td sha256 /d %LIBNAME% /
 COPY /Y "%ProgramFiles(x86)%\PuTTY\PuTTY.chm" "%BASEDIR%\doc\"
 COPY /Y "%ProgramFiles%\PuTTY\PuTTY.chm" "%BASEDIR%\doc\"
 COPY /Y "%ProgramFiles(x86)%\PuTTY\*.url" "%INSTDIR%\"
-COPY /Y "%ProgramFiles%\PuTTY\PuTTY\*.url" "%INSTDIR%\"
+COPY /Y "%ProgramFiles%\PuTTY\*.url" "%INSTDIR%\"
 COPY /Y "%BASEDIR%\windows\*.ico" "%INSTDIR%\"
 COPY /Y "%BASEDIR%\windows\README-msi.txt" "%INSTDIR%\"
 

@@ -26,7 +26,7 @@ EXTERN LPSTR cert_get_cert_hash(LPCSTR szIden, PCCERT_CONTEXT pCertContext, LPCS
 // functions used by putty code 
 EXTERN LPSTR cert_key_string(LPCSTR szCert);
 EXTERN LPSTR cert_prompt(LPCSTR szIden, HWND hWnd);
-EXTERN unsigned char * cert_sign(struct ssh2_userkey * userkey, LPCBYTE pDataToSign, int iDataToSignLen, int * iWrappedSigLen, HWND hWnd);
+EXTERN LPBYTE cert_sign(struct ssh2_userkey * userkey, LPCBYTE pDataToSign, int iDataToSignLen, int * iWrappedSigLen, HWND hWnd);
 EXTERN struct ssh2_userkey * cert_load_key(LPCSTR szCert);
 EXTERN VOID cert_display_cert(LPCSTR szCert, HWND hWnd);
 EXTERN int cert_all_certs(LPSTR ** pszCert);
