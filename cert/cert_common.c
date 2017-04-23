@@ -114,9 +114,9 @@ LPSTR cert_prompt(LPCSTR szIden, HWND hWnd)
 	return NULL;
 }
 
-unsigned char * cert_sign(struct ssh2_userkey * userkey, LPCBYTE pDataToSign, int iDataToSignLen, int * iWrappedSigLen, HWND hWnd)
+LPBYTE cert_sign(struct ssh2_userkey * userkey, LPCBYTE pDataToSign, int iDataToSignLen, int * iWrappedSigLen, HWND hWnd)
 {
-	BYTE * pRawSig = NULL;
+	LPBYTE pRawSig = NULL;
 	int iRawSigLen = 0;
 	*iWrappedSigLen = 0;
 
@@ -137,7 +137,7 @@ unsigned char * cert_sign(struct ssh2_userkey * userkey, LPCBYTE pDataToSign, in
 	if (pRawSig == NULL) return NULL;
 
 	// used to hold wrapped signature to return to server
-	unsigned char * pWrappedSig = NULL;
+	LPBYTE pWrappedSig = NULL;
 
 	if (strstr(userkey->alg->name, "ecdsa-") == userkey->alg->name)
 	{
@@ -239,7 +239,7 @@ struct ssh2_userkey * cert_get_ssh_userkey(LPCSTR szCert, PCERT_CONTEXT pCertCon
 	else if(wcsstr(sAlgoId, L"ECDSA/") == sAlgoId) 
 	{
 		BCRYPT_KEY_HANDLE hBCryptKey = NULL;
-		if (CryptImportPublicKeyInfoEx2(X509_ASN_ENCODING, &(pCertContext->pCertInfo->SubjectPublicKeyInfo),
+		if (CryptImportPublicKeyInfoEx2(X509_ASN_ENCODING, _ADDRESSOF(pCertContext->pCertInfo->SubjectPublicKeyInfo),
 			0, NULL, &hBCryptKey) != FALSE)
 		{
 			DWORD iKeyLength = 0;
@@ -436,7 +436,7 @@ LPBYTE cert_get_hash(LPCSTR szAlgo, LPCBYTE pDataToHash, DWORD iDataToHashSize, 
 	if (strcmp(szAlgo, "ecdsa-sha2-nistp521") == 0) iHashAlg = CALG_SHA_512;
 
 	// acquire crytpo provider, hash data, and export hashed binary data
-	if (CryptAcquireContext(&hHashProv, NULL, NULL, PROV_RSA_AES, 0) == FALSE ||
+	if (CryptAcquireContext(&hHashProv, NULL, NULL, PROV_RSA_AES, CRYPT_VERIFYCONTEXT) == FALSE ||
 		CryptCreateHash(hHashProv, iHashAlg, 0, 0, &hHash) == FALSE ||
 		CryptHashData(hHash, pDataToHash, iDataToHashSize, 0) == FALSE ||
 		CryptGetHashParam(hHash, HP_HASHVAL, NULL, iHashedDataSize, 0) == FALSE ||
