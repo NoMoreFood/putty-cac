@@ -1671,7 +1671,7 @@ static int key_type_fp(FILE *fp)
     int i;
     char *p;
 
-	i = fread(buf, 1, sizeof(buf)-1, fp);
+    i = fread(buf, 1, sizeof(buf)-1, fp);
     rewind(fp);
 
     if (i < 0)
