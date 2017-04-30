@@ -163,9 +163,6 @@
     <ClCompile Include="..\..\windefs.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\wingss.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\winhandl.c">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -221,6 +218,15 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="..\..\..\pinger.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\miscucs.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\wingss.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\winucs.c">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
