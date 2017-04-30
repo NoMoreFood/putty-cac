@@ -422,8 +422,18 @@ void cert_convert_legacy(LPSTR szCert)
 	}
 }
 
-LPBYTE cert_get_hash(LPCSTR szAlgo, LPCBYTE pDataToHash, DWORD iDataToHashSize, DWORD * iHashedDataSize)
+LPBYTE cert_get_hash(LPCSTR szAlgo, LPCBYTE pDataToHash, DWORD iDataToHashSize, DWORD * iHashedDataSize, BOOL bPrependDigest)
 {
+	// id-sha1 OBJECT IDENTIFIER 
+	const BYTE OID_SHA1[] = {
+		0x30, 0x21, /* type Sequence, length 0x21 (33) */
+		0x30, 0x09, /* type Sequence, length 0x09 */
+		0x06, 0x05, /* type OID, length 0x05 */
+		0x2b, 0x0e, 0x03, 0x02, 0x1a, /* id-sha1 OID */
+		0x05, 0x00, /* NULL */
+		0x04, 0x14  /* Octet string, length 0x14 (20), followed by sha1 hash */
+	};
+
 	HCRYPTPROV hHashProv = (ULONG_PTR) NULL;
 	HCRYPTHASH hHash = (ULONG_PTR) NULL;
 	LPBYTE pHashData = NULL;
@@ -435,12 +445,23 @@ LPBYTE cert_get_hash(LPCSTR szAlgo, LPCBYTE pDataToHash, DWORD iDataToHashSize, 
 	if (strcmp(szAlgo, "ecdsa-sha2-nistp384") == 0) iHashAlg = CALG_SHA_384;
 	if (strcmp(szAlgo, "ecdsa-sha2-nistp521") == 0) iHashAlg = CALG_SHA_512;
 
+	// for sha1, prepend the hash digest if requested
+	// this is necessary for some signature algorithms
+	DWORD iDigestSize = 0;
+	LPBYTE pDigest = NULL;
+	if (iHashAlg == CALG_SHA1 && bPrependDigest)
+	{
+		iDigestSize = sizeof(OID_SHA1);
+		pDigest = (LPBYTE) OID_SHA1;
+	}
+
 	// acquire crytpo provider, hash data, and export hashed binary data
 	if (CryptAcquireContext(&hHashProv, NULL, NULL, PROV_RSA_AES, CRYPT_VERIFYCONTEXT) == FALSE ||
 		CryptCreateHash(hHashProv, iHashAlg, 0, 0, &hHash) == FALSE ||
 		CryptHashData(hHash, pDataToHash, iDataToHashSize, 0) == FALSE ||
 		CryptGetHashParam(hHash, HP_HASHVAL, NULL, iHashedDataSize, 0) == FALSE ||
-		CryptGetHashParam(hHash, HP_HASHVAL, pHashData = snewn(iDataToHashSize, BYTE), iHashedDataSize, 0) == FALSE)
+		CryptGetHashParam(hHash, HP_HASHVAL, (pHashData = snewn(*iHashedDataSize + 
+			iDigestSize, BYTE)) + iDigestSize, iHashedDataSize, 0) == FALSE)
 	{
 		// something failed
 		if (pHashData != NULL)
@@ -449,6 +470,10 @@ LPBYTE cert_get_hash(LPCSTR szAlgo, LPCBYTE pDataToHash, DWORD iDataToHashSize, 
 			pHashData = NULL;
 		}
 	}
+
+	// prepend the digest
+	*iHashedDataSize += iDigestSize;
+	memcpy(pHashData, pDigest, iDigestSize);
 
 	// cleanup and return
 	if (hHash != (ULONG_PTR) NULL) CryptDestroyHash(hHash);

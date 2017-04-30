@@ -239,7 +239,7 @@ BYTE * cert_pkcs_sign(struct ssh2_userkey * userkey, LPCBYTE pDataToSign, int iD
 	// the message to send contains the static sha1 oid header
 	// followed by a sha1 hash of the data sent from the host
 	DWORD iHashSize = 0;
-	LPBYTE pHashData = cert_get_hash(userkey->alg->name, pDataToSign, iDataToSignLen, &iHashSize);
+	LPBYTE pHashData = cert_get_hash(userkey->alg->name, pDataToSign, iDataToSignLen, &iHashSize, TRUE);
 
 	// setup the signature process to sign using the rsa private key on the card 
 	CK_MECHANISM tSignMech;
