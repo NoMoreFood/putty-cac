@@ -21,7 +21,7 @@
 
 void cert_reverse_array(LPBYTE pb, DWORD cb)
 {
-	for (DWORD i = 0, j = cb - 1; i < cb / 2; i++, j--) 
+	for (DWORD i = 0, j = cb - 1; i < cb / 2; i++, j--)
 	{
 		BYTE b = pb[i];
 		pb[i] = pb[j];
@@ -236,7 +236,7 @@ struct ssh2_userkey * cert_get_ssh_userkey(LPCSTR szCert, PCERT_CONTEXT pCertCon
 	}
 
 	// Handle ECC Keys
-	else if(wcsstr(sAlgoId, L"ECDSA/") == sAlgoId) 
+	else if (wcsstr(sAlgoId, L"ECDSA/") == sAlgoId)
 	{
 		BCRYPT_KEY_HANDLE hBCryptKey = NULL;
 		if (CryptImportPublicKeyInfoEx2(X509_ASN_ENCODING, _ADDRESSOF(pCertContext->pCertInfo->SubjectPublicKeyInfo),
@@ -246,7 +246,7 @@ struct ssh2_userkey * cert_get_ssh_userkey(LPCSTR szCert, PCERT_CONTEXT pCertCon
 			ULONG iKeyLengthSize = sizeof(DWORD);
 			LPBYTE pEccKey = NULL;
 			ULONG iKeyBlobSize = 0;
-			if (BCryptGetProperty(hBCryptKey, BCRYPT_KEY_LENGTH, (PUCHAR) &iKeyLength, iKeyLengthSize, &iKeyLength, 0) == STATUS_SUCCESS &&
+			if (BCryptGetProperty(hBCryptKey, BCRYPT_KEY_LENGTH, (PUCHAR)&iKeyLength, iKeyLengthSize, &iKeyLength, 0) == STATUS_SUCCESS &&
 				BCryptExportKey(hBCryptKey, NULL, BCRYPT_ECCPUBLIC_BLOB, NULL, iKeyBlobSize, &iKeyBlobSize, 0) == STATUS_SUCCESS && iKeyBlobSize != 0 &&
 				BCryptExportKey(hBCryptKey, NULL, BCRYPT_ECCPUBLIC_BLOB, pEccKey = malloc(iKeyBlobSize), iKeyBlobSize, &iKeyBlobSize, 0) == STATUS_SUCCESS)
 			{
@@ -389,7 +389,7 @@ int cert_all_certs(LPSTR ** pszCert)
 
 	// allocate memory and populate it
 	*pszCert = snewn(iCertNum, LPSTR);
-	LPSTR * pszCertPos = * pszCert;
+	LPSTR * pszCertPos = *pszCert;
 	while ((pCertContext = CertFindCertificateInStore(hCertStore, X509_ASN_ENCODING | PKCS_7_ASN_ENCODING,
 		CERT_FIND_VALID_ENHKEY_USAGE_FLAG, CERT_FIND_ENHKEY_USAGE, &tItem, pCertContext)) != NULL)
 	{
@@ -434,8 +434,8 @@ LPBYTE cert_get_hash(LPCSTR szAlgo, LPCBYTE pDataToHash, DWORD iDataToHashSize, 
 		0x04, 0x14  /* Octet string, length 0x14 (20), followed by sha1 hash */
 	};
 
-	HCRYPTPROV hHashProv = (ULONG_PTR) NULL;
-	HCRYPTHASH hHash = (ULONG_PTR) NULL;
+	HCRYPTPROV hHashProv = (ULONG_PTR)NULL;
+	HCRYPTHASH hHash = (ULONG_PTR)NULL;
 	LPBYTE pHashData = NULL;
 	*iHashedDataSize = 0;
 
@@ -452,7 +452,7 @@ LPBYTE cert_get_hash(LPCSTR szAlgo, LPCBYTE pDataToHash, DWORD iDataToHashSize, 
 	if (iHashAlg == CALG_SHA1 && bPrependDigest)
 	{
 		iDigestSize = sizeof(OID_SHA1);
-		pDigest = (LPBYTE) OID_SHA1;
+		pDigest = (LPBYTE)OID_SHA1;
 	}
 
 	// acquire crytpo provider, hash data, and export hashed binary data
@@ -460,7 +460,7 @@ LPBYTE cert_get_hash(LPCSTR szAlgo, LPCBYTE pDataToHash, DWORD iDataToHashSize, 
 		CryptCreateHash(hHashProv, iHashAlg, 0, 0, &hHash) == FALSE ||
 		CryptHashData(hHash, pDataToHash, iDataToHashSize, 0) == FALSE ||
 		CryptGetHashParam(hHash, HP_HASHVAL, NULL, iHashedDataSize, 0) == FALSE ||
-		CryptGetHashParam(hHash, HP_HASHVAL, (pHashData = snewn(*iHashedDataSize + 
+		CryptGetHashParam(hHash, HP_HASHVAL, (pHashData = snewn(*iHashedDataSize +
 			iDigestSize, BYTE)) + iDigestSize, iHashedDataSize, 0) == FALSE)
 	{
 		// something failed
@@ -476,8 +476,8 @@ LPBYTE cert_get_hash(LPCSTR szAlgo, LPCBYTE pDataToHash, DWORD iDataToHashSize, 
 	memcpy(pHashData, pDigest, iDigestSize);
 
 	// cleanup and return
-	if (hHash != (ULONG_PTR) NULL) CryptDestroyHash(hHash);
-	if (hHashProv != (ULONG_PTR) NULL) CryptReleaseContext(hHashProv, 0);
+	if (hHash != (ULONG_PTR)NULL) CryptDestroyHash(hHash);
+	if (hHashProv != (ULONG_PTR)NULL) CryptReleaseContext(hHashProv, 0);
 	return pHashData;
 }
 

@@ -34,7 +34,7 @@ BYTE * cert_capi_sign(struct ssh2_userkey * userkey, LPCBYTE pDataToSign, int iD
 	DWORD dwKeySpec = 0;
 	BOOL bMustFreeProvider = FALSE;
 
-	if (CryptAcquireCertificatePrivateKey(pCertCtx, CRYPT_ACQUIRE_ALLOW_NCRYPT_KEY_FLAG , 
+	if (CryptAcquireCertificatePrivateKey(pCertCtx, CRYPT_ACQUIRE_ALLOW_NCRYPT_KEY_FLAG,
 		NULL, &hCrypt, &dwKeySpec, &bMustFreeProvider) != FALSE)
 	{
 		LPBYTE pSig = NULL;
@@ -44,7 +44,7 @@ BYTE * cert_capi_sign(struct ssh2_userkey * userkey, LPCBYTE pDataToSign, int iD
 		if (dwKeySpec == AT_KEYEXCHANGE || dwKeySpec == AT_SIGNATURE)
 		{
 			// set window for any client 
-			CryptSetProvParam(hCrypt, PP_CLIENT_HWND, (LPBYTE) &hWnd, 0);
+			CryptSetProvParam(hCrypt, PP_CLIENT_HWND, (LPBYTE)&hWnd, 0);
 
 			// CSP implementation
 			HCRYPTHASH hHash = (ULONG_PTR)NULL;
@@ -66,7 +66,7 @@ BYTE * cert_capi_sign(struct ssh2_userkey * userkey, LPCBYTE pDataToSign, int iD
 		else if (dwKeySpec == CERT_NCRYPT_KEY_SPEC)
 		{
 			// set window for any client 
-			NCryptSetProperty(hCrypt, NCRYPT_WINDOW_HANDLE_PROPERTY, (LPBYTE) &hWnd, sizeof(HWND), 0);
+			NCryptSetProperty(hCrypt, NCRYPT_WINDOW_HANDLE_PROPERTY, (LPBYTE)&hWnd, sizeof(HWND), 0);
 
 			// setup structure padding 
 			DWORD iPadFlag = 0;

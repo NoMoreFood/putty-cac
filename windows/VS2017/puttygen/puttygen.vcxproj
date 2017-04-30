@@ -22,7 +22,7 @@
     <SccProjectName />
     <SccLocalPath />
     <ProjectGuid>{617b1bef-aa10-42b4-8f69-4c183bc1ec0f}</ProjectGuid>
-    <WindowsTargetPlatformVersion>10.0.14393.0</WindowsTargetPlatformVersion>
+    <WindowsTargetPlatformVersion>10.0.15063.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
@@ -319,7 +319,6 @@
   <ItemGroup>
     <ClInclude Include="..\..\..\charset\charset.h" />
     <ClInclude Include="..\..\..\dialog.h" />
-    <ClInclude Include="..\..\..\empty.h" />
     <ClInclude Include="..\..\..\int64.h" />
     <ClInclude Include="..\..\..\licence.h" />
     <ClInclude Include="..\..\..\misc.h" />
