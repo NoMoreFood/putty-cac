@@ -22,7 +22,7 @@
     <SccProjectName />
     <SccLocalPath />
     <ProjectGuid>{4478087b-1dc8-4c3e-b624-13661de1947e}</ProjectGuid>
-    <WindowsTargetPlatformVersion>10.0.14393.0</WindowsTargetPlatformVersion>
+    <WindowsTargetPlatformVersion>10.0.15063.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
@@ -357,7 +357,6 @@
     <ClCompile Include="..\..\..\cert\cert_pkcs.h" />
     <ClCompile Include="..\..\..\cert\cert_capi.h" />
     <ClInclude Include="..\..\..\charset\charset.h" />
-    <ClInclude Include="..\..\..\empty.h" />
     <ClInclude Include="..\..\..\int64.h" />
     <ClInclude Include="..\..\..\ldisc.h" />
     <ClInclude Include="..\..\..\licence.h" />

@@ -264,6 +264,7 @@ BYTE * cert_pkcs_sign(struct ssh2_userkey * userkey, LPCBYTE pDataToSign, int iD
 	}
 
 	// return the signature to the caller
+	sfree(pHashData);
 	*iSigLen = iSignatureLen;
 	hItem->FunctionList->C_CloseSession(hSession);
 	return pSignature;
@@ -313,7 +314,7 @@ PROGRAM_ITEM * cert_pkcs_load_library(LPSTR szLibrary)
 			"Either the file is corrupted or not appropriate for this version " \
 			"of PuTTY. Remember 32-bit PuTTY can only load 32-bit PKCS libraries and " \
 			"64-bit PuTTY can only load 64-bit PKCS libraries.";
-			MessageBox(NULL, szMessage, "PuTTY Could Not Load Library", MB_OK | MB_ICONERROR);
+		MessageBox(NULL, szMessage, "PuTTY Could Not Load Library", MB_OK | MB_ICONERROR);
 		return NULL;
 	}
 
