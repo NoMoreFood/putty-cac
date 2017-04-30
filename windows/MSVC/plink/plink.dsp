@@ -53,7 +53,7 @@ BSC32=bscmake.exe
 # ADD BSC32 /nologo
 LINK32=link.exe
 # ADD BASE LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /nologo /subsystem:console /machine:I386
-# ADD LINK32 advapi32.lib comctl32.lib comdlg32.lib gdi32.lib imm32.lib ole32.lib shell32.lib user32.lib winmm.lib winspool.lib /nologo /subsystem:console /machine:I386
+# ADD LINK32 advapi32.lib comdlg32.lib gdi32.lib imm32.lib ole32.lib shell32.lib user32.lib /nologo /subsystem:console /machine:I386
 # SUBTRACT LINK32 /pdb:none
 
 !ELSEIF  "$(CFG)" == "plink - Win32 Debug"
@@ -80,7 +80,7 @@ BSC32=bscmake.exe
 # ADD BSC32 /nologo
 LINK32=link.exe
 # ADD BASE LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /nologo /subsystem:console /debug /machine:I386 /pdbtype:sept
-# ADD LINK32 advapi32.lib comctl32.lib comdlg32.lib gdi32.lib imm32.lib ole32.lib shell32.lib user32.lib winmm.lib winspool.lib /nologo /subsystem:console /debug /machine:I386 /pdbtype:sept
+# ADD LINK32 advapi32.lib comdlg32.lib gdi32.lib imm32.lib ole32.lib shell32.lib user32.lib /nologo /subsystem:console /debug /machine:I386 /pdbtype:sept
 # SUBTRACT LINK32 /pdb:none
 
 !ENDIF 
@@ -135,6 +135,10 @@ SOURCE=..\..\..\logging.c
 # Begin Source File
 
 SOURCE=..\..\..\misc.c
+# End Source File
+# Begin Source File
+
+SOURCE=..\..\..\miscucs.c
 # End Source File
 # Begin Source File
 
@@ -368,6 +372,10 @@ SOURCE=..\..\..\windows\winstore.c
 # Begin Source File
 
 SOURCE=..\..\..\windows\wintime.c
+# End Source File
+# Begin Source File
+
+SOURCE=..\..\..\windows\winucs.c
 # End Source File
 # Begin Source File
 

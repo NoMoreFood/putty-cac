@@ -292,6 +292,7 @@
     <ClCompile Include="..\..\..\ldisc.c" />
     <ClCompile Include="..\..\..\logging.c" />
     <ClCompile Include="..\..\..\misc.c" />
+    <ClCompile Include="..\..\..\miscucs.c" />
     <ClCompile Include="..\..\..\noterm.c" />
     <ClCompile Include="..\..\..\pgssapi.c" />
     <ClCompile Include="..\..\..\pinger.c" />
@@ -348,6 +349,7 @@
     <ClCompile Include="..\..\winshare.c" />
     <ClCompile Include="..\..\winstore.c" />
     <ClCompile Include="..\..\wintime.c" />
+    <ClCompile Include="..\..\winucs.c" />
     <ClCompile Include="..\..\winx11.c" />
   </ItemGroup>
   <ItemGroup>

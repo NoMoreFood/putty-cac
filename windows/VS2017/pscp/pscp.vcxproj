@@ -292,6 +292,7 @@
     <ClCompile Include="..\..\..\int64.c" />
     <ClCompile Include="..\..\..\logging.c" />
     <ClCompile Include="..\..\..\misc.c" />
+    <ClCompile Include="..\..\..\miscucs.c" />
     <ClCompile Include="..\..\..\pgssapi.c" />
     <ClCompile Include="..\..\..\pinger.c" />
     <ClCompile Include="..\..\..\portfwd.c" />
@@ -345,6 +346,7 @@
     <ClCompile Include="..\..\winstore.c" />
     <ClCompile Include="..\..\wintime.c" />
     <ClCompile Include="..\..\..\x11fwd.c" />
+    <ClCompile Include="..\..\winucs.c" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\..\cert\cert_common.h" />
