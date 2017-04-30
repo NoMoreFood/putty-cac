@@ -81,7 +81,7 @@ BYTE * cert_capi_sign(struct ssh2_userkey * userkey, LPCBYTE pDataToSign, int iD
 
 			// hash and sign
 			DWORD iHashDataSize = 0;
-			LPBYTE pHashData = cert_get_hash(userkey->alg->name, pDataToSign, iDataToSignLen, &iHashDataSize);
+			LPBYTE pHashData = cert_get_hash(userkey->alg->name, pDataToSign, iDataToSignLen, &iHashDataSize, FALSE);
 			if (pHashData != NULL &&
 				NCryptSignHash(hCrypt, pPadInfo, pHashData, iHashDataSize, NULL, 0, &iSig, iPadFlag) == ERROR_SUCCESS &&
 				NCryptSignHash(hCrypt, pPadInfo, pHashData, iHashDataSize, pSig = snewn(iSig, BYTE), iSig, &iSig, iPadFlag) == ERROR_SUCCESS)
