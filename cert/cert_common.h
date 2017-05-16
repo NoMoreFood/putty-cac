@@ -22,6 +22,8 @@
 EXTERN void cert_reverse_array(LPBYTE pb, DWORD cb);
 EXTERN void cert_prompt_cert(HCERTSTORE hStore, HWND hWnd, LPSTR * szCert, LPCSTR szIden, LPCSTR szHint);
 EXTERN LPSTR cert_get_cert_hash(LPCSTR szIden, PCCERT_CONTEXT pCertContext, LPCSTR szHint);
+EXTERN PVOID cert_pin(LPSTR szCert, BOOL bUnicode, LPVOID szPin, HWND hWnd);
+EXTERN BOOL cert_cache_enabled(DWORD bEnable);
 
 // functions used by putty code 
 EXTERN LPSTR cert_key_string(LPCSTR szCert);

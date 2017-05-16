@@ -26,47 +26,83 @@ BYTE * cert_capi_sign(struct ssh2_userkey * userkey, LPCBYTE pDataToSign, int iD
 	// sanity check
 	if (hCertStore == NULL || pCertCtx == NULL)
 	{
-		return bignum_from_long(0);
+		return NULL;
 	}
 
+	// stores the address to the final signed data
 	LPBYTE pSignedData = NULL;
-	HCRYPTPROV_OR_NCRYPT_KEY_HANDLE hCrypt = (ULONG_PTR)NULL;
-	DWORD dwKeySpec = 0;
-	BOOL bMustFreeProvider = FALSE;
-
-	if (CryptAcquireCertificatePrivateKey(pCertCtx, CRYPT_ACQUIRE_ALLOW_NCRYPT_KEY_FLAG,
-		NULL, &hCrypt, &dwKeySpec, &bMustFreeProvider) != FALSE)
+	PCRYPT_KEY_PROV_INFO pProviderInfo = NULL;
+	DWORD iProviderInfoSize = 0;
+	if (CertGetCertificateContextProperty(pCertCtx, CERT_KEY_PROV_INFO_PROP_ID, NULL, &iProviderInfoSize) != FALSE &&
+		CertGetCertificateContextProperty(pCertCtx, CERT_KEY_PROV_INFO_PROP_ID,
+		(pProviderInfo = (PCRYPT_KEY_PROV_INFO)snewn(iProviderInfoSize, BYTE)), &iProviderInfoSize) != FALSE)
 	{
 		LPBYTE pSig = NULL;
 		DWORD iSig = 0;
 
-		// calculate hashed data 
-		if (dwKeySpec == AT_KEYEXCHANGE || dwKeySpec == AT_SIGNATURE)
+		HCRYPTPROV_OR_NCRYPT_KEY_HANDLE hCryptProv = 0;
+		NCRYPT_KEY_HANDLE hNCryptKey = 0;
+		NCRYPT_PROV_HANDLE hNCryptProv = 0;
+
+		if (CryptAcquireContextW(&hCryptProv, pProviderInfo->pwszContainerName,
+			pProviderInfo->pwszProvName, pProviderInfo->dwProvType,
+			(pProviderInfo->dwFlags & CRYPT_MACHINE_KEYSET) ? CRYPT_MACHINE_KEYSET : 0) != FALSE)
 		{
 			// set window for any client 
-			CryptSetProvParam(hCrypt, PP_CLIENT_HWND, (LPBYTE)&hWnd, 0);
+			if (hWnd != NULL)
+			{
+				CryptSetProvParam(hCryptProv, PP_CLIENT_HWND, (LPBYTE)&hWnd, 0);
+			}
+
+			// set pin prompt
+			LPSTR szPin = NULL;
+			if (cert_cache_enabled((DWORD)-1) &&
+				(szPin = cert_pin(userkey->comment, FALSE, NULL, hWnd)) != NULL)
+			{
+				CryptSetProvParam(hCryptProv, (pProviderInfo->dwKeySpec ==
+					AT_SIGNATURE) ? PP_SIGNATURE_PIN : PP_KEYEXCHANGE_PIN, (LPCBYTE)szPin, 0);
+			}
 
 			// CSP implementation
 			HCRYPTHASH hHash = (ULONG_PTR)NULL;
-			if (CryptCreateHash((HCRYPTPROV)hCrypt, CALG_SHA1, 0, 0, &hHash) != FALSE &&
+			if (CryptCreateHash((HCRYPTPROV)hCryptProv, CALG_SHA1, 0, 0, &hHash) != FALSE &&
 				CryptHashData(hHash, (LPBYTE)pDataToSign, iDataToSignLen, 0) != FALSE &&
-				CryptSignHash(hHash, dwKeySpec, NULL, 0, NULL, &iSig) != FALSE &&
-				CryptSignHash(hHash, dwKeySpec, NULL, 0, pSig = snewn(iSig, BYTE), &iSig) != FALSE)
+				CryptSignHash(hHash, pProviderInfo->dwKeySpec, NULL, 0, NULL, &iSig) != FALSE &&
+				CryptSignHash(hHash, pProviderInfo->dwKeySpec, NULL, 0, pSig = snewn(iSig, BYTE), &iSig) != FALSE)
 			{
 				cert_reverse_array(pSig, iSig);
 				pSignedData = pSig;
 				*iSigLen = iSig;
 				pSig = NULL;
+
+				// add pin to cache if cache is enabled
+				if (cert_cache_enabled((DWORD)-1))
+				{
+					cert_pin(userkey->comment, FALSE, szPin, hWnd);
+				}
 			}
 
-			// cleanup hash structure and crypto provider
+			// cleanup hash structure 
+			if (szPin != NULL) { SecureZeroMemory(szPin, strlen(szPin) * sizeof(CHAR)); free(szPin); }
 			if (hHash != (ULONG_PTR)NULL) { CryptDestroyHash(hHash); }
-			if (bMustFreeProvider == TRUE) { CryptReleaseContext(hCrypt, 0); }
 		}
-		else if (dwKeySpec == CERT_NCRYPT_KEY_SPEC)
+		else if (NCryptOpenStorageProvider(&hNCryptProv, pProviderInfo->pwszProvName, 0) == ERROR_SUCCESS &&
+			NCryptOpenKey(hNCryptProv, &hNCryptKey, pProviderInfo->pwszContainerName, pProviderInfo->dwKeySpec, 0) == ERROR_SUCCESS)
 		{
-			// set window for any client 
-			NCryptSetProperty(hCrypt, NCRYPT_WINDOW_HANDLE_PROPERTY, (LPBYTE)&hWnd, sizeof(HWND), 0);
+			// set window for any client
+			if (hWnd != NULL)
+			{
+				NCryptSetProperty(hNCryptKey, NCRYPT_WINDOW_HANDLE_PROPERTY, (LPBYTE)&hWnd, sizeof(HWND), 0);
+			}
+
+			// set pin prompt
+			WCHAR * szPin = NULL;
+			if (cert_cache_enabled((DWORD)-1) &&
+				(szPin = cert_pin(userkey->comment, TRUE, NULL, hWnd)) != NULL)
+			{
+				DWORD iLength = (1 + wcslen(szPin)) * sizeof(WCHAR);
+				NCryptSetProperty(hNCryptKey, NCRYPT_PIN_PROPERTY, (PBYTE)szPin, iLength, 0);
+			}
 
 			// setup structure padding 
 			DWORD iPadFlag = 0;
@@ -83,21 +119,31 @@ BYTE * cert_capi_sign(struct ssh2_userkey * userkey, LPCBYTE pDataToSign, int iD
 			DWORD iHashDataSize = 0;
 			LPBYTE pHashData = cert_get_hash(userkey->alg->name, pDataToSign, iDataToSignLen, &iHashDataSize, FALSE);
 			if (pHashData != NULL &&
-				NCryptSignHash(hCrypt, pPadInfo, pHashData, iHashDataSize, NULL, 0, &iSig, iPadFlag) == ERROR_SUCCESS &&
-				NCryptSignHash(hCrypt, pPadInfo, pHashData, iHashDataSize, pSig = snewn(iSig, BYTE), iSig, &iSig, iPadFlag) == ERROR_SUCCESS)
+				NCryptSignHash(hNCryptKey, pPadInfo, pHashData, iHashDataSize, NULL, 0, &iSig, iPadFlag) == ERROR_SUCCESS &&
+				NCryptSignHash(hNCryptKey, pPadInfo, pHashData, iHashDataSize, pSig = snewn(iSig, BYTE), iSig, &iSig, iPadFlag) == ERROR_SUCCESS)
 			{
 				pSignedData = pSig;
 				*iSigLen = iSig;
 				pSig = NULL;
+
+				// add pin to cache if cache is enabled
+				if (cert_cache_enabled((DWORD)-1))
+				{
+					cert_pin(userkey->comment, TRUE, szPin, hWnd);
+				}
 			}
 
-			// cleanup hash structure and crypto provider
+			// cleanup hash structure and pin 
+			if (szPin != NULL) { SecureZeroMemory(szPin, wcslen(szPin) * sizeof(WCHAR)); free(szPin); }
 			if (pHashData != NULL) { free(pHashData); }
-			if (bMustFreeProvider == TRUE) { NCryptFreeObject(hCrypt); }
 		}
 
-		// cleanup intermediate signing data
-		if (pSig != NULL) { sfree(pSig); }
+		// cleanup crypto structures and intermediate signing data
+		if (hCryptProv != 0) CryptReleaseContext(hCryptProv, 0);
+		if (hNCryptProv != 0) NCryptFreeObject(hNCryptProv);
+		if (hNCryptKey != 0) NCryptFreeObject(hNCryptKey);
+		if (pSig != NULL) sfree(pSig);
+		if (pProviderInfo != NULL) sfree(pProviderInfo);
 	}
 
 	// cleanup certificate handles and return
