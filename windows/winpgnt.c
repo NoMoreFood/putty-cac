@@ -54,6 +54,7 @@
 #define IDM_ADDCAPI  0x0070
 #define IDM_ADDPKCS  0x0080
 #define IDM_AUTOCERT 0x0090
+#define IDM_PINCACHE 0x00A0
 #endif // PUTTY_CAC
 
 #define APPNAME "Pageant"
@@ -979,6 +980,14 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 		  }
 		  RegSetKeyValue(HKEY_CURRENT_USER, PUTTY_REG_POS, "AutoloadCerts", REG_DWORD, &AutoloadOn, sizeof(DWORD));
 	  } break;
+	  case IDM_PINCACHE: {
+		  DWORD iItem = CheckMenuItem(systray_menu, IDM_PINCACHE, MF_CHECKED);
+		  DWORD iNewState = (iItem == MF_CHECKED) ? MF_UNCHECKED : MF_CHECKED;
+		  CheckMenuItem(systray_menu, IDM_PINCACHE, iNewState);
+		  DWORD ForcePinCaching = (iNewState == MF_CHECKED);
+		  cert_cache_enabled(ForcePinCaching);
+		  RegSetKeyValue(HKEY_CURRENT_USER, PUTTY_REG_POS, "ForcePinCaching", REG_DWORD, &ForcePinCaching, sizeof(DWORD));
+	  } break;
 #endif // PUTTY_CAC
 	  case IDM_ABOUT:
 	    if (!aboutbox) {
@@ -1362,6 +1371,12 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 		}
 		sfree(pszCert);
 	}
+	/* Get Pin Caching Settings */
+	DWORD ForcePinCaching = 0;
+	DWORD ForcePinCachingSize = sizeof(ForcePinCaching);
+	RegGetValue(HKEY_CURRENT_USER, PUTTY_REG_POS, "ForcePinCaching",
+		RRF_RT_REG_DWORD, NULL, &ForcePinCaching, &ForcePinCachingSize);
+	cert_cache_enabled(ForcePinCaching);
 #endif // PUTTY_CAC
 
     /* Accelerators used: nsvkxa */
@@ -1386,6 +1401,8 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 	AppendMenu(systray_menu, MF_SEPARATOR, 0, 0);
 	AppendMenu(systray_menu, MF_ENABLED | (AutoloadCerts)
 		? MF_CHECKED : MF_UNCHECKED, IDM_AUTOCERT, "Autoload Certs");
+	AppendMenu(systray_menu, MF_ENABLED | (ForcePinCaching)
+		? MF_CHECKED : MF_UNCHECKED, IDM_PINCACHE, "Force PIN Caching");
 #endif // PUTTY_CAC
     AppendMenu(systray_menu, MF_SEPARATOR, 0, 0);
     if (has_help())

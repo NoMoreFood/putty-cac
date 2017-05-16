@@ -37,27 +37,20 @@
 #include "pkcs\pkcs11.h"
 #pragma pack(pop, cryptoki)
 
-typedef struct PROGRAM_ITEM
-{
-	struct PROGRAM_ITEM * NextItem;
-	HMODULE Library;
-	CK_FUNCTION_LIST_PTR FunctionList;
-} PROGRAM_ITEM;
-
 // functions used within the capi module
 PCCERT_CONTEXT pkcs_get_cert_from_token(CK_FUNCTION_LIST_PTR FunctionList, CK_SESSION_HANDLE hSession, CK_OBJECT_HANDLE hObject);
-PROGRAM_ITEM * cert_pkcs_load_library(LPSTR szLibrary);
+CK_FUNCTION_LIST_PTR cert_pkcs_load_library(LPSTR szLibrary);
 void * pkcs_get_attribute_value(CK_FUNCTION_LIST_PTR FunctionList, CK_SESSION_HANDLE hSession,
 	CK_OBJECT_HANDLE hObject, CK_ATTRIBUTE_TYPE iAttribute, CK_ULONG_PTR iValueSize);
 void pkcs_lookup_token_cert(LPCSTR szCert, CK_SESSION_HANDLE_PTR phSession, CK_OBJECT_HANDLE_PTR phObject,
 	CK_ATTRIBUTE aFindCriteria[], CK_ULONG iFindCriteria, BOOL bReturnFirst);
 
-BYTE * cert_pkcs_sign(struct ssh2_userkey * userkey, LPCBYTE pDataToSign, int iDataToSignLen, int * iSigLen, HWND hwnd)
+BYTE * cert_pkcs_sign(struct ssh2_userkey * userkey, LPCBYTE pDataToSign, int iDataToSignLen, int * iSigLen, HWND hWnd)
 {
 	// get the library to load from based on comment
 	LPSTR szLibrary = strrchr(userkey->comment, '=') + 1;
-	PROGRAM_ITEM * hItem = cert_pkcs_load_library(szLibrary);
-	if (hItem == NULL) return NULL;
+	CK_FUNCTION_LIST_PTR pFunctionList = cert_pkcs_load_library(szLibrary);
+	if (pFunctionList == NULL) return NULL;
 
 	// handle lookup of rsa key
 	LPBYTE pLookupValue = NULL;
@@ -145,14 +138,14 @@ BYTE * cert_pkcs_sign(struct ssh2_userkey * userkey, LPCBYTE pDataToSign, int iD
 	// fetch the id of the public key so we can find 
 	// the corresponding private key id
 	CK_ULONG iSize = 0;
-	LPBYTE pSharedKeyId = pkcs_get_attribute_value(hItem->FunctionList,
+	LPBYTE pSharedKeyId = pkcs_get_attribute_value(pFunctionList,
 		hSession, hPublicKey, CKA_ID, &iSize);
 
 	// check for error
 	if (pSharedKeyId == NULL)
 	{
 		// error
-		hItem->FunctionList->C_CloseSession(hSession);
+		pFunctionList->C_CloseSession(hSession);
 		return NULL;
 	}
 
@@ -166,60 +159,53 @@ BYTE * cert_pkcs_sign(struct ssh2_userkey * userkey, LPCBYTE pDataToSign, int iD
 	// attempt to lookup the private key without logging in
 	CK_OBJECT_HANDLE hPrivateKey;
 	CK_ULONG iCertListSize = 0;
-	if ((hItem->FunctionList->C_FindObjectsInit(hSession, aFindPrivateCriteria, _countof(aFindPrivateCriteria))) != CKR_OK ||
-		hItem->FunctionList->C_FindObjects(hSession, &hPrivateKey, 1, &iCertListSize) != CKR_OK ||
-		hItem->FunctionList->C_FindObjectsFinal(hSession) != CKR_OK)
+	if ((pFunctionList->C_FindObjectsInit(hSession, aFindPrivateCriteria, _countof(aFindPrivateCriteria))) != CKR_OK ||
+		pFunctionList->C_FindObjects(hSession, &hPrivateKey, 1, &iCertListSize) != CKR_OK ||
+		pFunctionList->C_FindObjectsFinal(hSession) != CKR_OK)
 	{
 		// error
 		free(pSharedKeyId);
-		hItem->FunctionList->C_CloseSession(hSession);
+		pFunctionList->C_CloseSession(hSession);
 		return NULL;
 	}
 
 	// if could not find the key, prompt the user for the pin
 	if (iCertListSize == 0)
 	{
-		// prompt the user to enter the pin
-		CREDUI_INFO tCredInfo;
-		ZeroMemory(&tCredInfo, sizeof(CREDUI_INFO));
-		tCredInfo.hwndParent = hwnd;
-		tCredInfo.cbSize = sizeof(tCredInfo);
-		tCredInfo.pszCaptionText = "PuTTY Authentication";
-		tCredInfo.pszMessageText = "Please Enter Your Smart Card Credentials";
-		char szUserName[CREDUI_MAX_USERNAME_LENGTH + 1] = "<Using Smart Card>";
-		char szPassword[CREDUI_MAX_PASSWORD_LENGTH + 1] = "";
-		if (CredUIPromptForCredentials(&tCredInfo, "Smart Card", NULL, 0, szUserName, _countof(szUserName),
-			szPassword, _countof(szPassword), NULL, CREDUI_FLAGS_GENERIC_CREDENTIALS | CREDUI_FLAGS_KEEP_USERNAME) != ERROR_SUCCESS)
+		LPSTR szPin = cert_pin(userkey->comment, FALSE, NULL, hWnd);
+		if (szPin == NULL)
 		{
 			// error
-			SecureZeroMemory(szPassword, sizeof(szPassword));
 			free(pSharedKeyId);
-			hItem->FunctionList->C_CloseSession(hSession);
+			pFunctionList->C_CloseSession(hSession);
 			return NULL;
 		}
 
 		// login to the card to unlock the private key
-		if (hItem->FunctionList->C_Login(hSession, CKU_USER, (CK_UTF8CHAR_PTR)szPassword, strlen(szPassword)) != CKR_OK)
+		if (pFunctionList->C_Login(hSession, CKU_USER, (CK_UTF8CHAR_PTR)szPin, strlen(szPin)) != CKR_OK)
 		{
 			// error
-			SecureZeroMemory(szPassword, sizeof(szPassword));
+			SecureZeroMemory(szPin, strlen(szPin));
+			free(szPin);
 			free(pSharedKeyId);
-			hItem->FunctionList->C_CloseSession(hSession);
+			pFunctionList->C_CloseSession(hSession);
 			return NULL;
 		}
 
 		// cleanup creds
-		SecureZeroMemory(szPassword, sizeof(szPassword));
+		cert_pin(userkey->comment, FALSE, szPin, hWnd);
+		SecureZeroMemory(szPin, strlen(szPin));
+		free(szPin);
 
 		// attempt to lookup the private key
 		iCertListSize = 0;
-		if ((hItem->FunctionList->C_FindObjectsInit(hSession, aFindPrivateCriteria, _countof(aFindPrivateCriteria))) != CKR_OK ||
-			hItem->FunctionList->C_FindObjects(hSession, &hPrivateKey, 1, &iCertListSize) != CKR_OK ||
-			hItem->FunctionList->C_FindObjectsFinal(hSession) != CKR_OK)
+		if ((pFunctionList->C_FindObjectsInit(hSession, aFindPrivateCriteria, _countof(aFindPrivateCriteria))) != CKR_OK ||
+			pFunctionList->C_FindObjects(hSession, &hPrivateKey, 1, &iCertListSize) != CKR_OK ||
+			pFunctionList->C_FindObjectsFinal(hSession) != CKR_OK)
 		{
 			// error
 			free(pSharedKeyId);
-			hItem->FunctionList->C_CloseSession(hSession);
+			pFunctionList->C_CloseSession(hSession);
 			return FALSE;
 		}
 
@@ -228,7 +214,7 @@ BYTE * cert_pkcs_sign(struct ssh2_userkey * userkey, LPCBYTE pDataToSign, int iD
 		{
 			// error
 			free(pSharedKeyId);
-			hItem->FunctionList->C_CloseSession(hSession);
+			pFunctionList->C_CloseSession(hSession);
 			return NULL;
 		}
 	}
@@ -250,9 +236,9 @@ BYTE * cert_pkcs_sign(struct ssh2_userkey * userkey, LPCBYTE pDataToSign, int iD
 	// create the hash value
 	CK_BYTE_PTR pSignature = NULL;
 	CK_ULONG iSignatureLen = 0;
-	if (hItem->FunctionList->C_SignInit(hSession, &tSignMech, hPrivateKey) != CKR_OK ||
-		hItem->FunctionList->C_Sign(hSession, pHashData, iHashSize, NULL, &iSignatureLen) != CKR_OK ||
-		hItem->FunctionList->C_Sign(hSession, pHashData, iHashSize,
+	if (pFunctionList->C_SignInit(hSession, &tSignMech, hPrivateKey) != CKR_OK ||
+		pFunctionList->C_Sign(hSession, pHashData, iHashSize, NULL, &iSignatureLen) != CKR_OK ||
+		pFunctionList->C_Sign(hSession, pHashData, iHashSize,
 			pSignature = snewn(iSignatureLen, CK_BYTE), &iSignatureLen) != CKR_OK)
 	{
 		// something failed so cleanup signature
@@ -266,7 +252,7 @@ BYTE * cert_pkcs_sign(struct ssh2_userkey * userkey, LPCBYTE pDataToSign, int iD
 	// return the signature to the caller
 	sfree(pHashData);
 	*iSigLen = iSignatureLen;
-	hItem->FunctionList->C_CloseSession(hSession);
+	pFunctionList->C_CloseSession(hSession);
 	return pSignature;
 }
 
@@ -277,8 +263,8 @@ void cert_pkcs_load_cert(LPCSTR szCert, PCCERT_CONTEXT* ppCertCtx, HCERTSTORE* p
 	LPSTR szLibrary = strrchr(szThumb, '=');
 	*szLibrary++ = '\0';
 
-	PROGRAM_ITEM * hItem = cert_pkcs_load_library(szLibrary);
-	if (hItem == NULL) return;
+	CK_FUNCTION_LIST_PTR pFunctionList = cert_pkcs_load_library(szLibrary);
+	if (pFunctionList == NULL) return;
 
 	CK_BBOOL bFalse = 0;
 	CK_BBOOL bTrue = 1;
@@ -296,14 +282,21 @@ void cert_pkcs_load_cert(LPCSTR szCert, PCCERT_CONTEXT* ppCertCtx, HCERTSTORE* p
 
 	// lookup the cert in the token
 	*phStore = NULL;
-	*ppCertCtx = pkcs_get_cert_from_token(hItem->FunctionList, hSession, hObject);
+	*ppCertCtx = pkcs_get_cert_from_token(pFunctionList, hSession, hObject);
 
 	// cleanup
 	free(szThumb);
 }
 
-PROGRAM_ITEM * cert_pkcs_load_library(LPSTR szLibrary)
+CK_FUNCTION_LIST_PTR cert_pkcs_load_library(LPSTR szLibrary)
 {
+	typedef struct PROGRAM_ITEM
+	{
+		struct PROGRAM_ITEM * NextItem;
+		HMODULE Library;
+		CK_FUNCTION_LIST_PTR FunctionList;
+	} PROGRAM_ITEM;
+
 	static PROGRAM_ITEM * LibraryList = NULL;
 	HMODULE hModule = LoadLibrary(szLibrary);
 
@@ -323,7 +316,7 @@ PROGRAM_ITEM * cert_pkcs_load_library(LPSTR szLibrary)
 	{
 		if (hCurItem->Library == hModule)
 		{
-			return hCurItem;
+			return hCurItem->FunctionList;
 		}
 	}
 
@@ -364,7 +357,7 @@ PROGRAM_ITEM * cert_pkcs_load_library(LPSTR szLibrary)
 
 	// return the library info
 	LibraryList = hItem;
-	return hItem;
+	return hItem->FunctionList;
 }
 
 HCERTSTORE cert_pkcs_get_cert_store(LPCSTR * szHint, HWND hWnd)
@@ -382,13 +375,13 @@ HCERTSTORE cert_pkcs_get_cert_store(LPCSTR * szHint, HWND hWnd)
 	tFileNameInfo.nFilterIndex = 1;
 	if (GetOpenFileName(&tFileNameInfo) == 0) return NULL;
 
-	PROGRAM_ITEM * hItem = cert_pkcs_load_library(tFileNameInfo.lpstrFile);
-	if (hItem == NULL) return NULL;
+	CK_FUNCTION_LIST_PTR pFunctionList = cert_pkcs_load_library(tFileNameInfo.lpstrFile);
+	if (pFunctionList == NULL) return NULL;
 
 	// get slots -- assume a safe maximum
 	CK_SLOT_ID pSlotList[32];
 	CK_ULONG iSlotCount = _countof(pSlotList);
-	if (hItem->FunctionList->C_GetSlotList(FALSE, pSlotList, &iSlotCount) != CKR_OK)
+	if (pFunctionList->C_GetSlotList(FALSE, pSlotList, &iSlotCount) != CKR_OK)
 	{
 		return NULL;
 	}
@@ -402,13 +395,13 @@ HCERTSTORE cert_pkcs_get_cert_store(LPCSTR * szHint, HWND hWnd)
 	for (CK_ULONG iSlot = 0; iSlot < iSlotCount; iSlot++)
 	{
 		struct CK_TOKEN_INFO tTokenInfo;
-		if (hItem->FunctionList->C_GetTokenInfo(pSlotList[iSlot], &tTokenInfo) != CKR_OK)
+		if (pFunctionList->C_GetTokenInfo(pSlotList[iSlot], &tTokenInfo) != CKR_OK)
 		{
 			continue;
 		}
 
 		CK_SESSION_HANDLE hSession;
-		if (hItem->FunctionList->C_OpenSession(pSlotList[iSlot],
+		if (pFunctionList->C_OpenSession(pSlotList[iSlot],
 			CKF_SERIAL_SESSION | CKR_SESSION_READ_ONLY, NULL_PTR, NULL_PTR, &hSession) != CKR_OK)
 		{
 			continue;
@@ -426,12 +419,12 @@ HCERTSTORE cert_pkcs_get_cert_store(LPCSTR * szHint, HWND hWnd)
 		// enumerate all eligible certs in store
 		CK_OBJECT_HANDLE aCertList[32];
 		CK_ULONG iCertListSize = 0;
-		if (hItem->FunctionList->C_FindObjectsInit(hSession, aFindCriteria, _countof(aFindCriteria)) != CKR_OK ||
-			hItem->FunctionList->C_FindObjects(hSession, aCertList, _countof(aCertList), &iCertListSize) != CKR_OK ||
-			hItem->FunctionList->C_FindObjectsFinal(hSession) != CKR_OK)
+		if (pFunctionList->C_FindObjectsInit(hSession, aFindCriteria, _countof(aFindCriteria)) != CKR_OK ||
+			pFunctionList->C_FindObjects(hSession, aCertList, _countof(aCertList), &iCertListSize) != CKR_OK ||
+			pFunctionList->C_FindObjectsFinal(hSession) != CKR_OK)
 		{
 			// error
-			hItem->FunctionList->C_CloseSession(hSession);
+			pFunctionList->C_CloseSession(hSession);
 			continue;
 		}
 
@@ -439,7 +432,7 @@ HCERTSTORE cert_pkcs_get_cert_store(LPCSTR * szHint, HWND hWnd)
 		for (CK_ULONG iCert = 0; iCert < iCertListSize; iCert++)
 		{
 			PCCERT_CONTEXT pCertContext =
-				pkcs_get_cert_from_token(hItem->FunctionList, hSession, aCertList[iCert]);
+				pkcs_get_cert_from_token(pFunctionList, hSession, aCertList[iCert]);
 
 			// attributes to query from the certificate
 			if (pCertContext == NULL)
@@ -454,7 +447,7 @@ HCERTSTORE cert_pkcs_get_cert_store(LPCSTR * szHint, HWND hWnd)
 		}
 
 		// cleanup 
-		hItem->FunctionList->C_CloseSession(hSession);
+		pFunctionList->C_CloseSession(hSession);
 	}
 
 	if (szHint != NULL) *szHint = strdup(szFile);
@@ -522,8 +515,8 @@ void pkcs_lookup_token_cert(LPCSTR szCert, CK_SESSION_HANDLE_PTR phSession, CK_O
 	CK_ATTRIBUTE aFindCriteria[], CK_ULONG iFindCriteria, BOOL bReturnFirst)
 {
 	LPSTR szLibrary = strrchr(szCert, '=') + 1;
-	PROGRAM_ITEM * hItem = cert_pkcs_load_library(szLibrary);
-	if (hItem == NULL) return;
+	CK_FUNCTION_LIST_PTR pFunctionList = cert_pkcs_load_library(szLibrary);
+	if (pFunctionList == NULL) return;
 
 	// set default return values
 	*phSession = 0;
@@ -540,93 +533,88 @@ void pkcs_lookup_token_cert(LPCSTR szCert, CK_SESSION_HANDLE_PTR phSession, CK_O
 			cryptHashBlob.pbData, &cryptHashBlob.cbData, NULL, NULL);
 	}
 
-	// enumerate all loaded libraries
-	for (PROGRAM_ITEM * hCurItem = hItem; hCurItem != NULL; hCurItem = hCurItem->NextItem)
+	// get slots -- assume a safe maximum
+	CK_SLOT_ID pSlotList[32];
+	CK_ULONG iSlotCount = _countof(pSlotList);
+	if (pFunctionList->C_GetSlotList(FALSE, pSlotList, &iSlotCount) != CKR_OK)
 	{
-		// get slots -- assume a safe maximum
-		CK_SLOT_ID pSlotList[32];
-		CK_ULONG iSlotCount = _countof(pSlotList);
-		if (hItem->FunctionList->C_GetSlotList(FALSE, pSlotList, &iSlotCount) != CKR_OK)
+		return;
+	}
+
+	// enumerate all slot counts
+	for (CK_ULONG iSlot = 0; iSlot < iSlotCount; iSlot++)
+	{
+		struct CK_TOKEN_INFO tTokenInfo;
+		if (pFunctionList->C_GetTokenInfo(pSlotList[iSlot], &tTokenInfo) != CKR_OK)
 		{
+			continue;
+		}
+
+		CK_SESSION_HANDLE hSession;
+		if (pFunctionList->C_OpenSession(pSlotList[iSlot],
+			CKF_SERIAL_SESSION | CKF_RW_SESSION, NULL_PTR, NULL_PTR, &hSession) != CKR_OK)
+		{
+			continue;
+		}
+
+		// enumerate all eligible certs in store
+		CK_OBJECT_HANDLE aCertList[32];
+		CK_ULONG iCertListSize = 0;
+		if ((pFunctionList->C_FindObjectsInit(hSession, aFindCriteria, iFindCriteria)) != CKR_OK ||
+			pFunctionList->C_FindObjects(hSession, aCertList, _countof(aCertList), &iCertListSize) != CKR_OK ||
+			pFunctionList->C_FindObjectsFinal(hSession) != CKR_OK)
+		{
+			// error
+			pFunctionList->C_CloseSession(hSession);
+			continue;
+		}
+
+		// no specific cert was requested so just return the first found cert
+		if (bReturnFirst && iCertListSize > 0)
+		{
+			*phSession = hSession;
+			*phObject = *aCertList;
 			return;
 		}
 
-		// enumerate all slot counts
-		for (CK_ULONG iSlot = 0; iSlot < iSlotCount; iSlot++)
+		// enumerate the discovered certificates
+		for (CK_ULONG iCert = 0; iCert < iCertListSize; iCert++)
 		{
-			struct CK_TOKEN_INFO tTokenInfo;
-			if (hItem->FunctionList->C_GetTokenInfo(pSlotList[iSlot], &tTokenInfo) != CKR_OK)
-			{
-				continue;
-			}
+			// decode windows cert object from 
+			PCCERT_CONTEXT pCertContext =
+				pkcs_get_cert_from_token(pFunctionList, hSession, aCertList[iCert]);
 
-			CK_SESSION_HANDLE hSession;
-			if (hItem->FunctionList->C_OpenSession(pSlotList[iSlot],
-				CKF_SERIAL_SESSION | CKF_RW_SESSION, NULL_PTR, NULL_PTR, &hSession) != CKR_OK)
-			{
-				continue;
-			}
-
-			// enumerate all eligible certs in store
-			CK_OBJECT_HANDLE aCertList[32];
-			CK_ULONG iCertListSize = 0;
-			int i = 0;
-			if ((i = hItem->FunctionList->C_FindObjectsInit(hSession, aFindCriteria, iFindCriteria)) != CKR_OK ||
-				hItem->FunctionList->C_FindObjects(hSession, aCertList, _countof(aCertList), &iCertListSize) != CKR_OK ||
-				hItem->FunctionList->C_FindObjectsFinal(hSession) != CKR_OK)
+			// attributes to query from the certificate
+			if (pCertContext == NULL)
 			{
 				// error
-				hItem->FunctionList->C_CloseSession(hSession);
 				continue;
 			}
 
-			// no specific cert was requested so just return the first found cert
-			if (bReturnFirst && iCertListSize > 0)
+			// get the sha1 hash and see if it matches
+			BYTE pbThumbBinary[SHA1_BINARY_SIZE];
+			DWORD cbThumbBinary = SHA1_BINARY_SIZE;
+			BOOL bCertFound = FALSE;
+			if (CertGetCertificateContextProperty(pCertContext, CERT_HASH_PROP_ID, pbThumbBinary, &cbThumbBinary) == TRUE &&
+				memcmp(pbThumb, pbThumbBinary, cbThumbBinary) == 0)
+			{
+				bCertFound = TRUE;
+			}
+
+			// free up our temporary blob
+			CertFreeCertificateContext(pCertContext);
+
+			// if found, return session and handle
+			if (bCertFound)
 			{
 				*phSession = hSession;
-				*phObject = *aCertList;
+				*phObject = aCertList[iCert];
 				return;
 			}
-
-			// enumerate the discovered certificates
-			for (CK_ULONG iCert = 0; iCert < iCertListSize; iCert++)
-			{
-				// decode windows cert object from 
-				PCCERT_CONTEXT pCertContext =
-					pkcs_get_cert_from_token(hItem->FunctionList, hSession, aCertList[iCert]);
-
-				// attributes to query from the certificate
-				if (pCertContext == NULL)
-				{
-					// error
-					continue;
-				}
-
-				// get the sha1 hash and see if it matches
-				BYTE pbThumbBinary[SHA1_BINARY_SIZE];
-				DWORD cbThumbBinary = SHA1_BINARY_SIZE;
-				BOOL bCertFound = FALSE;
-				if (CertGetCertificateContextProperty(pCertContext, CERT_HASH_PROP_ID, pbThumbBinary, &cbThumbBinary) == TRUE &&
-					memcmp(pbThumb, pbThumbBinary, cbThumbBinary) == 0)
-				{
-					bCertFound = TRUE;
-				}
-
-				// free up our temporary blob
-				CertFreeCertificateContext(pCertContext);
-
-				// if found, return session and handle
-				if (bCertFound)
-				{
-					*phSession = hSession;
-					*phObject = aCertList[iCert];
-					return;
-				}
-			}
-
-			// cleanup
-			hItem->FunctionList->C_CloseSession(pSlotList[iSlot]);
 		}
+
+		// cleanup
+		pFunctionList->C_CloseSession(pSlotList[iSlot]);
 	}
 }
 

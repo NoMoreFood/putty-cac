@@ -7,6 +7,7 @@
 #include <wincrypt.h>
 #include <cryptdlg.h>
 #include <cryptuiapi.h>
+#include <wincred.h>
 
 #include "cert_pkcs.h"
 #include "cert_capi.h"
@@ -193,13 +194,11 @@ struct ssh2_userkey * cert_get_ssh_userkey(LPCSTR szCert, PCERT_CONTEXT pCertCon
 {
 	struct ssh2_userkey * pUserKey = NULL;
 
-	// allocate and fetch key provider information
-	WCHAR sAlgoId[16] = L"";
-	DWORD iAlgoIdSize = sizeof(sAlgoId);
-	CertGetCertificateContextProperty(pCertContext, CERT_SIGN_HASH_CNG_ALG_PROP_ID, &sAlgoId, &iAlgoIdSize);
+	// get a convenience pointer to the algorithm identifier 
+	LPCSTR sAlgoId = pCertContext->pCertInfo->SubjectPublicKeyInfo.Algorithm.pszObjId;
 
 	// Handle RSA Keys
-	if (wcsstr(sAlgoId, L"RSA/") == sAlgoId)
+	if (strstr(sAlgoId, _CRT_CONCATENATE(szOID_RSA, ".")) == sAlgoId)
 	{
 		// get the size of the space required
 		PCRYPT_BIT_BLOB pKeyData = _ADDRESSOF(pCertContext->pCertInfo->SubjectPublicKeyInfo.PublicKey);
@@ -236,7 +235,7 @@ struct ssh2_userkey * cert_get_ssh_userkey(LPCSTR szCert, PCERT_CONTEXT pCertCon
 	}
 
 	// Handle ECC Keys
-	else if (wcsstr(sAlgoId, L"ECDSA/") == sAlgoId)
+	else if (strstr(sAlgoId, szOID_ECC_PUBLIC_KEY) == sAlgoId)
 	{
 		BCRYPT_KEY_HANDLE hBCryptKey = NULL;
 		if (CryptImportPublicKeyInfoEx2(X509_ASN_ENCODING, _ADDRESSOF(pCertContext->pCertInfo->SubjectPublicKeyInfo),
@@ -257,6 +256,7 @@ struct ssh2_userkey * cert_get_ssh_userkey(LPCSTR szCert, PCERT_CONTEXT pCertCon
 				int iKeyBytes = (iKeyLength + 7) / 8; // round up
 				ec->publicKey.x = bignum_from_bytes(pEccKey + sizeof(BCRYPT_ECCKEY_BLOB), iKeyBytes);
 				ec->publicKey.y = bignum_from_bytes(pEccKey + sizeof(BCRYPT_ECCKEY_BLOB) + iKeyBytes, iKeyBytes);
+				ec->privateKey = bignum_from_long(0);
 
 				// fill out the user key
 				pUserKey = snew(struct ssh2_userkey);
@@ -298,7 +298,10 @@ struct ssh2_userkey * cert_load_key(LPCSTR szCert)
 	if (pCertContext == NULL) return NULL;
 
 	// get the public key data
-	return cert_get_ssh_userkey(szCert, pCertContext);
+	struct ssh2_userkey * pUserKey = cert_get_ssh_userkey(szCert, pCertContext);
+	CertFreeCertificateContext(pCertContext);
+	CertCloseStore(hCertStore, 0);
+	return pUserKey;
 }
 
 LPSTR cert_key_string(LPCSTR szCert)
@@ -403,21 +406,28 @@ int cert_all_certs(LPSTR ** pszCert)
 
 void cert_convert_legacy(LPSTR szCert)
 {
+	// advance string pass 'CAPI:' if already present
+	LPSTR sCompare = szCert;
+	if (strstr(szCert, "CAPI:") == szCert)
+	{
+		sCompare = &szCert[IDEN_CAPI_SIZE];
+	}
+
 	// search for 'User\MY\' and replace with 'CAPI:'
 	LPSTR szIdenLegacyUsr = "User\\MY\\";
-	if (strstr(szCert, szIdenLegacyUsr) == szCert)
+	if (strstr(sCompare, szIdenLegacyUsr) == sCompare)
 	{
 		strcpy(szCert, IDEN_CAPI);
-		strcpy(&szCert[IDEN_CAPI_SIZE], &szCert[strlen(szIdenLegacyUsr)]);
+		strcpy(&szCert[IDEN_CAPI_SIZE], &sCompare[strlen(szIdenLegacyUsr)]);
 		strlwr(&szCert[IDEN_CAPI_SIZE]);
 	}
 
 	// search for 'System\MY\' and replace with 'CAPI:'
-	LPSTR szIdenLegacySys = "System\\MY\\";
-	if (strstr(szCert, szIdenLegacySys) == szCert)
+	LPSTR szIdenLegacySys = "Machine\\MY\\";
+	if (strstr(sCompare, szIdenLegacySys) == sCompare)
 	{
 		strcpy(szCert, IDEN_CAPI);
-		strcpy(&szCert[IDEN_CAPI_SIZE], &szCert[strlen(szIdenLegacySys)]);
+		strcpy(&szCert[IDEN_CAPI_SIZE], &sCompare[strlen(szIdenLegacySys)]);
 		strlwr(&szCert[IDEN_CAPI_SIZE]);
 	}
 }
@@ -479,6 +489,96 @@ LPBYTE cert_get_hash(LPCSTR szAlgo, LPCBYTE pDataToHash, DWORD iDataToHashSize, 
 	if (hHash != (ULONG_PTR)NULL) CryptDestroyHash(hHash);
 	if (hHashProv != (ULONG_PTR)NULL) CryptReleaseContext(hHashProv, 0);
 	return pHashData;
+}
+
+PVOID cert_pin(LPSTR szCert, BOOL bUnicode, LPVOID szPin, HWND hWnd)
+{
+	typedef struct CACHE_ITEM
+	{
+		struct CACHE_ITEM * NextItem;
+		LPSTR szCert;
+		VOID * szPin;
+		DWORD iLength;
+		BOOL bUnicode;
+		DWORD iSize;
+	}
+	CACHE_ITEM;
+
+	static CACHE_ITEM * PinCacheList = NULL;
+
+	// attempt to locate the item in the pin cache
+	for (CACHE_ITEM * hCurItem = PinCacheList; hCurItem != NULL; hCurItem = hCurItem->NextItem)
+	{
+		if (strcmp(hCurItem->szCert, szCert) == 0)
+		{
+			VOID * pEncrypted = memcpy(malloc(hCurItem->iLength), hCurItem->szPin, hCurItem->iLength);
+			CryptUnprotectMemory(pEncrypted, hCurItem->iLength, CRYPTPROTECTMEMORY_SAME_PROCESS);
+			return pEncrypted;
+		}
+	}
+
+	// request to add item to pin cache
+	if (szPin != NULL)
+	{
+		// determine length of storage (round up to block size)
+		DWORD iLength = ((bUnicode) ? sizeof(WCHAR) : sizeof(CHAR)) *
+			(1 + ((bUnicode) ? wcslen(szPin) : strlen(szPin)));
+		DWORD iCryptLength = CRYPTPROTECTMEMORY_BLOCK_SIZE *
+			((iLength / CRYPTPROTECTMEMORY_BLOCK_SIZE) + 1);
+		VOID * pEncrypted = memcpy(malloc(iCryptLength), szPin, iLength);
+
+		// encrypt memory
+		CryptProtectMemory(pEncrypted, iCryptLength,
+			CRYPTPROTECTMEMORY_SAME_PROCESS);
+
+		// allocate new item in cache and commit the change
+		CACHE_ITEM * hItem = (CACHE_ITEM *)calloc(1, sizeof(struct CACHE_ITEM));
+		hItem->szCert = strdup(szCert);
+		hItem->szPin = pEncrypted;
+		hItem->iLength = iCryptLength;
+		hItem->bUnicode = bUnicode;
+		hItem->NextItem = PinCacheList;
+		PinCacheList = hItem;
+		return NULL;
+	}
+
+	// prompt the user to enter the pin
+	CREDUI_INFOW tCredInfo;
+	ZeroMemory(&tCredInfo, sizeof(CREDUI_INFO));
+	tCredInfo.hwndParent = hWnd;
+	tCredInfo.cbSize = sizeof(tCredInfo);
+	tCredInfo.pszCaptionText = L"PuTTY Authentication";
+	tCredInfo.pszMessageText = L"Please Enter Your Smart Card Credentials";
+	WCHAR szUserName[CREDUI_MAX_USERNAME_LENGTH + 1] = L"<Using Smart Card>";
+	WCHAR szPassword[CREDUI_MAX_PASSWORD_LENGTH + 1] = L"";
+	if (CredUIPromptForCredentialsW(&tCredInfo, L"Smart Card", NULL, 0, szUserName,
+		_countof(szUserName), szPassword, _countof(szPassword), NULL,
+		CREDUI_FLAGS_GENERIC_CREDENTIALS | CREDUI_FLAGS_KEEP_USERNAME) != ERROR_SUCCESS)
+	{
+		return NULL;
+	}
+
+	PVOID szReturn = NULL;
+	if (bUnicode)
+	{
+		szReturn = wcsdup(szPassword);
+	}
+	else
+	{
+		CHAR szPasswordAscii[CREDUI_MAX_PASSWORD_LENGTH + 1] = "";
+		WideCharToMultiByte(CP_ACP, 0, szPassword, -1, szPasswordAscii, sizeof(szPasswordAscii), NULL, NULL);
+		szReturn = strdup(szPasswordAscii);
+	}
+
+	SecureZeroMemory(szPassword, sizeof(szPassword));
+	return szReturn;
+}
+
+EXTERN BOOL cert_cache_enabled(DWORD bEnable)
+{
+	static BOOL bCacheEnabled = FALSE;
+	if (bEnable != -1) bCacheEnabled = bEnable;
+	return bCacheEnabled;
 }
 
 #endif // PUTTY_CAC
