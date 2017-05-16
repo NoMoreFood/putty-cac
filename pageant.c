@@ -527,7 +527,7 @@ void *pageant_handle_msg(const void *msg, int msglen, int *outlen,
 #ifdef PUTTY_CAC
 		if (cert_is_certpath(key->comment))
 		{
-			signature = cert_sign(key, (const char *)data, datalen, &siglen, hwnd);
+			signature = cert_sign(key, (const char *)data, datalen, &siglen, NULL);
 		}
 		else
 #endif
