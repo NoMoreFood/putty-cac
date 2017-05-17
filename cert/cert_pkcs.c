@@ -293,12 +293,26 @@ CK_FUNCTION_LIST_PTR cert_pkcs_load_library(LPSTR szLibrary)
 	typedef struct PROGRAM_ITEM
 	{
 		struct PROGRAM_ITEM * NextItem;
+		LPSTR * Path;
 		HMODULE Library;
 		CK_FUNCTION_LIST_PTR FunctionList;
 	} PROGRAM_ITEM;
 
 	static PROGRAM_ITEM * LibraryList = NULL;
-	HMODULE hModule = LoadLibrary(szLibrary);
+
+	// see if module was already loaded
+	for (PROGRAM_ITEM * hCurItem = LibraryList; hCurItem != NULL; hCurItem = hCurItem->NextItem)
+	{
+		if (stricmp(hCurItem->Path,szLibrary) == 0)
+		{
+			return hCurItem->FunctionList;
+		}
+	}
+
+	// load the library and allow the loader to search the directory the dll is 
+	// being loaded in and the system directory
+	HMODULE hModule = LoadLibraryEx(szLibrary, 
+		NULL, LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR | LOAD_LIBRARY_SEARCH_SYSTEM32);
 
 	// validate library was loaded
 	if (hModule == NULL)
@@ -311,26 +325,11 @@ CK_FUNCTION_LIST_PTR cert_pkcs_load_library(LPSTR szLibrary)
 		return NULL;
 	}
 
-	// see if module was already loaded
-	for (PROGRAM_ITEM * hCurItem = LibraryList; hCurItem != NULL; hCurItem = hCurItem->NextItem)
-	{
-		if (hCurItem->Library == hModule)
-		{
-			return hCurItem->FunctionList;
-		}
-	}
-
-	// if not already loaded, add it to the list
-	PROGRAM_ITEM * hItem = (PROGRAM_ITEM *)calloc(1, sizeof(struct PROGRAM_ITEM));
-	hItem->Library = hModule;
-	hItem->NextItem = LibraryList;
-
 	// load the master function list for the librar
-	hItem->FunctionList;
+	CK_FUNCTION_LIST_PTR hFunctionList = NULL;
 	CK_C_GetFunctionList C_GetFunctionList =
 		(CK_C_GetFunctionList)GetProcAddress(hModule, "C_GetFunctionList");
-	if (hItem == NULL || C_GetFunctionList == NULL ||
-		C_GetFunctionList(&(hItem->FunctionList)) != CKR_OK)
+	if (C_GetFunctionList == NULL || C_GetFunctionList(&hFunctionList) != CKR_OK)
 	{
 		// does not look like a valid PKCS library
 		LPCSTR szMessage = "PuTTY was able to read the selected library file " \
@@ -340,22 +339,25 @@ CK_FUNCTION_LIST_PTR cert_pkcs_load_library(LPSTR szLibrary)
 
 		// error - cleanup and return
 		FreeLibrary(hModule);
-		free(hItem);
 		return NULL;
 	}
 
 	// run the library initialization
-	CK_LONG iLong = hItem->FunctionList->C_Initialize(NULL_PTR);
+	CK_LONG iLong = hFunctionList->C_Initialize(NULL_PTR);
 	if (iLong != CKR_OK &&
 		iLong != CKR_CRYPTOKI_ALREADY_INITIALIZED)
 	{
 		// error - cleanup and return
 		FreeLibrary(hModule);
-		free(hItem);
 		return NULL;
 	}
 
-	// return the library info
+	// add the item to the linked list
+	PROGRAM_ITEM * hItem = (PROGRAM_ITEM *)calloc(1, sizeof(struct PROGRAM_ITEM));
+	hItem->Path = strdup(szLibrary);
+	hItem->Library = hModule;
+	hItem->FunctionList = hFunctionList;
+	hItem->NextItem = LibraryList;
 	LibraryList = hItem;
 	return hItem->FunctionList;
 }
