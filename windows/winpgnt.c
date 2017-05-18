@@ -352,14 +352,10 @@ void keylist_update(void)
 #ifdef PUTTY_CAC		
 		if (cert_is_certpath(skey->comment))
 		{
-			*strrchr(listentry, ' ') = '\0';
-			char * iden = dupstr(skey->comment);
-			if (strrchr(iden, '=') != NULL) *strrchr(iden, '=') = '\0';
-			char * listentrynew = dupprintf("%s\t%s\t%s", listentry,
-				IDEN_SPLIT(iden), IDEN_TYPE(iden));
-			sfree(iden);
-			sfree(listentry);
-			listentry = listentrynew;
+			// reformat the list entry to be more readable by trimming off 
+			// everything after the CAPI or PKCS comment identifier
+			if (strrchr(listentry, '=') != NULL) *strrchr(listentry, '=') = '\0';
+			if (strrchr(listentry, ':') != NULL) *strrchr(listentry, ':') = '\0';
 		}
 #endif
             pos = 0;
@@ -1388,14 +1384,9 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 		   (UINT_PTR) session_menu, "&Saved Sessions");
 	AppendMenu(systray_menu, MF_SEPARATOR, 0, 0);
     }
-    AppendMenu(systray_menu, MF_ENABLED, IDM_VIEWKEYS,
 #ifdef PUTTY_CAC
-	   "&View Keys && Certs");
-#else
-	   "&View Keys");
-#endif
-    AppendMenu(systray_menu, MF_ENABLED, IDM_ADDKEY, "Add &Key");
-#ifdef PUTTY_CAC	
+    AppendMenu(systray_menu, MF_ENABLED, IDM_VIEWKEYS, "&View Keys && Certs");
+	AppendMenu(systray_menu, MF_ENABLED, IDM_ADDKEY, "Add PuTTY &Key");
 	AppendMenu(systray_menu, MF_ENABLED, IDM_ADDCAPI, "Add &CAPI Cert");
 	AppendMenu(systray_menu, MF_ENABLED, IDM_ADDPKCS, "Add &PKCS Cert");
 	AppendMenu(systray_menu, MF_SEPARATOR, 0, 0);
@@ -1403,6 +1394,10 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 		? MF_CHECKED : MF_UNCHECKED, IDM_AUTOCERT, "Autoload Certs");
 	AppendMenu(systray_menu, MF_ENABLED | (ForcePinCaching)
 		? MF_CHECKED : MF_UNCHECKED, IDM_PINCACHE, "Force PIN Caching");
+#else 
+	AppendMenu(systray_menu, MF_ENABLED, IDM_VIEWKEYS,
+		"&View Keys");
+	AppendMenu(systray_menu, MF_ENABLED, IDM_ADDKEY, "Add &Key");
 #endif // PUTTY_CAC
     AppendMenu(systray_menu, MF_SEPARATOR, 0, 0);
     if (has_help())
