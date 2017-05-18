@@ -47,13 +47,8 @@ EXTERN LPBYTE cert_get_hash(LPCSTR szAlgo, LPCBYTE pDataToHash, DWORD iDataToHas
 #define IDEN_TYPE(p) (cert_is_capipath(p) ? "CAPI" : "PKCS")
 
 #define cert_is_capipath(p) (strnicmp((LPSTR) p, IDEN_CAPI, IDEN_CAPI_SIZE) == 0)
-#define cert_is_capipath_len(p,l) ((l) >= IDEN_CAPI_SIZE && cert_is_capipath(p))
-
 #define cert_is_pkcspath(p) (strnicmp((LPSTR) p, IDEN_PKCS, IDEN_PKCS_SIZE) == 0)
-#define cert_is_pkcspath_len(p,l) ((l) >= IDEN_PKCS_SIZE && cert_is_pkcspath(p))
-
 #define cert_is_certpath(p) (p != NULL && (cert_is_capipath(p) || cert_is_pkcspath(p)))
-#define cert_is_certpath_len(p,l) (cert_is_capipath_len(p,l) || cert_is_pkcspath_len(p,l))
 
 #endif /* USE_CAPI */
 
