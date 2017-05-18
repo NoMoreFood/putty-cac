@@ -103,7 +103,15 @@ agent_pending_query *agent_query(
      * query is required to be synchronous) or CreateThread failed.
      * Either way, we need a synchronous request.
      */
+#ifdef PUTTY_CAC
+	HWND hCallingWindow = GetActiveWindow();
+	SetFocus(hwnd);
+	BringWindowToTop(hwnd);
+#endif // PUTTY_CAC
     id = SendMessage(hwnd, WM_COPYDATA, (WPARAM) NULL, (LPARAM) &cds);
+#ifdef PUTTY_CAC
+	SetFocus(hCallingWindow);
+#endif // PUTTY_CAC
     if (id > 0) {
 	retlen = 4 + GET_32BIT(p);
 	ret = snewn(retlen, unsigned char);
