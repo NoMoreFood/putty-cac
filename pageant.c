@@ -11,7 +11,7 @@
 #include "pageant.h"
 
 #ifdef PUTTY_CAC
-#include "capi.h"
+#include "cert_common.h"
 #endif // PUTTY_CAC
 
 /*
@@ -37,9 +37,6 @@ static int pageant_local = FALSE;
  * rsakeys stores SSH-1 RSA keys. ssh2keys stores all SSH-2 keys.
  */
 static tree234 *rsakeys, *ssh2keys;
-#ifdef PUTTY_CAC
-static tree234 *capikeys;
-#endif // PUTTY_CAC
 
 /*
  * Blob structure for passing to the asymmetric SSH-2 key compare
@@ -171,37 +168,6 @@ static int cmpkeys_ssh2_asymm(void *av, void *bv)
     return c;
 }
 
-#ifdef PUTTY_CAC
-// Key comparison function for the 2-3-4 tree of CAPI keys (struct capi_userkey) where the first argument is a blob.
-static int cmpkeys_capi(void *av, void *bv) {
-	struct capi_userkey *a = (struct capi_userkey *) av;
-	struct capi_userkey *b = (struct capi_userkey *) bv;
-	int i;
-	int c;
-	
-	/*
-	* Compare purely by public blob.
-	*/
-	c = 0;
-	for (i = 0; i < a->bloblen && i < b->bloblen; i++) {
-		if (a->blob[i] < b->blob[i]) {
-			c = -1;
-			break;
-		}
-		else if (a->blob[i] > b->blob[i]) {
-			c = +1;
-			break;
-		}
-	}
-	if (c == 0 && i < a->bloblen)
-		c = +1;                        /* a is longer */
-	if (c == 0 && i < b->bloblen)
-		c = -1;                        /* b is longer */
-
-	return c;
-}
-#endif // PUTTY_CAC
-
 /*
  * Create an SSH-1 key list in a malloc'ed buffer; return its
  * length.
@@ -252,10 +218,6 @@ void *pageant_make_keylist1(int *length)
  */
 void *pageant_make_keylist2(int *length)
 {
-#ifdef PUTTY_CAC
-	struct capi_userkey *ckey;
-	char *comment;
-#endif PUTTY_CAC
     struct ssh2_userkey *key;
     int i, len, nkeys;
     unsigned char *blob, *p, *ret;
@@ -274,15 +236,6 @@ void *pageant_make_keylist2(int *length)
 	sfree(blob);
 	len += 4 + strlen(key->comment);
     }
-
-#ifdef PUTTY_CAC
-	for (i = 0; NULL != (ckey = index234(capikeys, i)); i++) {
-		nkeys++;
-		len += 4;              /* length field */
-		len += ckey->bloblen;
-		len += 4 + strlen(ckey->certid) + 5; /* "CAPI:" */
-	}
-#endif /* PUTTY_CAC */
 
     /* Allocate the buffer. */
     p = ret = snewn(len, unsigned char);
@@ -305,20 +258,6 @@ void *pageant_make_keylist2(int *length)
 	memcpy(p + 4, key->comment, strlen(key->comment));
 	p += 4 + strlen(key->comment);
     }
-
-#ifdef PUTTY_CAC
-	for (i = 0; NULL != (ckey = index234(capikeys, i)); i++) {
-		PUT_32BIT(p, ckey->bloblen);
-		p += 4;
-		memcpy(p, ckey->blob, ckey->bloblen);
-		p += ckey->bloblen;
-		comment = capi_userkey_getcomment(ckey);
-		PUT_32BIT(p, strlen(comment));
-		memcpy(p + 4, comment, strlen(comment));
-		p += 4 + strlen(comment);
-		free(comment);
-	}
-#endif /* PUTTY_CAC */
 
     assert(p - ret == len);
     return ret;
@@ -544,9 +483,6 @@ void *pageant_handle_msg(const void *msg, int msglen, int *outlen,
 	 * or not.
 	 */
 	{
-#ifdef PUTTY_CAC
-		struct capi_userkey *ckey;
-#endif // PUTTY_CAC
 	    struct ssh2_userkey *key;
 	    struct blob b;
 	    const unsigned char *data;
@@ -583,24 +519,20 @@ void *pageant_handle_msg(const void *msg, int msglen, int *outlen,
                 plog(logctx, logfn, "requested key: %s", fingerprint);
                 sfree(fingerprint);
             }
-#ifdef PUTTY_CAC
-		ckey = find234(capikeys, &b, cmpkeys_capi);
-		if (ckey) {
-			if ((signature = capi_sig_certid(ckey->certid, data, datalen, &siglen)) == NULL)
-				goto failure;
-		}
-		else {
-#endif // PUTTY_CAC
 	    key = find234(ssh2keys, &b, cmpkeys_ssh2_asymm);
 	    if (!key) {
                 fail_reason = "key not found";
 		goto failure;
             }
+#ifdef PUTTY_CAC
+		if (cert_is_certpath(key->comment))
+		{
+			signature = cert_sign(key, (const char *)data, datalen, &siglen, NULL);
+		}
+		else
+#endif
 	    signature = key->alg->sign(key->data, (const char *)data,
                                        datalen, &siglen);
-#ifdef PUTTY_CAC
-		}
-#endif // PUTTY_CAC
 	    len = 5 + 4 + siglen;
 	    PUT_32BIT(ret, len - 4);
 	    ret[4] = SSH2_AGENT_SIGN_RESPONSE;
@@ -744,33 +676,6 @@ void *pageant_handle_msg(const void *msg, int msglen, int *outlen,
             }
 	    alg = (const char *)p;
 	    p += alglen;
-
-#ifdef PUTTY_CAC
-		if (alglen == 4 && memcmp(alg, "CAPI", 4) == 0) {
-			struct capi_userkey *ckey;
-			const char *certid;
-			int certidlen;
-
-			if (msgend < p + 4)
-				goto failure;
-			certidlen = GET_32BIT(p);
-			p += 4;
-
-			if (msgend < p + certidlen)
-				goto failure;
-			certid = p;
-
-			if ((ckey = create_capi_userkey(certid, NULL)) == NULL)
-				goto failure;
-			if (add234(capikeys, ckey) != ckey)
-				free_capi_userkey(ckey); // already loaded, free our (unused) copy
-
-			PUT_32BIT(ret, 1);
-			ret[4] = SSH_AGENT_SUCCESS;
-			keylist_update();
-			break;
-		}
-#endif // PUTTY_CAC
 
 	    key = snew(struct ssh2_userkey);
             key->alg = find_pubkey_alg_len(alglen, alg);
@@ -1011,10 +916,7 @@ void pageant_init(void)
 {
     pageant_local = TRUE;
     rsakeys = newtree234(cmpkeys_rsa);
-	ssh2keys = newtree234(cmpkeys_ssh2);
-#ifdef PUTTY_CAC
-	capikeys = newtree234(cmpkeys_capi);
-#endif // PUTTY_CAC
+    ssh2keys = newtree234(cmpkeys_ssh2);
 }
 
 struct RSAKey *pageant_nth_ssh1_key(int i)
@@ -1027,13 +929,6 @@ struct ssh2_userkey *pageant_nth_ssh2_key(int i)
     return index234(ssh2keys, i);
 }
 
-#ifdef PUTTY_CAC
-struct capi_userkey *pageant_nth_capi_key(int i)
-{
-	return index234(capikeys, i);
-}
-#endif // PUTTY_CAC
-
 int pageant_count_ssh1_keys(void)
 {
     return count234(rsakeys);
@@ -1044,13 +939,6 @@ int pageant_count_ssh2_keys(void)
     return count234(ssh2keys);
 }
 
-#ifdef PUTTY_CAC
-int pageant_count_capi_keys(void)
-{
-	return count234(capikeys);
-}
-#endif // PUTTY_CAC
-
 int pageant_add_ssh1_key(struct RSAKey *rkey)
 {
     return add234(rsakeys, rkey) == rkey;
@@ -1060,13 +948,6 @@ int pageant_add_ssh2_key(struct ssh2_userkey *skey)
 {
     return add234(ssh2keys, skey) == skey;
 }
-
-#ifdef PUTTY_CAC
-int pageant_add_capi_key(struct capi_userkey *ckey)
-{
-	return add234(capikeys, ckey) == ckey;
-}
-#endif PUTTY_CAC
 
 int pageant_delete_ssh1_key(struct RSAKey *rkey)
 {
@@ -1085,18 +966,6 @@ int pageant_delete_ssh2_key(struct ssh2_userkey *skey)
     assert(deleted == skey);
     return TRUE;
 }
-
-#ifdef PUTTY_CAC
-int pageant_delete_capi_key(struct capi_userkey *ckey)
-{
-	struct capi_userkey *deleted = del234(capikeys, ckey);
-	if (!deleted)
-		return FALSE;
-	free_capi_userkey(ckey);
-	assert(deleted == ckey);
-	return TRUE;
-}
-#endif // PUTTY_CAC
 
 /* ----------------------------------------------------------------------
  * The agent plug.
@@ -1413,40 +1282,19 @@ int pageant_add_keyfile(Filename *filename, const char *passphrase,
 
     *retstr = NULL;
 
-#ifdef PUTTY_CAC
-	type = 0;
-	BOOL CAPI_KEY = FALSE;
-	struct capi_userkey *ckey = NULL;
+    type = key_type(filename);
+    if (type != SSH_KEYTYPE_SSH1 && type != SSH_KEYTYPE_SSH2) {
+	*retstr = dupprintf("Couldn't load this key (%s)",
+                            key_type_to_str(type));
+	return PAGEANT_ACTION_FAILURE;
+    }
 
-	if (strnicmp(filename_to_str(filename), "CAPI:", 5) == 0) {
-		const char *fn = filename_to_str(filename);
-		const char *certid = &fn[5];
-		CAPI_KEY = TRUE;
-		if ((ckey = create_capi_userkey(certid, NULL)) == NULL) {
-			char *msg = dupprintf("Couldn't load CAPI certificate/key: %s", certid);
-			message_box(msg, "Pageant", MB_OK | MB_ICONERROR, HELPCTXID(errors_cantloadkey));
-			sfree(msg);
-			return PAGEANT_ACTION_FAILURE;
-		}
-	}
-	else {
-#endif // PUTTY_CAC
-
-	type = key_type(filename);
-	if (type != SSH_KEYTYPE_SSH1 && type != SSH_KEYTYPE_SSH2) {
-		*retstr = dupprintf("Couldn't load this key (%s)",
-			key_type_to_str(type));
-		return PAGEANT_ACTION_FAILURE;
-	}
-#ifdef PUTTY_CAC
-	}
-#endif // PUTTY_CAC
     /*
      * See if the key is already loaded (in the primary Pageant,
      * which may or may not be us).
      */
     {
-	void *blob = NULL;
+	void *blob;
 	unsigned char *keylist, *p;
 	int i, nkeys, bloblen, keylistlen;
 
@@ -1458,35 +1306,17 @@ int pageant_add_keyfile(Filename *filename, const char *passphrase,
 	    keylist = pageant_get_keylist1(&keylistlen);
 	} else {
 	    unsigned char *blob2;
-#ifdef PUTTY_CAC
-		if (CAPI_KEY) {
-			bloblen = ckey->bloblen;
-		}
-		else {
-#endif // PUTTY_CAC
 	    blob = ssh2_userkey_loadpub(filename, NULL, &bloblen,
 					NULL, &error);
 	    if (!blob) {
                 *retstr = dupprintf("Couldn't load private key (%s)", error);
 		return PAGEANT_ACTION_FAILURE;
 	    }
-#ifdef PUTTY_CAC
-		}
-#endif // PUTTY_CAC
 	    /* For our purposes we want the blob prefixed with its length */
 	    blob2 = snewn(bloblen+4, unsigned char);
 	    PUT_32BIT(blob2, bloblen);
-#ifdef PUTTY_CAC
-		if (CAPI_KEY) {
-			memcpy(blob2 + 4, ckey->blob, ckey->bloblen);
-		}
-		else {
-#endif // PUTTY_CAC
 	    memcpy(blob2 + 4, blob, bloblen);
 	    sfree(blob);
-#ifdef PUTTY_CAC
-		}
-#endif // PUTTY_CAC
 	    blob = blob2;
 
 	    keylist = pageant_get_keylist2(&keylistlen);
@@ -1577,56 +1407,6 @@ int pageant_add_keyfile(Filename *filename, const char *passphrase,
 	sfree(blob);
     }
 
-#ifdef PUTTY_CAC
-	// if we've reached this far, the key is not already loaded....
-	if (CAPI_KEY) {
-		if (FindWindow("Pageant", "Pageant")) {
-			// need to comm with the main pageant...
-			unsigned char *request, *response, *p;
-			int reqlen, resplen;
-			agent_pending_query * ret;
-
-			reqlen =	4 + 1 +                // length, message type
-						4 + 4 +                     // length, "CAPI"
-						4 + strlen(ckey->certid);   // length + certid string
-
-			p = request = snewn(reqlen, unsigned char);
-			PUT_32BIT(p, reqlen - 4);
-			p[4] = SSH2_AGENTC_ADD_IDENTITY;
-			p += 5;
-
-			PUT_32BIT(p, 4);
-			p += 4;
-			memcpy(p, "CAPI", 4);
-			p += 4;
-
-			PUT_32BIT(p, strlen(ckey->certid));
-			p += 4;
-			memcpy(p, ckey->certid, strlen(ckey->certid));
-			p += strlen(ckey->certid);
-
-			ret = agent_query(request, reqlen, &response, &resplen, NULL, NULL);
-			assert(ret == NULL);
-			int failed = (resplen < 5 || response[4] != SSH_AGENT_SUCCESS);
-
-			sfree(request);
-			sfree(response);
-
-			if (failed) {
-				*retstr = dupstr("The already running Pageant refused to add the capi cert/key.");
-				return PAGEANT_ACTION_FAILURE;
-			}
-		}
-		else {
-			// we are the main pageant
-			if (add234(capikeys, ckey) != ckey) {
-				free_capi_userkey(ckey);               /* already present, don't waste RAM */
-			}
-		}
-		return PAGEANT_ACTION_OK;
-	}
-#endif
-
     error = NULL;
     if (type == SSH_KEYTYPE_SSH1)
 	needs_pass = rsakey_encrypted(filename, &comment);
@@ -1700,7 +1480,7 @@ int pageant_add_keyfile(Filename *filename, const char *passphrase,
     }
 
     /*
-     * If we get here, we've succesfully loaded the key into
+     * If we get here, we've successfully loaded the key into
      * rkey/skey, but not yet added it to the agent.
      */
 

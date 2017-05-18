@@ -125,21 +125,7 @@ pageant.exe: aqsync.obj conf.obj misc.obj pageant.obj pageant.res sshaes.obj \
 
 plink.exe: aqsync.obj be_all_s.obj be_misc.obj callback.obj cmdline.obj \
 		conf.obj cproxy.obj errsock.obj ldisc.obj logging.obj \
-		misc.obj noterm.obj pgssapi.obj pinger.obj plink.res \
-		portfwd.obj proxy.obj raw.obj rlogin.obj settings.obj \
-		ssh.obj sshaes.obj ssharcf.obj sshblowf.obj sshbn.obj \
-		sshccp.obj sshcrc.obj sshcrcda.obj sshdes.obj sshdh.obj \
-		sshdss.obj sshecc.obj sshgssc.obj sshmd5.obj sshpubk.obj \
-		sshrand.obj sshrsa.obj sshsh256.obj sshsh512.obj sshsha.obj \
-		sshshare.obj sshzlib.obj telnet.obj timing.obj tree234.obj \
-		version.obj wildcard.obj wincapi.obj wincons.obj windefs.obj \
-		wingss.obj winhandl.obj winhsock.obj winmisc.obj winnet.obj \
-		winnoise.obj winnojmp.obj winnpc.obj winnps.obj winpgntc.obj \
-		winplink.obj winproxy.obj winsecur.obj winser.obj \
-		winshare.obj winstore.obj wintime.obj winx11.obj x11fwd.obj
-	lcclnk  -o plink.exe aqsync.obj be_all_s.obj be_misc.obj callback.obj \
-		cmdline.obj conf.obj cproxy.obj errsock.obj ldisc.obj \
-		logging.obj misc.obj noterm.obj pgssapi.obj pinger.obj \
+		misc.obj miscucs.obj noterm.obj pgssapi.obj pinger.obj \
 		plink.res portfwd.obj proxy.obj raw.obj rlogin.obj \
 		settings.obj ssh.obj sshaes.obj ssharcf.obj sshblowf.obj \
 		sshbn.obj sshccp.obj sshcrc.obj sshcrcda.obj sshdes.obj \
@@ -150,27 +136,28 @@ plink.exe: aqsync.obj be_all_s.obj be_misc.obj callback.obj cmdline.obj \
 		windefs.obj wingss.obj winhandl.obj winhsock.obj winmisc.obj \
 		winnet.obj winnoise.obj winnojmp.obj winnpc.obj winnps.obj \
 		winpgntc.obj winplink.obj winproxy.obj winsecur.obj \
-		winser.obj winshare.obj winstore.obj wintime.obj winx11.obj \
-		x11fwd.obj shell32.lib wsock32.lib ws2_32.lib winspool.lib \
-		winmm.lib imm32.lib
+		winser.obj winshare.obj winstore.obj wintime.obj winucs.obj \
+		winx11.obj x11fwd.obj
+	lcclnk  -o plink.exe aqsync.obj be_all_s.obj be_misc.obj callback.obj \
+		cmdline.obj conf.obj cproxy.obj errsock.obj ldisc.obj \
+		logging.obj misc.obj miscucs.obj noterm.obj pgssapi.obj \
+		pinger.obj plink.res portfwd.obj proxy.obj raw.obj \
+		rlogin.obj settings.obj ssh.obj sshaes.obj ssharcf.obj \
+		sshblowf.obj sshbn.obj sshccp.obj sshcrc.obj sshcrcda.obj \
+		sshdes.obj sshdh.obj sshdss.obj sshecc.obj sshgssc.obj \
+		sshmd5.obj sshpubk.obj sshrand.obj sshrsa.obj sshsh256.obj \
+		sshsh512.obj sshsha.obj sshshare.obj sshzlib.obj telnet.obj \
+		timing.obj tree234.obj version.obj wildcard.obj wincapi.obj \
+		wincons.obj windefs.obj wingss.obj winhandl.obj winhsock.obj \
+		winmisc.obj winnet.obj winnoise.obj winnojmp.obj winnpc.obj \
+		winnps.obj winpgntc.obj winplink.obj winproxy.obj \
+		winsecur.obj winser.obj winshare.obj winstore.obj \
+		wintime.obj winucs.obj winx11.obj x11fwd.obj shell32.lib \
+		wsock32.lib ws2_32.lib winspool.lib winmm.lib imm32.lib
 
 pscp.exe: aqsync.obj be_misc.obj be_ssh.obj callback.obj cmdline.obj \
 		conf.obj cproxy.obj errsock.obj int64.obj logging.obj \
-		misc.obj pgssapi.obj pinger.obj portfwd.obj proxy.obj \
-		pscp.obj pscp.res settings.obj sftp.obj ssh.obj sshaes.obj \
-		ssharcf.obj sshblowf.obj sshbn.obj sshccp.obj sshcrc.obj \
-		sshcrcda.obj sshdes.obj sshdh.obj sshdss.obj sshecc.obj \
-		sshgssc.obj sshmd5.obj sshpubk.obj sshrand.obj sshrsa.obj \
-		sshsh256.obj sshsh512.obj sshsha.obj sshshare.obj \
-		sshzlib.obj timing.obj tree234.obj version.obj wildcard.obj \
-		wincapi.obj wincons.obj windefs.obj wingss.obj winhandl.obj \
-		winhsock.obj winmisc.obj winnet.obj winnoise.obj \
-		winnojmp.obj winnpc.obj winnps.obj winpgntc.obj winproxy.obj \
-		winsecur.obj winsftp.obj winshare.obj winstore.obj \
-		wintime.obj x11fwd.obj
-	lcclnk  -o pscp.exe aqsync.obj be_misc.obj be_ssh.obj callback.obj \
-		cmdline.obj conf.obj cproxy.obj errsock.obj int64.obj \
-		logging.obj misc.obj pgssapi.obj pinger.obj portfwd.obj \
+		misc.obj miscucs.obj pgssapi.obj pinger.obj portfwd.obj \
 		proxy.obj pscp.obj pscp.res settings.obj sftp.obj ssh.obj \
 		sshaes.obj ssharcf.obj sshblowf.obj sshbn.obj sshccp.obj \
 		sshcrc.obj sshcrcda.obj sshdes.obj sshdh.obj sshdss.obj \
@@ -181,26 +168,26 @@ pscp.exe: aqsync.obj be_misc.obj be_ssh.obj callback.obj cmdline.obj \
 		winhsock.obj winmisc.obj winnet.obj winnoise.obj \
 		winnojmp.obj winnpc.obj winnps.obj winpgntc.obj winproxy.obj \
 		winsecur.obj winsftp.obj winshare.obj winstore.obj \
-		wintime.obj x11fwd.obj shell32.lib wsock32.lib ws2_32.lib \
-		winspool.lib winmm.lib imm32.lib
+		wintime.obj winucs.obj x11fwd.obj
+	lcclnk  -o pscp.exe aqsync.obj be_misc.obj be_ssh.obj callback.obj \
+		cmdline.obj conf.obj cproxy.obj errsock.obj int64.obj \
+		logging.obj misc.obj miscucs.obj pgssapi.obj pinger.obj \
+		portfwd.obj proxy.obj pscp.obj pscp.res settings.obj \
+		sftp.obj ssh.obj sshaes.obj ssharcf.obj sshblowf.obj \
+		sshbn.obj sshccp.obj sshcrc.obj sshcrcda.obj sshdes.obj \
+		sshdh.obj sshdss.obj sshecc.obj sshgssc.obj sshmd5.obj \
+		sshpubk.obj sshrand.obj sshrsa.obj sshsh256.obj sshsh512.obj \
+		sshsha.obj sshshare.obj sshzlib.obj timing.obj tree234.obj \
+		version.obj wildcard.obj wincapi.obj wincons.obj windefs.obj \
+		wingss.obj winhandl.obj winhsock.obj winmisc.obj winnet.obj \
+		winnoise.obj winnojmp.obj winnpc.obj winnps.obj winpgntc.obj \
+		winproxy.obj winsecur.obj winsftp.obj winshare.obj \
+		winstore.obj wintime.obj winucs.obj x11fwd.obj shell32.lib \
+		wsock32.lib ws2_32.lib winspool.lib winmm.lib imm32.lib
 
 psftp.exe: aqsync.obj be_misc.obj be_ssh.obj callback.obj cmdline.obj \
 		conf.obj cproxy.obj errsock.obj int64.obj logging.obj \
-		misc.obj pgssapi.obj pinger.obj portfwd.obj proxy.obj \
-		psftp.obj psftp.res settings.obj sftp.obj ssh.obj sshaes.obj \
-		ssharcf.obj sshblowf.obj sshbn.obj sshccp.obj sshcrc.obj \
-		sshcrcda.obj sshdes.obj sshdh.obj sshdss.obj sshecc.obj \
-		sshgssc.obj sshmd5.obj sshpubk.obj sshrand.obj sshrsa.obj \
-		sshsh256.obj sshsh512.obj sshsha.obj sshshare.obj \
-		sshzlib.obj timing.obj tree234.obj version.obj wildcard.obj \
-		wincapi.obj wincons.obj windefs.obj wingss.obj winhandl.obj \
-		winhsock.obj winmisc.obj winnet.obj winnoise.obj \
-		winnojmp.obj winnpc.obj winnps.obj winpgntc.obj winproxy.obj \
-		winsecur.obj winsftp.obj winshare.obj winstore.obj \
-		wintime.obj x11fwd.obj
-	lcclnk  -o psftp.exe aqsync.obj be_misc.obj be_ssh.obj callback.obj \
-		cmdline.obj conf.obj cproxy.obj errsock.obj int64.obj \
-		logging.obj misc.obj pgssapi.obj pinger.obj portfwd.obj \
+		misc.obj miscucs.obj pgssapi.obj pinger.obj portfwd.obj \
 		proxy.obj psftp.obj psftp.res settings.obj sftp.obj ssh.obj \
 		sshaes.obj ssharcf.obj sshblowf.obj sshbn.obj sshccp.obj \
 		sshcrc.obj sshcrcda.obj sshdes.obj sshdh.obj sshdss.obj \
@@ -211,8 +198,22 @@ psftp.exe: aqsync.obj be_misc.obj be_ssh.obj callback.obj cmdline.obj \
 		winhsock.obj winmisc.obj winnet.obj winnoise.obj \
 		winnojmp.obj winnpc.obj winnps.obj winpgntc.obj winproxy.obj \
 		winsecur.obj winsftp.obj winshare.obj winstore.obj \
-		wintime.obj x11fwd.obj shell32.lib wsock32.lib ws2_32.lib \
-		winspool.lib winmm.lib imm32.lib
+		wintime.obj winucs.obj x11fwd.obj
+	lcclnk  -o psftp.exe aqsync.obj be_misc.obj be_ssh.obj callback.obj \
+		cmdline.obj conf.obj cproxy.obj errsock.obj int64.obj \
+		logging.obj misc.obj miscucs.obj pgssapi.obj pinger.obj \
+		portfwd.obj proxy.obj psftp.obj psftp.res settings.obj \
+		sftp.obj ssh.obj sshaes.obj ssharcf.obj sshblowf.obj \
+		sshbn.obj sshccp.obj sshcrc.obj sshcrcda.obj sshdes.obj \
+		sshdh.obj sshdss.obj sshecc.obj sshgssc.obj sshmd5.obj \
+		sshpubk.obj sshrand.obj sshrsa.obj sshsh256.obj sshsh512.obj \
+		sshsha.obj sshshare.obj sshzlib.obj timing.obj tree234.obj \
+		version.obj wildcard.obj wincapi.obj wincons.obj windefs.obj \
+		wingss.obj winhandl.obj winhsock.obj winmisc.obj winnet.obj \
+		winnoise.obj winnojmp.obj winnpc.obj winnps.obj winpgntc.obj \
+		winproxy.obj winsecur.obj winsftp.obj winshare.obj \
+		winstore.obj wintime.obj winucs.obj x11fwd.obj shell32.lib \
+		wsock32.lib ws2_32.lib winspool.lib winmm.lib imm32.lib
 
 putty.exe: aqsync.obj be_all_s.obj be_misc.obj callback.obj cmdline.obj \
 		conf.obj config.obj cproxy.obj dialog.obj errsock.obj \

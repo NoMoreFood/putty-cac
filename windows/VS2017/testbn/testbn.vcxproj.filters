@@ -1,66 +1,78 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
-  </ItemGroup>
-  <ItemGroup>
-  </ItemGroup>
-  <ItemGroup>
+    <ClCompile Include="..\..\winmisc.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\version.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\tree234.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\testbn.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\sshbn.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\misc.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="..\..\..\conf.c">
       <Filter>Source Files</Filter>
-    </ClCompile>    <ClCompile Include="..\..\..\misc.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>    <ClCompile Include="..\..\..\sshbn.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>    <ClCompile Include="..\..\..\testbn.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>    <ClCompile Include="..\..\..\tree234.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>    <ClCompile Include="..\..\..\version.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>    <ClCompile Include="..\..\winmisc.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>  </ItemGroup>
+    </ClCompile>
+  </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\..\charset\charset.h">
       <Filter>Header Files</Filter>
-    </ClInclude>    <ClInclude Include="..\..\..\empty.h">
+    </ClInclude>
+    <ClInclude Include="..\..\..\int64.h">
       <Filter>Header Files</Filter>
-    </ClInclude>    <ClInclude Include="..\..\..\int64.h">
+    </ClInclude>
+    <ClInclude Include="..\..\..\misc.h">
       <Filter>Header Files</Filter>
-    </ClInclude>    <ClInclude Include="..\..\..\misc.h">
+    </ClInclude>
+    <ClInclude Include="..\..\..\network.h">
       <Filter>Header Files</Filter>
-    </ClInclude>    <ClInclude Include="..\..\..\network.h">
+    </ClInclude>
+    <ClInclude Include="..\..\..\putty.h">
       <Filter>Header Files</Filter>
-    </ClInclude>    <ClInclude Include="..\..\..\putty.h">
+    </ClInclude>
+    <ClInclude Include="..\..\..\puttymem.h">
       <Filter>Header Files</Filter>
-    </ClInclude>    <ClInclude Include="..\..\..\puttymem.h">
+    </ClInclude>
+    <ClInclude Include="..\..\..\puttyps.h">
       <Filter>Header Files</Filter>
-    </ClInclude>    <ClInclude Include="..\..\..\puttyps.h">
+    </ClInclude>
+    <ClInclude Include="..\..\..\ssh.h">
       <Filter>Header Files</Filter>
-    </ClInclude>    <ClInclude Include="..\..\..\ssh.h">
+    </ClInclude>
+    <ClInclude Include="..\..\..\sshbn.h">
       <Filter>Header Files</Filter>
-    </ClInclude>    <ClInclude Include="..\..\..\sshbn.h">
+    </ClInclude>
+    <ClInclude Include="..\..\..\tree234.h">
       <Filter>Header Files</Filter>
-    </ClInclude>    <ClInclude Include="..\..\..\tree234.h">
+    </ClInclude>
+    <ClInclude Include="..\..\..\unix\unix.h">
       <Filter>Header Files</Filter>
-    </ClInclude>    <ClInclude Include="..\..\..\unix\unix.h">
+    </ClInclude>
+    <ClInclude Include="..\..\..\version.h">
       <Filter>Header Files</Filter>
-    </ClInclude>    <ClInclude Include="..\..\..\version.h">
+    </ClInclude>
+    <ClInclude Include="..\..\winhelp.h">
       <Filter>Header Files</Filter>
-    </ClInclude>    <ClInclude Include="..\..\winhelp.h">
+    </ClInclude>
+    <ClInclude Include="..\..\winstuff.h">
       <Filter>Header Files</Filter>
-    </ClInclude>    <ClInclude Include="..\..\winstuff.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>  </ItemGroup>
+    </ClInclude>
+  </ItemGroup>
   <ItemGroup>
     <Filter Include="Source Files">
-      <UniqueIdentifier>{ac51b4ef-5625-4afb-bb99-ec5926f4ea5a}</UniqueIdentifier>
+      <UniqueIdentifier>{73d8d7ae-70a5-428a-9532-86bdcb96e3b9}</UniqueIdentifier>
     </Filter>
     <Filter Include="Header Files">
-      <UniqueIdentifier>{d8dd0846-a2f5-4526-848d-3fa1ea9c5583}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Resource Files">
-      <UniqueIdentifier>{00962763-ef54-44e4-8ce0-d4a7c09292e5}</UniqueIdentifier>
+      <UniqueIdentifier>{863b69f5-baca-46aa-935e-c0bc362e34cf}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
 </Project>
