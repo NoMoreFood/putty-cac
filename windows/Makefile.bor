@@ -128,51 +128,51 @@ pageant.exe: aqsync.obj conf.obj misc.obj pageant.obj pageant.res sshaes.obj \
 
 plink.exe: aqsync.obj be_all_s.obj be_misc.obj callback.obj cmdline.obj \
 		conf.obj cproxy.obj errsock.obj ldisc.obj logging.obj \
-		misc.obj noterm.obj pgssapi.obj pinger.obj plink.res \
-		portfwd.obj proxy.obj raw.obj rlogin.obj settings.obj \
-		ssh.obj sshaes.obj ssharcf.obj sshblowf.obj sshbn.obj \
-		sshccp.obj sshcrc.obj sshcrcda.obj sshdes.obj sshdh.obj \
-		sshdss.obj sshecc.obj sshgssc.obj sshmd5.obj sshpubk.obj \
-		sshrand.obj sshrsa.obj sshsh256.obj sshsh512.obj sshsha.obj \
-		sshshare.obj sshzlib.obj telnet.obj timing.obj tree234.obj \
-		version.obj wildcard.obj wincapi.obj wincons.obj windefs.obj \
-		wingss.obj winhandl.obj winhsock.obj winmisc.obj winnet.obj \
-		winnoise.obj winnojmp.obj winnpc.obj winnps.obj winpgntc.obj \
-		winplink.obj winproxy.obj winsecur.obj winser.obj \
-		winshare.obj winstore.obj wintime.obj winx11.obj x11fwd.obj \
-		plink.rsp
+		misc.obj miscucs.obj noterm.obj pgssapi.obj pinger.obj \
+		plink.res portfwd.obj proxy.obj raw.obj rlogin.obj \
+		settings.obj ssh.obj sshaes.obj ssharcf.obj sshblowf.obj \
+		sshbn.obj sshccp.obj sshcrc.obj sshcrcda.obj sshdes.obj \
+		sshdh.obj sshdss.obj sshecc.obj sshgssc.obj sshmd5.obj \
+		sshpubk.obj sshrand.obj sshrsa.obj sshsh256.obj sshsh512.obj \
+		sshsha.obj sshshare.obj sshzlib.obj telnet.obj timing.obj \
+		tree234.obj version.obj wildcard.obj wincapi.obj wincons.obj \
+		windefs.obj wingss.obj winhandl.obj winhsock.obj winmisc.obj \
+		winnet.obj winnoise.obj winnojmp.obj winnpc.obj winnps.obj \
+		winpgntc.obj winplink.obj winproxy.obj winsecur.obj \
+		winser.obj winshare.obj winstore.obj wintime.obj winucs.obj \
+		winx11.obj x11fwd.obj plink.rsp
 	ilink32 -ap -Gn -L$(BCB)\lib @plink.rsp
 
 pscp.exe: aqsync.obj be_misc.obj be_ssh.obj callback.obj cmdline.obj \
 		conf.obj cproxy.obj errsock.obj int64.obj logging.obj \
-		misc.obj pgssapi.obj pinger.obj portfwd.obj proxy.obj \
-		pscp.obj pscp.res settings.obj sftp.obj ssh.obj sshaes.obj \
-		ssharcf.obj sshblowf.obj sshbn.obj sshccp.obj sshcrc.obj \
-		sshcrcda.obj sshdes.obj sshdh.obj sshdss.obj sshecc.obj \
-		sshgssc.obj sshmd5.obj sshpubk.obj sshrand.obj sshrsa.obj \
-		sshsh256.obj sshsh512.obj sshsha.obj sshshare.obj \
+		misc.obj miscucs.obj pgssapi.obj pinger.obj portfwd.obj \
+		proxy.obj pscp.obj pscp.res settings.obj sftp.obj ssh.obj \
+		sshaes.obj ssharcf.obj sshblowf.obj sshbn.obj sshccp.obj \
+		sshcrc.obj sshcrcda.obj sshdes.obj sshdh.obj sshdss.obj \
+		sshecc.obj sshgssc.obj sshmd5.obj sshpubk.obj sshrand.obj \
+		sshrsa.obj sshsh256.obj sshsh512.obj sshsha.obj sshshare.obj \
 		sshzlib.obj timing.obj tree234.obj version.obj wildcard.obj \
 		wincapi.obj wincons.obj windefs.obj wingss.obj winhandl.obj \
 		winhsock.obj winmisc.obj winnet.obj winnoise.obj \
 		winnojmp.obj winnpc.obj winnps.obj winpgntc.obj winproxy.obj \
 		winsecur.obj winsftp.obj winshare.obj winstore.obj \
-		wintime.obj x11fwd.obj pscp.rsp
+		wintime.obj winucs.obj x11fwd.obj pscp.rsp
 	ilink32 -ap -Gn -L$(BCB)\lib @pscp.rsp
 
 psftp.exe: aqsync.obj be_misc.obj be_ssh.obj callback.obj cmdline.obj \
 		conf.obj cproxy.obj errsock.obj int64.obj logging.obj \
-		misc.obj pgssapi.obj pinger.obj portfwd.obj proxy.obj \
-		psftp.obj psftp.res settings.obj sftp.obj ssh.obj sshaes.obj \
-		ssharcf.obj sshblowf.obj sshbn.obj sshccp.obj sshcrc.obj \
-		sshcrcda.obj sshdes.obj sshdh.obj sshdss.obj sshecc.obj \
-		sshgssc.obj sshmd5.obj sshpubk.obj sshrand.obj sshrsa.obj \
-		sshsh256.obj sshsh512.obj sshsha.obj sshshare.obj \
+		misc.obj miscucs.obj pgssapi.obj pinger.obj portfwd.obj \
+		proxy.obj psftp.obj psftp.res settings.obj sftp.obj ssh.obj \
+		sshaes.obj ssharcf.obj sshblowf.obj sshbn.obj sshccp.obj \
+		sshcrc.obj sshcrcda.obj sshdes.obj sshdh.obj sshdss.obj \
+		sshecc.obj sshgssc.obj sshmd5.obj sshpubk.obj sshrand.obj \
+		sshrsa.obj sshsh256.obj sshsh512.obj sshsha.obj sshshare.obj \
 		sshzlib.obj timing.obj tree234.obj version.obj wildcard.obj \
 		wincapi.obj wincons.obj windefs.obj wingss.obj winhandl.obj \
 		winhsock.obj winmisc.obj winnet.obj winnoise.obj \
 		winnojmp.obj winnpc.obj winnps.obj winpgntc.obj winproxy.obj \
 		winsecur.obj winsftp.obj winshare.obj winstore.obj \
-		wintime.obj x11fwd.obj psftp.rsp
+		wintime.obj winucs.obj x11fwd.obj psftp.rsp
 	ilink32 -ap -Gn -L$(BCB)\lib @psftp.rsp
 
 putty.exe: aqsync.obj be_all_s.obj be_misc.obj callback.obj cmdline.obj \
@@ -238,9 +238,9 @@ plink.rsp: $(MAKEFILE)
 	echo c0x32 + > plink.rsp
 	echo aqsync.obj be_all_s.obj be_misc.obj callback.obj + >> plink.rsp
 	echo cmdline.obj conf.obj cproxy.obj errsock.obj + >> plink.rsp
-	echo ldisc.obj logging.obj misc.obj noterm.obj + >> plink.rsp
-	echo pgssapi.obj pinger.obj portfwd.obj proxy.obj + >> plink.rsp
-	echo raw.obj rlogin.obj settings.obj ssh.obj + >> plink.rsp
+	echo ldisc.obj logging.obj misc.obj miscucs.obj + >> plink.rsp
+	echo noterm.obj pgssapi.obj pinger.obj portfwd.obj + >> plink.rsp
+	echo proxy.obj raw.obj rlogin.obj settings.obj ssh.obj + >> plink.rsp
 	echo sshaes.obj ssharcf.obj sshblowf.obj sshbn.obj + >> plink.rsp
 	echo sshccp.obj sshcrc.obj sshcrcda.obj sshdes.obj + >> plink.rsp
 	echo sshdh.obj sshdss.obj sshecc.obj sshgssc.obj + >> plink.rsp
@@ -252,7 +252,8 @@ plink.rsp: $(MAKEFILE)
 	echo winmisc.obj winnet.obj winnoise.obj winnojmp.obj + >> plink.rsp
 	echo winnpc.obj winnps.obj winpgntc.obj winplink.obj + >> plink.rsp
 	echo winproxy.obj winsecur.obj winser.obj winshare.obj + >> plink.rsp
-	echo winstore.obj wintime.obj winx11.obj x11fwd.obj >> plink.rsp
+	echo winstore.obj wintime.obj winucs.obj winx11.obj + >> plink.rsp
+	echo x11fwd.obj >> plink.rsp
 	echo plink.exe >> plink.rsp
 	echo nul,cw32 import32 ole32, >> plink.rsp
 	echo plink.res >> plink.rsp
@@ -261,9 +262,9 @@ pscp.rsp: $(MAKEFILE)
 	echo c0x32 + > pscp.rsp
 	echo aqsync.obj be_misc.obj be_ssh.obj callback.obj + >> pscp.rsp
 	echo cmdline.obj conf.obj cproxy.obj errsock.obj + >> pscp.rsp
-	echo int64.obj logging.obj misc.obj pgssapi.obj + >> pscp.rsp
-	echo pinger.obj portfwd.obj proxy.obj pscp.obj + >> pscp.rsp
-	echo settings.obj sftp.obj ssh.obj sshaes.obj + >> pscp.rsp
+	echo int64.obj logging.obj misc.obj miscucs.obj + >> pscp.rsp
+	echo pgssapi.obj pinger.obj portfwd.obj proxy.obj + >> pscp.rsp
+	echo pscp.obj settings.obj sftp.obj ssh.obj sshaes.obj + >> pscp.rsp
 	echo ssharcf.obj sshblowf.obj sshbn.obj sshccp.obj + >> pscp.rsp
 	echo sshcrc.obj sshcrcda.obj sshdes.obj sshdh.obj + >> pscp.rsp
 	echo sshdss.obj sshecc.obj sshgssc.obj sshmd5.obj + >> pscp.rsp
@@ -275,7 +276,7 @@ pscp.rsp: $(MAKEFILE)
 	echo winnoise.obj winnojmp.obj winnpc.obj winnps.obj + >> pscp.rsp
 	echo winpgntc.obj winproxy.obj winsecur.obj + >> pscp.rsp
 	echo winsftp.obj winshare.obj winstore.obj wintime.obj + >> pscp.rsp
-	echo x11fwd.obj >> pscp.rsp
+	echo winucs.obj x11fwd.obj >> pscp.rsp
 	echo pscp.exe >> pscp.rsp
 	echo nul,cw32 import32 ole32, >> pscp.rsp
 	echo pscp.res >> pscp.rsp
@@ -284,21 +285,21 @@ psftp.rsp: $(MAKEFILE)
 	echo c0x32 + > psftp.rsp
 	echo aqsync.obj be_misc.obj be_ssh.obj callback.obj + >> psftp.rsp
 	echo cmdline.obj conf.obj cproxy.obj errsock.obj + >> psftp.rsp
-	echo int64.obj logging.obj misc.obj pgssapi.obj + >> psftp.rsp
-	echo pinger.obj portfwd.obj proxy.obj psftp.obj + >> psftp.rsp
-	echo settings.obj sftp.obj ssh.obj sshaes.obj + >> psftp.rsp
-	echo ssharcf.obj sshblowf.obj sshbn.obj sshccp.obj + >> psftp.rsp
-	echo sshcrc.obj sshcrcda.obj sshdes.obj sshdh.obj + >> psftp.rsp
-	echo sshdss.obj sshecc.obj sshgssc.obj sshmd5.obj + >> psftp.rsp
-	echo sshpubk.obj sshrand.obj sshrsa.obj sshsh256.obj + >> psftp.rsp
-	echo sshsh512.obj sshsha.obj sshshare.obj sshzlib.obj + >> psftp.rsp
-	echo timing.obj tree234.obj version.obj wildcard.obj + >> psftp.rsp
-	echo wincapi.obj wincons.obj windefs.obj wingss.obj + >> psftp.rsp
-	echo winhandl.obj winhsock.obj winmisc.obj winnet.obj + >> psftp.rsp
-	echo winnoise.obj winnojmp.obj winnpc.obj winnps.obj + >> psftp.rsp
-	echo winpgntc.obj winproxy.obj winsecur.obj + >> psftp.rsp
+	echo int64.obj logging.obj misc.obj miscucs.obj + >> psftp.rsp
+	echo pgssapi.obj pinger.obj portfwd.obj proxy.obj + >> psftp.rsp
+	echo psftp.obj settings.obj sftp.obj ssh.obj + >> psftp.rsp
+	echo sshaes.obj ssharcf.obj sshblowf.obj sshbn.obj + >> psftp.rsp
+	echo sshccp.obj sshcrc.obj sshcrcda.obj sshdes.obj + >> psftp.rsp
+	echo sshdh.obj sshdss.obj sshecc.obj sshgssc.obj + >> psftp.rsp
+	echo sshmd5.obj sshpubk.obj sshrand.obj sshrsa.obj + >> psftp.rsp
+	echo sshsh256.obj sshsh512.obj sshsha.obj sshshare.obj + >> psftp.rsp
+	echo sshzlib.obj timing.obj tree234.obj version.obj + >> psftp.rsp
+	echo wildcard.obj wincapi.obj wincons.obj windefs.obj + >> psftp.rsp
+	echo wingss.obj winhandl.obj winhsock.obj winmisc.obj + >> psftp.rsp
+	echo winnet.obj winnoise.obj winnojmp.obj winnpc.obj + >> psftp.rsp
+	echo winnps.obj winpgntc.obj winproxy.obj winsecur.obj + >> psftp.rsp
 	echo winsftp.obj winshare.obj winstore.obj wintime.obj + >> psftp.rsp
-	echo x11fwd.obj >> psftp.rsp
+	echo winucs.obj x11fwd.obj >> psftp.rsp
 	echo psftp.exe >> psftp.rsp
 	echo nul,cw32 import32 ole32, >> psftp.rsp
 	echo psftp.res >> psftp.rsp
