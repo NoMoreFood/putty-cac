@@ -266,8 +266,8 @@ void cert_pkcs_load_cert(LPCSTR szCert, PCCERT_CONTEXT* ppCertCtx, HCERTSTORE* p
 	CK_FUNCTION_LIST_PTR pFunctionList = cert_pkcs_load_library(szLibrary);
 	if (pFunctionList == NULL) return;
 
-	CK_BBOOL bFalse = 0;
-	CK_BBOOL bTrue = 1;
+	CK_BBOOL bFalse = CK_FALSE;
+	CK_BBOOL bTrue = CK_TRUE;
 	CK_OBJECT_CLASS iObjectType = CKO_CERTIFICATE;
 	CK_ATTRIBUTE aFindCriteria[] = {
 		{ CKA_CLASS,    &iObjectType, sizeof(CK_OBJECT_CLASS) },
@@ -383,7 +383,7 @@ HCERTSTORE cert_pkcs_get_cert_store(LPCSTR * szHint, HWND hWnd)
 	// get slots -- assume a safe maximum
 	CK_SLOT_ID pSlotList[32];
 	CK_ULONG iSlotCount = _countof(pSlotList);
-	if (pFunctionList->C_GetSlotList(FALSE, pSlotList, &iSlotCount) != CKR_OK)
+	if (pFunctionList->C_GetSlotList(CK_TRUE, pSlotList, &iSlotCount) != CKR_OK)
 	{
 		return NULL;
 	}
@@ -396,21 +396,18 @@ HCERTSTORE cert_pkcs_get_cert_store(LPCSTR * szHint, HWND hWnd)
 	// enumerate all slot counts
 	for (CK_ULONG iSlot = 0; iSlot < iSlotCount; iSlot++)
 	{
-		struct CK_TOKEN_INFO tTokenInfo;
-		if (pFunctionList->C_GetTokenInfo(pSlotList[iSlot], &tTokenInfo) != CKR_OK)
-		{
-			continue;
-		}
-
+		// open the session - first try read-only and then read-write
 		CK_SESSION_HANDLE hSession;
 		if (pFunctionList->C_OpenSession(pSlotList[iSlot],
-			CKF_SERIAL_SESSION | CKR_SESSION_READ_ONLY, NULL_PTR, NULL_PTR, &hSession) != CKR_OK)
+				CKF_SERIAL_SESSION, NULL_PTR, NULL_PTR, &hSession) != CKR_OK &&
+			pFunctionList->C_OpenSession(pSlotList[iSlot],
+				CKF_SERIAL_SESSION | CKF_RW_SESSION, NULL_PTR, NULL_PTR, &hSession) != CKR_OK)
 		{
 			continue;
 		}
 
-		CK_BBOOL bFalse = 0;
-		CK_BBOOL bTrue = 1;
+		CK_BBOOL bFalse = CK_FALSE;
+		CK_BBOOL bTrue = CK_TRUE;
 		CK_OBJECT_CLASS iObjectType = CKO_CERTIFICATE;
 		CK_ATTRIBUTE aFindCriteria[] = {
 			{ CKA_CLASS,    &iObjectType, sizeof(CK_OBJECT_CLASS) },
@@ -418,8 +415,8 @@ HCERTSTORE cert_pkcs_get_cert_store(LPCSTR * szHint, HWND hWnd)
 			{ CKA_PRIVATE,  &bFalse,      sizeof(CK_BBOOL) }
 		};
 
-		// enumerate all eligible certs in store
-		CK_OBJECT_HANDLE aCertList[32];
+		// enumerate all eligible certs in token slot
+		CK_OBJECT_HANDLE aCertList[16];
 		CK_ULONG iCertListSize = 0;
 		if (pFunctionList->C_FindObjectsInit(hSession, aFindCriteria, _countof(aFindCriteria)) != CKR_OK ||
 			pFunctionList->C_FindObjects(hSession, aCertList, _countof(aCertList), &iCertListSize) != CKR_OK ||
@@ -538,7 +535,7 @@ void pkcs_lookup_token_cert(LPCSTR szCert, CK_SESSION_HANDLE_PTR phSession, CK_O
 	// get slots -- assume a safe maximum
 	CK_SLOT_ID pSlotList[32];
 	CK_ULONG iSlotCount = _countof(pSlotList);
-	if (pFunctionList->C_GetSlotList(FALSE, pSlotList, &iSlotCount) != CKR_OK)
+	if (pFunctionList->C_GetSlotList(CK_TRUE, pSlotList, &iSlotCount) != CKR_OK)
 	{
 		return;
 	}
@@ -552,9 +549,12 @@ void pkcs_lookup_token_cert(LPCSTR szCert, CK_SESSION_HANDLE_PTR phSession, CK_O
 			continue;
 		}
 
+		// open the session - first try read-only and then read-write
 		CK_SESSION_HANDLE hSession;
 		if (pFunctionList->C_OpenSession(pSlotList[iSlot],
-			CKF_SERIAL_SESSION | CKF_RW_SESSION, NULL_PTR, NULL_PTR, &hSession) != CKR_OK)
+				CKF_SERIAL_SESSION, NULL_PTR, NULL_PTR, &hSession) != CKR_OK &&
+			pFunctionList->C_OpenSession(pSlotList[iSlot],
+				CKF_SERIAL_SESSION | CKF_RW_SESSION, NULL_PTR, NULL_PTR, &hSession) != CKR_OK)
 		{
 			continue;
 		}
