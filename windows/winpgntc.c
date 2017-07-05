@@ -104,7 +104,7 @@ agent_pending_query *agent_query(
      * Either way, we need a synchronous request.
      */
 #ifdef PUTTY_CAC
-	HWND hCallingWindow = GetActiveWindow();
+	HWND hCallingWindow = GetFocus();
 	SetFocus(hwnd);
 	BringWindowToTop(hwnd);
 #endif // PUTTY_CAC
