@@ -1715,7 +1715,7 @@ int key_type(const Filename *filename)
 		return SSH_KEYTYPE_SSH2;
 	}
 #endif // PUTTY_CAC
-	fp = f_open(filename, "r", FALSE);
+    fp = f_open(filename, "r", FALSE);
     if (!fp)
 	return SSH_KEYTYPE_UNOPENABLE;
     ret = key_type_fp(fp);
