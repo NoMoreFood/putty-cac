@@ -2463,8 +2463,8 @@ void setup_config_box(struct controlbox *b, int midsession,
 				s, "Attempt certificate authentication", NO_SHORTCUT,
 				HELPCTX(no_help), conf_checkbox_handler, I(CONF_try_cert_auth));
 			ctrl_text(s, "Note: Enabling certificate authentication will override any PuTTY " \
-				"key file under the 'Auth' tab.  This setting has no effect on keys " \
-				"on usage keys using pageant.", HELPCTX(no_help));
+				"key file under the 'Auth' tab.  This setting has no effect " \
+				"when using pageant.", HELPCTX(no_help));
 
 			// section for certificate selection
 			s = ctrl_getset(b, "Connection/SSH/Certificate", "params", "Authentication parameters");
