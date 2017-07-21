@@ -5,7 +5,6 @@
 
 #include <windows.h>
 #include <wincrypt.h>
-#include <cryptdlg.h>
 #include <cryptuiapi.h>
 #include <wincred.h>
 
@@ -48,46 +47,45 @@ LPSTR cert_get_cert_hash(LPCSTR szIden, PCCERT_CONTEXT pCertContext, LPCSTR szHi
 
 void cert_prompt_cert(HCERTSTORE hStore, HWND hWnd, LPSTR * szCert, LPCSTR szIden, LPCSTR szHint)
 {
-	HMODULE hCertDialogLibrary = LoadLibrary("cryptdlg.dll");
-	if (hCertDialogLibrary == NULL) return;
+	// create a memory store so we can proactively filter certificates
+	HCERTSTORE hMemoryStore = CertOpenStore(CERT_STORE_PROV_MEMORY,
+		X509_ASN_ENCODING | PKCS_7_ASN_ENCODING,
+		0, CERT_STORE_CREATE_NEW_FLAG, NULL);
 
-	// import the address to the certificate selections dialog
-	typedef BOOL(WINAPI *PCertSelectCertificateW)(
-		__inout  PCERT_SELECT_STRUCT_W pCertSelectInfo);
-	PCertSelectCertificateW CertSelectCertificate = (PCertSelectCertificateW)
-		GetProcAddress(hCertDialogLibrary, "CertSelectCertificateW");
+	// setup a structure to search for only client auth eligible cert
+	CTL_USAGE tItem;
+	CHAR * sUsage[] = { szOID_PKIX_KP_CLIENT_AUTH };
+	tItem.cUsageIdentifier = 1;
+	tItem.rgpszUsageIdentifier = sUsage;
+	PCCERT_CONTEXT pCertContext = NULL;
 
-	// setup the structure to control which certificates 
-	// we want the user to be able to select from
-	PCERT_CONTEXT * ppCertContext = calloc(1, sizeof(CERT_CONTEXT*));
-	CERT_SELECT_STRUCT_W tCertSelect;
-	ZeroMemory(&tCertSelect, sizeof(tCertSelect));
-	tCertSelect.dwSize = sizeof(CERT_SELECT_STRUCT_W);
-	tCertSelect.hwndParent = hWnd;
-	tCertSelect.szTitle = L"PuTTY: Select Certificate for Authentication";
-	tCertSelect.cCertStore = 1;
-	tCertSelect.arrayCertStore = &hStore;
-	tCertSelect.szPurposeOid = szOID_PKIX_KP_CLIENT_AUTH;
-	tCertSelect.cCertContext = 1;
-	tCertSelect.arrayCertContext = ppCertContext;
+	// enumerate all certs
+	while ((pCertContext = CertFindCertificateInStore(hStore, X509_ASN_ENCODING | PKCS_7_ASN_ENCODING,
+		CERT_FIND_VALID_ENHKEY_USAGE_FLAG, CERT_FIND_ENHKEY_USAGE, &tItem, pCertContext)) != NULL)
+	{
+		CertAddCertificateContextToStore(hMemoryStore, pCertContext, CERT_STORE_ADD_ALWAYS, NULL);
+	}
 
 	// display the certificate selection dialog
-	if (CertSelectCertificate(&tCertSelect) == TRUE && tCertSelect.cCertContext == 1)
+	pCertContext = CryptUIDlgSelectCertificateFromStore(hMemoryStore, hWnd, 
+		L"PuTTY: Select Certificate for Authentication",
+		L"Please select the certificate that you would like to use for authentication to the remote system.", 
+		CRYPTUI_SELECT_LOCATION_COLUMN, 0, NULL);
+	if (pCertContext != NULL)
 	{
 		BYTE pbThumbBinary[SHA1_BINARY_SIZE];
 		DWORD cbThumbBinary = SHA1_BINARY_SIZE;
-		if (CertGetCertificateContextProperty(*ppCertContext, CERT_HASH_PROP_ID, pbThumbBinary, &cbThumbBinary) == TRUE)
+		if (CertGetCertificateContextProperty(pCertContext, CERT_HASH_PROP_ID, pbThumbBinary, &cbThumbBinary) == TRUE)
 		{
-			*szCert = cert_get_cert_hash(szIden, *ppCertContext, szHint);
+			*szCert = cert_get_cert_hash(szIden, pCertContext, szHint);
 		}
 
 		// cleanup
-		CertFreeCertificateContext(*ppCertContext);
+		CertFreeCertificateContext(pCertContext);
 	}
 
-	// cleanup 
-	free(ppCertContext);
-	FreeLibrary(hCertDialogLibrary);
+	// cleanup and return
+	CertCloseStore(hMemoryStore, CERT_CLOSE_STORE_FORCE_FLAG);
 }
 
 LPSTR cert_prompt(LPCSTR szIden, HWND hWnd)
