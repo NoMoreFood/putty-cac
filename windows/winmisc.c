@@ -160,12 +160,6 @@ char *get_username(void)
 
 void dll_hijacking_protection(void)
 {
-#ifdef PUTTY_CAC
-	/* Windows 7 has a bug that prevents loading of smart card libaries if
-	* a non-default search order is used;
-	*/
-	if (!IsWindows8OrGreater()) return;
-#endif // PUTTY_CAC
     /*
      * If the OS provides it, call SetDefaultDllDirectories() to
      * prevent DLLs from being loaded from the directory containing
@@ -201,9 +195,14 @@ void dll_hijacking_protection(void)
 
     if (p_SetDefaultDllDirectories) {
         /* LOAD_LIBRARY_SEARCH_SYSTEM32 and explicitly specified
-         * directories only */
-        p_SetDefaultDllDirectories(LOAD_LIBRARY_SEARCH_SYSTEM32 |
+         * directories only */ 
+#ifdef PUTTY_CAC
+        p_SetDefaultDllDirectories(LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR | LOAD_LIBRARY_SEARCH_SYSTEM32 |
                                    LOAD_LIBRARY_SEARCH_USER_DIRS);
+#else
+		p_SetDefaultDllDirectories(LOAD_LIBRARY_SEARCH_SYSTEM32 |
+			LOAD_LIBRARY_SEARCH_USER_DIRS);
+#endif // PUTTY_CAC
     }
 }
 
