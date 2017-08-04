@@ -160,6 +160,14 @@ char *get_username(void)
 
 void dll_hijacking_protection(void)
 {
+#ifdef PUTTY_CAC
+    /*
+	 * Windows 7 has a bug that prevents loading of smart card
+	 * credential providers if a non-default search order is used
+	 */
+	if (!IsWindows8OrGreater()) return;
+#endif // PUTTY_CAC
+
     /*
      * If the OS provides it, call SetDefaultDllDirectories() to
      * prevent DLLs from being loaded from the directory containing
