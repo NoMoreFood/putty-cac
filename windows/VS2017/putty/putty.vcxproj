@@ -105,6 +105,7 @@
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <DisableSpecificWarnings>4018;4267;4244;4201;4204;4221</DisableSpecificWarnings>
       <PrecompiledHeaderOutputFile />
+      <OmitFramePointers>true</OmitFramePointers>
     </ClCompile>
     <Midl>
       <SuppressStartupBanner>true</SuppressStartupBanner>
@@ -153,6 +154,7 @@
       <DisableSpecificWarnings>4018;4267;4244;4201;4204;4221</DisableSpecificWarnings>
       <ObjectFileName>$(IntDir)\%(Filename)%(Extension).obj</ObjectFileName>
       <PrecompiledHeaderOutputFile />
+      <OmitFramePointers>true</OmitFramePointers>
     </ClCompile>
     <Midl>
       <SuppressStartupBanner>true</SuppressStartupBanner>
