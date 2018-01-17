@@ -288,9 +288,6 @@
     <ClInclude Include="..\..\..\tree234.h">
       <Filter>Include Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\unix\unix.h">
-      <Filter>Include Files</Filter>
-    </ClInclude>
     <ClInclude Include="..\..\..\version.h">
       <Filter>Include Files</Filter>
     </ClInclude>

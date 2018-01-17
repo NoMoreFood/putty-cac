@@ -22,7 +22,7 @@ IF DEFINED ProgramFiles(x86) SET PX86=%ProgramFiles(x86)%
 
 :: setup paths
 SET PATH=%WINDIR%\system32;%WINDIR%\system32\WindowsPowerShell\v1.0
-SET PATH=%PATH%;%PX86%\Windows Kits\10\bin\x64
+SET PATH=%PATH%;%PX86%\Windows Kits\10\bin\10.0.16299.0\x64
 SET PATH=%PATH%;%PX86%\Windows Kits\8.1\bin\x64
 SET PATH=%PATH%;%PX86%\WiX Toolset v3.11\bin
 
