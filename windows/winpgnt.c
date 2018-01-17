@@ -593,14 +593,13 @@ static INT_PTR CALLBACK KeyListProc(HWND hwnd, UINT msg,
 			  if (HIWORD(wParam) == LBN_DBLCLK) 
 			  {
 				  int numSelected = SendDlgItemMessage(hwnd, 100, LB_GETSELCOUNT, 0, 0);
-				  if (numSelected > 0) 
-				  {
-					  int * selectedArray = snewn(numSelected, int);
-					  SendDlgItemMessage(hwnd, 100, LB_GETSELITEMS, numSelected, (WPARAM)selectedArray);
-					  struct ssh2_userkey * key = (pageant_nth_ssh2_key(selectedArray[0]));
-					  cert_display_cert(key->comment, hwnd);
-					  sfree(selectedArray);
-				  }
+				  if (numSelected == 0) return 0;
+
+				  int * selectedArray = snewn(numSelected, int);
+			  	  SendDlgItemMessage(hwnd, 100, LB_GETSELITEMS, numSelected, (WPARAM)selectedArray);
+				  struct ssh2_userkey * key = (pageant_nth_ssh2_key(selectedArray[0]));
+				  cert_display_cert(key->comment, hwnd);
+				  sfree(selectedArray);
 			  }
 		  }
 		  return 0;
@@ -617,6 +616,38 @@ static INT_PTR CALLBACK KeyListProc(HWND hwnd, UINT msg,
 			  filename_free(fn);
 			  free(szCert);
 			  sfree(err);
+		}
+		return 0;
+		case 106:		       /* copy key to clipboard */
+		{
+			int numSelected = SendDlgItemMessage(hwnd, 100, LB_GETSELCOUNT, 0, 0);
+			if (numSelected == 0) return 0;
+
+			/* fetch the first selected key in the list */
+			int * selectedArray = snewn(numSelected, int);
+			SendDlgItemMessage(hwnd, 100, LB_GETSELITEMS, numSelected, (WPARAM)selectedArray);
+			struct ssh2_userkey * key = (pageant_nth_ssh2_key(selectedArray[0]));
+			sfree(selectedArray);
+
+			/* get the ssh keystring from the key */
+			char * szKeyString = cert_key_string(key->comment);
+			if (szKeyString == NULL) return 0;
+			HGLOBAL hGlob = GlobalAlloc(GMEM_MOVEABLE, strlen(szKeyString) + 1);
+			if (hGlob != NULL)
+			{
+				/* open clipboard and copy key in */
+				if (OpenClipboard(hwnd) != 0 && EmptyClipboard() != 0)
+				{
+					/* copy the key string into a global for loading onto the clipboard */
+					char * szClipData = (char *)GlobalLock(hGlob);
+					strcpy(szClipData, szKeyString);
+					GlobalUnlock(hGlob);
+					SetClipboardData(CF_TEXT, szClipData);
+					CloseClipboard();
+				}
+			}
+
+			sfree(szKeyString);
 		  }
 		  return 0;
 #endif // PUTTY_CAC
@@ -1282,6 +1313,16 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 	    else
 		command = "";
 	    break;
+	}
+#ifdef PUTTY_CAC
+	else if (!strcmp(argv[i], "-autoload")) {
+		/*
+		* Allow setting the autoload setting via command line
+		*/
+		DWORD AutoloadOn = 1;
+		RegSetKeyValue(HKEY_CURRENT_USER, PUTTY_REG_POS, "AutoloadCerts", REG_DWORD, &AutoloadOn, sizeof(DWORD));
+		break;
+#endif
 	} else {
             Filename *fn = filename_from_str(argv[i]);
 	    win_add_keyfile(fn);
