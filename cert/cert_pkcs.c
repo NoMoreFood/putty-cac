@@ -39,7 +39,7 @@
 
 // functions used within the capi module
 PCCERT_CONTEXT pkcs_get_cert_from_token(CK_FUNCTION_LIST_PTR FunctionList, CK_SESSION_HANDLE hSession, CK_OBJECT_HANDLE hObject);
-CK_FUNCTION_LIST_PTR cert_pkcs_load_library(LPSTR szLibrary);
+CK_FUNCTION_LIST_PTR cert_pkcs_load_library(LPCSTR szLibrary);
 void * pkcs_get_attribute_value(CK_FUNCTION_LIST_PTR FunctionList, CK_SESSION_HANDLE hSession,
 	CK_OBJECT_HANDLE hObject, CK_ATTRIBUTE_TYPE iAttribute, CK_ULONG_PTR iValueSize);
 void pkcs_lookup_token_cert(LPCSTR szCert, CK_SESSION_HANDLE_PTR phSession, CK_OBJECT_HANDLE_PTR phObject,
@@ -288,12 +288,12 @@ void cert_pkcs_load_cert(LPCSTR szCert, PCCERT_CONTEXT* ppCertCtx, HCERTSTORE* p
 	free(szThumb);
 }
 
-CK_FUNCTION_LIST_PTR cert_pkcs_load_library(LPSTR szLibrary)
+CK_FUNCTION_LIST_PTR cert_pkcs_load_library(LPCSTR szLibrary)
 {
 	typedef struct PROGRAM_ITEM
 	{
 		struct PROGRAM_ITEM * NextItem;
-		LPSTR * Path;
+		LPCSTR Path;
 		HMODULE Library;
 		CK_FUNCTION_LIST_PTR FunctionList;
 	} PROGRAM_ITEM;

@@ -21,12 +21,14 @@
 // functions used only by the capi and pkcs addon modules
 EXTERN void cert_reverse_array(LPBYTE pb, DWORD cb);
 EXTERN void cert_prompt_cert(HCERTSTORE hStore, HWND hWnd, LPSTR * szCert, LPCSTR szIden, LPCSTR szHint);
+EXTERN BOOL cert_load_cert(LPCSTR szCert, PCERT_CONTEXT * ppCertContext, HCERTSTORE * phCertStore);
 EXTERN LPSTR cert_get_cert_hash(LPCSTR szIden, PCCERT_CONTEXT pCertContext, LPCSTR szHint);
 EXTERN PVOID cert_pin(LPSTR szCert, BOOL bUnicode, LPVOID szPin, HWND hWnd);
 EXTERN BOOL cert_cache_enabled(DWORD bEnable);
 
 // functions used by putty code 
 EXTERN LPSTR cert_key_string(LPCSTR szCert);
+EXTERN LPSTR cert_subject_string(LPCSTR szCert);
 EXTERN LPSTR cert_prompt(LPCSTR szIden, HWND hWnd);
 EXTERN LPBYTE cert_sign(struct ssh2_userkey * userkey, LPCBYTE pDataToSign, int iDataToSignLen, int * iWrappedSigLen, HWND hWnd);
 EXTERN struct ssh2_userkey * cert_load_key(LPCSTR szCert);
@@ -34,6 +36,11 @@ EXTERN VOID cert_display_cert(LPCSTR szCert, HWND hWnd);
 EXTERN int cert_all_certs(LPSTR ** pszCert);
 EXTERN void cert_convert_legacy(LPSTR szCert);
 EXTERN LPBYTE cert_get_hash(LPCSTR szAlgo, LPCBYTE pDataToHash, DWORD iDataToHashSize, DWORD * iHashedDataSize, BOOL bPrependDigest);
+
+// used in pageant for dialog controls
+#define IDC_PAGEANT_ADD_PKCS 104
+#define IDC_PAGEANT_ADD_CAPI 105
+#define IDC_PAGEANT_CLIP_KEY 106
 
 #define SHA1_BINARY_SIZE (160 / 8)
 #define SHA1_HEX_SIZE (SHA1_BINARY_SIZE * 2)
