@@ -117,7 +117,7 @@
     <ResourceCompile>
       <Culture>0x0809</Culture>
       <PreprocessorDefinitions>PUTTY_CAC;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>..\..\..;..\..;..</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\..\..;..\..;..;..\..\..\cert</AdditionalIncludeDirectories>
     </ResourceCompile>
     <Bscmake>
       <SuppressStartupBanner>true</SuppressStartupBanner>
@@ -167,7 +167,7 @@
     <ResourceCompile>
       <Culture>0x0809</Culture>
       <PreprocessorDefinitions>PUTTY_CAC;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>..\..\..;..\..;..</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\..\..;..\..;..;..\..\..\cert</AdditionalIncludeDirectories>
     </ResourceCompile>
     <Bscmake>
       <SuppressStartupBanner>true</SuppressStartupBanner>
@@ -214,7 +214,7 @@
     <ResourceCompile>
       <Culture>0x0809</Culture>
       <PreprocessorDefinitions>PUTTY_CAC;_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>..\..\..;..\..;..</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\..\..;..\..;..;..\..\..\cert</AdditionalIncludeDirectories>
     </ResourceCompile>
     <Bscmake>
       <SuppressStartupBanner>true</SuppressStartupBanner>
@@ -255,7 +255,7 @@
     <ResourceCompile>
       <Culture>0x0809</Culture>
       <PreprocessorDefinitions>PUTTY_CAC;_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>..\..\..;..\..;..</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\..\..;..\..;..;..\..\..\cert</AdditionalIncludeDirectories>
     </ResourceCompile>
     <Bscmake>
       <SuppressStartupBanner>true</SuppressStartupBanner>
