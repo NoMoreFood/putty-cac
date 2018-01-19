@@ -322,17 +322,28 @@ LPSTR cert_key_string(LPCSTR szCert)
 	HCERTSTORE hCertStore = NULL;
 	if (cert_load_cert(szCert, &pCertContext, &hCertStore) == FALSE) return NULL;
 
-	// get the open ssh ekys trings
+	// obtain the key and destory the comment since we are going to customize it
 	struct ssh2_userkey * pUserKey = cert_get_ssh_userkey(szCert, pCertContext);
-	char * szKey = ssh2_pubkey_openssh_str(pUserKey);
+	sfree(pUserKey->comment);
+	pUserKey->comment = "";
+
+	// fetch the elements of the strin
+	LPSTR szKey = ssh2_pubkey_openssh_str(pUserKey);
+	LPSTR szName = cert_subject_string(szCert);
+	LPSTR szHash = cert_get_cert_hash(szCert, pCertContext, NULL);
+
+	// append the ssh string, identifer:thumbprint, and certificate subject
+	LPSTR szKeyWithComment = dupprintf("%s %s %s", szKey, szHash, szName);
 
 	// clean and return
-	free(pUserKey->comment);
 	pUserKey->alg->freekey(pUserKey->data);
 	sfree(pUserKey);
+	sfree(szKey);
+	sfree(szName);
+	sfree(szHash);
 	CertFreeCertificateContext(pCertContext);
 	CertCloseStore(hCertStore, 0);
-	return szKey;
+	return szKeyWithComment;
 }
 
 LPSTR cert_subject_string(LPCSTR szCert)
