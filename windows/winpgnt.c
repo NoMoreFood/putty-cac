@@ -1350,20 +1350,20 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 	    break;
 	}
 #ifdef PUTTY_CAC
-	else if (!strcmp(argv[i], "-autoload")) {
+	else if (!strcmp(argv[i], "-autoload") || !strcmp(argv[i], "-autoloadoff")) {
 		/*
 		* Allow setting the autoload setting via command line
 		*/
-		DWORD AutoloadOn = 1;
+		DWORD AutoloadOn = (!strcmp(argv[i], "-autoload")) ? 1 : 0;
 		RegSetKeyValue(HKEY_CURRENT_USER, PUTTY_REG_POS, "AutoloadCerts", REG_DWORD, &AutoloadOn, sizeof(DWORD));
 		break;
 	} 
-	else if (!strcmp(argv[i], "-autoloadoff")) {
+	else if (!strcmp(argv[i], "-forcepincache") || !strcmp(argv[i], "-forcepincacheoff")) {
 		/*
-		* Allow setting the autoload setting via command line
+		* Allow setting the pin cache setting via command line
 		*/
-		DWORD AutoloadOn = 0;
-		RegSetKeyValue(HKEY_CURRENT_USER, PUTTY_REG_POS, "AutoloadCerts", REG_DWORD, &AutoloadOn, sizeof(DWORD));
+		DWORD ForcePinCaching = (!strcmp(argv[i], "-forcepincache")) ? 1 : 0;
+		RegSetKeyValue(HKEY_CURRENT_USER, PUTTY_REG_POS, "ForcePinCaching", REG_DWORD, &ForcePinCaching, sizeof(DWORD));
 		break;
 #endif // PUTTY_CAC
 	} else {
