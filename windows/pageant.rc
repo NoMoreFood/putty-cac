@@ -3,6 +3,9 @@
  */
 
 #include "rcstuff.h"
+#ifdef PUTTY_CAC
+#include "cert_common.h"
+#endif // PUTTY_CAC
 
 #define APPNAME "Pageant"
 #define APPDESC "PuTTY SSH authentication agent"
@@ -29,13 +32,14 @@ FONT 8, "MS Shell Dlg"
 #ifdef PUTTY_CAC
 BEGIN
     LISTBOX         100,10,10,310,153,
-        LBS_HASSTRINGS | LBS_USETABSTOPS | LBS_EXTENDEDSEL | WS_VSCROLL | WS_TABSTOP
+        LBS_HASSTRINGS | LBS_USETABSTOPS | LBS_EXTENDEDSEL | LBS_WANTKEYBOARDINPUT | WS_HSCROLL | WS_VSCROLL | WS_TABSTOP
     PUSHBUTTON      "&Add PuTTY Key",101,10,160,64,14
     PUSHBUTTON      "&Remove",102,270,160,50,14
     PUSHBUTTON      "&Help",103,10,180,50,14
     DEFPUSHBUTTON   "&Close",IDOK,270,180,50,14
-    PUSHBUTTON      "Add PKCS Cert",104,142,160,60,14
-    PUSHBUTTON      "Add CAPI Cert",105,78,160,60,14
+    PUSHBUTTON      "Add &PKCS Cert", IDC_PAGEANT_ADD_PKCS,142,160,60,14
+    PUSHBUTTON      "&Add CAPI Cert", IDC_PAGEANT_ADD_CAPI,78,160,60,14
+	PUSHBUTTON      "Copy &To Clipboard", IDC_PAGEANT_CLIP_KEY,68,180,80,14
 END
 #else
 BEGIN
@@ -46,7 +50,7 @@ BEGIN
     PUSHBUTTON "&Help", 103, 10, 182, 50, 14
     DEFPUSHBUTTON "&Close", IDOK, 270, 182, 50, 14
 END
-#endif
+#endif // PUTTY_CAC
 
 /* Accelerators used: cl */
 213 DIALOG DISCARDABLE 140, 40, 270, 106

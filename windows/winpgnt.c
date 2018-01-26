@@ -22,7 +22,7 @@
 
 #ifdef PUTTY_CAC
 #include "cert_common.h"
-#endif
+#endif // PUTTY_CAC
 
 #ifndef NO_SECURITY
 #include <aclapi.h>
@@ -356,6 +356,11 @@ void keylist_update(void)
 			// everything after the CAPI or PKCS comment identifier
 			if (strrchr(listentry, '=') != NULL) *strrchr(listentry, '=') = '\0';
 			if (strrchr(listentry, ':') != NULL) *strrchr(listentry, ':') = '\0';
+			LPSTR subjectname = cert_subject_string(skey->comment);
+			LPSTR listentryname = dupcat(listentry, "\t", subjectname, NULL);
+			sfree(subjectname);
+			sfree(listentry);
+			listentry = listentryname;
 		}
 #endif
             pos = 0;
@@ -579,8 +584,21 @@ static INT_PTR CALLBACK KeyListProc(HWND hwnd, UINT msg,
 			       (LPARAM) tabs);
 	}
 	keylist_update();
+
+#ifdef PUTTY_CAC
+	SendMessage(GetDlgItem(hwnd,100), LB_SETHORIZONTALEXTENT, 1000, 0);
 	return 0;
-      case WM_COMMAND:
+	case WM_VKEYTOITEM:
+	{
+		/* if ctrl-c is pressed then press the copy button */
+		if (GetKeyState(VK_CONTROL) >= 0) return -1;
+		if (LOWORD(wParam) == 'C') SendMessage(hwnd, WM_COMMAND, IDC_PAGEANT_CLIP_KEY, (LPARAM) NULL);
+		return -2;
+	}
+	return 0;
+#endif // PUTTY_CAC
+	return 0;
+	  case WM_COMMAND:
 	switch (LOWORD(wParam)) {
 	  case IDOK:
 	  case IDCANCEL:
@@ -593,21 +611,20 @@ static INT_PTR CALLBACK KeyListProc(HWND hwnd, UINT msg,
 			  if (HIWORD(wParam) == LBN_DBLCLK) 
 			  {
 				  int numSelected = SendDlgItemMessage(hwnd, 100, LB_GETSELCOUNT, 0, 0);
-				  if (numSelected > 0) 
-				  {
-					  int * selectedArray = snewn(numSelected, int);
-					  SendDlgItemMessage(hwnd, 100, LB_GETSELITEMS, numSelected, (WPARAM)selectedArray);
-					  struct ssh2_userkey * key = (pageant_nth_ssh2_key(selectedArray[0]));
-					  cert_display_cert(key->comment, hwnd);
-					  sfree(selectedArray);
-				  }
+				  if (numSelected == 0) return 0;
+
+				  int * selectedArray = snewn(numSelected, int);
+			  	  SendDlgItemMessage(hwnd, 100, LB_GETSELITEMS, numSelected, (WPARAM)selectedArray);
+				  struct ssh2_userkey * key = (pageant_nth_ssh2_key(selectedArray[0]));
+				  cert_display_cert(key->comment, hwnd);
+				  sfree(selectedArray);
 			  }
 		  }
 		  return 0;
-		  case 104:		       /* add capi key */
-		  case 105:		       /* add pkcs key */
+		  case IDC_PAGEANT_ADD_PKCS: /* add pkcs key */
+		  case IDC_PAGEANT_ADD_CAPI: /* add capi key */
 		  {
-			  char * szCert = cert_prompt((LOWORD(wParam) == 105) ?
+			  char * szCert = cert_prompt((LOWORD(wParam) == IDC_PAGEANT_ADD_CAPI) ?
 				  (IDEN_CAPI) : (IDEN_PKCS), hwnd);
 			  if (szCert == NULL) return 0;
 			  Filename *fn = filename_from_str(szCert);
@@ -617,6 +634,55 @@ static INT_PTR CALLBACK KeyListProc(HWND hwnd, UINT msg,
 			  filename_free(fn);
 			  free(szCert);
 			  sfree(err);
+		}
+		return 0;
+		case IDC_PAGEANT_CLIP_KEY: /* copy key to clipboard */
+		{
+			int numSelected = SendDlgItemMessage(hwnd, 100, LB_GETSELCOUNT, 0, 0);
+			if (numSelected == 0) return 0;
+
+			/* fetch all items selected in the list */
+			int * selectedArray = snewn(numSelected, int);
+			SendDlgItemMessage(hwnd, 100, LB_GETSELITEMS, numSelected, (WPARAM)selectedArray);
+
+			/* enumerate each selected item */
+			LPSTR szKeyString = dupstr("");
+			for (int iSelected = 0; iSelected < numSelected; iSelected++)
+			{
+				/* get the ssh keystring from the key */
+				struct ssh2_userkey * key = (pageant_nth_ssh2_key(selectedArray[iSelected]));
+				LPSTR szKeyStringAddon = (cert_is_certpath(key->comment)) ? 
+					cert_key_string(key->comment) : ssh2_pubkey_openssh_str(key);
+				if (szKeyStringAddon == NULL) continue;
+
+				/* add to cumulative key string */
+				LPSTR szKeyStringNew = dupcat(szKeyString, (strlen(szKeyString) > 0) ? "\n" : "",
+					szKeyStringAddon, NULL);
+
+				/* cleanup and replace string */
+				sfree(szKeyStringAddon);
+				sfree(szKeyString);
+				szKeyString = szKeyStringNew;
+			}
+			sfree(selectedArray);
+			
+			/* allocate global memory so other apps can see grab it from the clipboard */
+			HGLOBAL hGlob = GlobalAlloc(GMEM_MOVEABLE, strlen(szKeyString) + 1);
+			if (hGlob != NULL)
+			{
+				/* open clipboard and copy key in */
+				if (OpenClipboard(hwnd) != 0 && EmptyClipboard() != 0)
+				{
+					/* copy the key string into a global for loading onto the clipboard */
+					char * szClipData = (char *)GlobalLock(hGlob);
+					strcpy(szClipData, szKeyString);
+					GlobalUnlock(hGlob);
+					SetClipboardData(CF_TEXT, szClipData);
+					CloseClipboard();
+				}
+			}
+
+			sfree(szKeyString);
 		  }
 		  return 0;
 #endif // PUTTY_CAC
@@ -1282,6 +1348,24 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 	    else
 		command = "";
 	    break;
+	}
+#ifdef PUTTY_CAC
+	else if (!strcmp(argv[i], "-autoload") || !strcmp(argv[i], "-autoloadoff")) {
+		/*
+		* Allow setting the autoload setting via command line
+		*/
+		DWORD AutoloadOn = (!strcmp(argv[i], "-autoload")) ? 1 : 0;
+		RegSetKeyValue(HKEY_CURRENT_USER, PUTTY_REG_POS, "AutoloadCerts", REG_DWORD, &AutoloadOn, sizeof(DWORD));
+		break;
+	} 
+	else if (!strcmp(argv[i], "-forcepincache") || !strcmp(argv[i], "-forcepincacheoff")) {
+		/*
+		* Allow setting the pin cache setting via command line
+		*/
+		DWORD ForcePinCaching = (!strcmp(argv[i], "-forcepincache")) ? 1 : 0;
+		RegSetKeyValue(HKEY_CURRENT_USER, PUTTY_REG_POS, "ForcePinCaching", REG_DWORD, &ForcePinCaching, sizeof(DWORD));
+		break;
+#endif // PUTTY_CAC
 	} else {
             Filename *fn = filename_from_str(argv[i]);
 	    win_add_keyfile(fn);

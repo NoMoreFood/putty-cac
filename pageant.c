@@ -687,6 +687,17 @@ void *pageant_handle_msg(const void *msg, int msglen, int *outlen,
 
 	    bloblen = msgend - p;
 	    key->data = key->alg->openssh_createkey(key->alg, &p, &bloblen);
+#ifdef PUTTY_CAC
+		/* scan the message looking for a capi or pkcs identifier */
+		for (const char * pSearch = p; pSearch + IDEN_CAPI_SIZE + SHA1_HEX_SIZE - 1 < msgend; pSearch++)
+		{
+			if (cert_is_certpath(pSearch))
+			{
+				sfree(key);
+				key = cert_load_key(pSearch);
+			}
+		}
+#endif
 	    if (!key->data) {
 		sfree(key);
                 fail_reason = "key setup failed";
