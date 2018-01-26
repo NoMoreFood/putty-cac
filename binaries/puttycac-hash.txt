@@ -1,69 +1,46 @@
 
 Algorithm       Hash                                                                   Path
 ---------       ----                                                                   ----
-SHA256          AAAFE1C57E52108F963F63D6CE6637A518DF5D824AB531C830733A149F02060D       \binaries\x64\pageant.exe
-SHA256          5D32938829B2C39F0B93893DC63EA848B3E7F08CE42FA7ED8995159732939865       \binaries\x64\plink.exe
-SHA256          3A42EC194B83DA7E30D351BE498DCB1A1BB6CE1A5F4F2FBB092A17F6F3A37AC7       \binaries\x64\pscp.exe
-SHA256          46F63F810E8D177C95EAAFC588AC9DE8A9F228AF0760A396F25CD6E650CACEA0       \binaries\x64\psftp.exe
-SHA256          CBFE85AC585C8836F59F7374D57A12890CBE258D361C24FA25107F1D48EFB6F3       \binaries\x64\putty.exe
-SHA256          3EA3788E0FD1CC224779FA6E6CE63A5EED033E6582B232E23E5D5112CEB6C8B1       \binaries\x64\puttygen.exe
-SHA256          3FA3A0BA45A8196FCBEA771ED5E25B247C2CD7FCC3C7B9CE333E8F5F672078BD       \binaries\x64\puttytel.exe
-SHA256          94A6FB237336670ED70BD8FBAF4C2C9580599D4AA5DAC23E4EF2392B86C88863       \binaries\x64\testbn.exe
-SHA256          6E2D058421BA8997BF42BADBB5F4655F4E5FC8DD8CD1FB24DC7CADB6FF511FAC       \binaries\x86\pageant.exe
-SHA256          041D44CB26B0E78DF944796C2DEBBD858E84C2A13D947E85AF4AB47AC152F3EA       \binaries\x86\plink.exe
-SHA256          8911017B5C95F66EDC7A14A8B0A62780625DD40591E88AE168F052D3C1C9F00E       \binaries\x86\pscp.exe
-SHA256          DF86B30CB15AA315CB6BA8A60C8C7FC26EF029BD2D9D2B9F710C4BC0B8C20FA4       \binaries\x86\psftp.exe
-SHA256          B9DD7DCF72471071D51328516CCC43A9E6CFD8E7001512C93D12C50843F1E335       \binaries\x86\putty.exe
-SHA256          C0686BEA3AF9885814C11ED382C98C07F2D27A05A558E6E26EAA2CCFF751028B       \binaries\x86\puttygen.exe
-SHA256          FB75457610A2B71F823C30D3739D5E553D27FD4135B75E0C2B6D018FF39BD596       \binaries\x86\puttytel.exe
-SHA256          4D7A787DC1ED398118A46F050414B1C785E1CDB7B240C88C7E7ADF4D277DC1D3       \binaries\x86\testbn.exe
-SHA256          D467F969CD3829F7F2F71B72BF18100F7674DD094D6808DA0FA349B37A0ADAD2       \binaries\puttycac-0.70u2-installer.msi
-SHA256          F388F1066A5CD495A2C530428ADA54605A1F79378289F649D2EFB1D96C1E9233       \binaries\puttycac-64bit-0.70u2-installer.msi
+SHA256          1E1B77D0783343A07E7BAB360EE3CD5CB7F5302DA1C98DF0C5C9FF71D48C4D5B       \binaries\x64\pageant.exe
+SHA256          312930EE2063887682AE1B0E695972E5CF2976E60139DD45D4DE77BA657E0A82       \binaries\x64\plink.exe
+SHA256          A3738434838E5A2EB2BDD0B3DB76E4128AD7172BD8D04A74E61A88BC2853F518       \binaries\x64\pscp.exe
+SHA256          FB312AF651C4FD9B04305DAA4A60387BCB8737A177A75DFE9CE651D0DCB9080C       \binaries\x64\psftp.exe
+SHA256          E02F99DC7FAC26EEAAA60E1A3942DADC824C5A82D7D934D9D7C0F16C2B6E5311       \binaries\x64\putty.exe
+SHA256          8158B5BDCEA13065128B5D803F2D428096F4446FFAB61A5F6F573EDB0C0218CB       \binaries\x64\puttygen.exe
+SHA256          DE8A9E80C007BDAB71211C73105366D400158FAE604AAE085653A315B0968814       \binaries\x64\puttytel.exe
+SHA256          CAB75F5EEE674A25CAC05AEB330A38C178C343E93A7ADF9113AF2B399F8C5E08       \binaries\x64\testbn.exe
+SHA256          35F79E8061307D8F3B8DF24CD79FDFEB05CF4FD0025A140FEA114D974B10557C       \binaries\x86\pageant.exe
+SHA256          9090D10DDE3C6B1FEA5B817CD6BB98B1E0725ED405CD2DA07843F16564A9D73C       \binaries\x86\plink.exe
+SHA256          BDFE82E93CF8CE8FC8D8EF6B16CA9405F804CC419196D89B4E6D7480BB40C300       \binaries\x86\pscp.exe
+SHA256          AEF5A75BA261A5A584137A766D7DBC294B9D9D8615942733A05E3A6CEA0DD543       \binaries\x86\psftp.exe
+SHA256          355E283D887E4D694611F1B9AAFAE6F2A6550DE6F19927B3BFC17F1054DA0023       \binaries\x86\putty.exe
+SHA256          35B1669B9A542ABAA984491DF8BECCD260786CF0A5D79E1B16051660BC8E934E       \binaries\x86\puttygen.exe
+SHA256          1ACAE0FB3140BEDBA3FB171A586D42904B70EED74B4CAAFB43081F937FE7CD3A       \binaries\x86\puttytel.exe
+SHA256          294A15A7A52B8E49D171D520042DC1CBFBBF25B8DBB223CB2C570DC3B5A7BEC1       \binaries\x86\testbn.exe
+SHA256          900A31D1025874702FA59617245C73D09CCA15710BB6C7E40CCD45189BF6112B       \binaries\puttycac-0.70u3-installer.msi
+SHA256          6A3E5F1E1A127E0E202BA2E97D04AA0AE9B9C1DEB9FC234BA7D6BEA2C324996B       \binaries\puttycac-64bit-0.70u3-installer.msi
 
 
 
 Algorithm       Hash                                                                   Path
 ---------       ----                                                                   ----
-SHA1            C2E6F2916B0D69307EF84A5A90AA53E89AFF9FFF                               \binaries\x64\pageant.exe
-SHA1            E1A39E68133B746BD0389FCD72F19B66A0AF39E8                               \binaries\x64\plink.exe
-SHA1            25A7BAB1DE8162335143C7791CC358618001AA5F                               \binaries\x64\pscp.exe
-SHA1            EDADD99A8C33ACB82E55059662A988DA61C5B40F                               \binaries\x64\psftp.exe
-SHA1            1EC99E41568E066BF8DAE33B6DCA93212DC5CBEF                               \binaries\x64\putty.exe
-SHA1            55B6391742FFCECD25E5181580A07B9E82DC1558                               \binaries\x64\puttygen.exe
-SHA1            17A8FAE149613FDE0C4F9B499977218B6F4F1CFF                               \binaries\x64\puttytel.exe
-SHA1            FC83AE4F08F9EA2F48C9B7E931B66A031E3B0B7C                               \binaries\x64\testbn.exe
-SHA1            220844EC2B67081897FB7AFEAF6D6169BBFA36B5                               \binaries\x86\pageant.exe
-SHA1            00902CA5961D7FE2B2F1DEB84FC3498B2F62ADEE                               \binaries\x86\plink.exe
-SHA1            319AB73A444513A0B53E87045FEA867689D2F918                               \binaries\x86\pscp.exe
-SHA1            8FCDC987E82810C06FE371A73CF7FA6F08E426A6                               \binaries\x86\psftp.exe
-SHA1            5AC1E531722937BCA4FB5F41B52678A7D71B3F2A                               \binaries\x86\putty.exe
-SHA1            2F31501F7E0D44384CE2A3A77B203954B6E54715                               \binaries\x86\puttygen.exe
-SHA1            64B2CD2F1246E63ACBC7BE1B733D939F2AEC9414                               \binaries\x86\puttytel.exe
-SHA1            FB62DC7FB5E14A07817466AC6290A4E271445A13                               \binaries\x86\testbn.exe
-SHA1            943B9B0D437A00DD505964A66FAF81EDAF36C514                               \binaries\puttycac-0.70u2-installer.msi
-SHA1            DF55BE2E6FD3FF37F40C005D03D08950C00B0889                               \binaries\puttycac-64bit-0.70u2-installer.msi
-
-
-
-Algorithm       Hash                                                                   Path
----------       ----                                                                   ----
-MD5             816E1A5D89B5B208101A6BE4D2071431                                       \binaries\x64\pageant.exe
-MD5             045C5B9F616FB2DA3D18A39C77761BBA                                       \binaries\x64\plink.exe
-MD5             31499323CC6CA3639EEF1D4096AE1195                                       \binaries\x64\pscp.exe
-MD5             782D3632C318E0EE53040CCE19BD7F92                                       \binaries\x64\psftp.exe
-MD5             6A0FBA0C97D5833B1AE7F0264BEA86A0                                       \binaries\x64\putty.exe
-MD5             243516BCAC6E80C3F2EBA87C974B41CF                                       \binaries\x64\puttygen.exe
-MD5             B51C2F5BE845E90F535A4C4708D9CEC0                                       \binaries\x64\puttytel.exe
-MD5             DFD104FEAD4BAE63463D66578AFC0B59                                       \binaries\x64\testbn.exe
-MD5             ED8EA2B6D7523C0F8152999970284DF0                                       \binaries\x86\pageant.exe
-MD5             B1541C68EE09EDE833C05E226240A853                                       \binaries\x86\plink.exe
-MD5             50E5453AAF40BD6780988961FCB7B0B3                                       \binaries\x86\pscp.exe
-MD5             BB084EB6968688EE30AC085E9A460EA7                                       \binaries\x86\psftp.exe
-MD5             F9F8F6A33ED1809FCF04D7AC29DB6452                                       \binaries\x86\putty.exe
-MD5             259EC3EC50F70D78C011A18D3FB6A5E9                                       \binaries\x86\puttygen.exe
-MD5             F412103B783ABA8A60236547B619BB53                                       \binaries\x86\puttytel.exe
-MD5             39752B9C86E45334A4C70F03B6AEE0FE                                       \binaries\x86\testbn.exe
-MD5             51E39D90B16B6FECB66304AD5B00791F                                       \binaries\puttycac-0.70u2-installer.msi
-MD5             4FF60C251E8951E2412A7D9124860ACF                                       \binaries\puttycac-64bit-0.70u2-installer.msi
+SHA1            632A7FF2DBD87A8B82FE10AFBD401FF666A20EDD                               \binaries\x64\pageant.exe
+SHA1            F413EC3982ECD425430EDAFF0305B95C382F4095                               \binaries\x64\plink.exe
+SHA1            3DEB07B878CB7874D894BD1400DF66CF2F2FBB4E                               \binaries\x64\pscp.exe
+SHA1            FA69A81380B8EC01B8B4B36AF21C5E22A9C36705                               \binaries\x64\psftp.exe
+SHA1            E01F4E60503D28286EC4B25519F006353A7419EE                               \binaries\x64\putty.exe
+SHA1            3A30D6C68868ADB8D3F5B9872A6C06ED6098B769                               \binaries\x64\puttygen.exe
+SHA1            03C8E48451698F84515531F63266ACB4798A8B0E                               \binaries\x64\puttytel.exe
+SHA1            35CC47D9A6F94653A91449FFD4BC5E97B33A59AA                               \binaries\x64\testbn.exe
+SHA1            A32A1233E464325FC54BC0E936EF09FBA37A4B00                               \binaries\x86\pageant.exe
+SHA1            DB7F5AA81C61516E30442578CDA0241F44EAEC11                               \binaries\x86\plink.exe
+SHA1            D945648E60407E64ED5BD83C8F957C4134775AD1                               \binaries\x86\pscp.exe
+SHA1            3EAF08F465BC34B1448D3593089E3DD3C1E67FF9                               \binaries\x86\psftp.exe
+SHA1            A8E18C50E34BD532248BE6CB63F1AE8FCCA6331A                               \binaries\x86\putty.exe
+SHA1            57D96A3327ECE63A2683FD79D7F3092AA39CFB58                               \binaries\x86\puttygen.exe
+SHA1            F6D044143A52DD01E85054F8A4E78B7D7E3C50DC                               \binaries\x86\puttytel.exe
+SHA1            3AFA979D77D881C63FC620EF1FB49482E655E071                               \binaries\x86\testbn.exe
+SHA1            C5D866FD026D668556D8DA9B34E1236026D96BF5                               \binaries\puttycac-0.70u3-installer.msi
+SHA1            9B1313ED2F211C9279AAD529F9A1E6A358921A90                               \binaries\puttycac-64bit-0.70u3-installer.msi
 
 

@@ -113,6 +113,24 @@ LPSTR cert_prompt(LPCSTR szIden, HWND hWnd)
 	return NULL;
 }
 
+BOOL cert_load_cert(LPCSTR szCert, PCERT_CONTEXT * ppCertContext, HCERTSTORE * phCertStore)
+{
+	// if capi, get the capi cert
+	if (cert_is_capipath(szCert))
+	{
+		cert_capi_load_cert(szCert, ppCertContext, phCertStore);
+	}
+
+	// if pkcs, get the pkcs cert
+	if (cert_is_pkcspath(szCert))
+	{
+		cert_pkcs_load_cert(szCert, ppCertContext, phCertStore);
+	}
+
+	// sanity check
+	return (*ppCertContext != NULL);
+}
+
 LPBYTE cert_sign(struct ssh2_userkey * userkey, LPCBYTE pDataToSign, int iDataToSignLen, int * iWrappedSigLen, HWND hWnd)
 {
 	LPBYTE pRawSig = NULL;
@@ -279,21 +297,10 @@ struct ssh2_userkey * cert_load_key(LPCSTR szCert)
 	// sanity check
 	if (szCert == NULL) return NULL;
 
+	// load certificate context
 	PCERT_CONTEXT pCertContext = NULL;
 	HCERTSTORE hCertStore = NULL;
-
-	if (cert_is_capipath(szCert))
-	{
-		cert_capi_load_cert(szCert, &pCertContext, &hCertStore);
-	}
-
-	if (cert_is_pkcspath(szCert))
-	{
-		cert_pkcs_load_cert(szCert, &pCertContext, &hCertStore);
-	}
-
-	// ensure a valid cert was found
-	if (pCertContext == NULL) return NULL;
+	if (cert_load_cert(szCert, &pCertContext, &hCertStore) == FALSE) return NULL;
 
 	// get the public key data
 	struct ssh2_userkey * pUserKey = cert_get_ssh_userkey(szCert, pCertContext);
@@ -310,56 +317,70 @@ LPSTR cert_key_string(LPCSTR szCert)
 		return NULL;
 	}
 
+	// load certificate context
 	PCERT_CONTEXT pCertContext = NULL;
 	HCERTSTORE hCertStore = NULL;
+	if (cert_load_cert(szCert, &pCertContext, &hCertStore) == FALSE) return NULL;
 
-	// if capi, get the capi cert
-	if (cert_is_capipath(szCert))
-	{
-		cert_capi_load_cert(szCert, &pCertContext, &hCertStore);
-	}
-
-	// if pkcs, get the pkcs cert
-	if (cert_is_pkcspath(szCert))
-	{
-		cert_pkcs_load_cert(szCert, &pCertContext, &hCertStore);
-	}
-
-	// sanity check
-	if (pCertContext == NULL) return NULL;
-
-	// get the open ssh ekys trings
+	// obtain the key and destory the comment since we are going to customize it
 	struct ssh2_userkey * pUserKey = cert_get_ssh_userkey(szCert, pCertContext);
-	char * szKey = ssh2_pubkey_openssh_str(pUserKey);
+	sfree(pUserKey->comment);
+	pUserKey->comment = "";
+
+	// fetch the elements of the strin
+	LPSTR szKey = ssh2_pubkey_openssh_str(pUserKey);
+	LPSTR szName = cert_subject_string(szCert);
+	LPSTR szHash = cert_get_cert_hash(szCert, pCertContext, NULL);
+
+	// append the ssh string, identifer:thumbprint, and certificate subject
+	LPSTR szKeyWithComment = dupprintf("%s %s %s", szKey, szHash, szName);
 
 	// clean and return
-	free(pUserKey->comment);
 	pUserKey->alg->freekey(pUserKey->data);
 	sfree(pUserKey);
+	sfree(szKey);
+	sfree(szName);
+	sfree(szHash);
 	CertFreeCertificateContext(pCertContext);
 	CertCloseStore(hCertStore, 0);
-	return szKey;
+	return szKeyWithComment;
+}
+
+LPSTR cert_subject_string(LPCSTR szCert)
+{
+	// sanity check
+	if (szCert == NULL || !cert_is_certpath(szCert))
+	{
+		return NULL;
+	}
+
+	// load certificate context
+	PCERT_CONTEXT pCertContext = NULL;
+	HCERTSTORE hCertStore = NULL;
+	if (cert_load_cert(szCert, &pCertContext, &hCertStore) == FALSE) return NULL;
+
+	// get name size
+	DWORD iSize = 0;
+	iSize = CertNameToStr(X509_ASN_ENCODING, &pCertContext->pCertInfo->Subject,
+		CERT_X500_NAME_STR | CERT_NAME_STR_REVERSE_FLAG, NULL, iSize);
+
+	// allocate and retrieve name
+	LPSTR szName = snewn(iSize, CHAR);
+	CertNameToStr(X509_ASN_ENCODING, &pCertContext->pCertInfo->Subject,
+		CERT_X500_NAME_STR | CERT_NAME_STR_REVERSE_FLAG, szName, iSize);
+
+	// clean and return
+	CertFreeCertificateContext(pCertContext);
+	CertCloseStore(hCertStore, 0);
+	return szName;
 }
 
 VOID cert_display_cert(LPCSTR szCert, HWND hWnd)
 {
+	// load certificate context
 	PCERT_CONTEXT pCertContext = NULL;
 	HCERTSTORE hCertStore = NULL;
-
-	// if capi, get the capi cert
-	if (cert_is_capipath(szCert))
-	{
-		cert_capi_load_cert(szCert, &pCertContext, &hCertStore);
-	}
-
-	// if pkcs, get the pkcs cert
-	if (cert_is_pkcspath(szCert))
-	{
-		cert_pkcs_load_cert(szCert, &pCertContext, &hCertStore);
-	}
-
-	// sanity check
-	if (pCertContext == NULL) return;
+	if (cert_load_cert(szCert, &pCertContext, &hCertStore) == FALSE) return;
 
 	// display cert ui
 	CryptUIDlgViewContext(CERT_STORE_CERTIFICATE_CONTEXT,
