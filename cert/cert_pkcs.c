@@ -236,11 +236,24 @@ BYTE * cert_pkcs_sign(struct ssh2_userkey * userkey, LPCBYTE pDataToSign, int iD
 	// create the hash value
 	CK_BYTE_PTR pSignature = NULL;
 	CK_ULONG iSignatureLen = 0;
-	if (pFunctionList->C_SignInit(hSession, &tSignMech, hPrivateKey) != CKR_OK ||
-		pFunctionList->C_Sign(hSession, pHashData, iHashSize, NULL, &iSignatureLen) != CKR_OK ||
-		pFunctionList->C_Sign(hSession, pHashData, iHashSize,
-			pSignature = snewn(iSignatureLen, CK_BYTE), &iSignatureLen) != CKR_OK)
+	CK_RV iResult = CKR_OK;
+	if ((iResult = pFunctionList->C_SignInit(hSession, &tSignMech, hPrivateKey)) != CKR_OK ||
+		(iResult = pFunctionList->C_Sign(hSession, pHashData, iHashSize, NULL, &iSignatureLen)) != CKR_OK ||
+		(iResult = pFunctionList->C_Sign(hSession, pHashData, iHashSize,
+			pSignature = snewn(iSignatureLen, CK_BYTE), &iSignatureLen)) != CKR_OK)
 	{
+		// report signing errors
+		if (iResult == CKR_KEY_TYPE_INCONSISTENT)
+		{
+			LPCSTR szMessage = "The PKCS library reported the selected certificate cannot be used to sign data.";
+			MessageBox(hWnd, szMessage, "PuTTY PKCS Signing Problem", MB_OK | MB_ICONERROR);
+		}
+		else
+		{
+			LPCSTR szMessage = "The PKCS library experienced an error attempting to perform a signing operation.";
+			MessageBox(hWnd, szMessage, "PuTTY PKCS Signing Problem", MB_OK | MB_ICONERROR);
+		}
+
 		// something failed so cleanup signature
 		if (pSignature != NULL)
 		{
@@ -347,6 +360,10 @@ CK_FUNCTION_LIST_PTR cert_pkcs_load_library(LPCSTR szLibrary)
 	if (iLong != CKR_OK &&
 		iLong != CKR_CRYPTOKI_ALREADY_INITIALIZED)
 	{
+		LPCSTR szMessage = "PuTTY could not initialize the selected PKCS library. " \
+			"Usually this is the result of a buggy or misconfigured PKCS library.";
+		MessageBox(NULL, szMessage, "PuTTY PKCS Library Problem", MB_OK | MB_ICONERROR);
+
 		// error - cleanup and return
 		FreeLibrary(hModule);
 		return NULL;
@@ -369,7 +386,7 @@ HCERTSTORE cert_pkcs_get_cert_store(LPCSTR * szHint, HWND hWnd)
 	ZeroMemory(&tFileNameInfo, sizeof(OPENFILENAME));
 	tFileNameInfo.lStructSize = sizeof(OPENFILENAME);
 	tFileNameInfo.hwndOwner = hWnd;
-	tFileNameInfo.lpstrFilter = "PKCS #11 Library Files (*.dll)\0*.dll\0\0";
+	tFileNameInfo.lpstrFilter = "PKCS Library Files (*pkcs*.dll)\0*pkcs*.dll\0All Library Files (*.dll)\0*.dll\0\0";
 	tFileNameInfo.lpstrTitle = "Please Select PKCS #11 Library File";
 	tFileNameInfo.Flags = OFN_DONTADDTORECENT | OFN_FORCESHOWHIDDEN | OFN_FILEMUSTEXIST;
 	tFileNameInfo.lpstrFile = (LPSTR)&szFile;
