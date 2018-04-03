@@ -9360,7 +9360,7 @@ static void do_ssh2_authconn(Ssh ssh, const unsigned char *in, int inlen,
 			conf_set_filename(ssh->conf, CONF_keyfile, entry);
 			filename_free(entry);
 		}
-#endif
+#endif // PUTTY_CAC
 	/*
 	 * Load the public half of any configured public key file
 	 * for later use.
@@ -10088,7 +10088,7 @@ static void do_ssh2_authconn(Ssh ssh, const unsigned char *in, int inlen,
 			{
 				sigblob = cert_sign(key, sigdata, sigdata_len, &sigblob_len, hwnd);
 			} else
-#endif
+#endif // PUTTY_CAC
 		    sigblob = key->alg->sign(key->data, (char *)sigdata,
 					     sigdata_len, &sigblob_len);
 		    ssh2_add_sigblob(ssh, s->pktout, pkblob, pkblob_len,
