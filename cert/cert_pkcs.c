@@ -111,7 +111,7 @@ BYTE * cert_pkcs_sign(struct ssh2_userkey * userkey, LPCBYTE pDataToSign, int iD
 		}
 	}
 
-	// setup the find structure to identiy the public key on the token
+	// setup the find structure to identify the public key on the token
 	CK_OBJECT_CLASS iPublicType = CKO_PUBLIC_KEY;
 	CK_ATTRIBUTE aFindPubCriteria[] = {
 		{ CKA_CLASS,     &iPublicType,  sizeof(CK_OBJECT_CLASS) },
@@ -149,7 +149,7 @@ BYTE * cert_pkcs_sign(struct ssh2_userkey * userkey, LPCBYTE pDataToSign, int iD
 		return NULL;
 	}
 
-	// setup the find structure to identiy the private key on the token
+	// setup the find structure to identify the private key on the token
 	CK_OBJECT_HANDLE iPrivateType = CKO_PRIVATE_KEY;
 	CK_ATTRIBUTE aFindPrivateCriteria[] = {
 		{ CKA_CLASS,    &iPrivateType,	sizeof(CK_OBJECT_CLASS) },
@@ -338,7 +338,7 @@ CK_FUNCTION_LIST_PTR cert_pkcs_load_library(LPCSTR szLibrary)
 		return NULL;
 	}
 
-	// load the master function list for the librar
+	// load the master function list for the library
 	CK_FUNCTION_LIST_PTR hFunctionList = NULL;
 	CK_C_GetFunctionList C_GetFunctionList =
 		(CK_C_GetFunctionList)GetProcAddress(hModule, "C_GetFunctionList");
@@ -496,7 +496,7 @@ void * pkcs_get_attribute_value(CK_FUNCTION_LIST_PTR FunctionList, CK_SESSION_HA
 		return NULL;
 	}
 
-	// set retuned size if requested
+	// set returned size if requested
 	if (iValueSize != NULL)
 	{
 		*iValueSize = aAttribute.ulValueLen;

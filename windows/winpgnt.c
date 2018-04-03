@@ -55,6 +55,7 @@
 #define IDM_ADDPKCS  0x0080
 #define IDM_AUTOCERT 0x0090
 #define IDM_PINCACHE 0x00A0
+#define IDM_CERTAUTH 0x00B0
 #endif // PUTTY_CAC
 
 #define APPNAME "Pageant"
@@ -362,7 +363,7 @@ void keylist_update(void)
 			sfree(listentry);
 			listentry = listentryname;
 		}
-#endif
+#endif // PUTTY_CAC
             pos = 0;
             while (1) {
                 pos += strcspn(listentry + pos, " :");
@@ -595,7 +596,6 @@ static INT_PTR CALLBACK KeyListProc(HWND hwnd, UINT msg,
 		if (LOWORD(wParam) == 'C') SendMessage(hwnd, WM_COMMAND, IDC_PAGEANT_CLIP_KEY, (LPARAM) NULL);
 		return -2;
 	}
-	return 0;
 #endif // PUTTY_CAC
 	return 0;
 	  case WM_COMMAND:
@@ -1050,6 +1050,14 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 		  cert_cache_enabled(ForcePinCaching);
 		  RegSetKeyValue(HKEY_CURRENT_USER, PUTTY_REG_POS, "ForcePinCaching", REG_DWORD, &ForcePinCaching, sizeof(DWORD));
 	  } break;
+	  case IDM_CERTAUTH: {
+		  DWORD iItem = CheckMenuItem(systray_menu, IDM_CERTAUTH, MF_CHECKED);
+		  DWORD iNewState = (iItem == MF_CHECKED) ? MF_UNCHECKED : MF_CHECKED;
+		  CheckMenuItem(systray_menu, IDM_CERTAUTH, iNewState);
+		  DWORD CertAuthPrompting = (iNewState == MF_CHECKED);
+		  cert_auth_prompting(CertAuthPrompting);
+		  RegSetKeyValue(HKEY_CURRENT_USER, PUTTY_REG_POS, "CertAuthPrompting", REG_DWORD, &CertAuthPrompting, sizeof(DWORD));
+	  } break;
 #endif // PUTTY_CAC
 	  case IDM_ABOUT:
 	    if (!aboutbox) {
@@ -1365,6 +1373,14 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 		DWORD ForcePinCaching = (!strcmp(argv[i], "-forcepincache")) ? 1 : 0;
 		RegSetKeyValue(HKEY_CURRENT_USER, PUTTY_REG_POS, "ForcePinCaching", REG_DWORD, &ForcePinCaching, sizeof(DWORD));
 		break;
+	}
+	else if (!strcmp(argv[i], "-certauthprompting") || !strcmp(argv[i], "-certauthpromptingoff")) {
+		/*
+		* Allow setting the cert auth prompting setting via command line
+		*/
+		DWORD CertAuthPrompting = (!strcmp(argv[i], "-certauthprompting")) ? 1 : 0;
+		RegSetKeyValue(HKEY_CURRENT_USER, PUTTY_REG_POS, "CertAuthPrompting", REG_DWORD, &CertAuthPrompting, sizeof(DWORD));
+		break;
 #endif // PUTTY_CAC
 	} else {
             Filename *fn = filename_from_str(argv[i]);
@@ -1457,6 +1473,12 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 	RegGetValue(HKEY_CURRENT_USER, PUTTY_REG_POS, "ForcePinCaching",
 		RRF_RT_REG_DWORD, NULL, &ForcePinCaching, &ForcePinCachingSize);
 	cert_cache_enabled(ForcePinCaching);
+	/* Get Cert Auth Prompting Settings */
+	DWORD CertAuthPrompting = 0;
+	DWORD CertAuthPromptingSize = sizeof(CertAuthPrompting);
+	RegGetValue(HKEY_CURRENT_USER, PUTTY_REG_POS, "CertAuthPrompting",
+		RRF_RT_REG_DWORD, NULL, &CertAuthPrompting, &CertAuthPromptingSize);
+	cert_auth_prompting(CertAuthPrompting);
 #endif // PUTTY_CAC
 
     /* Accelerators used: nsvkxa */
@@ -1478,6 +1500,8 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 		? MF_CHECKED : MF_UNCHECKED, IDM_AUTOCERT, "Autoload Certs");
 	AppendMenu(systray_menu, MF_ENABLED | (ForcePinCaching)
 		? MF_CHECKED : MF_UNCHECKED, IDM_PINCACHE, "Force PIN Caching");
+	AppendMenu(systray_menu, MF_ENABLED | (CertAuthPrompting)
+		? MF_CHECKED : MF_UNCHECKED, IDM_CERTAUTH, "Cert Auth Prompting");
 #else 
 	AppendMenu(systray_menu, MF_ENABLED, IDM_VIEWKEYS,
 		"&View Keys");
