@@ -140,6 +140,22 @@ LPBYTE cert_sign(struct ssh2_userkey * userkey, LPCBYTE pDataToSign, int iDataTo
 	// sanity check
 	if (userkey->comment == NULL) return NULL;
 
+	// prompt if key usage is enabled
+	if (cert_auth_prompting((DWORD)-1))
+	{
+		LPSTR sSubject = cert_subject_string(userkey->comment);
+		LPSTR sMessage = dupprintf("%s\r\n\r\n%s\r\n\r\n%s",
+			"An application is attempting to authenticate using a certificate with the subject: ",
+			sSubject, "Would you like to permit this signing operation?");
+		int iResponse = MessageBox(hWnd, sMessage, "Certificate Usage Confirmation - Pageant",
+			MB_SYSTEMMODAL | MB_ICONQUESTION | MB_YESNO);
+		sfree(sMessage);
+		sfree(sSubject);
+
+		// return if user did not confirm usage
+		if (iResponse != IDYES) return NULL;
+	}
+
 	if (cert_is_capipath(userkey->comment))
 	{
 		pRawSig = cert_capi_sign(userkey, pDataToSign, iDataToSignLen, &iRawSigLen, hWnd);
@@ -322,17 +338,17 @@ LPSTR cert_key_string(LPCSTR szCert)
 	HCERTSTORE hCertStore = NULL;
 	if (cert_load_cert(szCert, &pCertContext, &hCertStore) == FALSE) return NULL;
 
-	// obtain the key and destory the comment since we are going to customize it
+	// obtain the key and destroy the comment since we are going to customize it
 	struct ssh2_userkey * pUserKey = cert_get_ssh_userkey(szCert, pCertContext);
 	sfree(pUserKey->comment);
 	pUserKey->comment = "";
 
-	// fetch the elements of the strin
+	// fetch the elements of the string
 	LPSTR szKey = ssh2_pubkey_openssh_str(pUserKey);
 	LPSTR szName = cert_subject_string(szCert);
 	LPSTR szHash = cert_get_cert_hash(szCert, pCertContext, NULL);
 
-	// append the ssh string, identifer:thumbprint, and certificate subject
+	// append the ssh string, identifier:thumbprint, and certificate subject
 	LPSTR szKeyWithComment = dupprintf("%s %s %s", szKey, szHash, szName);
 
 	// clean and return
@@ -393,7 +409,7 @@ VOID cert_display_cert(LPCSTR szCert, HWND hWnd)
 
 int cert_all_certs(LPSTR ** pszCert)
 {
-	// get a hangle to the cert store
+	// get a handle to the cert store
 	LPCSTR szHint = NULL;
 	HCERTSTORE hCertStore = cert_capi_get_cert_store(&szHint, NULL);
 
@@ -441,7 +457,7 @@ void cert_convert_legacy(LPSTR szCert)
 		strlwr(&szCert[IDEN_CAPI_SIZE]);
 	}
 
-	// search for 'System\MY\' and replace with 'CAPI:'
+	// search for 'Machine\MY\' and replace with 'CAPI:'
 	LPSTR szIdenLegacySys = "Machine\\MY\\";
 	if (strstr(sCompare, szIdenLegacySys) == sCompare)
 	{
@@ -598,6 +614,13 @@ EXTERN BOOL cert_cache_enabled(DWORD bEnable)
 	static BOOL bCacheEnabled = FALSE;
 	if (bEnable != -1) bCacheEnabled = bEnable;
 	return bCacheEnabled;
+}
+
+EXTERN BOOL cert_auth_prompting(DWORD bEnable)
+{
+	static BOOL bCertAuthPrompting = FALSE;
+	if (bEnable != -1) bCertAuthPrompting = bEnable;
+	return bCertAuthPrompting;
 }
 
 #endif // PUTTY_CAC

@@ -527,10 +527,10 @@ void *pageant_handle_msg(const void *msg, int msglen, int *outlen,
 #ifdef PUTTY_CAC
 		if (cert_is_certpath(key->comment))
 		{
-			signature = cert_sign(key, (const char *)data, datalen, &siglen, NULL);
+			signature = cert_sign(key, (LPCBYTE)data, datalen, &siglen, NULL);
 		}
 		else
-#endif
+#endif // PUTTY_CAC
 	    signature = key->alg->sign(key->data, (const char *)data,
                                        datalen, &siglen);
 	    len = 5 + 4 + siglen;
@@ -697,7 +697,7 @@ void *pageant_handle_msg(const void *msg, int msglen, int *outlen,
 				key = cert_load_key(pSearch);
 			}
 		}
-#endif
+#endif // PUTTY_CAC
 	    if (!key->data) {
 		sfree(key);
                 fail_reason = "key setup failed";
