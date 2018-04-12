@@ -274,6 +274,7 @@ void cert_pkcs_load_cert(LPCSTR szCert, PCCERT_CONTEXT* ppCertCtx, HCERTSTORE* p
 	// split on the hint symbol to get the library path
 	LPSTR szThumb = strdup(szCert);
 	LPSTR szLibrary = strrchr(szThumb, '=');
+	if (szLibrary == NULL) return;
 	*szLibrary++ = '\0';
 
 	CK_FUNCTION_LIST_PTR pFunctionList = cert_pkcs_load_library(szLibrary);
