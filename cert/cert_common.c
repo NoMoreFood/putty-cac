@@ -346,7 +346,7 @@ LPSTR cert_key_string(LPCSTR szCert)
 	// fetch the elements of the string
 	LPSTR szKey = ssh2_pubkey_openssh_str(pUserKey);
 	LPSTR szName = cert_subject_string(szCert);
-	LPSTR szHash = cert_get_cert_hash(szCert, pCertContext, NULL);
+	LPSTR szHash = cert_get_cert_hash(cert_iden(szCert), pCertContext, NULL);
 
 	// append the ssh string, identifier:thumbprint, and certificate subject
 	LPSTR szKeyWithComment = dupprintf("%s %s %s", szKey, szHash, szName);
