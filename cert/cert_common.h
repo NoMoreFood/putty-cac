@@ -57,7 +57,7 @@ EXTERN LPBYTE cert_get_hash(LPCSTR szAlgo, LPCBYTE pDataToHash, DWORD iDataToHas
 #define cert_is_capipath(p) (strnicmp((LPSTR) p, IDEN_CAPI, IDEN_CAPI_SIZE) == 0)
 #define cert_is_pkcspath(p) (strnicmp((LPSTR) p, IDEN_PKCS, IDEN_PKCS_SIZE) == 0)
 #define cert_is_certpath(p) (p != NULL && (cert_is_capipath(p) || cert_is_pkcspath(p)))
-#define cert_iden(p) (cert_is_capipath(p) ? IDEN_CAPI : (cert_is_pkcspath(p) ? IDEN_PKCS : "")))
+#define cert_iden(p) (cert_is_capipath(p) ? IDEN_CAPI : (cert_is_pkcspath(p) ? IDEN_PKCS : ""))
 
 #endif /* PUTTY_CAC */
 
