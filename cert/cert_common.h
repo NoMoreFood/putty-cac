@@ -25,6 +25,7 @@ EXTERN BOOL cert_load_cert(LPCSTR szCert, PCERT_CONTEXT * ppCertContext, HCERTST
 EXTERN LPSTR cert_get_cert_hash(LPCSTR szIden, PCCERT_CONTEXT pCertContext, LPCSTR szHint);
 EXTERN PVOID cert_pin(LPSTR szCert, BOOL bUnicode, LPVOID szPin, HWND hWnd);
 EXTERN BOOL cert_cache_enabled(DWORD bEnable);
+EXTERN BOOL cert_auth_prompting(DWORD bEnable);
 
 // functions used by putty code 
 EXTERN LPSTR cert_key_string(LPCSTR szCert);
@@ -58,5 +59,5 @@ EXTERN LPBYTE cert_get_hash(LPCSTR szAlgo, LPCBYTE pDataToHash, DWORD iDataToHas
 #define cert_is_certpath(p) (p != NULL && (cert_is_capipath(p) || cert_is_pkcspath(p)))
 #define cert_iden(p) (cert_is_capipath(p) ? IDEN_CAPI : (cert_is_pkcspath(p) ? IDEN_PKCS : "")))
 
-#endif /* USE_CAPI */
+#endif /* PUTTY_CAC */
 

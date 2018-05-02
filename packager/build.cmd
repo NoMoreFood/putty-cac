@@ -1,11 +1,11 @@
 @ECHO OFF
 
 :: version information
-SET VER=0.70u3
-SET VERN=0.70.0.3
+SET VER=0.70u4
+SET VERN=0.70.0.4
 
 :: cert info to use for signing
-SET CERT=9CC90E20ABF21CDEF09EE4C467A79FD454140C5A
+SET CERT=2FA35B20356EFEB88F9E9B5F20221693C57100E5
 set TSAURL=http://time.certum.pl/
 set LIBNAME=PuTTY-CAC
 set LIBURL=https://github.com/NoMoreFood/putty-cac
