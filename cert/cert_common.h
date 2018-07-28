@@ -26,6 +26,7 @@ EXTERN LPSTR cert_get_cert_hash(LPCSTR szIden, PCCERT_CONTEXT pCertContext, LPCS
 EXTERN PVOID cert_pin(LPSTR szCert, BOOL bUnicode, LPVOID szPin, HWND hWnd);
 EXTERN BOOL cert_cache_enabled(DWORD bEnable);
 EXTERN BOOL cert_auth_prompting(DWORD bEnable);
+EXTERN BOOL cert_smartcard_certs_only(DWORD bEnable);
 
 // functions used by putty code 
 EXTERN LPSTR cert_key_string(LPCSTR szCert);
