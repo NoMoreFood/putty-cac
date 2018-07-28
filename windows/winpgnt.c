@@ -56,6 +56,7 @@
 #define IDM_AUTOCERT 0x0090
 #define IDM_PINCACHE 0x00A0
 #define IDM_CERTAUTH 0x00B0
+#define IDM_SCONLY   0x00C0
 #endif // PUTTY_CAC
 
 #define APPNAME "Pageant"
@@ -1058,6 +1059,14 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 		  cert_auth_prompting(CertAuthPrompting);
 		  RegSetKeyValue(HKEY_CURRENT_USER, PUTTY_REG_POS, "CertAuthPrompting", REG_DWORD, &CertAuthPrompting, sizeof(DWORD));
 	  } break;
+	  case IDM_SCONLY: {
+		  DWORD iItem = CheckMenuItem(systray_menu, IDM_SCONLY, MF_CHECKED);
+		  DWORD iNewState = (iItem == MF_CHECKED) ? MF_UNCHECKED : MF_CHECKED;
+		  CheckMenuItem(systray_menu, IDM_SCONLY, iNewState);
+		  DWORD SmartCardLogonCertsOnly = (iNewState == MF_CHECKED);
+		  cert_smartcard_certs_only(SmartCardLogonCertsOnly);
+		  RegSetKeyValue(HKEY_CURRENT_USER, PUTTY_REG_POS, "SmartCardLogonCertsOnly", REG_DWORD, &SmartCardLogonCertsOnly, sizeof(DWORD));
+	  } break;
 #endif // PUTTY_CAC
 	  case IDM_ABOUT:
 	    if (!aboutbox) {
@@ -1360,26 +1369,34 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 #ifdef PUTTY_CAC
 	else if (!strcmp(argv[i], "-autoload") || !strcmp(argv[i], "-autoloadoff")) {
 		/*
-		* Allow setting the autoload setting via command line
-		*/
+		 * Allow setting the autoload setting via command line
+		 */
 		DWORD AutoloadOn = (!strcmp(argv[i], "-autoload")) ? 1 : 0;
 		RegSetKeyValue(HKEY_CURRENT_USER, PUTTY_REG_POS, "AutoloadCerts", REG_DWORD, &AutoloadOn, sizeof(DWORD));
 		break;
 	} 
 	else if (!strcmp(argv[i], "-forcepincache") || !strcmp(argv[i], "-forcepincacheoff")) {
 		/*
-		* Allow setting the pin cache setting via command line
-		*/
+		 * Allow setting the pin cache setting via command line
+		 */
 		DWORD ForcePinCaching = (!strcmp(argv[i], "-forcepincache")) ? 1 : 0;
 		RegSetKeyValue(HKEY_CURRENT_USER, PUTTY_REG_POS, "ForcePinCaching", REG_DWORD, &ForcePinCaching, sizeof(DWORD));
 		break;
 	}
 	else if (!strcmp(argv[i], "-certauthprompting") || !strcmp(argv[i], "-certauthpromptingoff")) {
 		/*
-		* Allow setting the cert auth prompting setting via command line
-		*/
+		 * Allow setting the cert auth prompting setting via command line
+		 */
 		DWORD CertAuthPrompting = (!strcmp(argv[i], "-certauthprompting")) ? 1 : 0;
 		RegSetKeyValue(HKEY_CURRENT_USER, PUTTY_REG_POS, "CertAuthPrompting", REG_DWORD, &CertAuthPrompting, sizeof(DWORD));
+		break;
+	}
+	else if (!strcmp(argv[i], "-SmartCardLogonCertsOnly") || !strcmp(argv[i], "-SmartCardLogonCertsOnlyoff")) {
+		/*
+		 * Allow smart card only certificate filter to activate
+		 */
+		DWORD SmartCardLogonCertsOnly = (!strcmp(argv[i], "-SmartCardLogonCertsOnly")) ? 1 : 0;
+		RegSetKeyValue(HKEY_CURRENT_USER, PUTTY_REG_POS, "SmartCardLogonCertsOnly", REG_DWORD, &SmartCardLogonCertsOnly, sizeof(DWORD));
 		break;
 #endif // PUTTY_CAC
 	} else {
@@ -1448,6 +1465,12 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
     AddTrayIcon(hwnd);
 
 #ifdef PUTTY_CAC
+	/* Get Smart Card Certs Only Settings */
+	DWORD SmartCardLogonCertsOnly = 0;
+	DWORD SmartCardLogonCertsOnlySize = sizeof(SmartCardLogonCertsOnly);
+	RegGetValue(HKEY_CURRENT_USER, PUTTY_REG_POS, "SmartCardLogonCertsOnly",
+		RRF_RT_REG_DWORD, NULL, &SmartCardLogonCertsOnly, &SmartCardLogonCertsOnlySize);
+	cert_smartcard_certs_only(SmartCardLogonCertsOnly);
 	/* Get Autoload Certificate Settings */
 	DWORD AutoloadCerts = 0;
 	DWORD AutoloadCertsSize = sizeof(AutoloadCerts);
@@ -1502,6 +1525,8 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 		? MF_CHECKED : MF_UNCHECKED, IDM_PINCACHE, "Force PIN Caching");
 	AppendMenu(systray_menu, MF_ENABLED | (CertAuthPrompting)
 		? MF_CHECKED : MF_UNCHECKED, IDM_CERTAUTH, "Cert Auth Prompting");
+	AppendMenu(systray_menu, MF_ENABLED | (SmartCardLogonCertsOnly)
+		? MF_CHECKED : MF_UNCHECKED, IDM_SCONLY, "Smart Card Logon Certs Only");
 #else 
 	AppendMenu(systray_menu, MF_ENABLED, IDM_VIEWKEYS,
 		"&View Keys");

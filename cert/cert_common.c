@@ -54,14 +54,16 @@ void cert_prompt_cert(HCERTSTORE hStore, HWND hWnd, LPSTR * szCert, LPCSTR szIde
 
 	// setup a structure to search for only client auth eligible cert
 	CTL_USAGE tItem;
-	CHAR * sUsage[] = { szOID_PKIX_KP_CLIENT_AUTH };
+	CHAR * sClientAuthUsage[] = { szOID_PKIX_KP_CLIENT_AUTH }; 
+	CHAR * sSmartCardLogonUsage[] = { szOID_KP_SMARTCARD_LOGON };
 	tItem.cUsageIdentifier = 1;
-	tItem.rgpszUsageIdentifier = sUsage;
+	tItem.rgpszUsageIdentifier = cert_smartcard_certs_only((DWORD) -1) ? sSmartCardLogonUsage : sClientAuthUsage;
 	PCCERT_CONTEXT pCertContext = NULL;
 
 	// enumerate all certs
 	while ((pCertContext = CertFindCertificateInStore(hStore, X509_ASN_ENCODING | PKCS_7_ASN_ENCODING,
-		CERT_FIND_VALID_ENHKEY_USAGE_FLAG, CERT_FIND_ENHKEY_USAGE, &tItem, pCertContext)) != NULL)
+		cert_smartcard_certs_only((DWORD) -1) ? CERT_FIND_EXT_ONLY_ENHKEY_USAGE_FLAG : CERT_FIND_VALID_ENHKEY_USAGE_FLAG, 
+		CERT_FIND_ENHKEY_USAGE, &tItem, pCertContext)) != NULL)
 	{
 		CertAddCertificateContextToStore(hMemoryStore, pCertContext, CERT_STORE_ADD_ALWAYS, NULL);
 	}
@@ -415,21 +417,24 @@ int cert_all_certs(LPSTR ** pszCert)
 
 	// enumerate all certs
 	CTL_USAGE tItem;
-	CHAR * sUsage[] = { szOID_PKIX_KP_CLIENT_AUTH };
+	CHAR * sClientAuthUsage[] = { szOID_PKIX_KP_CLIENT_AUTH };
+	CHAR * sSmartCardLogonUsage[] = { szOID_KP_SMARTCARD_LOGON };
 	tItem.cUsageIdentifier = 1;
-	tItem.rgpszUsageIdentifier = sUsage;
+	tItem.rgpszUsageIdentifier = cert_smartcard_certs_only((DWORD)-1) ? sSmartCardLogonUsage : sClientAuthUsage;
 	PCCERT_CONTEXT pCertContext = NULL;
 
 	// first count the number of certs for allocation
 	int iCertNum = 0;
 	while ((pCertContext = CertFindCertificateInStore(hCertStore, X509_ASN_ENCODING | PKCS_7_ASN_ENCODING,
-		CERT_FIND_VALID_ENHKEY_USAGE_FLAG, CERT_FIND_ENHKEY_USAGE, &tItem, pCertContext)) != NULL) iCertNum++;
+		cert_smartcard_certs_only((DWORD)-1) ? CERT_FIND_EXT_ONLY_ENHKEY_USAGE_FLAG : CERT_FIND_VALID_ENHKEY_USAGE_FLAG, 
+		CERT_FIND_ENHKEY_USAGE, &tItem, pCertContext)) != NULL) iCertNum++;
 
 	// allocate memory and populate it
 	*pszCert = snewn(iCertNum, LPSTR);
 	LPSTR * pszCertPos = *pszCert;
 	while ((pCertContext = CertFindCertificateInStore(hCertStore, X509_ASN_ENCODING | PKCS_7_ASN_ENCODING,
-		CERT_FIND_VALID_ENHKEY_USAGE_FLAG, CERT_FIND_ENHKEY_USAGE, &tItem, pCertContext)) != NULL)
+		cert_smartcard_certs_only((DWORD)-1) ? CERT_FIND_EXT_ONLY_ENHKEY_USAGE_FLAG : CERT_FIND_VALID_ENHKEY_USAGE_FLAG, 
+		CERT_FIND_ENHKEY_USAGE, &tItem, pCertContext)) != NULL)
 	{
 		*(pszCertPos++) = cert_get_cert_hash(IDEN_CAPI, pCertContext, NULL);
 	}
@@ -621,6 +626,13 @@ EXTERN BOOL cert_auth_prompting(DWORD bEnable)
 	static BOOL bCertAuthPrompting = FALSE;
 	if (bEnable != -1) bCertAuthPrompting = bEnable;
 	return bCertAuthPrompting;
+}
+
+EXTERN BOOL cert_smartcard_certs_only(DWORD bEnable)
+{
+	static BOOL bSmartCardLogonCertsOnly = FALSE;
+	if (bEnable != -1) bSmartCardLogonCertsOnly = bEnable;
+	return bSmartCardLogonCertsOnly;
 }
 
 #endif // PUTTY_CAC
