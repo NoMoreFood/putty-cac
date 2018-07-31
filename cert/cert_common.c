@@ -65,6 +65,10 @@ void cert_prompt_cert(HCERTSTORE hStore, HWND hWnd, LPSTR * szCert, LPCSTR szIde
 		cert_smartcard_certs_only((DWORD) -1) ? CERT_FIND_EXT_ONLY_ENHKEY_USAGE_FLAG : CERT_FIND_VALID_ENHKEY_USAGE_FLAG, 
 		CERT_FIND_ENHKEY_USAGE, &tItem, pCertContext)) != NULL)
 	{
+		// verify time validity if requested
+		DWORD iFlags = CERT_STORE_TIME_VALIDITY_FLAG;
+		if (cert_ignore_expired_certs((DWORD)-1) && CertVerifySubjectCertificateContext(pCertContext, NULL, &iFlags) == TRUE && iFlags != 0) continue;
+
 		CertAddCertificateContextToStore(hMemoryStore, pCertContext, CERT_STORE_ADD_ALWAYS, NULL);
 	}
 
@@ -423,20 +427,20 @@ int cert_all_certs(LPSTR ** pszCert)
 	tItem.rgpszUsageIdentifier = cert_smartcard_certs_only((DWORD)-1) ? sSmartCardLogonUsage : sClientAuthUsage;
 	PCCERT_CONTEXT pCertContext = NULL;
 
-	// first count the number of certs for allocation
+	// find certificates matching our criteria
 	int iCertNum = 0;
-	while ((pCertContext = CertFindCertificateInStore(hCertStore, X509_ASN_ENCODING | PKCS_7_ASN_ENCODING,
-		cert_smartcard_certs_only((DWORD)-1) ? CERT_FIND_EXT_ONLY_ENHKEY_USAGE_FLAG : CERT_FIND_VALID_ENHKEY_USAGE_FLAG, 
-		CERT_FIND_ENHKEY_USAGE, &tItem, pCertContext)) != NULL) iCertNum++;
-
-	// allocate memory and populate it
-	*pszCert = snewn(iCertNum, LPSTR);
-	LPSTR * pszCertPos = *pszCert;
+	*pszCert = NULL;
 	while ((pCertContext = CertFindCertificateInStore(hCertStore, X509_ASN_ENCODING | PKCS_7_ASN_ENCODING,
 		cert_smartcard_certs_only((DWORD)-1) ? CERT_FIND_EXT_ONLY_ENHKEY_USAGE_FLAG : CERT_FIND_VALID_ENHKEY_USAGE_FLAG, 
 		CERT_FIND_ENHKEY_USAGE, &tItem, pCertContext)) != NULL)
 	{
-		*(pszCertPos++) = cert_get_cert_hash(IDEN_CAPI, pCertContext, NULL);
+		// verify time validity if requested
+		DWORD iFlags = CERT_STORE_TIME_VALIDITY_FLAG;
+		if (cert_ignore_expired_certs((DWORD)-1) && CertVerifySubjectCertificateContext(pCertContext, NULL, &iFlags) == TRUE && iFlags != 0) continue;
+
+		// count cert and [re]allocate the return string array
+		*pszCert = snrealloc(*pszCert, iCertNum + 1, sizeof(LPSTR));
+		(*pszCert)[iCertNum++] = cert_get_cert_hash(IDEN_CAPI, pCertContext, NULL);
 	}
 
 	// cleanup and return
@@ -633,6 +637,13 @@ EXTERN BOOL cert_smartcard_certs_only(DWORD bEnable)
 	static BOOL bSmartCardLogonCertsOnly = FALSE;
 	if (bEnable != -1) bSmartCardLogonCertsOnly = bEnable;
 	return bSmartCardLogonCertsOnly;
+}
+
+EXTERN BOOL cert_ignore_expired_certs(DWORD bEnable)
+{
+	static BOOL bIgnoreExpiredCerts = FALSE;
+	if (bEnable != -1) bIgnoreExpiredCerts = bEnable;
+	return bIgnoreExpiredCerts;
 }
 
 #endif // PUTTY_CAC
