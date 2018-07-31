@@ -57,6 +57,7 @@
 #define IDM_PINCACHE 0x00A0
 #define IDM_CERTAUTH 0x00B0
 #define IDM_SCONLY   0x00C0
+#define IDM_NOEXPR   0x00D0
 #endif // PUTTY_CAC
 
 #define APPNAME "Pageant"
@@ -1067,6 +1068,14 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 		  cert_smartcard_certs_only(SmartCardLogonCertsOnly);
 		  RegSetKeyValue(HKEY_CURRENT_USER, PUTTY_REG_POS, "SmartCardLogonCertsOnly", REG_DWORD, &SmartCardLogonCertsOnly, sizeof(DWORD));
 	  } break;
+	  case IDM_NOEXPR: {
+		  DWORD iItem = CheckMenuItem(systray_menu, IDM_NOEXPR, MF_CHECKED);
+		  DWORD iNewState = (iItem == MF_CHECKED) ? MF_UNCHECKED : MF_CHECKED;
+		  CheckMenuItem(systray_menu, IDM_NOEXPR, iNewState);
+		  DWORD IgnoreExpiredCerts = (iNewState == MF_CHECKED);
+		  cert_ignore_expired_certs(IgnoreExpiredCerts);
+		  RegSetKeyValue(HKEY_CURRENT_USER, PUTTY_REG_POS, "IgnoreExpiredCerts", REG_DWORD, &IgnoreExpiredCerts, sizeof(DWORD));
+	  } break;
 #endif // PUTTY_CAC
 	  case IDM_ABOUT:
 	    if (!aboutbox) {
@@ -1391,12 +1400,20 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 		RegSetKeyValue(HKEY_CURRENT_USER, PUTTY_REG_POS, "CertAuthPrompting", REG_DWORD, &CertAuthPrompting, sizeof(DWORD));
 		break;
 	}
-	else if (!strcmp(argv[i], "-SmartCardLogonCertsOnly") || !strcmp(argv[i], "-SmartCardLogonCertsOnlyoff")) {
+	else if (!strcmp(argv[i], "-smartcardlogoncertsonly") || !strcmp(argv[i], "-smartcardlogoncertsonlyoff")) {
 		/*
-		 * Allow smart card only certificate filter to activate
+		 * Allow smart card only certificate filter setting via command line
 		 */
-		DWORD SmartCardLogonCertsOnly = (!strcmp(argv[i], "-SmartCardLogonCertsOnly")) ? 1 : 0;
+		DWORD SmartCardLogonCertsOnly = (!strcmp(argv[i], "-smartcardlogoncertsonly")) ? 1 : 0;
 		RegSetKeyValue(HKEY_CURRENT_USER, PUTTY_REG_POS, "SmartCardLogonCertsOnly", REG_DWORD, &SmartCardLogonCertsOnly, sizeof(DWORD));
+		break;
+	}
+	else if (!strcmp(argv[i], "-ignoreexpiredcerts") || !strcmp(argv[i], "-ignoreexpiredcertsoff")) {
+		/*
+		* Allow ignore expired certificates setting via command line
+		*/
+		DWORD IgnoreExpiredCerts = (!strcmp(argv[i], "-ignoreexpiredcerts")) ? 1 : 0;
+		RegSetKeyValue(HKEY_CURRENT_USER, PUTTY_REG_POS, "IgnoreExpiredCerts", REG_DWORD, &IgnoreExpiredCerts, sizeof(DWORD));
 		break;
 #endif // PUTTY_CAC
 	} else {
@@ -1465,6 +1482,12 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
     AddTrayIcon(hwnd);
 
 #ifdef PUTTY_CAC
+	/* Get Ignore Expired Certificates Setting */
+	DWORD IgnoredExpiredCerts = 0;
+	DWORD IgnoredExpiredCertsSize = sizeof(IgnoredExpiredCerts);
+	RegGetValue(HKEY_CURRENT_USER, PUTTY_REG_POS, "IgnoreExpiredCerts",
+		RRF_RT_REG_DWORD, NULL, &IgnoredExpiredCerts, &IgnoredExpiredCertsSize);
+	cert_ignore_expired_certs(IgnoredExpiredCerts);
 	/* Get Smart Card Certs Only Settings */
 	DWORD SmartCardLogonCertsOnly = 0;
 	DWORD SmartCardLogonCertsOnlySize = sizeof(SmartCardLogonCertsOnly);
@@ -1525,8 +1548,11 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 		? MF_CHECKED : MF_UNCHECKED, IDM_PINCACHE, "Force PIN Caching");
 	AppendMenu(systray_menu, MF_ENABLED | (CertAuthPrompting)
 		? MF_CHECKED : MF_UNCHECKED, IDM_CERTAUTH, "Cert Auth Prompting");
+	AppendMenu(systray_menu, MF_SEPARATOR, 0, 0);
 	AppendMenu(systray_menu, MF_ENABLED | (SmartCardLogonCertsOnly)
-		? MF_CHECKED : MF_UNCHECKED, IDM_SCONLY, "Smart Card Logon Certs Only");
+		? MF_CHECKED : MF_UNCHECKED, IDM_SCONLY, "Filter: Smart Card Logon Certs");
+	AppendMenu(systray_menu, MF_ENABLED | (IgnoredExpiredCerts)
+		? MF_CHECKED : MF_UNCHECKED, IDM_NOEXPR, "Filter: No Expired Certs");
 #else 
 	AppendMenu(systray_menu, MF_ENABLED, IDM_VIEWKEYS,
 		"&View Keys");
