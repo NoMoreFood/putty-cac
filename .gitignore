@@ -5,6 +5,7 @@
 .DS_Store
 .vs
 *.vcxproj.user
+*.lastcodeanalysissucceeded
 *.pdb
 *.ilk
 *.res
