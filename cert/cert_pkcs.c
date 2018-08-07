@@ -382,15 +382,22 @@ CK_FUNCTION_LIST_PTR cert_pkcs_load_library(LPCSTR szLibrary)
 
 HCERTSTORE cert_pkcs_get_cert_store(LPCSTR * szHint, HWND hWnd)
 {
+	static char szSysDir[MAX_PATH + 1] = "\0";
+	if (strlen(szSysDir) == 0 && GetSystemDirectory(szSysDir, _countof(szSysDir)) == 0)
+	{
+		return NULL;
+	}
+
 	char szFile[MAX_PATH + 1] = "\0";
 	OPENFILENAME tFileNameInfo;
 	ZeroMemory(&tFileNameInfo, sizeof(OPENFILENAME));
 	tFileNameInfo.lStructSize = sizeof(OPENFILENAME);
 	tFileNameInfo.hwndOwner = hWnd;
-	tFileNameInfo.lpstrFilter = "PKCS Library Files (*pkcs*.dll)\0*pkcs*.dll\0All Library Files (*.dll)\0*.dll\0\0";
+	tFileNameInfo.lpstrFilter = "PKCS Library Files (*pkcs*.dll;*pks*.dll;gclib.dll)\0*pkcs*.dll;*pks*.dll;gclib.dll\0All Library Files (*.dll)\0*.dll\0\0";
 	tFileNameInfo.lpstrTitle = "Please Select PKCS #11 Library File";
-	tFileNameInfo.Flags = OFN_DONTADDTORECENT | OFN_FORCESHOWHIDDEN | OFN_FILEMUSTEXIST;
-	tFileNameInfo.lpstrFile = (LPSTR)&szFile;
+	tFileNameInfo.lpstrInitialDir = szSysDir;
+	tFileNameInfo.Flags = OFN_FORCESHOWHIDDEN | OFN_FILEMUSTEXIST;
+	tFileNameInfo.lpstrFile = szFile;
 	tFileNameInfo.nMaxFile = _countof(szFile);
 	tFileNameInfo.nFilterIndex = 1;
 	if (GetOpenFileName(&tFileNameInfo) == 0) return NULL;
