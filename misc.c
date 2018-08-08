@@ -1201,6 +1201,14 @@ char *buildinfo(const char *newline)
 #ifdef PUTTY_CAC
 #if _MSC_VER == 1910
 	strbuf_catf(buf, " 2017 / MSVC++ 14.1");
+#elif _MSC_VER == 1911
+	strbuf_catf(buf, " 2017 / MSVC++ 14.11");
+#elif _MSC_VER == 1912
+	strbuf_catf(buf, " 2017 / MSVC++ 14.12");
+#elif _MSC_VER == 1913
+	strbuf_catf(buf, " 2017 / MSVC++ 14.13");
+#elif _MSC_VER == 1914
+	strbuf_catf(buf, " 2017 / MSVC++ 14.14");
 #else
 	strbuf_catf(buf, ", unrecognised version");
 #endif 
