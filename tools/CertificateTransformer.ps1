@@ -8,6 +8,7 @@ them to a file or create a string that can be used in SSH key files.
 .HISTORY
 
 1.0.0.0 - Initial Public Release 
+1.1.0.0 - Added PEM Processing
 
 .NOTES
 
@@ -40,41 +41,55 @@ Function Script:Get-NormalizedCertificateObject
         [object] $Password = $null
 	)
 
+    $CertificatePath = $null
+    $CreationArgs = @()
     If ($Certificate -is [System.Security.Cryptography.X509Certificates.X509Certificate])
     {
-        Return New-Object System.Security.Cryptography.X509Certificates.X509Certificate2($Certificate)
-    }
+        $CreationArgs = @($Certificate)
+    } `
     ElseIf ($Certificate -is [byte[]])
     {
-        Return New-Object System.Security.Cryptography.X509Certificates.X509Certificate2 -ArgumentList @(,$Certificate)
-    }
+        $CreationArgs = @(,$Certificate)
+    } `
     ElseIf ($Certificate -is [System.IO.FileSystemInfo])
     {
-        If ($Password -eq $null)
-        {
-            Return [System.Security.Cryptography.X509Certificates.X509Certificate2]::CreateFromCertFile($Certificate.FullName)
-        }
-        Else 
-        {
-            Return New-Object System.Security.Cryptography.X509Certificates.X509Certificate2 -ArgumentList @($Certificate.FullName,$Password)
-        }
-        
-    }
+        # extract full path from information object
+        $CertificatePath = $Certificate.FullName
+        $CreationArgs = @($CertificatePath)
+    } `
     ElseIf ($Certificate -is [string])
     {
-        If ($Password -eq $null)
+        If (-not (Test-Path $Certificate -PathType Leaf))
         {
-            Return [System.Security.Cryptography.X509Certificates.X509Certificate2]::CreateFromCertFile($Certificate)
+            Throw 'Certificate file does not exist.'
         }
-        Else 
-        {
-            Return New-Object System.Security.Cryptography.X509Certificates.X509Certificate2 -ArgumentList @($Certificate,$Password)
-        }
-    }
+
+        # expand to absolute path
+        $CertificatePath = @(Resolve-Path $Certificate | Select-Object -ExpandProperty Path)
+        $CreationArgs = @($CertificatePath)      
+    } `
     Else
     {
         Throw 'Object type not supported.'
     }
+
+    # check to see if file is in pem format and, if so, convert to byte array
+    If ($CertificatePath -ne $null) 
+    {
+        $FileData = (Get-Content $CertificatePath) -join '' 
+        If ($FileData -match '-----BEGIN CERTIFICATE-----(.+?)-----END CERTIFICATE-----')
+        {
+            $CreationArgs = @(,[System.Convert]::FromBase64String($Matches[1]))
+        }
+    }
+
+    # append password to argument list if specified
+    If ($Password -ne $null)
+    {
+        $CreationArgs += $Password
+    }
+
+    Return New-Object System.Security.Cryptography.X509Certificates.X509Certificate2 -ArgumentList $CreationArgs
 }
 
 <#
@@ -137,7 +152,7 @@ Function Global:Get-CertificateKeyString
             $Writer.Write([byte]0x0)
             $Writer.Write($Params.Modulus)
 
-        }
+        } `
         ElseIf ($CertObject.PublicKey.Oid.FriendlyName -eq 'ECC')
         {
             $PublicKey = [System.Security.Cryptography.X509Certificates.ECDsaCertificateExtensions]::GetECDsaPublicKey($CertObject)
@@ -161,7 +176,7 @@ Function Global:Get-CertificateKeyString
             $Writer.Write([byte]0x4)
             $Writer.Write($Params.Q.X)
             $Writer.Write($Params.Q.Y)
-        }
+        } `
         Else 
         {
             Throw 'Certificate type not supported.'
@@ -332,6 +347,35 @@ Function Global:Save-Certificate
 
     $CertObject = Get-NormalizedCertificateObject -Certificate $Certificate
     [System.IO.File]::WriteAllBytes($File,$CertObject.Export($Format))
+}
+
+<#
+.SYNOPSIS
+
+This function converts a certificate to PEM format.
+
+.PARAMETER Certificate
+
+The -Certificate specifies the certificate to convert to a PEM string. This can
+be a certificate object, a path to a file, a file system information entry, or
+a byte array of raw certificate data.
+
+#>
+Function Global:Convert-CertificateToPem
+{
+	[CmdletBinding()]
+	Param
+    (
+		[Parameter(Mandatory=$True,ValueFromPipeline=$True)][object] $Certificate
+	)
+
+    $NewLine = ([System.Environment]::NewLine)
+    $CertObject = Get-NormalizedCertificateObject -Certificate $Certificate
+    $CertData = [System.Convert]::ToBase64String($CertObject.RawData)
+    Return `
+        '-----BEGIN CERTIFICATE-----' + $NewLine + `
+        ($CertData -replace '(.{64})',('${1}' + $NewLine)) + $NewLine + `
+        '-----END CERTIFICATE-----'
 }
 
 <#
