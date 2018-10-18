@@ -1,8 +1,8 @@
 @ECHO OFF
 
 :: version information
-SET VER=0.70u5
-SET VERN=0.70.0.5
+SET VER=0.70u6
+SET VERN=0.70.0.6
 
 :: cert info to use for signing
 SET CERT=2FA35B20356EFEB88F9E9B5F20221693C57100E5
@@ -25,6 +25,12 @@ SET PATH=%WINDIR%\system32;%WINDIR%\system32\WindowsPowerShell\v1.0
 SET PATH=%PATH%;%PX86%\Windows Kits\10\bin\10.0.17134.0\x64
 SET PATH=%PATH%;%PX86%\Windows Kits\8.1\bin\x64
 SET PATH=%PATH%;%PX86%\WiX Toolset v3.11\bin
+
+:: cleanup
+FOR %%X IN (Win32 x64 Debug Release Temp .vs) DO (
+  FORFILES /S /P "%BASEDIR%\windows" /M "%%X" /C "CMD /C IF @isdir==TRUE RD /S /Q @path" >NUL 2>&1
+)
+FORFILES /S /P "%BINDIR%" /M "*.*" /C "CMD /C IF /I @ext NEQ """exe""" DEL /Q @file"
 
 :: sign the main executables
 signtool sign /sha1 %CERT% /fd sha1 /tr %TSAURL% /td sha1 /d %LIBNAME% /du %LIBURL% "%BINDIR%\x86\*.exe" "%BINDIR%\x64\*.exe" 
@@ -57,12 +63,21 @@ DEL /Q "%INSTDIR%\*.wix*"
 DEL /Q "%INSTDIR%\*.txt*"
 DEL /Q "%BINDIR%\*.wixpdb"
 
+:: zip up executatables
+SET POWERSHELL=POWERSHELL.EXE -NoProfile -NonInteractive -NoLogo -ExecutionPolicy Unrestricted
+PUSHD "%BINDIR%\x86%"
+%POWERSHELL% -Command "Compress-Archive '*.exe' -DestinationPath '%BINDIR%\puttycac-%VER%.zip'"
+POPD
+PUSHD "%BINDIR%\x64%"
+%POWERSHELL% -Command "Compress-Archive '*.exe' -DestinationPath '%BINDIR%\puttycac-64bit-%VER%.zip'"
+POPD
+
 :: output hash information
 SET HASHFILE=%BINDIR%\puttycac-hash.txt
 IF EXIST "%HASHFILE%" DEL /F "%HASHFILE%"
-POWERSHELL -NoProfile -NonInteractive -NoLogo -Command "Get-ChildItem -Include @('*.msi','*.exe') -Path '%BINDIR%' -Recurse | Get-FileHash -Algorithm SHA256 | Out-File -Append '%HASHFILE%' -Width 256"
-POWERSHELL -NoProfile -NonInteractive -NoLogo -Command "Get-ChildItem -Include @('*.msi','*.exe') -Path '%BINDIR%' -Recurse | Get-FileHash -Algorithm SHA1 | Out-File -Append '%HASHFILE%' -Width 256"
-POWERSHELL -NoProfile -NonInteractive -NoLogo -Command "Get-ChildItem -Include @('*.msi','*.exe') -Path '%BINDIR%' -Recurse | Get-FileHash -Algorithm MD5 | Out-File -Append '%HASHFILE%' -Width 256"
+POWERSHELL -NoProfile -NonInteractive -NoLogo -Command "Get-ChildItem -Include @('*.msi','*.exe','*.zip') -Path '%BINDIR%' -Recurse | Get-FileHash -Algorithm SHA256 | Out-File -Append '%HASHFILE%' -Width 256"
+POWERSHELL -NoProfile -NonInteractive -NoLogo -Command "Get-ChildItem -Include @('*.msi','*.exe','*.zip') -Path '%BINDIR%' -Recurse | Get-FileHash -Algorithm SHA1 | Out-File -Append '%HASHFILE%' -Width 256"
+POWERSHELL -NoProfile -NonInteractive -NoLogo -Command "Get-ChildItem -Include @('*.msi','*.exe','*.zip') -Path '%BINDIR%' -Recurse | Get-FileHash -Algorithm MD5 | Out-File -Append '%HASHFILE%' -Width 256"
 POWERSHELL -NoProfile -NonInteractive -NoLogo -Command "$Data = Get-Content '%HASHFILE%'; $Data.Replace((Get-Item -LiteralPath '%BASEDIR%').FullName,'').Trim() | Set-Content '%HASHFILE%'"
 
 PAUSE

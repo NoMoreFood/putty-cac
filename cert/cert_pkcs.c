@@ -37,7 +37,7 @@
 #include "pkcs\pkcs11.h"
 #pragma pack(pop, cryptoki)
 
-// functions used within the capi module
+// functions used within the pkcs module
 PCCERT_CONTEXT pkcs_get_cert_from_token(CK_FUNCTION_LIST_PTR FunctionList, CK_SESSION_HANDLE hSession, CK_OBJECT_HANDLE hObject);
 CK_FUNCTION_LIST_PTR cert_pkcs_load_library(LPCSTR szLibrary);
 void * pkcs_get_attribute_value(CK_FUNCTION_LIST_PTR FunctionList, CK_SESSION_HANDLE hSession,
@@ -65,8 +65,8 @@ BYTE * cert_pkcs_sign(struct ssh2_userkey * userkey, LPCBYTE pDataToSign, int iD
 		oAttribute = CKA_EC_POINT;
 		struct ec_key *ec = userkey->data;
 
-		// determine key size (assume x and y are same key size)
-		int iKeySize = ((bignum_bitcount(ec->publicKey.x) + 7) / 8);
+		// determine key size (the length of x and y must be same and be bit count of finite field p).
+		int iKeySize = (bignum_bitcount(ec->publicKey.curve->p) + 7) / 8;
 
 		// combine the x and y bytes in to a continue structures
 		LPBYTE pDataToEncode = malloc(1 + iKeySize + iKeySize);
