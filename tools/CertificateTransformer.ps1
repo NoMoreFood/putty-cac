@@ -9,6 +9,7 @@ them to a file or create a string that can be used in SSH key files.
 
 1.0.0.0 - Initial Public Release 
 1.1.0.0 - Added PEM Processing
+1.2.0.0 - Added functions Get-CertificatesFromMyCertificationStore, Print-CertificateDetailsPrettyFormatted 
 
 .NOTES
 
@@ -406,3 +407,91 @@ Function Global:Get-CertificateFromActiveDirectory()
         $Identity | Get-ADUser -Properties 'Certificates' | Select-Object -ExpandProperty 'Certificates'
     }
 }
+
+
+<#
+.SYNOPSIS
+
+Smartcard certificates are also available via Windows Certification Store.
+This function gets all My certificates which have a valid date and
+have the X509v3 Clientauth Extension (OID: 1.3.6.1.5.5.7.3.2) enabled 
+from the Windows Certification Store.
+
+.EXAMPLE
+
+Get-CertificatesFromMyCertificationStore | Get-CertificateKeyString
+
+#>
+Function Global:Get-CertificatesFromMyCertificationStore 
+{
+    Process
+    {
+		[System.Security.Cryptography.X509Certificates.X509Certificate2[]]$aAllValidCertificatesWithClientAuthExtension=@()
+		
+		$aAllValidCertificates=Get-item Cert:\CurrentUser\My\* | where-object{$_.NotAfter -gt (Get-date) -and $_.NotBefore -lt (get-date)} 
+		
+		$aAllValidCertificatesWithClientAuthExtension=$aAllValidCertificates | where-object{$_.EnhancedKeyUsageList | where-object {$_.ObjectID -eq "1.3.6.1.5.5.7.3.2"}}
+		
+		return $aAllValidCertificatesWithClientAuthExtension
+	}
+}
+
+<#
+.SYNOPSIS
+
+This function prints the Common Name, Thumbprint, Issuer "pretty" formatted and
+the SSH public key in paagent style format and can copy the public key to the
+windows clipboard for further usage.
+
+.PARAMETER Certificate
+
+The -Certificate specifies the certificate for which the details will be shown.
+This must be a certificate object.
+
+.PARAMETER CopyPublicKeyToClipboard
+
+If -CopyPublicKeyToClipboard is set the ssh public key is copied to the Windows Clipboard.
+Note: This is only working on newer powershell releases. To get this working
+on older powershell versions the powershell has to start as a single thread
+application by powershell.exe -sta
+
+.EXAMPLE
+
+Get-CertificatesFromMyCertificationStore | Print-CertificateDetailsPrettyFormatted
+Get-CertificatesFromMyCertificationStore | Print-CertificateDetailsPrettyFormatted -CopyPublicKeyToClipboard
+
+#>
+Function Global:Print-CertificateDetailsPrettyFormatted
+{
+	[CmdletBinding()]
+	Param
+    (
+		[Parameter(Mandatory=$True,ValueFromPipeline=$True)][System.Security.Cryptography.X509Certificates.X509Certificate2]$Certificate,
+        [switch] $CopyPublicKeyToClipboard = $false
+	)
+	Process {
+	
+		write-host -foregroundcolor green ([string]::Format("{0,16} : {1}","Common name",$Certificate.SubjectName.Name))
+		write-host -foregroundcolor yellow ([string]::Format("{0,16} : {1}","Thumbprint",$Certificate.Thumbprint))
+		write-host -foregroundcolor Cyan ([string]::Format("{0,16} : {1}","Issuer",$Certificate.issuer))
+		write-host ""
+		
+		$PublicKeyString=$Certificate|Get-CertificateKeyString
+
+		$PublicKeyString+=" CAPI:"+$Certificate.Thumbprint + " " +$Certificate.SubjectName.Name
+		
+		write-host -foregroundcolor Magenta $PublicKeyString
+		
+		if($CopyPublicKeyToClipboard)
+		{
+			try {
+				[Reflection.Assembly]::LoadWithPartialName("System.Windows")|out-null
+				Add-Type -Assembly PresentationCore|out-null
+				[System.Windows.Clipboard]::SetText($PublicKeyString);
+				write-host "`r`nSSH public key successfully copied to clipboard`r`n"
+			}
+			catch [Exception] {}
+		}
+	}
+}
+
