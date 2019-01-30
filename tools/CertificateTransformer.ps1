@@ -466,13 +466,14 @@ Function Global:Get-CertificatesFromStore
 .SYNOPSIS
 
 This function displays the Common Name, Thumbprint, Issuer "pretty" formatted and
-the SSH public key in paagent style format and can copy the public key to the
+the SSH public key in pageant style format and can copy the public key to the
 Windows clipboard for further usage.
 
 .PARAMETER Certificate
 
 The -Certificate specifies the certificate for which the details will be shown.
-This must be a certificate object.
+This can be a certificate object, a path to a file, a file system information 
+entry, or a byte array of raw certificate data.
 
 .PARAMETER CopyPublicKeyToClipboard
 
