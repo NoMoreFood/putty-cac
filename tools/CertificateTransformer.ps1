@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 
 CertificateTransformer is a small collection of functions to query and tranform
@@ -7,15 +7,15 @@ them to a file or create a string that can be used in SSH key files.
 
 .HISTORY
 
-1.0.0.0 - Initial Public Release 
+1.0.0.0 - Initial Public Release
 1.1.0.0 - Added PEM Processing
-1.2.0.0 - Added functions Get-CertificatesFromMyCertificationStore, Print-CertificateDetailsPrettyFormatted 
+1.2.0.0 - Added functions Get-CertificatesFromStore, Format-CertificateDetails
 
 .NOTES
 
-For transform operations, this script requires .Net Frametwork 4.6.1 or later. 
+For transform operations, this script requires .Net Frametwork 4.6.1 or later.
 
-Author: Bryan Berns (Bryan.Berns@gmail.com).  
+Author: Bryan Berns (Bryan.Berns@gmail.com).
 
 #>
 
@@ -35,12 +35,12 @@ Catch
 # internal use only - converts a variety of inputs to a certificate object
 Function Script:Get-NormalizedCertificateObject
 {
-	[CmdletBinding()]
-	Param
+    [CmdletBinding()]
+    Param
     (
-		[Parameter(Mandatory=$True,ValueFromPipeline=$True)][object] $Certificate,
+        [Parameter(Mandatory=$True,ValueFromPipeline=$True)][object] $Certificate,
         [object] $Password = $null
-	)
+    )
 
     $CertificatePath = $null
     $CreationArgs = @()
@@ -67,7 +67,7 @@ Function Script:Get-NormalizedCertificateObject
 
         # expand to absolute path
         $CertificatePath = @(Resolve-Path $Certificate | Select-Object -ExpandProperty Path)
-        $CreationArgs = @($CertificatePath)      
+        $CreationArgs = @($CertificatePath)
     } `
     Else
     {
@@ -75,9 +75,9 @@ Function Script:Get-NormalizedCertificateObject
     }
 
     # check to see if file is in pem format and, if so, convert to byte array
-    If ($CertificatePath -ne $null) 
+    If ($CertificatePath -ne $null)
     {
-        $FileData = (Get-Content $CertificatePath) -join '' 
+        $FileData = (Get-Content $CertificatePath) -join ''
         If ($FileData -match '-----BEGIN CERTIFICATE-----(.+?)-----END CERTIFICATE-----')
         {
             $CreationArgs = @(,[System.Convert]::FromBase64String($Matches[1]))
@@ -101,13 +101,13 @@ in an authorized_keys file.
 
 .PARAMETER Certificate
 
-The -Certificate specifies the certificate for which the key string will be 
+The -Certificate specifies the certificate for which the key string will be
 generated.  This can be a certificate object, a path to a file, a file system
 information entry, or a byte array of raw certificate data.
 
 .PARAMETER Password
 
-The -Password is an optional argument that specifies the password for a 
+The -Password is an optional argument that specifies the password for a
 protected certificate in PFX format.
 
 .EXAMPLE
@@ -117,16 +117,16 @@ Get-ChildItem 'Cert:\CurrentUser\My' | Get-CertificateKeyString
 Get-CertificateKeyString -Certificate 'My Certificate.cer'
 
 #>
-Function Global:Get-CertificateKeyString 
+Function Global:Get-CertificateKeyString
 {
-	[CmdletBinding()]
-	Param
+    [CmdletBinding()]
+    Param
     (
-		[Parameter(Mandatory=$True,ValueFromPipeline=$True)][object] $Certificate,
+        [Parameter(Mandatory=$True,ValueFromPipeline=$True)][object] $Certificate,
         [object] $Password = $null
-	)
+    )
 
-	Process
+    Process
     {
         # convert the input to a normalized x509 format
         $CertObject = Get-NormalizedCertificateObject -Certificate $Certificate -Password $Password
@@ -157,7 +157,7 @@ Function Global:Get-CertificateKeyString
         ElseIf ($CertObject.PublicKey.Oid.FriendlyName -eq 'ECC')
         {
             $PublicKey = [System.Security.Cryptography.X509Certificates.ECDsaCertificateExtensions]::GetECDsaPublicKey($CertObject)
-        
+
             $Params = $PublicKey.ExportParameters($False)
             $CurveName = $Params.Curve.Oid.FriendlyName.ToLower()
             $KeyType = 'ecdsa-sha2-' + $CurveName
@@ -178,7 +178,7 @@ Function Global:Get-CertificateKeyString
             $Writer.Write($Params.Q.X)
             $Writer.Write($Params.Q.Y)
         } `
-        Else 
+        Else
         {
             Throw 'Certificate type not supported.'
         }
@@ -208,12 +208,12 @@ The -Authority parameter specifies the the name of the CA.
 .PARAMETER IncludeExpired
 
 The -IncludeExpired switch causes all certificates which are expired or are not
-active yet (i.e. issues to a future date) to be included in the output.  By 
+active yet (i.e. issues to a future date) to be included in the output.  By
 default, these types of certificates not included.
 
 .PARAMETER IncludeRevoked
 
-The -IncludeRevoked switch causes all certificates which are revoked to be 
+The -IncludeRevoked switch causes all certificates which are revoked to be
 included in the output.  By default, these types of certificates not included.
 
 .PARAMETER IncludeAllUsages
@@ -230,17 +230,17 @@ The -Authority parameter specifies the the name of the CA.
 Get-CertificatesFromAuthority -Server 'CA-SERVER' -Authority 'CA' | Get-CertificateKeyString
 
 #>
-Function Global:Get-CertificatesFromAuthority 
+Function Global:Get-CertificatesFromAuthority
 {
-	[CmdletBinding()]
-	Param
+    [CmdletBinding()]
+    Param
     (
-		[Parameter(Mandatory=$True)][object] $Server,
+        [Parameter(Mandatory=$True)][object] $Server,
         [Parameter(Mandatory=$True)][object] $Authority,
         [switch] $IncludeExpired,
         [switch] $IncludeRevoked,
         [switch] $IncludeAllUsages
-	)
+    )
 
     # establish connection to certificate authority
     $View = New-Object -ComObject CertificateAuthority.View
@@ -293,7 +293,7 @@ Function Global:Get-CertificatesFromAuthority
             $CertObject = New-Object System.Security.Cryptography.X509Certificates.X509Certificate2 `
                 -ArgumentList @(,([System.Convert]::FromBase64String($CertData)))
 
-            # only include smart card logon types 
+            # only include smart card logon types
             If (-not $IncludeAllUsages)
             {
                 If (@($CertObject | Select-Object -ExpandProperty Extensions -ErrorAction SilentlyContinue | `
@@ -320,13 +320,13 @@ This function saves a certificate to a file.
 
 .PARAMETER Certificate
 
-The -Certificate specifies the certificate to save to a file. This can be a 
+The -Certificate specifies the certificate to save to a file. This can be a
 certificate object or a byte array of raw certificate data.
 
 .PARAMETER Format
 
-The -Format specifies the format of the output file.  In not specified, a 
-standard DER-encoded format will be used.  See X509ContentType for other 
+The -Format specifies the format of the output file.  In not specified, a
+standard DER-encoded format will be used.  See X509ContentType for other
 types.
 
 .EXAMPLE
@@ -337,14 +337,14 @@ Get-ChildItem 'Cert:\CurrentUser\My' | Save-Certificate -File Out.cer
 #>
 Function Global:Save-Certificate
 {
-	[CmdletBinding()]
-	Param
+    [CmdletBinding()]
+    Param
     (
-		[Parameter(Mandatory=$True,ValueFromPipeline=$True)][object] $Certificate,
+        [Parameter(Mandatory=$True,ValueFromPipeline=$True)][object] $Certificate,
         [Parameter(Mandatory=$True)][string] $File,
         [System.Security.Cryptography.X509Certificates.X509ContentType] $Format = `
-            ([System.Security.Cryptography.X509Certificates.X509ContentType]::Cert)
-	)
+                ([System.Security.Cryptography.X509Certificates.X509ContentType]::Cert)
+    )
 
     $CertObject = Get-NormalizedCertificateObject -Certificate $Certificate
     [System.IO.File]::WriteAllBytes($File,$CertObject.Export($Format))
@@ -364,19 +364,19 @@ a byte array of raw certificate data.
 #>
 Function Global:Convert-CertificateToPem
 {
-	[CmdletBinding()]
-	Param
+    [CmdletBinding()]
+    Param
     (
-		[Parameter(Mandatory=$True,ValueFromPipeline=$True)][object] $Certificate
-	)
+        [Parameter(Mandatory=$True,ValueFromPipeline=$True)][object] $Certificate
+    )
 
     $NewLine = ([System.Environment]::NewLine)
     $CertObject = Get-NormalizedCertificateObject -Certificate $Certificate
     $CertData = [System.Convert]::ToBase64String($CertObject.RawData)
     Return `
-        '-----BEGIN CERTIFICATE-----' + $NewLine + `
-        ($CertData -replace '(.{64})',('${1}' + $NewLine)) + $NewLine + `
-        '-----END CERTIFICATE-----'
+            '-----BEGIN CERTIFICATE-----' + $NewLine + `
+            ($CertData -replace '(.{64})',('${1}' + $NewLine)) + $NewLine + `
+            '-----END CERTIFICATE-----'
 }
 
 <#
@@ -396,15 +396,15 @@ Get-ADUser 'MyAccount' | Get-CertificateFromActiveDirectory
 #>
 Function Global:Get-CertificateFromActiveDirectory()
 {
-	[CmdletBinding()]
-	Param
+    [CmdletBinding()]
+    Param
     (
-		[Parameter(Mandatory=$True,ValueFromPipeline=$True)][Microsoft.ActiveDirectory.Management.ADAccount] $Identity
-	)
- 
+        [Parameter(Mandatory=$True,ValueFromPipeline=$True)][Microsoft.ActiveDirectory.Management.ADAccount] $Identity
+    )
+
     Process
     {
-        $Identity | Get-ADUser -Properties 'Certificates' | Select-Object -ExpandProperty 'Certificates'
+            $Identity | Get-ADUser -Properties 'Certificates' | Select-Object -ExpandProperty 'Certificates'
     }
 }
 
@@ -412,36 +412,62 @@ Function Global:Get-CertificateFromActiveDirectory()
 <#
 .SYNOPSIS
 
-Smartcard certificates are also available via Windows Certification Store.
-This function gets all My certificates which have a valid date and
-have the X509v3 Clientauth Extension (OID: 1.3.6.1.5.5.7.3.2) enabled 
-from the Windows Certification Store.
+Retrieves all certificates from the specified certificate store.
+Only certificates with valid data range are returned.
 
 .EXAMPLE
 
-Get-CertificatesFromMyCertificationStore | Get-CertificateKeyString
+Get-CertificatesFromStore | Get-CertificateKeyString
+
+.PARAMETER FilterOid
+
+The -FilterOid parameter specifies a particular OID that any returned
+certificates must match.  The default filter matches certificates specified
+for client authentication.
+
+.PARAMETER StoreLocation
+
+The -StoreLocation parameter specifies a particular store location to be
+enumerated.  The default is CurrentUser.
+
+.PARAMETER StoreName
+
+The -StoreName parameter specifies a particular store name to be
+enumerated.  The default is My.
 
 #>
-Function Global:Get-CertificatesFromMyCertificationStore 
+Function Global:Get-CertificatesFromStore
 {
+    [CmdletBinding()]
+    Param
+        (
+        [string] $OidFilter = '1.3.6.1.5.5.7.3.2',
+        [System.Security.Cryptography.X509Certificates.StoreLocation] $StoreLocation = `
+            ([System.Security.Cryptography.X509Certificates.StoreLocation]::CurrentUser),
+        [System.Security.Cryptography.X509Certificates.StoreName] $StoreName = `
+            ([System.Security.Cryptography.X509Certificates.StoreName]::My)
+    )
+
     Process
     {
-		[System.Security.Cryptography.X509Certificates.X509Certificate2[]]$aAllValidCertificatesWithClientAuthExtension=@()
-		
-		$aAllValidCertificates=Get-item Cert:\CurrentUser\My\* | where-object{$_.NotAfter -gt (Get-date) -and $_.NotBefore -lt (get-date)} 
-		
-		$aAllValidCertificatesWithClientAuthExtension=$aAllValidCertificates | where-object{$_.EnhancedKeyUsageList | where-object {$_.ObjectID -eq "1.3.6.1.5.5.7.3.2"}}
-		
-		return $aAllValidCertificatesWithClientAuthExtension
-	}
+        # grab all certificates from the user certificates store
+        [System.Security.Cryptography.X509Certificates.X509Certificate2[]] $AllCertificates =@()
+        $Certificates = Get-Item -Path "Cert:\$StoreLocation\$StoreName\*"
+
+        # filter out certificates that are expired or not yet valid
+        $Certificates = $Certificates | Where-Object {$_.NotAfter -gt (Get-Date) -and $_.NotBefore -lt (Get-Date)}
+
+        # filter out certificates that do not match the specified oid and return
+        Return $Certificates | Where-Object {($_.EnhancedKeyUsageList | Select-Object -ExpandProperty 'ObjectId') -contains $OidFilter}
+    }
 }
 
 <#
 .SYNOPSIS
 
-This function prints the Common Name, Thumbprint, Issuer "pretty" formatted and
+This function displays the Common Name, Thumbprint, Issuer "pretty" formatted and
 the SSH public key in paagent style format and can copy the public key to the
-windows clipboard for further usage.
+Windows clipboard for further usage.
 
 .PARAMETER Certificate
 
@@ -450,48 +476,55 @@ This must be a certificate object.
 
 .PARAMETER CopyPublicKeyToClipboard
 
-If -CopyPublicKeyToClipboard is set the ssh public key is copied to the Windows Clipboard.
-Note: This is only working on newer powershell releases. To get this working
-on older powershell versions the powershell has to start as a single thread
-application by powershell.exe -sta
+If -CopyPublicKeyToClipboard is set the SSH public key is copied to the Windows
+Clipboard.
 
 .EXAMPLE
 
-Get-CertificatesFromMyCertificationStore | Print-CertificateDetailsPrettyFormatted
-Get-CertificatesFromMyCertificationStore | Print-CertificateDetailsPrettyFormatted -CopyPublicKeyToClipboard
+Get-CertificatesFromStore | Format-CertificateDetails
+Get-CertificatesFromStore | Format-CertificateDetails -CopyPublicKeyToClipboard
 
 #>
-Function Global:Print-CertificateDetailsPrettyFormatted
+Function Global:Format-CertificateDetails
 {
-	[CmdletBinding()]
-	Param
+    [CmdletBinding()]
+    Param
     (
-		[Parameter(Mandatory=$True,ValueFromPipeline=$True)][System.Security.Cryptography.X509Certificates.X509Certificate2]$Certificate,
-        [switch] $CopyPublicKeyToClipboard = $false
-	)
-	Process {
-	
-		write-host -foregroundcolor green ([string]::Format("{0,16} : {1}","Common name",$Certificate.SubjectName.Name))
-		write-host -foregroundcolor yellow ([string]::Format("{0,16} : {1}","Thumbprint",$Certificate.Thumbprint))
-		write-host -foregroundcolor Cyan ([string]::Format("{0,16} : {1}","Issuer",$Certificate.issuer))
-		write-host ""
-		
-		$PublicKeyString=$Certificate|Get-CertificateKeyString
+        [Parameter(Mandatory=$True,ValueFromPipeline=$True)][object] $Certificate,
+        [switch] $CopyPublicKeyToClipboard
+    )
 
-		$PublicKeyString+=" CAPI:"+$Certificate.Thumbprint + " " +$Certificate.SubjectName.Name
-		
-		write-host -foregroundcolor Magenta $PublicKeyString
-		
-		if($CopyPublicKeyToClipboard)
-		{
-			try {
-				[Reflection.Assembly]::LoadWithPartialName("System.Windows")|out-null
-				Add-Type -Assembly PresentationCore|out-null
-				[System.Windows.Clipboard]::SetText($PublicKeyString);
-				write-host "`r`nSSH public key successfully copied to clipboard`r`n"
-			}
-			catch [Exception] {}
-		}
-	}
+    Begin
+    {
+        $PublicKeyStrings = @()
+        Add-Type -Assembly System.Windows.Forms | Out-Null
+    }
+
+    Process
+    {
+        $CertObject = Get-NormalizedCertificateObject -Certificate $Certificate
+        Write-Host -ForegroundColor Green ([string]::Format("{0,16} : {1}","Common name",$CertObject.SubjectName.Name))
+        Write-Host -ForegroundColor Yellow ([string]::Format("{0,16} : {1}","Thumbprint",$CertObject.Thumbprint))
+        Write-Host -ForegroundColor Cyan ([string]::Format("{0,16} : {1}","Issuer",$CertObject.Issuer))
+        Write-Host ''
+
+        $PublicKeyString = $CertObject | Get-CertificateKeyString
+        $PublicKeyString += ' CAPI:' + $Certificate.Thumbprint + ' ' + $Certificate.SubjectName.Name
+        $PublicKeyStrings += $PublicKeyString
+
+        Write-Host -ForegroundColor Magenta $PublicKeyString
+    }
+
+    End
+    {
+        If ($CopyPublicKeyToClipboard)
+        {
+            Try
+            {
+                [System.Windows.Forms.Clipboard]::SetText($PublicKeyStrings -join "`r`n")
+                Write-Host "`r`nSSH public key(s) successfully copied to clipboard`r`n"
+            }
+            Catch {}
+        }
+    }
 }
-
