@@ -1211,6 +1211,8 @@ char *buildinfo(const char *newline)
 	strbuf_catf(buf, " 2017 / MSVC++ 14.14");
 #elif _MSC_VER == 1915
 	strbuf_catf(buf, " 2017 / MSVC++ 14.15");
+#elif _MSC_VER == 1916
+	strbuf_catf(buf, " 2017 / MSVC++ 14.16");
 #else
 	strbuf_catf(buf, ", unrecognised version");
 #endif 
