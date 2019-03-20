@@ -145,6 +145,12 @@
     <ClCompile Include="..\..\winutils.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\..\marshal.c" />
+    <ClCompile Include="..\..\..\memory.c" />
+    <ClCompile Include="..\..\..\sessprep.c" />
+    <ClCompile Include="..\..\..\stripctrl.c" />
+    <ClCompile Include="..\..\..\utils.c" />
+    <ClCompile Include="..\..\winmiscs.c" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\winstuff.h">
@@ -198,9 +204,6 @@
     <ClInclude Include="..\..\..\ldisc.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\int64.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="..\..\..\charset\charset.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -210,6 +213,15 @@
     <ClInclude Include="..\..\..\puttymem.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\..\defs.h" />
+    <ClInclude Include="..\..\..\empty.h" />
+    <ClInclude Include="..\..\..\marshal.h" />
+    <ClInclude Include="..\..\..\pgssapi.h" />
+    <ClInclude Include="..\..\..\sshgss.h" />
+    <ClInclude Include="..\..\..\sshgssc.h" />
+    <ClInclude Include="..\..\..\sshsignals.h" />
+    <ClInclude Include="..\..\..\sshttymodes.h" />
+    <ClInclude Include="..\..\..\unix\unix.h" />
   </ItemGroup>
   <ItemGroup>
     <CustomBuild Include="..\..\puttycfg.ico">
