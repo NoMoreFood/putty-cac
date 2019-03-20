@@ -94,6 +94,10 @@ LINK32=link.exe
 # PROP Default_Filter "cpp;c;cxx;rc;def;r;odl;idl;hpj;bat"
 # Begin Source File
 
+SOURCE=..\..\..\agentf.c
+# End Source File
+# Begin Source File
+
 SOURCE=..\..\..\aqsync.c
 # End Source File
 # Begin Source File
@@ -122,6 +126,10 @@ SOURCE=..\..\..\cproxy.c
 # End Source File
 # Begin Source File
 
+SOURCE=..\..\..\ecc.c
+# End Source File
+# Begin Source File
+
 SOURCE=..\..\..\errsock.c
 # End Source File
 # Begin Source File
@@ -134,6 +142,18 @@ SOURCE=..\..\..\logging.c
 # End Source File
 # Begin Source File
 
+SOURCE=..\..\..\mainchan.c
+# End Source File
+# Begin Source File
+
+SOURCE=..\..\..\marshal.c
+# End Source File
+# Begin Source File
+
+SOURCE=..\..\..\memory.c
+# End Source File
+# Begin Source File
+
 SOURCE=..\..\..\misc.c
 # End Source File
 # Begin Source File
@@ -142,11 +162,19 @@ SOURCE=..\..\..\miscucs.c
 # End Source File
 # Begin Source File
 
+SOURCE=..\..\..\mpint.c
+# End Source File
+# Begin Source File
+
 SOURCE=..\..\..\noshare.c
 # End Source File
 # Begin Source File
 
 SOURCE=..\..\..\noterm.c
+# End Source File
+# Begin Source File
+
+SOURCE=..\..\..\nullplug.c
 # End Source File
 # Begin Source File
 
@@ -174,6 +202,10 @@ SOURCE=..\..\..\rlogin.c
 # End Source File
 # Begin Source File
 
+SOURCE=..\..\..\sessprep.c
+# End Source File
+# Begin Source File
+
 SOURCE=..\..\..\settings.c
 # End Source File
 # Begin Source File
@@ -191,6 +223,62 @@ SOURCE=..\..\..\ssh.c
 # End Source File
 # Begin Source File
 
+SOURCE=..\..\..\ssh1bpp.c
+# End Source File
+# Begin Source File
+
+SOURCE=..\..\..\ssh1censor.c
+# End Source File
+# Begin Source File
+
+SOURCE=..\..\..\ssh1connection-client.c
+# End Source File
+# Begin Source File
+
+SOURCE=..\..\..\ssh1connection.c
+# End Source File
+# Begin Source File
+
+SOURCE=..\..\..\ssh1login.c
+# End Source File
+# Begin Source File
+
+SOURCE=..\..\..\ssh2bpp-bare.c
+# End Source File
+# Begin Source File
+
+SOURCE=..\..\..\ssh2bpp.c
+# End Source File
+# Begin Source File
+
+SOURCE=..\..\..\ssh2censor.c
+# End Source File
+# Begin Source File
+
+SOURCE=..\..\..\ssh2connection-client.c
+# End Source File
+# Begin Source File
+
+SOURCE=..\..\..\ssh2connection.c
+# End Source File
+# Begin Source File
+
+SOURCE=..\..\..\ssh2kex-client.c
+# End Source File
+# Begin Source File
+
+SOURCE=..\..\..\ssh2transhk.c
+# End Source File
+# Begin Source File
+
+SOURCE=..\..\..\ssh2transport.c
+# End Source File
+# Begin Source File
+
+SOURCE=..\..\..\ssh2userauth.c
+# End Source File
+# Begin Source File
+
 SOURCE=..\..\..\sshaes.c
 # End Source File
 # Begin Source File
@@ -199,15 +287,19 @@ SOURCE=..\..\..\ssharcf.c
 # End Source File
 # Begin Source File
 
+SOURCE=..\..\..\sshauxcrypt.c
+# End Source File
+# Begin Source File
+
 SOURCE=..\..\..\sshblowf.c
 # End Source File
 # Begin Source File
 
-SOURCE=..\..\..\sshbn.c
+SOURCE=..\..\..\sshccp.c
 # End Source File
 # Begin Source File
 
-SOURCE=..\..\..\sshccp.c
+SOURCE=..\..\..\sshcommon.c
 # End Source File
 # Begin Source File
 
@@ -239,7 +331,19 @@ SOURCE=..\..\..\sshgssc.c
 # End Source File
 # Begin Source File
 
+SOURCE=..\..\..\sshhmac.c
+# End Source File
+# Begin Source File
+
+SOURCE=..\..\..\sshmac.c
+# End Source File
+# Begin Source File
+
 SOURCE=..\..\..\sshmd5.c
+# End Source File
+# Begin Source File
+
+SOURCE=..\..\..\sshprng.c
 # End Source File
 # Begin Source File
 
@@ -271,7 +375,15 @@ SOURCE=..\..\..\sshshare.c
 # End Source File
 # Begin Source File
 
+SOURCE=..\..\..\sshverstring.c
+# End Source File
+# Begin Source File
+
 SOURCE=..\..\..\sshzlib.c
+# End Source File
+# Begin Source File
+
+SOURCE=..\..\..\stripctrl.c
 # End Source File
 # Begin Source File
 
@@ -287,7 +399,15 @@ SOURCE=..\..\..\tree234.c
 # End Source File
 # Begin Source File
 
+SOURCE=..\..\..\utils.c
+# End Source File
+# Begin Source File
+
 SOURCE=..\..\..\version.c
+# End Source File
+# Begin Source File
+
+SOURCE=..\..\..\wcwidth.c
 # End Source File
 # Begin Source File
 
@@ -323,7 +443,15 @@ SOURCE=..\..\..\windows\winmisc.c
 # End Source File
 # Begin Source File
 
+SOURCE=..\..\..\windows\winmiscs.c
+# End Source File
+# Begin Source File
+
 SOURCE=..\..\..\windows\winnet.c
+# End Source File
+# Begin Source File
+
+SOURCE=..\..\..\windows\winnohlp.c
 # End Source File
 # Begin Source File
 
@@ -395,11 +523,15 @@ SOURCE=..\..\..\charset\charset.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\..\..\empty.h
+SOURCE=..\..\..\defs.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\..\..\int64.h
+SOURCE=..\..\..\ecc.h
+# End Source File
+# Begin Source File
+
+SOURCE=..\..\..\empty.h
 # End Source File
 # Begin Source File
 
@@ -411,7 +543,19 @@ SOURCE=..\..\..\licence.h
 # End Source File
 # Begin Source File
 
+SOURCE=..\..\..\marshal.h
+# End Source File
+# Begin Source File
+
 SOURCE=..\..\..\misc.h
+# End Source File
+# Begin Source File
+
+SOURCE=..\..\..\mpint.h
+# End Source File
+# Begin Source File
+
+SOURCE=..\..\..\mpint_i.h
 # End Source File
 # Begin Source File
 
@@ -447,11 +591,31 @@ SOURCE=..\..\..\ssh.h
 # End Source File
 # Begin Source File
 
+SOURCE=..\..\..\ssh1connection.h
+# End Source File
+# Begin Source File
+
+SOURCE=..\..\..\ssh2connection.h
+# End Source File
+# Begin Source File
+
+SOURCE=..\..\..\ssh2transport.h
+# End Source File
+# Begin Source File
+
 SOURCE=..\..\..\sshblowf.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\..\..\sshbn.h
+SOURCE=..\..\..\sshbpp.h
+# End Source File
+# Begin Source File
+
+SOURCE=..\..\..\sshchan.h
+# End Source File
+# Begin Source File
+
+SOURCE=..\..\..\sshcr.h
 # End Source File
 # Begin Source File
 
@@ -460,6 +624,18 @@ SOURCE=..\..\..\sshgss.h
 # Begin Source File
 
 SOURCE=..\..\..\sshgssc.h
+# End Source File
+# Begin Source File
+
+SOURCE=..\..\..\sshppl.h
+# End Source File
+# Begin Source File
+
+SOURCE=..\..\..\sshsignals.h
+# End Source File
+# Begin Source File
+
+SOURCE=..\..\..\sshttymodes.h
 # End Source File
 # Begin Source File
 

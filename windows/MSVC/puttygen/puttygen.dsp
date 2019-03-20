@@ -98,11 +98,27 @@ SOURCE=..\..\..\conf.c
 # End Source File
 # Begin Source File
 
+SOURCE=..\..\..\ecc.c
+# End Source File
+# Begin Source File
+
 SOURCE=..\..\..\import.c
 # End Source File
 # Begin Source File
 
+SOURCE=..\..\..\marshal.c
+# End Source File
+# Begin Source File
+
+SOURCE=..\..\..\memory.c
+# End Source File
+# Begin Source File
+
 SOURCE=..\..\..\misc.c
+# End Source File
+# Begin Source File
+
+SOURCE=..\..\..\mpint.c
 # End Source File
 # Begin Source File
 
@@ -114,15 +130,15 @@ SOURCE=..\..\..\sshaes.c
 # End Source File
 # Begin Source File
 
+SOURCE=..\..\..\sshauxcrypt.c
+# End Source File
+# Begin Source File
+
 SOURCE=..\..\..\sshbcrypt.c
 # End Source File
 # Begin Source File
 
 SOURCE=..\..\..\sshblowf.c
-# End Source File
-# Begin Source File
-
-SOURCE=..\..\..\sshbn.c
 # End Source File
 # Begin Source File
 
@@ -146,11 +162,19 @@ SOURCE=..\..\..\sshecdsag.c
 # End Source File
 # Begin Source File
 
+SOURCE=..\..\..\sshhmac.c
+# End Source File
+# Begin Source File
+
 SOURCE=..\..\..\sshmd5.c
 # End Source File
 # Begin Source File
 
 SOURCE=..\..\..\sshprime.c
+# End Source File
+# Begin Source File
+
+SOURCE=..\..\..\sshprng.c
 # End Source File
 # Begin Source File
 
@@ -182,11 +206,23 @@ SOURCE=..\..\..\sshsha.c
 # End Source File
 # Begin Source File
 
+SOURCE=..\..\..\stripctrl.c
+# End Source File
+# Begin Source File
+
 SOURCE=..\..\..\tree234.c
 # End Source File
 # Begin Source File
 
+SOURCE=..\..\..\utils.c
+# End Source File
+# Begin Source File
+
 SOURCE=..\..\..\version.c
+# End Source File
+# Begin Source File
+
+SOURCE=..\..\..\wcwidth.c
 # End Source File
 # Begin Source File
 
@@ -199,6 +235,10 @@ SOURCE=..\..\..\windows\winhelp.c
 # Begin Source File
 
 SOURCE=..\..\..\windows\winmisc.c
+# End Source File
+# Begin Source File
+
+SOURCE=..\..\..\windows\winmiscs.c
 # End Source File
 # Begin Source File
 
@@ -238,7 +278,15 @@ SOURCE=..\..\..\charset\charset.h
 # End Source File
 # Begin Source File
 
+SOURCE=..\..\..\defs.h
+# End Source File
+# Begin Source File
+
 SOURCE=..\..\..\dialog.h
+# End Source File
+# Begin Source File
+
+SOURCE=..\..\..\ecc.h
 # End Source File
 # Begin Source File
 
@@ -246,15 +294,23 @@ SOURCE=..\..\..\empty.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\..\..\int64.h
-# End Source File
-# Begin Source File
-
 SOURCE=..\..\..\licence.h
 # End Source File
 # Begin Source File
 
+SOURCE=..\..\..\marshal.h
+# End Source File
+# Begin Source File
+
 SOURCE=..\..\..\misc.h
+# End Source File
+# Begin Source File
+
+SOURCE=..\..\..\mpint.h
+# End Source File
+# Begin Source File
+
+SOURCE=..\..\..\mpint_i.h
 # End Source File
 # Begin Source File
 
@@ -282,11 +338,19 @@ SOURCE=..\..\..\sshblowf.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\..\..\sshbn.h
+SOURCE=..\..\..\sshsignals.h
+# End Source File
+# Begin Source File
+
+SOURCE=..\..\..\sshttymodes.h
 # End Source File
 # Begin Source File
 
 SOURCE=..\..\..\storage.h
+# End Source File
+# Begin Source File
+
+SOURCE=..\..\..\terminal.h
 # End Source File
 # Begin Source File
 
@@ -303,6 +367,10 @@ SOURCE=..\..\..\version.h
 # Begin Source File
 
 SOURCE=..\..\..\windows\rcstuff.h
+# End Source File
+# Begin Source File
+
+SOURCE=..\..\..\windows\win_res.h
 # End Source File
 # Begin Source File
 

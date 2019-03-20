@@ -19,6 +19,7 @@
 #ifndef SSH_AGENT_SUCCESS
 #include "ssh.h"
 #endif
+#include "mpint.h"
 
 // required to be defined by pkcs headers
 #define CK_PTR *
@@ -45,6 +46,10 @@ void * pkcs_get_attribute_value(CK_FUNCTION_LIST_PTR FunctionList, CK_SESSION_HA
 void pkcs_lookup_token_cert(LPCSTR szCert, CK_SESSION_HANDLE_PTR phSession, CK_OBJECT_HANDLE_PTR phObject,
 	CK_ATTRIBUTE aFindCriteria[], CK_ULONG iFindCriteria, BOOL bReturnFirst);
 
+// abbreviated ecc structures since they are hidden in the ecc code
+struct WeierstrassPoint { mp_int *X, *Y, *Z; WeierstrassCurve *wc; };
+struct WeierstrassCurve { mp_int *p; MontyContext *mc; ModsqrtContext *sc; mp_int *a, *b; };
+
 BYTE * cert_pkcs_sign(struct ssh2_userkey * userkey, LPCBYTE pDataToSign, int iDataToSignLen, int * iSigLen, HWND hWnd)
 {
 	// get the library to load from based on comment
@@ -59,23 +64,27 @@ BYTE * cert_pkcs_sign(struct ssh2_userkey * userkey, LPCBYTE pDataToSign, int iD
 	CK_ATTRIBUTE_TYPE oAttribute = 0;
 
 	// ecdsa
-	if (strstr(userkey->alg->name, "ecdsa-") == userkey->alg->name)
+	if (strstr(userkey->key->vt->ssh_id, "ecdsa-") == userkey->key->vt->ssh_id)
 	{
 		oType = CKK_EC;
 		oAttribute = CKA_EC_POINT;
-		struct ec_key *ec = userkey->data;
+		struct ecdsa_key *ec = container_of(userkey->key, struct ecdsa_key, sshk);
 
 		// determine key size (the length of x and y must be same and be bit count of finite field p).
-		int iKeySize = (bignum_bitcount(ec->publicKey.curve->p) + 7) / 8;
-
-		// combine the x and y bytes in to a continue structures
+		int iKeySize = (mp_get_nbits(ec->publicKey->wc->p) + 7) / 8;
+		
+		// combine the x and y bytes in to a continuous structure
 		LPBYTE pDataToEncode = malloc(1 + iKeySize + iKeySize);
 		pDataToEncode[0] = 0x04;
+		mp_int * X = monty_export(ec->curve->w.wc->mc, ec->publicKey->X);
+		mp_int * Y = monty_export(ec->curve->w.wc->mc, ec->publicKey->Y);
 		for (int i = 0; i < iKeySize; i++)
 		{
-			pDataToEncode[1 + i] = bignum_byte(ec->publicKey.x, i);
-			pDataToEncode[1 + i + iKeySize] = bignum_byte(ec->publicKey.y, i);
+			pDataToEncode[1 + i] = mp_get_byte(X, i);
+			pDataToEncode[1 + i + iKeySize] = mp_get_byte(Y, i);
 		}
+		sfree(X);
+		sfree(Y);
 
 		// reverse for big-endian
 		cert_reverse_array(1 + pDataToEncode, iKeySize);
@@ -102,12 +111,12 @@ BYTE * cert_pkcs_sign(struct ssh2_userkey * userkey, LPCBYTE pDataToSign, int iD
 	{
 		oType = CKK_RSA;
 		oAttribute = CKA_MODULUS;
-		struct RSAKey * rsa = userkey->data;
+		struct RSAKey * rsa = container_of(userkey->key, struct RSAKey, sshk);
 		iLookupSize = rsa->bytes;
 		pLookupValue = malloc(iLookupSize);
 		for (int i = 0; i < iLookupSize; i++)
 		{
-			pLookupValue[iLookupSize - i - 1] = bignum_byte(rsa->modulus, i);
+			pLookupValue[iLookupSize - i - 1] = mp_get_byte(rsa->modulus, i);
 		}
 	}
 
@@ -225,7 +234,7 @@ BYTE * cert_pkcs_sign(struct ssh2_userkey * userkey, LPCBYTE pDataToSign, int iD
 	// the message to send contains the static sha1 oid header
 	// followed by a sha1 hash of the data sent from the host
 	DWORD iHashSize = 0;
-	LPBYTE pHashData = cert_get_hash(userkey->alg->name, pDataToSign, iDataToSignLen, &iHashSize, TRUE);
+	LPBYTE pHashData = cert_get_hash(userkey->key->vt->ssh_id, pDataToSign, iDataToSignLen, &iHashSize, TRUE);
 
 	// setup the signature process to sign using the rsa private key on the card 
 	CK_MECHANISM tSignMech;

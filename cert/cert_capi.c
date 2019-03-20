@@ -108,7 +108,7 @@ BYTE * cert_capi_sign(struct ssh2_userkey * userkey, LPCBYTE pDataToSign, int iD
 			DWORD iPadFlag = 0;
 			BCRYPT_PKCS1_PADDING_INFO tInfo = { 0 };
 			PVOID pPadInfo = NULL;
-			if (strcmp(userkey->alg->name, "ssh-rsa") == 0)
+			if (strcmp(userkey->key->vt->ssh_id, "ssh-rsa") == 0)
 			{
 				tInfo.pszAlgId = NCRYPT_SHA1_ALGORITHM;
 				iPadFlag = BCRYPT_PAD_PKCS1;
@@ -117,7 +117,7 @@ BYTE * cert_capi_sign(struct ssh2_userkey * userkey, LPCBYTE pDataToSign, int iD
 
 			// hash and sign
 			DWORD iHashDataSize = 0;
-			LPBYTE pHashData = cert_get_hash(userkey->alg->name, pDataToSign, iDataToSignLen, &iHashDataSize, FALSE);
+			LPBYTE pHashData = cert_get_hash(userkey->key->vt->ssh_id, pDataToSign, iDataToSignLen, &iHashDataSize, FALSE);
 			if (pHashData != NULL &&
 				NCryptSignHash(hNCryptKey, pPadInfo, pHashData, iHashDataSize, NULL, 0, &iSig, iPadFlag) == ERROR_SUCCESS &&
 				NCryptSignHash(hNCryptKey, pPadInfo, pHashData, iHashDataSize, pSig = snewn(iSig, BYTE), iSig, &iSig, iPadFlag) == ERROR_SUCCESS)
