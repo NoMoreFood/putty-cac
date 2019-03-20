@@ -114,6 +114,7 @@
       <DisableSpecificWarnings>4018;4267;4244;4201;4204;4221</DisableSpecificWarnings>
       <PrecompiledHeaderOutputFile />
       <OmitFramePointers>true</OmitFramePointers>
+      <CompileAs>CompileAsC</CompileAs>
     </ClCompile>
     <Midl>
       <SuppressStartupBanner>true</SuppressStartupBanner>
@@ -163,6 +164,7 @@
       <DisableSpecificWarnings>4018;4267;4244;4201;4204;4221</DisableSpecificWarnings>
       <PrecompiledHeaderOutputFile />
       <OmitFramePointers>true</OmitFramePointers>
+      <CompileAs>CompileAsC</CompileAs>
     </ClCompile>
     <Midl>
       <SuppressStartupBanner>true</SuppressStartupBanner>
@@ -199,7 +201,7 @@
       <FunctionLevelLinking>false</FunctionLevelLinking>
       <Optimization>Disabled</Optimization>
       <SuppressStartupBanner>true</SuppressStartupBanner>
-      <WarningLevel>Level4</WarningLevel>
+      <WarningLevel>Level3</WarningLevel>
       <MinimalRebuild>true</MinimalRebuild>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <AdditionalIncludeDirectories>..\..\..\;..\..\..\charset;..\..\..\windows;..\..\..\unix;..\..\..\cert;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
@@ -209,6 +211,7 @@
       <ObjectFileName>$(IntDir)\%(Filename)%(Extension).obj</ObjectFileName>
       <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
       <DisableSpecificWarnings>4018;4267;4244;4201;4204;4221</DisableSpecificWarnings>
+      <CompileAs>CompileAsC</CompileAs>
     </ClCompile>
     <Midl>
       <SuppressStartupBanner>true</SuppressStartupBanner>
@@ -245,7 +248,7 @@
       <FunctionLevelLinking>false</FunctionLevelLinking>
       <Optimization>Disabled</Optimization>
       <SuppressStartupBanner>true</SuppressStartupBanner>
-      <WarningLevel>Level4</WarningLevel>
+      <WarningLevel>Level3</WarningLevel>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <AdditionalIncludeDirectories>..\..\..\;..\..\..\charset;..\..\..\windows;..\..\..\unix;..\..\..\cert;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>PUTTY_CAC;_DEBUG;_WIN32_WINNT=_WIN32_WINNT_WIN6;WINVER=_WIN32_WINNT_WIN6;_WINDOWS;POSIX;_CRT_SECURE_NO_WARNINGS;_CRT_NONSTDC_NO_DEPRECATE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
@@ -254,6 +257,7 @@
       <ObjectFileName>$(IntDir)\%(Filename)%(Extension).obj</ObjectFileName>
       <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
       <DisableSpecificWarnings>4018;4267;4244;4201;4204;4221</DisableSpecificWarnings>
+      <CompileAs>CompileAsC</CompileAs>
     </ClCompile>
     <Midl>
       <SuppressStartupBanner>true</SuppressStartupBanner>
@@ -294,21 +298,31 @@
     </ResourceCompile>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="..\..\..\callback.c" />
+    <ClCompile Include="..\..\..\cert\cert_capi.c" />
+    <ClCompile Include="..\..\..\cert\cert_common.c" />
+    <ClCompile Include="..\..\..\cert\cert_pkcs.c" />
     <ClCompile Include="..\..\..\conf.c" />
+    <ClCompile Include="..\..\..\ecc.c" />
     <ClCompile Include="..\..\..\import.c" />
+    <ClCompile Include="..\..\..\marshal.c" />
+    <ClCompile Include="..\..\..\memory.c" />
     <ClCompile Include="..\..\..\misc.c" />
+    <ClCompile Include="..\..\..\mpint.c" />
     <ClCompile Include="..\..\..\notiming.c" />
     <ClCompile Include="..\..\..\sshaes.c" />
+    <ClCompile Include="..\..\..\sshauxcrypt.c" />
     <ClCompile Include="..\..\..\sshbcrypt.c" />
     <ClCompile Include="..\..\..\sshblowf.c" />
-    <ClCompile Include="..\..\..\sshbn.c" />
     <ClCompile Include="..\..\..\sshdes.c" />
     <ClCompile Include="..\..\..\sshdss.c" />
     <ClCompile Include="..\..\..\sshdssg.c" />
     <ClCompile Include="..\..\..\sshecc.c" />
     <ClCompile Include="..\..\..\sshecdsag.c" />
+    <ClCompile Include="..\..\..\sshhmac.c" />
     <ClCompile Include="..\..\..\sshmd5.c" />
     <ClCompile Include="..\..\..\sshprime.c" />
+    <ClCompile Include="..\..\..\sshprng.c" />
     <ClCompile Include="..\..\..\sshpubk.c" />
     <ClCompile Include="..\..\..\sshrand.c" />
     <ClCompile Include="..\..\..\sshrsa.c" />
@@ -316,14 +330,15 @@
     <ClCompile Include="..\..\..\sshsh256.c" />
     <ClCompile Include="..\..\..\sshsh512.c" />
     <ClCompile Include="..\..\..\sshsha.c" />
+    <ClCompile Include="..\..\..\stripctrl.c" />
     <ClCompile Include="..\..\..\tree234.c" />
+    <ClCompile Include="..\..\..\utils.c" />
     <ClCompile Include="..\..\..\version.c" />
-    <ClCompile Include="..\..\..\cert\cert_common.c" />
-    <ClCompile Include="..\..\..\cert\cert_pkcs.c" />
-    <ClCompile Include="..\..\..\cert\cert_capi.c" />
+    <ClCompile Include="..\..\..\wcwidth.c" />
     <ClCompile Include="..\..\winctrls.c" />
     <ClCompile Include="..\..\winhelp.c" />
     <ClCompile Include="..\..\winmisc.c" />
+    <ClCompile Include="..\..\winmiscs.c" />
     <ClCompile Include="..\..\winnoise.c" />
     <ClCompile Include="..\..\winnojmp.c" />
     <ClCompile Include="..\..\winpgen.c" />
@@ -334,24 +349,30 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\..\charset\charset.h" />
+    <ClInclude Include="..\..\..\defs.h" />
     <ClInclude Include="..\..\..\dialog.h" />
-    <ClInclude Include="..\..\..\int64.h" />
+    <ClInclude Include="..\..\..\ecc.h" />
+    <ClInclude Include="..\..\..\empty.h" />
     <ClInclude Include="..\..\..\licence.h" />
+    <ClInclude Include="..\..\..\marshal.h" />
     <ClInclude Include="..\..\..\misc.h" />
+    <ClInclude Include="..\..\..\mpint.h" />
+    <ClInclude Include="..\..\..\mpint_i.h" />
     <ClInclude Include="..\..\..\network.h" />
     <ClInclude Include="..\..\..\putty.h" />
     <ClInclude Include="..\..\..\puttymem.h" />
     <ClInclude Include="..\..\..\puttyps.h" />
     <ClInclude Include="..\..\..\ssh.h" />
     <ClInclude Include="..\..\..\sshblowf.h" />
-    <ClInclude Include="..\..\..\sshbn.h" />
+    <ClInclude Include="..\..\..\sshsignals.h" />
+    <ClInclude Include="..\..\..\sshttymodes.h" />
     <ClInclude Include="..\..\..\storage.h" />
+    <ClInclude Include="..\..\..\terminal.h" />
     <ClInclude Include="..\..\..\tree234.h" />
+    <ClInclude Include="..\..\..\unix\unix.h" />
     <ClInclude Include="..\..\..\version.h" />
-    <ClCompile Include="..\..\..\cert\cert_common.h" />
-    <ClCompile Include="..\..\..\cert\cert_pkcs.h" />
-    <ClCompile Include="..\..\..\cert\cert_capi.h" />
     <ClInclude Include="..\..\rcstuff.h" />
+    <ClInclude Include="..\..\win_res.h" />
     <ClInclude Include="..\..\winhelp.h" />
     <ClInclude Include="..\..\winsecur.h" />
     <ClInclude Include="..\..\winstuff.h" />

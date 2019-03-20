@@ -114,6 +114,7 @@
       <DisableSpecificWarnings>4018;4267;4244;4201;4204;4221</DisableSpecificWarnings>
       <PrecompiledHeaderOutputFile />
       <OmitFramePointers>true</OmitFramePointers>
+      <CompileAs>CompileAsC</CompileAs>
     </ClCompile>
     <Midl>
       <SuppressStartupBanner>true</SuppressStartupBanner>
@@ -166,6 +167,7 @@
       <DisableSpecificWarnings>4018;4267;4244;4201;4204;4221</DisableSpecificWarnings>
       <PrecompiledHeaderOutputFile />
       <OmitFramePointers>true</OmitFramePointers>
+      <CompileAs>CompileAsC</CompileAs>
     </ClCompile>
     <Midl>
       <SuppressStartupBanner>true</SuppressStartupBanner>
@@ -205,7 +207,7 @@
       <FunctionLevelLinking>false</FunctionLevelLinking>
       <Optimization>Disabled</Optimization>
       <SuppressStartupBanner>true</SuppressStartupBanner>
-      <WarningLevel>Level4</WarningLevel>
+      <WarningLevel>Level3</WarningLevel>
       <MinimalRebuild>true</MinimalRebuild>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <AdditionalIncludeDirectories>..\..\..\;..\..\..\charset;..\..\..\windows;..\..\..\unix;..\..\..\cert;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
@@ -215,6 +217,7 @@
       <ObjectFileName>$(IntDir)\%(Filename)%(Extension).obj</ObjectFileName>
       <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
       <DisableSpecificWarnings>4018;4267;4244;4201;4204;4221</DisableSpecificWarnings>
+      <CompileAs>CompileAsC</CompileAs>
     </ClCompile>
     <Midl>
       <SuppressStartupBanner>true</SuppressStartupBanner>
@@ -252,7 +255,7 @@
       <FunctionLevelLinking>false</FunctionLevelLinking>
       <Optimization>Disabled</Optimization>
       <SuppressStartupBanner>true</SuppressStartupBanner>
-      <WarningLevel>Level4</WarningLevel>
+      <WarningLevel>Level3</WarningLevel>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <AdditionalIncludeDirectories>..\..\..\;..\..\..\charset;..\..\..\windows;..\..\..\unix;..\..\..\cert;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>PUTTY_CAC;_DEBUG;_WIN32_WINNT=_WIN32_WINNT_WIN6;WINVER=_WIN32_WINNT_WIN6;_WINDOWS;POSIX;_CRT_SECURE_NO_WARNINGS;_CRT_NONSTDC_NO_DEPRECATE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
@@ -261,6 +264,7 @@
       <ObjectFileName>$(IntDir)\%(Filename)%(Extension).obj</ObjectFileName>
       <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
       <DisableSpecificWarnings>4018;4267;4244;4201;4204;4221</DisableSpecificWarnings>
+      <CompileAs>CompileAsC</CompileAs>
     </ClCompile>
     <Midl>
       <SuppressStartupBanner>true</SuppressStartupBanner>
@@ -302,6 +306,7 @@
     </ResourceCompile>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="..\..\..\agentf.c" />
     <ClCompile Include="..\..\..\aqsync.c" />
     <ClCompile Include="..\..\..\be_misc.c" />
     <ClCompile Include="..\..\..\be_ssh.c" />
@@ -312,11 +317,16 @@
     <ClCompile Include="..\..\..\cmdline.c" />
     <ClCompile Include="..\..\..\conf.c" />
     <ClCompile Include="..\..\..\cproxy.c" />
+    <ClCompile Include="..\..\..\ecc.c" />
     <ClCompile Include="..\..\..\errsock.c" />
-    <ClCompile Include="..\..\..\int64.c" />
     <ClCompile Include="..\..\..\logging.c" />
+    <ClCompile Include="..\..\..\mainchan.c" />
+    <ClCompile Include="..\..\..\marshal.c" />
+    <ClCompile Include="..\..\..\memory.c" />
     <ClCompile Include="..\..\..\misc.c" />
     <ClCompile Include="..\..\..\miscucs.c" />
+    <ClCompile Include="..\..\..\mpint.c" />
+    <ClCompile Include="..\..\..\nullplug.c" />
     <ClCompile Include="..\..\..\pgssapi.c" />
     <ClCompile Include="..\..\..\pinger.c" />
     <ClCompile Include="..\..\..\portfwd.c" />
@@ -324,12 +334,28 @@
     <ClCompile Include="..\..\..\pscp.c" />
     <ClCompile Include="..\..\..\settings.c" />
     <ClCompile Include="..\..\..\sftp.c" />
+    <ClCompile Include="..\..\..\sftpcommon.c" />
     <ClCompile Include="..\..\..\ssh.c" />
+    <ClCompile Include="..\..\..\ssh1bpp.c" />
+    <ClCompile Include="..\..\..\ssh1censor.c" />
+    <ClCompile Include="..\..\..\ssh1connection-client.c" />
+    <ClCompile Include="..\..\..\ssh1connection.c" />
+    <ClCompile Include="..\..\..\ssh1login.c" />
+    <ClCompile Include="..\..\..\ssh2bpp-bare.c" />
+    <ClCompile Include="..\..\..\ssh2bpp.c" />
+    <ClCompile Include="..\..\..\ssh2censor.c" />
+    <ClCompile Include="..\..\..\ssh2connection-client.c" />
+    <ClCompile Include="..\..\..\ssh2connection.c" />
+    <ClCompile Include="..\..\..\ssh2kex-client.c" />
+    <ClCompile Include="..\..\..\ssh2transhk.c" />
+    <ClCompile Include="..\..\..\ssh2transport.c" />
+    <ClCompile Include="..\..\..\ssh2userauth.c" />
     <ClCompile Include="..\..\..\sshaes.c" />
     <ClCompile Include="..\..\..\ssharcf.c" />
+    <ClCompile Include="..\..\..\sshauxcrypt.c" />
     <ClCompile Include="..\..\..\sshblowf.c" />
-    <ClCompile Include="..\..\..\sshbn.c" />
     <ClCompile Include="..\..\..\sshccp.c" />
+    <ClCompile Include="..\..\..\sshcommon.c" />
     <ClCompile Include="..\..\..\sshcrc.c" />
     <ClCompile Include="..\..\..\sshcrcda.c" />
     <ClCompile Include="..\..\..\sshdes.c" />
@@ -337,7 +363,10 @@
     <ClCompile Include="..\..\..\sshdss.c" />
     <ClCompile Include="..\..\..\sshecc.c" />
     <ClCompile Include="..\..\..\sshgssc.c" />
+    <ClCompile Include="..\..\..\sshhmac.c" />
+    <ClCompile Include="..\..\..\sshmac.c" />
     <ClCompile Include="..\..\..\sshmd5.c" />
+    <ClCompile Include="..\..\..\sshprng.c" />
     <ClCompile Include="..\..\..\sshpubk.c" />
     <ClCompile Include="..\..\..\sshrand.c" />
     <ClCompile Include="..\..\..\sshrsa.c" />
@@ -345,10 +374,14 @@
     <ClCompile Include="..\..\..\sshsh512.c" />
     <ClCompile Include="..\..\..\sshsha.c" />
     <ClCompile Include="..\..\..\sshshare.c" />
+    <ClCompile Include="..\..\..\sshverstring.c" />
     <ClCompile Include="..\..\..\sshzlib.c" />
+    <ClCompile Include="..\..\..\stripctrl.c" />
     <ClCompile Include="..\..\..\timing.c" />
     <ClCompile Include="..\..\..\tree234.c" />
+    <ClCompile Include="..\..\..\utils.c" />
     <ClCompile Include="..\..\..\version.c" />
+    <ClCompile Include="..\..\..\wcwidth.c" />
     <ClCompile Include="..\..\..\wildcard.c" />
     <ClCompile Include="..\..\wincapi.c" />
     <ClCompile Include="..\..\wincons.c" />
@@ -357,7 +390,9 @@
     <ClCompile Include="..\..\winhandl.c" />
     <ClCompile Include="..\..\winhsock.c" />
     <ClCompile Include="..\..\winmisc.c" />
+    <ClCompile Include="..\..\winmiscs.c" />
     <ClCompile Include="..\..\winnet.c" />
+    <ClCompile Include="..\..\winnohlp.c" />
     <ClCompile Include="..\..\winnoise.c" />
     <ClCompile Include="..\..\winnojmp.c" />
     <ClCompile Include="..\..\winnpc.c" />
@@ -369,17 +404,22 @@
     <ClCompile Include="..\..\winshare.c" />
     <ClCompile Include="..\..\winstore.c" />
     <ClCompile Include="..\..\wintime.c" />
-    <ClCompile Include="..\..\..\x11fwd.c" />
     <ClCompile Include="..\..\winucs.c" />
+    <ClCompile Include="..\..\..\x11fwd.c" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\..\cert\cert_common.h" />
     <ClCompile Include="..\..\..\cert\cert_pkcs.h" />
     <ClCompile Include="..\..\..\cert\cert_capi.h" />
     <ClInclude Include="..\..\..\charset\charset.h" />
-    <ClInclude Include="..\..\..\int64.h" />
+    <ClInclude Include="..\..\..\defs.h" />
+    <ClInclude Include="..\..\..\ecc.h" />
+    <ClInclude Include="..\..\..\empty.h" />
     <ClInclude Include="..\..\..\licence.h" />
+    <ClInclude Include="..\..\..\marshal.h" />
     <ClInclude Include="..\..\..\misc.h" />
+    <ClInclude Include="..\..\..\mpint.h" />
+    <ClInclude Include="..\..\..\mpint_i.h" />
     <ClInclude Include="..\..\..\network.h" />
     <ClInclude Include="..\..\..\noshare.c" />
     <ClInclude Include="..\..\..\pageant.h" />
@@ -391,12 +431,22 @@
     <ClInclude Include="..\..\..\puttyps.h" />
     <ClInclude Include="..\..\..\sftp.h" />
     <ClInclude Include="..\..\..\ssh.h" />
+    <ClInclude Include="..\..\..\ssh1connection.h" />
+    <ClInclude Include="..\..\..\ssh2connection.h" />
+    <ClInclude Include="..\..\..\ssh2transport.h" />
     <ClInclude Include="..\..\..\sshblowf.h" />
-    <ClInclude Include="..\..\..\sshbn.h" />
+    <ClInclude Include="..\..\..\sshbpp.h" />
+    <ClInclude Include="..\..\..\sshchan.h" />
+    <ClInclude Include="..\..\..\sshcr.h" />
     <ClInclude Include="..\..\..\sshgss.h" />
     <ClInclude Include="..\..\..\sshgssc.h" />
+    <ClInclude Include="..\..\..\sshppl.h" />
+    <ClInclude Include="..\..\..\sshsignals.h" />
+    <ClInclude Include="..\..\..\sshttymodes.h" />
     <ClInclude Include="..\..\..\storage.h" />
+    <ClInclude Include="..\..\..\terminal.h" />
     <ClInclude Include="..\..\..\tree234.h" />
+    <ClInclude Include="..\..\..\unix\unix.h" />
     <ClInclude Include="..\..\..\version.h" />
     <ClInclude Include="..\..\rcstuff.h" />
     <ClInclude Include="..\..\wincapi.h" />

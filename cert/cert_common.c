@@ -18,6 +18,8 @@
 #ifndef SSH_AGENT_SUCCESS
 #include "ssh.h"
 #endif
+#include "mpint.h"
+#include "ecc.h"
 
 void cert_reverse_array(LPBYTE pb, DWORD cb)
 {
@@ -178,7 +180,7 @@ LPBYTE cert_sign(struct ssh2_userkey * userkey, LPCBYTE pDataToSign, int iDataTo
 	// used to hold wrapped signature to return to server
 	LPBYTE pWrappedSig = NULL;
 
-	if (strstr(userkey->alg->name, "ecdsa-") == userkey->alg->name)
+	if (strstr(userkey->key->vt->ssh_id, "ecdsa-") == userkey->key->vt->ssh_id)
 	{
 		// the full ecdsa ssh blob is as follows:
 		//
@@ -191,17 +193,17 @@ LPBYTE cert_sign(struct ssh2_userkey * userkey, LPCBYTE pDataToSign, int iDataTo
 		// 1 byte of 0 padding in order to ensure the 's' value is represented as positive
 		// the 's' value (first half of the blob signature returned from windows)
 		const BYTE iZero = 0;
-		int iAlgName = strlen(userkey->alg->name);
+		int iAlgName = strlen(userkey->key->vt->ssh_id);
 		*iWrappedSigLen = 4 + iAlgName + 4 + 4 + 1 + (iRawSigLen / 2) + 4 + 1 + (iRawSigLen / 2);
 		pWrappedSig = snewn(*iWrappedSigLen, unsigned char);
 		unsigned char * pWrappedPos = pWrappedSig;
-		PUT_32BIT(pWrappedPos, iAlgName); pWrappedPos += 4;
-		memcpy(pWrappedPos, userkey->alg->name, iAlgName); pWrappedPos += iAlgName;
-		PUT_32BIT(pWrappedPos, iRawSigLen + 4 + 4 + 1 + 1); pWrappedPos += 4;
-		PUT_32BIT(pWrappedPos, 1 + iRawSigLen / 2); pWrappedPos += 4;
+		PUT_32BIT_MSB_FIRST(pWrappedPos, iAlgName); pWrappedPos += 4;
+		memcpy(pWrappedPos, userkey->key->vt->ssh_id, iAlgName); pWrappedPos += iAlgName;
+		PUT_32BIT_MSB_FIRST(pWrappedPos, iRawSigLen + 4 + 4 + 1 + 1); pWrappedPos += 4;
+		PUT_32BIT_MSB_FIRST(pWrappedPos, 1 + iRawSigLen / 2); pWrappedPos += 4;
 		memcpy(pWrappedPos, &iZero, 1); pWrappedPos += 1;
 		memcpy(pWrappedPos, pRawSig, iRawSigLen / 2); pWrappedPos += iRawSigLen / 2;
-		PUT_32BIT(pWrappedPos, 1 + iRawSigLen / 2); pWrappedPos += 4;
+		PUT_32BIT_MSB_FIRST(pWrappedPos, 1 + iRawSigLen / 2); pWrappedPos += 4;
 		memcpy(pWrappedPos, &iZero, 1); pWrappedPos += 1;
 		memcpy(pWrappedPos, pRawSig + iRawSigLen / 2, iRawSigLen / 2); pWrappedPos += iRawSigLen / 2;
 	}
@@ -213,13 +215,13 @@ LPBYTE cert_sign(struct ssh2_userkey * userkey, LPCBYTE pDataToSign, int iDataTo
 		// algorithm name
 		// size of binary signature (4 bytes in big endian)
 		// binary signature
-		int iAlgoNameLen = strlen(userkey->alg->name);
+		int iAlgoNameLen = strlen(userkey->key->vt->ssh_id);
 		*iWrappedSigLen = 4 + iAlgoNameLen + 4 + iRawSigLen;
 		pWrappedSig = snewn(*iWrappedSigLen, unsigned char);
 		unsigned char * pWrappedPos = pWrappedSig;
-		PUT_32BIT(pWrappedPos, iAlgoNameLen); pWrappedPos += 4;
-		memcpy(pWrappedPos, userkey->alg->name, iAlgoNameLen); pWrappedPos += iAlgoNameLen;
-		PUT_32BIT(pWrappedPos, iRawSigLen); pWrappedPos += 4;
+		PUT_32BIT_MSB_FIRST(pWrappedPos, iAlgoNameLen); pWrappedPos += 4;
+		memcpy(pWrappedPos, userkey->key->vt->ssh_id, iAlgoNameLen); pWrappedPos += iAlgoNameLen;
+		PUT_32BIT_MSB_FIRST(pWrappedPos, iRawSigLen); pWrappedPos += 4;
 		memcpy(pWrappedPos, pRawSig, iRawSigLen);
 	}
 
@@ -249,23 +251,25 @@ struct ssh2_userkey * cert_get_ssh_userkey(LPCSTR szCert, PCERT_CONTEXT pCertCon
 				pKeyData->cbData, 0, pbPublicKeyBlob = malloc(cbPublicKeyBlob), &cbPublicKeyBlob) != FALSE)
 		{
 			// create a new putty rsa structure fill out all non-private params
-			RSAPUBKEY * pPublicKey = (RSAPUBKEY *)(pbPublicKeyBlob + sizeof(BLOBHEADER));
 			struct RSAKey * rsa = snew(struct RSAKey);
+			ZeroMemory(rsa, sizeof(struct eddsa_key));
+			rsa->sshk.vt = find_pubkey_alg("ssh-rsa");
+
+			RSAPUBKEY * pPublicKey = (RSAPUBKEY *)(pbPublicKeyBlob + sizeof(BLOBHEADER));
 			rsa->bits = pPublicKey->bitlen;
 			rsa->bytes = pPublicKey->bitlen / 8;
-			rsa->exponent = bignum_from_long(pPublicKey->pubexp);
+			rsa->exponent = mp_from_integer(pPublicKey->pubexp);
 			cert_reverse_array((BYTE *)(pPublicKey)+sizeof(RSAPUBKEY), rsa->bytes);
-			rsa->modulus = bignum_from_bytes((BYTE *)(pPublicKey)+sizeof(RSAPUBKEY), rsa->bytes);
+			rsa->modulus = mp_from_bytes_be(make_ptrlen((BYTE *)(pPublicKey)+sizeof(RSAPUBKEY), rsa->bytes));
 			rsa->comment = dupstr(szCert);
-			rsa->private_exponent = bignum_from_long(0);
-			rsa->p = bignum_from_long(0);
-			rsa->q = bignum_from_long(0);
-			rsa->iqmp = bignum_from_long(0);
+			rsa->private_exponent = mp_from_integer(0);
+			rsa->p = mp_from_integer(0);
+			rsa->q = mp_from_integer(0);
+			rsa->iqmp = mp_from_integer(0);
 
 			// fill out the user key
 			pUserKey = snew(struct ssh2_userkey);
-			pUserKey->alg = find_pubkey_alg("ssh-rsa");
-			pUserKey->data = rsa;
+			pUserKey->key = &rsa->sshk;
 			pUserKey->comment = dupstr(szCert);
 		}
 
@@ -283,23 +287,25 @@ struct ssh2_userkey * cert_get_ssh_userkey(LPCSTR szCert, PCERT_CONTEXT pCertCon
 			ULONG iKeyLengthSize = sizeof(DWORD);
 			LPBYTE pEccKey = NULL;
 			ULONG iKeyBlobSize = 0;
+
 			if (BCryptGetProperty(hBCryptKey, BCRYPT_KEY_LENGTH, (PUCHAR)&iKeyLength, iKeyLengthSize, &iKeyLength, 0) == STATUS_SUCCESS &&
 				BCryptExportKey(hBCryptKey, NULL, BCRYPT_ECCPUBLIC_BLOB, NULL, iKeyBlobSize, &iKeyBlobSize, 0) == STATUS_SUCCESS && iKeyBlobSize != 0 &&
 				BCryptExportKey(hBCryptKey, NULL, BCRYPT_ECCPUBLIC_BLOB, pEccKey = malloc(iKeyBlobSize), iKeyBlobSize, &iKeyBlobSize, 0) == STATUS_SUCCESS)
 			{
-				struct ec_key *ec = snew(struct ec_key);
-				ZeroMemory(ec, sizeof(struct ec_key));
-				ec_nist_alg_and_curve_by_bits(iKeyLength, &(ec->publicKey.curve), &(ec->signalg));
-				ec->publicKey.infinity = 0;
+				// create a new putty ecc structure fill out all non-private params
+				struct ecdsa_key *ec = snew(struct ecdsa_key);
+				ZeroMemory(ec, sizeof(struct eddsa_key));
+				ec_nist_alg_and_curve_by_bits(iKeyLength, &(ec->curve), &(ec->sshk.vt));
+
 				int iKeyBytes = (iKeyLength + 7) / 8; // round up
-				ec->publicKey.x = bignum_from_bytes(pEccKey + sizeof(BCRYPT_ECCKEY_BLOB), iKeyBytes);
-				ec->publicKey.y = bignum_from_bytes(pEccKey + sizeof(BCRYPT_ECCKEY_BLOB) + iKeyBytes, iKeyBytes);
-				ec->privateKey = bignum_from_long(0);
+				ec->publicKey = ecc_weierstrass_point_new(ec->curve->w.wc,
+					mp_from_bytes_be(make_ptrlen(pEccKey + sizeof(BCRYPT_ECCKEY_BLOB), iKeyBytes)),
+					mp_from_bytes_be(make_ptrlen(pEccKey + sizeof(BCRYPT_ECCKEY_BLOB) + iKeyBytes, iKeyBytes)));
+				ec->privateKey = mp_from_integer(0);
 
 				// fill out the user key
 				pUserKey = snew(struct ssh2_userkey);
-				pUserKey->alg = ec->signalg;
-				pUserKey->data = ec;
+				pUserKey->key = &ec->sshk;
 				pUserKey->comment = dupstr(szCert);
 			}
 
@@ -358,7 +364,7 @@ LPSTR cert_key_string(LPCSTR szCert)
 	LPSTR szKeyWithComment = dupprintf("%s %s %s", szKey, szHash, szName);
 
 	// clean and return
-	pUserKey->alg->freekey(pUserKey->data);
+	pUserKey->key->vt->freekey(pUserKey->key);
 	sfree(pUserKey);
 	sfree(szKey);
 	sfree(szName);
@@ -509,7 +515,7 @@ LPBYTE cert_get_hash(LPCSTR szAlgo, LPCBYTE pDataToHash, DWORD iDataToHashSize, 
 		pDigest = (LPBYTE)OID_SHA1;
 	}
 
-	// acquire crytpo provider, hash data, and export hashed binary data
+	// acquire crypto provider, hash data, and export hashed binary data
 	if (CryptAcquireContext(&hHashProv, NULL, NULL, PROV_RSA_AES, CRYPT_VERIFYCONTEXT) == FALSE ||
 		CryptCreateHash(hHashProv, iHashAlg, 0, 0, &hHash) == FALSE ||
 		CryptHashData(hHash, pDataToHash, iDataToHashSize, 0) == FALSE ||

@@ -10,7 +10,7 @@
 #include "dialog.h"
 #include "storage.h"
 
-static void about_handler(union control *ctrl, void *dlg,
+static void about_handler(union control *ctrl, dlgparam *dlg,
 			  void *data, int event)
 {
     HWND *hwndp = (HWND *)ctrl->generic.context.p;
@@ -20,7 +20,7 @@ static void about_handler(union control *ctrl, void *dlg,
     }
 }
 
-static void help_handler(union control *ctrl, void *dlg,
+static void help_handler(union control *ctrl, dlgparam *dlg,
 			 void *data, int event)
 {
     HWND *hwndp = (HWND *)ctrl->generic.context.p;
@@ -30,7 +30,7 @@ static void help_handler(union control *ctrl, void *dlg,
     }
 }
 
-static void variable_pitch_handler(union control *ctrl, void *dlg,
+static void variable_pitch_handler(union control *ctrl, dlgparam *dlg,
                                    void *data, int event)
 {
     if (event == EVENT_REFRESH) {
@@ -40,8 +40,8 @@ static void variable_pitch_handler(union control *ctrl, void *dlg,
     }
 }
 
-void win_setup_config_box(struct controlbox *b, HWND *hwndp, int has_help,
-			  int midsession, int protocol)
+void win_setup_config_box(struct controlbox *b, HWND *hwndp, bool has_help,
+			  bool midsession, int protocol)
 {
     struct controlset *s;
     union control *c;
@@ -157,7 +157,7 @@ void win_setup_config_box(struct controlbox *b, HWND *hwndp, int has_help,
 	}
     }
     ctrl_filesel(s, "Custom sound file to play as a bell:", NO_SHORTCUT,
-		 FILTER_WAVE_FILES, FALSE, "Select bell sound file",
+		 FILTER_WAVE_FILES, false, "Select bell sound file",
 		 HELPCTX(bell_style),
 		 conf_filesel_handler, I(CONF_bell_wavefile));
 
@@ -268,10 +268,10 @@ void win_setup_config_box(struct controlbox *b, HWND *hwndp, int has_help,
     /*
      * RTF paste is Windows-specific.
      */
-    s = ctrl_getset(b, "Window/Selection", "format",
-		    "Formatting of pasted characters");
-    ctrl_checkbox(s, "Paste to clipboard in RTF as well as plain text", 'f',
-		  HELPCTX(selection_rtf),
+    s = ctrl_getset(b, "Window/Selection/Copy", "format",
+		    "Formatting of copied characters");
+    ctrl_checkbox(s, "Copy to clipboard in RTF as well as plain text", 'f',
+		  HELPCTX(copy_rtf),
 		  conf_checkbox_handler, I(CONF_rtf_paste));
 
     /*
@@ -393,10 +393,10 @@ void win_setup_config_box(struct controlbox *b, HWND *hwndp, int has_help,
      * $XAUTHORITY is not reliable on Windows, so we provide a
      * means to override it.
      */
-    if (!midsession && backend_from_proto(PROT_SSH)) {
+    if (!midsession && backend_vt_from_proto(PROT_SSH)) {
 	s = ctrl_getset(b, "Connection/SSH/X11", "x11", "X11 forwarding");
 	ctrl_filesel(s, "X authority file for local display", 't',
-		     NULL, FALSE, "Select X authority file",
+		     NULL, false, "Select X authority file",
 		     HELPCTX(ssh_tunnels_xauthority),
 		     conf_filesel_handler, I(CONF_xauthfile));
     }
