@@ -211,39 +211,105 @@
     <ClCompile Include="..\..\winucs.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\agentf.c" />
-    <ClCompile Include="..\..\..\ecc.c" />
-    <ClCompile Include="..\..\..\mainchan.c" />
-    <ClCompile Include="..\..\..\marshal.c" />
-    <ClCompile Include="..\..\..\memory.c" />
-    <ClCompile Include="..\..\..\mpint.c" />
-    <ClCompile Include="..\..\..\nullplug.c" />
-    <ClCompile Include="..\..\..\sftpcommon.c" />
-    <ClCompile Include="..\..\..\ssh1bpp.c" />
-    <ClCompile Include="..\..\..\ssh1censor.c" />
-    <ClCompile Include="..\..\..\ssh1connection-client.c" />
-    <ClCompile Include="..\..\..\ssh1connection.c" />
-    <ClCompile Include="..\..\..\ssh1login.c" />
-    <ClCompile Include="..\..\..\ssh2bpp-bare.c" />
-    <ClCompile Include="..\..\..\ssh2bpp.c" />
-    <ClCompile Include="..\..\..\ssh2censor.c" />
-    <ClCompile Include="..\..\..\ssh2connection-client.c" />
-    <ClCompile Include="..\..\..\ssh2connection.c" />
-    <ClCompile Include="..\..\..\ssh2kex-client.c" />
-    <ClCompile Include="..\..\..\ssh2transhk.c" />
-    <ClCompile Include="..\..\..\ssh2transport.c" />
-    <ClCompile Include="..\..\..\ssh2userauth.c" />
-    <ClCompile Include="..\..\..\sshauxcrypt.c" />
-    <ClCompile Include="..\..\..\sshcommon.c" />
-    <ClCompile Include="..\..\..\sshhmac.c" />
-    <ClCompile Include="..\..\..\sshmac.c" />
-    <ClCompile Include="..\..\..\sshprng.c" />
-    <ClCompile Include="..\..\..\sshverstring.c" />
-    <ClCompile Include="..\..\..\stripctrl.c" />
-    <ClCompile Include="..\..\..\utils.c" />
-    <ClCompile Include="..\..\..\wcwidth.c" />
-    <ClCompile Include="..\..\winmiscs.c" />
-    <ClCompile Include="..\..\winnohlp.c" />
+    <ClCompile Include="..\..\..\agentf.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\ecc.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\mainchan.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\marshal.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\memory.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\mpint.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\nullplug.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\sftpcommon.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\ssh1bpp.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\ssh1censor.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\ssh1connection.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\ssh1connection-client.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\ssh1login.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\ssh2bpp.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\ssh2bpp-bare.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\ssh2censor.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\ssh2connection.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\ssh2connection-client.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\ssh2kex-client.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\ssh2transhk.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\ssh2transport.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\ssh2userauth.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\sshauxcrypt.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\sshcommon.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\sshhmac.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\sshmac.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\sshprng.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\sshverstring.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\stripctrl.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\utils.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\wcwidth.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\winmiscs.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\winnohlp.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\..\noshare.c">
@@ -321,23 +387,57 @@
     <ClInclude Include="..\..\..\charset\charset.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\defs.h" />
-    <ClInclude Include="..\..\..\ecc.h" />
-    <ClInclude Include="..\..\..\empty.h" />
-    <ClInclude Include="..\..\..\marshal.h" />
-    <ClInclude Include="..\..\..\mpint.h" />
-    <ClInclude Include="..\..\..\mpint_i.h" />
-    <ClInclude Include="..\..\..\ssh1connection.h" />
-    <ClInclude Include="..\..\..\ssh2connection.h" />
-    <ClInclude Include="..\..\..\ssh2transport.h" />
-    <ClInclude Include="..\..\..\sshbpp.h" />
-    <ClInclude Include="..\..\..\sshchan.h" />
-    <ClInclude Include="..\..\..\sshcr.h" />
-    <ClInclude Include="..\..\..\sshppl.h" />
-    <ClInclude Include="..\..\..\sshsignals.h" />
-    <ClInclude Include="..\..\..\sshttymodes.h" />
-    <ClInclude Include="..\..\..\terminal.h" />
-    <ClInclude Include="..\..\..\unix\unix.h" />
+    <ClInclude Include="..\..\..\defs.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\empty.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\marshal.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\ecc.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\mpint.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\mpint_i.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\ssh1connection.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\ssh2connection.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\ssh2transport.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\sshchan.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\sshbpp.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\sshcr.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\sshppl.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\sshsignals.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\sshttymodes.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\terminal.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\unix\unix.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Header Files">
