@@ -85,16 +85,36 @@
     <ClCompile Include="..\..\..\cert\cert_pkcs.h">
       <Filter>Header Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\ecc.c" />
-    <ClCompile Include="..\..\..\marshal.c" />
-    <ClCompile Include="..\..\..\memory.c" />
-    <ClCompile Include="..\..\..\mpint.c" />
-    <ClCompile Include="..\..\..\sshauxcrypt.c" />
-    <ClCompile Include="..\..\..\sshhmac.c" />
-    <ClCompile Include="..\..\..\stripctrl.c" />
-    <ClCompile Include="..\..\..\utils.c" />
-    <ClCompile Include="..\..\..\wcwidth.c" />
-    <ClCompile Include="..\..\winmiscs.c" />
+    <ClCompile Include="..\..\..\ecc.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\marshal.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\memory.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\sshauxcrypt.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\sshhmac.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\stripctrl.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\utils.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\wcwidth.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\winmiscs.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\mpint.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\..\charset\charset.h">
@@ -142,18 +162,42 @@
     <ClInclude Include="..\..\winstuff.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\defs.h" />
-    <ClInclude Include="..\..\..\ecc.h" />
-    <ClInclude Include="..\..\..\empty.h" />
-    <ClInclude Include="..\..\..\marshal.h" />
-    <ClInclude Include="..\..\..\mpint.h" />
-    <ClInclude Include="..\..\..\mpint_i.h" />
-    <ClInclude Include="..\..\..\sshcr.h" />
-    <ClInclude Include="..\..\..\sshsignals.h" />
-    <ClInclude Include="..\..\..\sshttymodes.h" />
-    <ClInclude Include="..\..\..\terminal.h" />
-    <ClInclude Include="..\..\..\unix\unix.h" />
-    <ClInclude Include="..\..\win_res.h" />
+    <ClInclude Include="..\..\..\defs.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\ecc.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\empty.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\marshal.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\mpint.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\mpint_i.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\sshcr.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\sshsignals.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\sshttymodes.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\terminal.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\unix\unix.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\win_res.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <CustomBuild Include="..\..\pageant.ico">

@@ -12,6 +12,9 @@
 #include "sshgss.h"
 #endif
 
+#ifdef PUTTY_CAC
+#include "cert_common.h"
+#endif // PUTTY_CAC
 
 /* The cipher order given here is the default order. */
 static const struct keyvalwhere ciphernames[] = {
