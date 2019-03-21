@@ -10,23 +10,6 @@
     <ClCompile Include="..\..\..\cert\cert_pkcs.h">
       <Filter>Header Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\ssh2bpp-bare.c" />
-    <ClCompile Include="..\..\..\ssh2censor.c" />
-    <ClCompile Include="..\..\..\ssh2connection-client.c" />
-    <ClCompile Include="..\..\..\ssh2connection.c" />
-    <ClCompile Include="..\..\..\ssh2kex-client.c" />
-    <ClCompile Include="..\..\..\ssh2transhk.c" />
-    <ClCompile Include="..\..\..\ssh2transport.c" />
-    <ClCompile Include="..\..\..\ssh2userauth.c" />
-    <ClCompile Include="..\..\..\sshauxcrypt.c" />
-    <ClCompile Include="..\..\..\sshcommon.c" />
-    <ClCompile Include="..\..\..\sshhmac.c" />
-    <ClCompile Include="..\..\..\sshmac.c" />
-    <ClCompile Include="..\..\..\sshprng.c" />
-    <ClCompile Include="..\..\..\sshverstring.c" />
-    <ClCompile Include="..\..\..\stripctrl.c" />
-    <ClCompile Include="..\..\..\utils.c" />
-    <ClCompile Include="..\..\winmiscs.c" />
     <ClCompile Include="..\..\..\agentf.c">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -321,6 +304,57 @@
     <ClCompile Include="..\..\..\x11fwd.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\..\ssh2bpp-bare.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\ssh2censor.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\ssh2connection.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\ssh2connection-client.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\ssh2kex-client.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\ssh2transhk.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\ssh2transport.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\ssh2userauth.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\sshauxcrypt.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\sshcommon.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\sshhmac.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\sshmac.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\sshprng.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\sshverstring.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\stripctrl.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\utils.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\winmiscs.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\..\charset\charset.h">
@@ -404,12 +438,6 @@
     <ClInclude Include="..\..\winstuff.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\sshbpp.h" />
-    <ClInclude Include="..\..\..\sshchan.h" />
-    <ClInclude Include="..\..\..\sshcr.h" />
-    <ClInclude Include="..\..\..\sshppl.h" />
-    <ClInclude Include="..\..\..\sshsignals.h" />
-    <ClInclude Include="..\..\..\sshttymodes.h" />
     <ClInclude Include="..\..\..\defs.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -439,6 +467,24 @@
     </ClInclude>
     <ClInclude Include="..\..\..\noshare.c">
       <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\sshbpp.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\sshchan.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\sshppl.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\sshsignals.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\sshttymodes.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\sshcr.h">
+      <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

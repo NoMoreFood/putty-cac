@@ -2,7 +2,7 @@
 
 :: version information
 SET VER=0.71
-SET VERN=0.70.0.0
+SET VERN=0.71.0.0
 
 :: cert info to use for signing
 SET CERT=2FA35B20356EFEB88F9E9B5F20221693C57100E5
@@ -46,9 +46,9 @@ COPY /Y "%BASEDIR%\windows\README-msi.txt" "%INSTDIR%\"
 
 :: do the build
 PUSHD "%INSTDIR%"
-candle -arch x86 -dWin64=no -dBuilddir="%BINDIR%\x86\\" -dWinver="%VERN%" -dPuttytextver="PuTTY CAC %VERN%" "%BASEDIR%\windows\installer.wxs"
+candle -arch x86 -dWin64=no -dBuilddir="%BINDIR%\x86\\" -dDllOk=Yes -dRealPlatform=x86 -dWinver="%VERN%" -dPuttytextver="PuTTY CAC %VERN%" "%BASEDIR%\windows\installer.wxs"
 light -ext WixUIExtension -ext WixUtilExtension -sval installer.wixobj -o "%BINDIR%\puttycac-%VER%-installer.msi"
-candle -arch x64 -dWin64=yes -dBuilddir="%BINDIR%\x64\\" -dWinver="%VERN%" -dPuttytextver="PuTTY CAC %VERN%" "%BASEDIR%\windows\installer.wxs"
+candle -arch x64 -dWin64=yes -dBuilddir="%BINDIR%\x64\\" -dDllOk=Yes -dRealPlatform=x64 -dWinver="%VERN%" -dPuttytextver="PuTTY CAC %VERN%" "%BASEDIR%\windows\installer.wxs"
 light -ext WixUIExtension -ext WixUtilExtension -sval installer.wixobj -o "%BINDIR%\puttycac-64bit-%VER%-installer.msi"
 POPD
 
