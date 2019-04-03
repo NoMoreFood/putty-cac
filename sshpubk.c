@@ -1088,7 +1088,7 @@ bool ssh2_userkey_loadpub(const Filename *filename, char **algorithm,
 		struct ssh2_userkey * userkey = cert_load_key(filename->path);
 		if (userkey == NULL || userkey->key == NULL) {
 			*errorstr = "load key from certificate failed";
-			return NULL;
+			return false;
 		}
 		if (algorithm) { *algorithm = dupstr(userkey->key->vt->ssh_id); }
 		if (commentptr) { *commentptr = userkey->comment; }

@@ -21,27 +21,27 @@
   <PropertyGroup Label="Globals">
     <SccProjectName />
     <SccLocalPath />
-    <ProjectGuid>{26d200f3-250a-494f-aaa4-c992ec4345aa}</ProjectGuid>
-    <WindowsTargetPlatformVersion>10.0.17134.0</WindowsTargetPlatformVersion>
+    <ProjectGuid>{27e8f930-2567-4fdc-82c1-0662af3cdf6d}</ProjectGuid>
+    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseOfMfc>false</UseOfMfc>
     <CharacterSet>MultiByte</CharacterSet>
-    <PlatformToolset>v141</PlatformToolset>
+    <PlatformToolset>v142</PlatformToolset>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseOfMfc>false</UseOfMfc>
     <CharacterSet>MultiByte</CharacterSet>
-    <PlatformToolset>v141</PlatformToolset>
+    <PlatformToolset>v142</PlatformToolset>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseOfMfc>false</UseOfMfc>
     <CharacterSet>MultiByte</CharacterSet>
-    <PlatformToolset>v141</PlatformToolset>
+    <PlatformToolset>v142</PlatformToolset>
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <SpectreMitigation>
     </SpectreMitigation>
@@ -50,7 +50,7 @@
     <ConfigurationType>Application</ConfigurationType>
     <UseOfMfc>false</UseOfMfc>
     <CharacterSet>MultiByte</CharacterSet>
-    <PlatformToolset>v141</PlatformToolset>
+    <PlatformToolset>v142</PlatformToolset>
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <SpectreMitigation>
     </SpectreMitigation>
@@ -75,25 +75,25 @@
     <OutDir>..\..\..\binaries\x86\</OutDir>
     <IntDir>$(ProjectDir)\Temp\$(Configuration)\x86\</IntDir>
     <LinkIncremental>false</LinkIncremental>
-    <EmbedManifest>true</EmbedManifest>
+    <EmbedManifest>false</EmbedManifest>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
     <OutDir>..\..\..\binaries\x64\</OutDir>
     <IntDir>$(ProjectDir)\Temp\$(Configuration)\x64\</IntDir>
-    <EmbedManifest>true</EmbedManifest>
+    <EmbedManifest>false</EmbedManifest>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <OutDir>..\..\..\binaries\x86\</OutDir>
     <LinkIncremental>true</LinkIncremental>
     <IntDir>$(ProjectDir)\Temp\$(Configuration)\x86\</IntDir>
-    <EmbedManifest>true</EmbedManifest>
+    <EmbedManifest>false</EmbedManifest>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>false</LinkIncremental>
     <OutDir>..\..\..\binaries\x64\</OutDir>
     <IntDir>$(ProjectDir)\Temp\$(Configuration)\x64\</IntDir>
-    <EmbedManifest>true</EmbedManifest>
+    <EmbedManifest>false</EmbedManifest>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <ClCompile>
@@ -119,7 +119,7 @@
     <Midl>
       <SuppressStartupBanner>true</SuppressStartupBanner>
       <PreprocessorDefinitions>NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <TypeLibraryName>.\Release\pscp.tlb</TypeLibraryName>
+      <TypeLibraryName>.\Release\pageant.tlb</TypeLibraryName>
       <MkTypLibCompatible>true</MkTypLibCompatible>
       <TargetEnvironment>Win32</TargetEnvironment>
     </Midl>
@@ -130,11 +130,11 @@
     </ResourceCompile>
     <Bscmake>
       <SuppressStartupBanner>true</SuppressStartupBanner>
-      <OutputFile>.\Release\pscp.bsc</OutputFile>
+      <OutputFile>.\Release\pageant.bsc</OutputFile>
     </Bscmake>
     <Link>
       <SuppressStartupBanner>true</SuppressStartupBanner>
-      <SubSystem>Console</SubSystem>
+      <SubSystem>Windows</SubSystem>
       <OutputFile>..\..\..\binaries\x86\$(TargetFileName)</OutputFile>
       <AdditionalDependencies>gdi32.lib;comctl32.lib;imm32.lib;winmm.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <GenerateDebugInformation>false</GenerateDebugInformation>
@@ -143,10 +143,9 @@
       <OptimizeReferences>true</OptimizeReferences>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <LinkTimeCodeGeneration>UseLinkTimeCodeGeneration</LinkTimeCodeGeneration>
+      <AdditionalOptions>
+      </AdditionalOptions>
     </Link>
-    <Manifest>
-      <OutputManifestFile />
-    </Manifest>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
@@ -172,7 +171,7 @@
     <Midl>
       <SuppressStartupBanner>true</SuppressStartupBanner>
       <PreprocessorDefinitions>NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <TypeLibraryName>.\Release\pscp.tlb</TypeLibraryName>
+      <TypeLibraryName>.\Release\pageant.tlb</TypeLibraryName>
       <MkTypLibCompatible>true</MkTypLibCompatible>
     </Midl>
     <ResourceCompile>
@@ -182,11 +181,11 @@
     </ResourceCompile>
     <Bscmake>
       <SuppressStartupBanner>true</SuppressStartupBanner>
-      <OutputFile>.\Release\pscp.bsc</OutputFile>
+      <OutputFile>.\Release\pageant.bsc</OutputFile>
     </Bscmake>
     <Link>
       <SuppressStartupBanner>true</SuppressStartupBanner>
-      <SubSystem>Console</SubSystem>
+      <SubSystem>Windows</SubSystem>
       <OutputFile>..\..\..\binaries\x64\$(TargetFileName)</OutputFile>
       <AdditionalDependencies>gdi32.lib;comctl32.lib;imm32.lib;winmm.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <GenerateDebugInformation>false</GenerateDebugInformation>
@@ -196,9 +195,6 @@
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <LinkTimeCodeGeneration>UseLinkTimeCodeGeneration</LinkTimeCodeGeneration>
     </Link>
-    <Manifest>
-      <OutputManifestFile />
-    </Manifest>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -208,7 +204,6 @@
       <Optimization>Disabled</Optimization>
       <SuppressStartupBanner>true</SuppressStartupBanner>
       <WarningLevel>Level3</WarningLevel>
-      <MinimalRebuild>true</MinimalRebuild>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <AdditionalIncludeDirectories>..\..\..\;..\..\..\charset;..\..\..\windows;..\..\..\unix;..\..\..\cert;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>WIN32;PUTTY_CAC;_DEBUG;_WIN32_WINNT=_WIN32_WINNT_WIN6;WINVER=_WIN32_WINNT_WIN6;_WINDOWS;POSIX;_CRT_SECURE_NO_WARNINGS;_CRT_NONSTDC_NO_DEPRECATE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
@@ -222,7 +217,7 @@
     <Midl>
       <SuppressStartupBanner>true</SuppressStartupBanner>
       <PreprocessorDefinitions>_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <TypeLibraryName>.\Debug\pscp.tlb</TypeLibraryName>
+      <TypeLibraryName>.\Debug\pageant.tlb</TypeLibraryName>
       <MkTypLibCompatible>true</MkTypLibCompatible>
       <TargetEnvironment>Win32</TargetEnvironment>
     </Midl>
@@ -233,19 +228,18 @@
     </ResourceCompile>
     <Bscmake>
       <SuppressStartupBanner>true</SuppressStartupBanner>
-      <OutputFile>.\Debug\pscp.bsc</OutputFile>
+      <OutputFile>.\Debug\pageant.bsc</OutputFile>
     </Bscmake>
     <Link>
       <SuppressStartupBanner>true</SuppressStartupBanner>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <SubSystem>Console</SubSystem>
+      <SubSystem>Windows</SubSystem>
       <OutputFile>..\..\..\binaries\x86\$(TargetFileName)</OutputFile>
       <AdditionalDependencies>advapi32.lib;comctl32.lib;comdlg32.lib;gdi32.lib;imm32.lib;ole32.lib;shell32.lib;user32.lib;winmm.lib;winspool.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <Profile>true</Profile>
     </Link>
     <Manifest>
-      <OutputManifestFile>
-      </OutputManifestFile>
+      <OutputManifestFile>$(TargetPath).manifest</OutputManifestFile>
     </Manifest>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
@@ -269,7 +263,7 @@
     <Midl>
       <SuppressStartupBanner>true</SuppressStartupBanner>
       <PreprocessorDefinitions>_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <TypeLibraryName>.\Debug\pscp.tlb</TypeLibraryName>
+      <TypeLibraryName>.\Debug\pageant.tlb</TypeLibraryName>
       <MkTypLibCompatible>true</MkTypLibCompatible>
     </Midl>
     <ResourceCompile>
@@ -279,26 +273,24 @@
     </ResourceCompile>
     <Bscmake>
       <SuppressStartupBanner>true</SuppressStartupBanner>
-      <OutputFile>.\Debug\pscp.bsc</OutputFile>
+      <OutputFile>.\Debug\pageant.bsc</OutputFile>
     </Bscmake>
     <Link>
       <SuppressStartupBanner>true</SuppressStartupBanner>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <SubSystem>Console</SubSystem>
+      <SubSystem>Windows</SubSystem>
       <OutputFile>..\..\..\binaries\x64\$(TargetFileName)</OutputFile>
       <AdditionalDependencies>advapi32.lib;comctl32.lib;comdlg32.lib;gdi32.lib;imm32.lib;ole32.lib;shell32.lib;user32.lib;winmm.lib;winspool.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <Profile>true</Profile>
     </Link>
-    <Manifest>
-      <OutputManifestFile>
-      </OutputManifestFile>
-    </Manifest>
+    <Manifest />
   </ItemDefinitionGroup>
   <ItemGroup>
-    <CustomBuild Include="..\..\pscp.ico" />
+    <CustomBuild Include="..\..\pageant.ico" />
+    <CustomBuild Include="..\..\pageants.ico" />
   </ItemGroup>
   <ItemGroup>
-    <ResourceCompile Include="..\..\pscp.rc">
+    <ResourceCompile Include="..\..\pageant.rc">
       <AdditionalIncludeDirectories Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">..\..;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <AdditionalIncludeDirectories Condition="'$(Configuration)|$(Platform)'=='Release|x64'">..\..;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <AdditionalIncludeDirectories Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">..\..;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
@@ -306,106 +298,41 @@
     </ResourceCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\..\..\agentf.c" />
     <ClCompile Include="..\..\..\aqsync.c" />
-    <ClCompile Include="..\..\..\be_misc.c" />
-    <ClCompile Include="..\..\..\be_ssh.c" />
-    <ClCompile Include="..\..\..\callback.c" />
+    <ClCompile Include="..\..\..\cert\cert_capi.c" />
     <ClCompile Include="..\..\..\cert\cert_common.c" />
     <ClCompile Include="..\..\..\cert\cert_pkcs.c" />
-    <ClCompile Include="..\..\..\cert\cert_capi.c" />
-    <ClCompile Include="..\..\..\cmdline.c" />
     <ClCompile Include="..\..\..\conf.c" />
-    <ClCompile Include="..\..\..\cproxy.c" />
     <ClCompile Include="..\..\..\ecc.c" />
-    <ClCompile Include="..\..\..\errsock.c" />
-    <ClCompile Include="..\..\..\logging.c" />
-    <ClCompile Include="..\..\..\mainchan.c" />
     <ClCompile Include="..\..\..\marshal.c" />
     <ClCompile Include="..\..\..\memory.c" />
     <ClCompile Include="..\..\..\misc.c" />
-    <ClCompile Include="..\..\..\miscucs.c" />
     <ClCompile Include="..\..\..\mpint.c" />
-    <ClCompile Include="..\..\..\nullplug.c" />
-    <ClCompile Include="..\..\..\pgssapi.c" />
-    <ClCompile Include="..\..\..\pinger.c" />
-    <ClCompile Include="..\..\..\portfwd.c" />
-    <ClCompile Include="..\..\..\proxy.c" />
-    <ClCompile Include="..\..\..\pscp.c" />
-    <ClCompile Include="..\..\..\settings.c" />
-    <ClCompile Include="..\..\..\sftp.c" />
-    <ClCompile Include="..\..\..\sftpcommon.c" />
-    <ClCompile Include="..\..\..\ssh.c" />
-    <ClCompile Include="..\..\..\ssh1bpp.c" />
-    <ClCompile Include="..\..\..\ssh1censor.c" />
-    <ClCompile Include="..\..\..\ssh1connection-client.c" />
-    <ClCompile Include="..\..\..\ssh1connection.c" />
-    <ClCompile Include="..\..\..\ssh1login.c" />
-    <ClCompile Include="..\..\..\ssh2bpp-bare.c" />
-    <ClCompile Include="..\..\..\ssh2bpp.c" />
-    <ClCompile Include="..\..\..\ssh2censor.c" />
-    <ClCompile Include="..\..\..\ssh2connection-client.c" />
-    <ClCompile Include="..\..\..\ssh2connection.c" />
-    <ClCompile Include="..\..\..\ssh2kex-client.c" />
-    <ClCompile Include="..\..\..\ssh2transhk.c" />
-    <ClCompile Include="..\..\..\ssh2transport.c" />
-    <ClCompile Include="..\..\..\ssh2userauth.c" />
+    <ClCompile Include="..\..\..\pageant.c" />
     <ClCompile Include="..\..\..\sshaes.c" />
-    <ClCompile Include="..\..\..\ssharcf.c" />
     <ClCompile Include="..\..\..\sshauxcrypt.c" />
-    <ClCompile Include="..\..\..\sshblowf.c" />
-    <ClCompile Include="..\..\..\sshccp.c" />
-    <ClCompile Include="..\..\..\sshcommon.c" />
-    <ClCompile Include="..\..\..\sshcrc.c" />
-    <ClCompile Include="..\..\..\sshcrcda.c" />
     <ClCompile Include="..\..\..\sshdes.c" />
-    <ClCompile Include="..\..\..\sshdh.c" />
     <ClCompile Include="..\..\..\sshdss.c" />
     <ClCompile Include="..\..\..\sshecc.c" />
-    <ClCompile Include="..\..\..\sshgssc.c" />
     <ClCompile Include="..\..\..\sshhmac.c" />
-    <ClCompile Include="..\..\..\sshmac.c" />
     <ClCompile Include="..\..\..\sshmd5.c" />
-    <ClCompile Include="..\..\..\sshprng.c" />
     <ClCompile Include="..\..\..\sshpubk.c" />
-    <ClCompile Include="..\..\..\sshrand.c" />
     <ClCompile Include="..\..\..\sshrsa.c" />
     <ClCompile Include="..\..\..\sshsh256.c" />
     <ClCompile Include="..\..\..\sshsh512.c" />
     <ClCompile Include="..\..\..\sshsha.c" />
-    <ClCompile Include="..\..\..\sshshare.c" />
-    <ClCompile Include="..\..\..\sshverstring.c" />
-    <ClCompile Include="..\..\..\sshzlib.c" />
     <ClCompile Include="..\..\..\stripctrl.c" />
-    <ClCompile Include="..\..\..\timing.c" />
     <ClCompile Include="..\..\..\tree234.c" />
     <ClCompile Include="..\..\..\utils.c" />
     <ClCompile Include="..\..\..\version.c" />
     <ClCompile Include="..\..\..\wcwidth.c" />
-    <ClCompile Include="..\..\..\wildcard.c" />
-    <ClCompile Include="..\..\wincapi.c" />
-    <ClCompile Include="..\..\wincons.c" />
-    <ClCompile Include="..\..\windefs.c" />
-    <ClCompile Include="..\..\wingss.c" />
-    <ClCompile Include="..\..\winhandl.c" />
-    <ClCompile Include="..\..\winhsock.c" />
+    <ClCompile Include="..\..\winhelp.c" />
     <ClCompile Include="..\..\winmisc.c" />
     <ClCompile Include="..\..\winmiscs.c" />
-    <ClCompile Include="..\..\winnet.c" />
-    <ClCompile Include="..\..\winnohlp.c" />
-    <ClCompile Include="..\..\winnoise.c" />
-    <ClCompile Include="..\..\winnojmp.c" />
-    <ClCompile Include="..\..\winnpc.c" />
-    <ClCompile Include="..\..\winnps.c" />
+    <ClCompile Include="..\..\winpgnt.c" />
     <ClCompile Include="..\..\winpgntc.c" />
-    <ClCompile Include="..\..\winproxy.c" />
     <ClCompile Include="..\..\winsecur.c" />
-    <ClCompile Include="..\..\winsftp.c" />
-    <ClCompile Include="..\..\winshare.c" />
-    <ClCompile Include="..\..\winstore.c" />
-    <ClCompile Include="..\..\wintime.c" />
-    <ClCompile Include="..\..\winucs.c" />
-    <ClCompile Include="..\..\..\x11fwd.c" />
+    <ClCompile Include="..\..\winutils.c" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\..\cert\cert_common.h" />
@@ -421,38 +348,26 @@
     <ClInclude Include="..\..\..\mpint.h" />
     <ClInclude Include="..\..\..\mpint_i.h" />
     <ClInclude Include="..\..\..\network.h" />
-    <ClInclude Include="..\..\..\noshare.c" />
     <ClInclude Include="..\..\..\pageant.h" />
-    <ClInclude Include="..\..\..\pgssapi.h" />
-    <ClInclude Include="..\..\..\proxy.h" />
-    <ClInclude Include="..\..\..\psftp.h" />
     <ClInclude Include="..\..\..\putty.h" />
     <ClInclude Include="..\..\..\puttymem.h" />
     <ClInclude Include="..\..\..\puttyps.h" />
-    <ClInclude Include="..\..\..\sftp.h" />
     <ClInclude Include="..\..\..\ssh.h" />
-    <ClInclude Include="..\..\..\ssh1connection.h" />
-    <ClInclude Include="..\..\..\ssh2connection.h" />
-    <ClInclude Include="..\..\..\ssh2transport.h" />
-    <ClInclude Include="..\..\..\sshblowf.h" />
-    <ClInclude Include="..\..\..\sshbpp.h" />
-    <ClInclude Include="..\..\..\sshchan.h" />
     <ClInclude Include="..\..\..\sshcr.h" />
-    <ClInclude Include="..\..\..\sshgss.h" />
-    <ClInclude Include="..\..\..\sshgssc.h" />
-    <ClInclude Include="..\..\..\sshppl.h" />
     <ClInclude Include="..\..\..\sshsignals.h" />
     <ClInclude Include="..\..\..\sshttymodes.h" />
-    <ClInclude Include="..\..\..\storage.h" />
     <ClInclude Include="..\..\..\terminal.h" />
     <ClInclude Include="..\..\..\tree234.h" />
     <ClInclude Include="..\..\..\unix\unix.h" />
     <ClInclude Include="..\..\..\version.h" />
     <ClInclude Include="..\..\rcstuff.h" />
-    <ClInclude Include="..\..\wincapi.h" />
+    <ClInclude Include="..\..\win_res.h" />
     <ClInclude Include="..\..\winhelp.h" />
     <ClInclude Include="..\..\winsecur.h" />
     <ClInclude Include="..\..\winstuff.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\..\pageant.mft" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
 </Project>
