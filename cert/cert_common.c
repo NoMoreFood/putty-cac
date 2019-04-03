@@ -434,7 +434,7 @@ int cert_all_certs(LPSTR ** pszCert)
 	PCCERT_CONTEXT pCertContext = NULL;
 
 	// find certificates matching our criteria
-	int iCertNum = 0;
+	size_t iCertNum = 0;
 	*pszCert = NULL;
 	while ((pCertContext = CertFindCertificateInStore(hCertStore, X509_ASN_ENCODING | PKCS_7_ASN_ENCODING,
 		cert_smartcard_certs_only((DWORD)-1) ? CERT_FIND_EXT_ONLY_ENHKEY_USAGE_FLAG : CERT_FIND_VALID_ENHKEY_USAGE_FLAG, 
@@ -456,6 +456,12 @@ int cert_all_certs(LPSTR ** pszCert)
 
 void cert_convert_legacy(LPSTR szCert)
 {
+	// sanity check
+	if (szCert == NULL)
+	{
+		return;
+	}
+
 	// advance string pass 'CAPI:' if already present
 	LPSTR sCompare = szCert;
 	if (strstr(szCert, "CAPI:") == szCert)
@@ -507,7 +513,7 @@ LPBYTE cert_get_hash(LPCSTR szAlgo, LPCBYTE pDataToHash, DWORD iDataToHashSize, 
 
 	// for sha1, prepend the hash digest if requested
 	// this is necessary for some signature algorithms
-	DWORD iDigestSize = 0;
+	size_t iDigestSize = 0;
 	LPBYTE pDigest = NULL;
 	if (iHashAlg == CALG_SHA1 && bPrependDigest)
 	{
