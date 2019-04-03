@@ -71,14 +71,14 @@ BYTE * cert_pkcs_sign(struct ssh2_userkey * userkey, LPCBYTE pDataToSign, int iD
 		struct ecdsa_key *ec = container_of(userkey->key, struct ecdsa_key, sshk);
 
 		// determine key size (the length of x and y must be same and be bit count of finite field p).
-		int iKeySize = (mp_get_nbits(ec->publicKey->wc->p) + 7) / 8;
+		size_t iKeySize = (mp_get_nbits(ec->publicKey->wc->p) + 7) / 8;
 		
 		// combine the x and y bytes in to a continuous structure
 		LPBYTE pDataToEncode = malloc(1 + iKeySize + iKeySize);
 		pDataToEncode[0] = 0x04;
 		mp_int * X = monty_export(ec->curve->w.wc->mc, ec->publicKey->X);
 		mp_int * Y = monty_export(ec->curve->w.wc->mc, ec->publicKey->Y);
-		for (int i = 0; i < iKeySize; i++)
+		for (size_t i = 0; i < iKeySize; i++)
 		{
 			pDataToEncode[1 + i] = mp_get_byte(X, i);
 			pDataToEncode[1 + i + iKeySize] = mp_get_byte(Y, i);
