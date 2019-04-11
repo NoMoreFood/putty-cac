@@ -853,6 +853,15 @@ int cmdline_process_param(const char *p, char *value,
     }
 #endif
 
+	if (!strcmp(p, "-capi") ||
+		!strcmp(p, "-CAPI")) {
+		RETURN(1);
+		UNAVAILABLE_IN(TOOLTYPE_FILETRANSFER | TOOLTYPE_NONNETWORK);
+		SAVEABLE(0);
+		conf_set_str(conf, CONF_cert_certid, "Read from current Smart Card");
+		conf_set_bool(conf, CONF_try_cert_auth, true);
+	}
+
     return ret;			       /* unrecognised */
 }
 

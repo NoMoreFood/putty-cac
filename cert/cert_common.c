@@ -47,7 +47,7 @@ LPSTR cert_get_cert_hash(LPCSTR szIden, PCCERT_CONTEXT pCertContext, LPCSTR szHi
 	return dupcat(szIden, szThumbHex, (szHint != NULL) ? "=" : "", (szHint != NULL) ? szHint : "", NULL);
 }
 
-void cert_prompt_cert(HCERTSTORE hStore, HWND hWnd, LPSTR * szCert, LPCSTR szIden, LPCSTR szHint)
+void cert_prompt_cert(HCERTSTORE hStore, HWND hWnd, LPSTR * szCert, LPCSTR szIden, LPCSTR szHint, bool takeFirst)
 {
 	// create a memory store so we can proactively filter certificates
 	HCERTSTORE hMemoryStore = CertOpenStore(CERT_STORE_PROV_MEMORY,
@@ -63,8 +63,10 @@ void cert_prompt_cert(HCERTSTORE hStore, HWND hWnd, LPSTR * szCert, LPCSTR szIde
 	PCCERT_CONTEXT pCertContext = NULL;
 
 	// enumerate all certs
+	int certsFound = 0;
 	while ((pCertContext = CertFindCertificateInStore(hStore, X509_ASN_ENCODING | PKCS_7_ASN_ENCODING,
-		cert_smartcard_certs_only((DWORD) -1) ? CERT_FIND_EXT_ONLY_ENHKEY_USAGE_FLAG : CERT_FIND_VALID_ENHKEY_USAGE_FLAG, 
+		CERT_FIND_EXT_ONLY_ENHKEY_USAGE_FLAG,
+		//cert_smartcard_certs_only((DWORD) -1) ? CERT_FIND_EXT_ONLY_ENHKEY_USAGE_FLAG : CERT_FIND_VALID_ENHKEY_USAGE_FLAG, 
 		CERT_FIND_ENHKEY_USAGE, &tItem, pCertContext)) != NULL)
 	{
 		// verify time validity if requested
@@ -72,19 +74,43 @@ void cert_prompt_cert(HCERTSTORE hStore, HWND hWnd, LPSTR * szCert, LPCSTR szIde
 		if (cert_ignore_expired_certs((DWORD)-1) && CertVerifySubjectCertificateContext(pCertContext, NULL, &iFlags) == TRUE && iFlags != 0) continue;
 
 		CertAddCertificateContextToStore(hMemoryStore, pCertContext, CERT_STORE_ADD_ALWAYS, NULL);
+		certsFound++;
+		if (takeFirst) {
+			//We are going to break out of here with a valid pCertContext
+			break;
+		}
 	}
 
+	if (certsFound == 1 || takeFirst) {
+		//No use in letting the user pick if there is only one option
+		//OR if the user says just to take the first one found (feeling lucky)
+	}
+	else {
+		printf("Found %d certs on card(s). Select the one you want before proceeding.\n", certsFound);
 	// display the certificate selection dialog
 	pCertContext = CryptUIDlgSelectCertificateFromStore(hMemoryStore, hWnd, 
 		L"PuTTY: Select Certificate for Authentication",
 		L"Please select the certificate that you would like to use for authentication to the remote system.", 
 		CRYPTUI_SELECT_LOCATION_COLUMN, 0, NULL);
+	}
 	if (pCertContext != NULL)
 	{
 		BYTE pbThumbBinary[SHA1_BINARY_SIZE];
 		DWORD cbThumbBinary = SHA1_BINARY_SIZE;
 		if (CertGetCertificateContextProperty(pCertContext, CERT_HASH_PROP_ID, pbThumbBinary, &cbThumbBinary) == TRUE)
 		{
+			//Try to display subject name from the cert selected
+			char pszNameString[256] = "";
+			if (CertGetNameString(
+				pCertContext,
+				CERT_NAME_SIMPLE_DISPLAY_TYPE,
+				0,
+				NULL,
+				pszNameString,
+				128))
+			{
+				printf("Using credentials subject name -> %s.\n", pszNameString);
+			}
 			*szCert = cert_get_cert_hash(szIden, pCertContext, szHint);
 		}
 
@@ -96,7 +122,7 @@ void cert_prompt_cert(HCERTSTORE hStore, HWND hWnd, LPSTR * szCert, LPCSTR szIde
 	CertCloseStore(hMemoryStore, CERT_CLOSE_STORE_FORCE_FLAG);
 }
 
-LPSTR cert_prompt(LPCSTR szIden, HWND hWnd)
+LPSTR cert_prompt(LPCSTR szIden, HWND hWnd, bool takeFirst)
 {
 	HCERTSTORE hStore = NULL;
 	LPCSTR szHint = NULL;
@@ -114,7 +140,7 @@ LPSTR cert_prompt(LPCSTR szIden, HWND hWnd)
 	if (hStore != NULL)
 	{
 		LPSTR szCert = NULL;
-		cert_prompt_cert(hStore, hWnd, &szCert, szIden, szHint);
+		cert_prompt_cert(hStore, hWnd, &szCert, szIden, szHint, takeFirst);
 		return szCert;
 	}
 

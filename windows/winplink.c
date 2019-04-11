@@ -12,6 +12,7 @@
 #include "storage.h"
 #include "tree234.h"
 #include "winsecur.h"
+#include "cert_common.h"
 
 #define WM_AGENT_CALLBACK (WM_APP + 4)
 
@@ -421,6 +422,17 @@ int main(int argc, char **argv)
 	fprintf(stderr, "Plink requires WinSock 2\n");
 	return 1;
     }
+
+#ifdef PUTTY_CAC
+	//Get CAPI info if needed
+	if (conf_get_bool(conf, CONF_try_cert_auth)) {
+		//Probably should set the takeFirst arguments as a command line argument
+		//But I wanted a way to automate logging in with CAPI without needing dialog box
+		char * szCert = cert_prompt(IDEN_CAPI, hwnd, true);
+		if (szCert == NULL) return;
+		conf_set_str(conf, CONF_cert_certid, szCert);
+	}
+#endif
 
     /*
      * Plink doesn't provide any way to add forwardings after the

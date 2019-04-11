@@ -20,7 +20,7 @@
 
 // functions used only by the capi and pkcs addon modules
 EXTERN void cert_reverse_array(LPBYTE pb, DWORD cb);
-EXTERN void cert_prompt_cert(HCERTSTORE hStore, HWND hWnd, LPSTR * szCert, LPCSTR szIden, LPCSTR szHint);
+EXTERN void cert_prompt_cert(HCERTSTORE hStore, HWND hWnd, LPSTR * szCert, LPCSTR szIden, LPCSTR szHint, bool takeFirst);
 EXTERN BOOL cert_load_cert(LPCSTR szCert, PCERT_CONTEXT * ppCertContext, HCERTSTORE * phCertStore);
 EXTERN LPSTR cert_get_cert_hash(LPCSTR szIden, PCCERT_CONTEXT pCertContext, LPCSTR szHint);
 EXTERN PVOID cert_pin(LPSTR szCert, BOOL bUnicode, LPVOID szPin, HWND hWnd);
@@ -32,7 +32,7 @@ EXTERN BOOL cert_ignore_expired_certs(DWORD bEnable);
 // functions used by putty code 
 EXTERN LPSTR cert_key_string(LPCSTR szCert);
 EXTERN LPSTR cert_subject_string(LPCSTR szCert);
-EXTERN LPSTR cert_prompt(LPCSTR szIden, HWND hWnd);
+EXTERN LPSTR cert_prompt(LPCSTR szIden, HWND hWnd, bool takeFirst);
 EXTERN LPBYTE cert_sign(struct ssh2_userkey * userkey, LPCBYTE pDataToSign, int iDataToSignLen, int * iWrappedSigLen, HWND hWnd);
 EXTERN struct ssh2_userkey * cert_load_key(LPCSTR szCert);
 EXTERN VOID cert_display_cert(LPCSTR szCert, HWND hWnd);
