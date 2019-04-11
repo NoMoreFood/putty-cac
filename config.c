@@ -694,7 +694,7 @@ void cert_event_handler(union control *ctrl, void *dlg, void *data, int event)
 	// handle capi certificate set button press
 	if (ctrl == certd->cert_set_capi_button && event == EVENT_ACTION)
 	{
-		char * szCert = cert_prompt(IDEN_CAPI, hwnd);
+		char * szCert = cert_prompt(IDEN_CAPI, hwnd, false);
 		if (szCert == NULL) return;
 		conf_set_str(conf, CONF_cert_certid, szCert);
 		conf_set_bool(conf, CONF_try_cert_auth, 1);
@@ -706,7 +706,7 @@ void cert_event_handler(union control *ctrl, void *dlg, void *data, int event)
 	// handle pkcs certificate set button press
 	if (ctrl == certd->cert_set_pkcs_button && event == EVENT_ACTION)
 	{
-		char * szCert = cert_prompt(IDEN_PKCS, hwnd);
+		char * szCert = cert_prompt(IDEN_PKCS, hwnd, false);
 		if (szCert == NULL) return;
 		conf_set_str(conf, CONF_cert_certid, szCert);
 		conf_set_bool(conf, CONF_try_cert_auth, 1);
