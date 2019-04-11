@@ -29,6 +29,7 @@
 #include "tree234.h"
 
 #include "winhelp.h"
+#include "commdlg.h"
 
 #if defined _M_IX86 || defined _M_AMD64
 #define BUILDINFO_PLATFORM "x86 Windows"
