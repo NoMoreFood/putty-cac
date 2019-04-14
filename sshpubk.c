@@ -628,7 +628,7 @@ ssh2_userkey *ssh2_load_userkey(
 
 #ifdef PUTTY_CAC
 	if(cert_is_certpath(filename->path)) {
-		ret = cert_load_key(filename->path);
+		ret = cert_load_key(filename->path, hwnd);
 		if (ret == NULL) {
 			*errorstr = "load key from certificate failed";
 		}
@@ -1085,7 +1085,7 @@ bool ssh2_userkey_loadpub(const Filename *filename, char **algorithm,
 #ifdef PUTTY_CAC
 	cert_convert_legacy(filename->path);
 	if (cert_is_certpath(filename->path)) {
-		struct ssh2_userkey * userkey = cert_load_key(filename->path);
+		struct ssh2_userkey * userkey = cert_load_key(filename->path, hwnd);
 		if (userkey == NULL || userkey->key == NULL) {
 			*errorstr = "load key from certificate failed";
 			return false;
