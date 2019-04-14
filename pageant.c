@@ -473,7 +473,7 @@ void pageant_handle_msg(BinarySink *bs,
 			if (cert_is_certpath(pSearch))
 			{
 				sfree(key);
-				key = cert_load_key(pSearch);
+				key = cert_load_key(pSearch, hwnd);
 			}
 		}
 #endif // PUTTY_CAC

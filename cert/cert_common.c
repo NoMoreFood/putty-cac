@@ -47,56 +47,7 @@ LPSTR cert_get_cert_hash(LPCSTR szIden, PCCERT_CONTEXT pCertContext, LPCSTR szHi
 	return dupcat(szIden, szThumbHex, (szHint != NULL) ? "=" : "", (szHint != NULL) ? szHint : "", NULL);
 }
 
-void cert_prompt_cert(HCERTSTORE hStore, HWND hWnd, LPSTR * szCert, LPCSTR szIden, LPCSTR szHint)
-{
-	// create a memory store so we can proactively filter certificates
-	HCERTSTORE hMemoryStore = CertOpenStore(CERT_STORE_PROV_MEMORY,
-		X509_ASN_ENCODING | PKCS_7_ASN_ENCODING,
-		0, CERT_STORE_CREATE_NEW_FLAG, NULL);
-
-	// setup a structure to search for only client auth eligible cert
-	CTL_USAGE tItem;
-	CHAR * sClientAuthUsage[] = { szOID_PKIX_KP_CLIENT_AUTH }; 
-	CHAR * sSmartCardLogonUsage[] = { szOID_KP_SMARTCARD_LOGON };
-	tItem.cUsageIdentifier = 1;
-	tItem.rgpszUsageIdentifier = cert_smartcard_certs_only((DWORD) -1) ? sSmartCardLogonUsage : sClientAuthUsage;
-	PCCERT_CONTEXT pCertContext = NULL;
-
-	// enumerate all certs
-	while ((pCertContext = CertFindCertificateInStore(hStore, X509_ASN_ENCODING | PKCS_7_ASN_ENCODING,
-		cert_smartcard_certs_only((DWORD) -1) ? CERT_FIND_EXT_ONLY_ENHKEY_USAGE_FLAG : CERT_FIND_VALID_ENHKEY_USAGE_FLAG, 
-		CERT_FIND_ENHKEY_USAGE, &tItem, pCertContext)) != NULL)
-	{
-		// verify time validity if requested
-		DWORD iFlags = CERT_STORE_TIME_VALIDITY_FLAG;
-		if (cert_ignore_expired_certs((DWORD)-1) && CertVerifySubjectCertificateContext(pCertContext, NULL, &iFlags) == TRUE && iFlags != 0) continue;
-
-		CertAddCertificateContextToStore(hMemoryStore, pCertContext, CERT_STORE_ADD_ALWAYS, NULL);
-	}
-
-	// display the certificate selection dialog
-	pCertContext = CryptUIDlgSelectCertificateFromStore(hMemoryStore, hWnd, 
-		L"PuTTY: Select Certificate for Authentication",
-		L"Please select the certificate that you would like to use for authentication to the remote system.", 
-		CRYPTUI_SELECT_LOCATION_COLUMN, 0, NULL);
-	if (pCertContext != NULL)
-	{
-		BYTE pbThumbBinary[SHA1_BINARY_SIZE];
-		DWORD cbThumbBinary = SHA1_BINARY_SIZE;
-		if (CertGetCertificateContextProperty(pCertContext, CERT_HASH_PROP_ID, pbThumbBinary, &cbThumbBinary) == TRUE)
-		{
-			*szCert = cert_get_cert_hash(szIden, pCertContext, szHint);
-		}
-
-		// cleanup
-		CertFreeCertificateContext(pCertContext);
-	}
-
-	// cleanup and return
-	CertCloseStore(hMemoryStore, CERT_CLOSE_STORE_FORCE_FLAG);
-}
-
-LPSTR cert_prompt(LPCSTR szIden, HWND hWnd)
+LPSTR cert_prompt(LPCSTR szIden, HWND hWnd, BOOL bAutoSelect)
 {
 	HCERTSTORE hStore = NULL;
 	LPCSTR szHint = NULL;
@@ -111,14 +62,69 @@ LPSTR cert_prompt(LPCSTR szIden, HWND hWnd)
 		hStore = cert_pkcs_get_cert_store(&szHint, hWnd);
 	}
 
-	if (hStore != NULL)
+	// return if store could not be loaded
+	if (hStore == NULL) return NULL;
+
+	// create a memory store so we can proactively filter certificates
+	HCERTSTORE hMemoryStore = CertOpenStore(CERT_STORE_PROV_MEMORY,
+		X509_ASN_ENCODING | PKCS_7_ASN_ENCODING,
+		0, CERT_STORE_CREATE_NEW_FLAG, NULL);
+
+	// setup a structure to search for only client auth eligible cert
+	CTL_USAGE tItem;
+	CHAR* sClientAuthUsage[] = { szOID_PKIX_KP_CLIENT_AUTH };
+	CHAR* sSmartCardLogonUsage[] = { szOID_KP_SMARTCARD_LOGON };
+	tItem.cUsageIdentifier = 1;
+	tItem.rgpszUsageIdentifier = cert_smartcard_certs_only((DWORD)-1) ? sSmartCardLogonUsage : sClientAuthUsage;
+	PCCERT_CONTEXT pCertContext = NULL;
+
+	// enumerate all certs
+	int iCertCount = 0;
+	while ((pCertContext = CertFindCertificateInStore(hStore, X509_ASN_ENCODING | PKCS_7_ASN_ENCODING,
+		cert_smartcard_certs_only((DWORD)-1) ? CERT_FIND_EXT_ONLY_ENHKEY_USAGE_FLAG : CERT_FIND_VALID_ENHKEY_USAGE_FLAG,
+		CERT_FIND_ENHKEY_USAGE, &tItem, pCertContext)) != NULL)
 	{
-		LPSTR szCert = NULL;
-		cert_prompt_cert(hStore, hWnd, &szCert, szIden, szHint);
-		return szCert;
+		// verify time validity if requested
+		DWORD iFlags = CERT_STORE_TIME_VALIDITY_FLAG;
+		if (cert_ignore_expired_certs((DWORD)-1) && CertVerifySubjectCertificateContext(pCertContext, NULL, &iFlags) == TRUE && iFlags != 0) continue;
+
+		CertAddCertificateContextToStore(hMemoryStore, pCertContext, CERT_STORE_ADD_ALWAYS, NULL);
+		iCertCount++;
 	}
 
-	return NULL;
+	// select certificate from store
+	LPSTR szCert = NULL;
+	if (iCertCount == 1 && bAutoSelect)
+	{
+		// auto select if only single certificate specified
+		CertFindCertificateInStore(hMemoryStore, X509_ASN_ENCODING | PKCS_7_ASN_ENCODING, 0, CERT_FIND_ANY, NULL, pCertContext);
+	}
+	else
+	{
+		// display the certificate selection dialog
+		pCertContext = CryptUIDlgSelectCertificateFromStore(hMemoryStore, hWnd,
+			L"PuTTY: Select Certificate for Authentication",
+			L"Please select the certificate that you would like to use for authentication to the remote system.",
+			CRYPTUI_SELECT_LOCATION_COLUMN, 0, NULL);
+	}
+
+	// get the certificate hash to pass back
+	if (pCertContext != NULL)
+	{
+		BYTE pbThumbBinary[SHA1_BINARY_SIZE];
+		DWORD cbThumbBinary = SHA1_BINARY_SIZE;
+		if (CertGetCertificateContextProperty(pCertContext, CERT_HASH_PROP_ID, pbThumbBinary, &cbThumbBinary) == TRUE)
+		{
+			szCert = cert_get_cert_hash(IDEN_PREFIX(szIden), pCertContext, szHint);
+		}
+
+		// cleanup
+		CertFreeCertificateContext(pCertContext);
+	}
+
+	// cleanup and return
+	CertCloseStore(hMemoryStore, CERT_CLOSE_STORE_FORCE_FLAG);
+	return szCert;
 }
 
 BOOL cert_load_cert(LPCSTR szCert, PCERT_CONTEXT * ppCertContext, HCERTSTORE * phCertStore)
@@ -320,10 +326,19 @@ struct ssh2_userkey * cert_get_ssh_userkey(LPCSTR szCert, PCERT_CONTEXT pCertCon
 	return pUserKey;
 }
 
-struct ssh2_userkey * cert_load_key(LPCSTR szCert)
+struct ssh2_userkey * cert_load_key(LPCSTR szCert, HWND hWnd)
 {
 	// sanity check
 	if (szCert == NULL) return NULL;
+
+	// if asterisk is specified, then prompt for certificate
+	BOOL bDynamicLookup = strcmp(IDEN_SPLIT(szCert), "*") == 0;
+	BOOL bDynamicLookupAutoSelect = strcmp(IDEN_SPLIT(szCert), "**") == 0;
+	if (bDynamicLookup || bDynamicLookupAutoSelect)
+	{
+		szCert = cert_prompt(szCert, hWnd, bDynamicLookupAutoSelect);
+		if (szCert == NULL) return NULL;
+	}
 
 	// load certificate context
 	PCERT_CONTEXT pCertContext = NULL;

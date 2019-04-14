@@ -577,7 +577,7 @@ static INT_PTR CALLBACK KeyListProc(HWND hwnd, UINT msg,
 		  case IDC_PAGEANT_ADD_CAPI: /* add capi key */
 		  {
 			  char * szCert = cert_prompt((LOWORD(wParam) == IDC_PAGEANT_ADD_CAPI) ?
-				  (IDEN_CAPI) : (IDEN_PKCS), hwnd);
+				  (IDEN_CAPI) : (IDEN_PKCS), hwnd, FALSE);
 			  if (szCert == NULL) return 0;
 			  Filename *fn = filename_from_str(szCert);
 			  char *err = NULL;
@@ -1160,7 +1160,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 			break;
 		}
 		char * szCert = cert_prompt(((wParam & ~0xF) == IDM_ADDCAPI) ?
-			(IDEN_CAPI) : (IDEN_PKCS), hwnd);
+			(IDEN_CAPI) : (IDEN_PKCS), hwnd, FALSE);
 		if (szCert == NULL) break;
 		Filename *fn = filename_from_str(szCert);
 		char *err = NULL;
