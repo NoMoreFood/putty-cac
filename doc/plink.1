@@ -1,0 +1,151 @@
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.TH "plink" "1" "2004\(hy03\(hy24" "PuTTY\ tool\ suite" "PuTTY\ tool\ suite"
+.SH "NAME"
+.PP
+\fBplink\fP \- PuTTY link, command line network connection tool
+.SH "SYNOPSIS"
+.PP
+.nf
+\fBplink\fP\ [\fIoptions\fP]\ [\fIuser\fP\fB@\fP]\fIhost\fP\ [\fIcommand\fP]
+.fi
+.SH "DESCRIPTION"
+.PP
+\fBplink\fP is a network connection tool supporting several protocols.
+.SH "OPTIONS"
+.PP
+The command-line options supported by \fBplink\fP are:
+.IP "\fB-V\fP"
+Show version information and exit.
+.IP "\fB-pgpfp\fP"
+Display the fingerprints of the PuTTY PGP Master Keys and exit, to aid in verifying new files released by the PuTTY team.
+.IP "\fB-v\fP"
+Show verbose messages.
+.IP "\fB-load\fP \fIsession\fP"
+Load settings from saved session.
+.IP "\fB-ssh\fP"
+Force use of SSH protocol (default).
+.IP "\fB-telnet\fP"
+Force use of Telnet protocol.
+.IP "\fB-rlogin\fP"
+Force use of rlogin protocol.
+.IP "\fB-raw\fP"
+Force raw mode.
+.IP "\fB-serial\fP"
+Force serial mode.
+.IP "\fB\-proxycmd\fP \fIcommand\fP"
+Instead of making a TCP connection, use \fIcommand\fP as a proxy; network traffic will be redirected to the standard input and output of \fIcommand\fP. \fIcommand\fP must be a single word, so is likely to need quoting by the shell.
+.RS
+.PP
+The special strings \fB%host\fP and \fB%port\fP in \fIcommand\fP will be replaced by the hostname and port number you want to connect to; to get a literal \fB%\fP sign, enter \fB%%\fP.
+.PP
+Backslash escapes are also supported, such as sequences like \fB\en\fP being replaced by a literal newline; to get a literal backslash, enter \fB\e\e\fP. (Further escaping may be required by the shell.)
+.PP
+(See the main PuTTY manual for full details of the supported \fB%\fP- and backslash-delimited tokens, although most of them are probably not very useful in this context.) 
+.RE
+.IP "\fB-P\fP \fIport\fP"
+Connect to port \fIport\fP.
+.IP "\fB-l\fP \fIuser\fP"
+Set remote username to \fIuser\fP.
+.IP "\fB-m\fP \fIpath\fP"
+Read remote command(s) from local file \fIpath\fP.
+.IP "\fB-batch\fP"
+Disable interactive prompts.
+.IP "\fB-sanitise-stderr\fP"
+
+.IP "\fB-sanitise-stdout\fP"
+
+.IP "\fB-no-sanitise-stderr\fP"
+
+.IP "\fB-no-sanitise-stdout\fP"
+By default, Plink can choose to filter control characters if that seems appropriate, to prevent remote processes sending confusing escape sequences. These options override Plink's default behaviour to enable or disabling such filtering on the standard error and standard output channels.
+.IP "\fB-pw\fP \fIpassword\fP"
+Set remote password to \fIpassword\fP. \fICAUTION:\fP this will likely make the password visible to other users of the local machine (via commands such as `\fBw\fP').
+.IP "\fB\-L\fP \fB[\fP\fIsrcaddr\fP\fB:]\fP\fIsrcport\fP\fB:\fP\fIdesthost\fP\fB:\fP\fIdestport\fP"
+Set up a local port forwarding: listen on \fIsrcport\fP (or \fIsrcaddr\fP:\fIsrcport\fP if specified), and forward any connections over the SSH connection to the destination address \fIdesthost\fP:\fIdestport\fP. Only works in SSH.
+.IP "\fB\-R\fP \fB[\fP\fIsrcaddr\fP\fB:]\fP\fIsrcport\fP\fB:\fP\fIdesthost\fP\fB:\fP\fIdestport\fP"
+Set up a remote port forwarding: ask the SSH server to listen on \fIsrcport\fP (or \fIsrcaddr\fP:\fIsrcport\fP if specified), and to forward any connections back over the SSH connection where the client will pass them on to the destination address \fIdesthost\fP:\fIdestport\fP. Only works in SSH.
+.IP "\fB\-D\fP [\fIsrcaddr\fP:]\fIsrcport\fP"
+Set up dynamic port forwarding. The client listens on \fIsrcport\fP (or \fIsrcaddr\fP:\fIsrcport\fP if specified), and implements a SOCKS server. So you can point SOCKS-aware applications at this port and they will automatically use the SSH connection to tunnel all their connections. Only works in SSH.
+.IP "\fB-X\fP"
+Enable X11 forwarding.
+.IP "\fB-x\fP"
+Disable X11 forwarding (default).
+.IP "\fB-A\fP"
+Enable agent forwarding.
+.IP "\fB-a\fP"
+Disable agent forwarding (default).
+.IP "\fB-t\fP"
+Enable pty allocation (default if a command is NOT specified).
+.IP "\fB-T\fP"
+Disable pty allocation (default if a command is specified).
+.IP "\fB-1\fP"
+Force use of SSH protocol version 1.
+.IP "\fB-2\fP"
+Force use of SSH protocol version 2.
+.IP "\fB-4\fP, \fB-6\fP"
+Force use of IPv4 or IPv6 for network connections.
+.IP "\fB-C\fP"
+Enable SSH compression.
+.IP "\fB-i\fP \fIkeyfile\fP"
+Private key file for user authentication. For SSH-2 keys, this key file must be in PuTTY's PPK format, not OpenSSH's format or anyone else's.
+.RS
+.PP
+If you are using an authentication agent, you can also specify a \fIpublic\fP key here (in RFC 4716 or OpenSSH format), to identify which of the agent's keys to use. 
+.RE
+.IP "\fB\-noagent\fP"
+Don't try to use an authentication agent for local authentication. (This doesn't affect agent forwarding.)
+.IP "\fB\-agent\fP"
+Allow use of an authentication agent. (This option is only necessary to override a setting in a saved session.)
+.IP "\fB\-noshare\fP"
+Don't test and try to share an existing connection, always make a new connection.
+.IP "\fB\-share\fP"
+Test and try to share an existing connection.
+.IP "\fB\-hostkey\fP \fIkey\fP"
+Specify an acceptable host public key. This option may be specified multiple times; each key can be either a fingerprint (\fB99:aa:bb:...\fP) or a base64-encoded blob in OpenSSH\*(Aqs one-line format.
+.RS
+.PP
+Specifying this option overrides automated host key management; \fIonly\fP the key(s) specified on the command-line will be accepted (unless a saved session also overrides host keys, in which case those will be added to), and the host key cache will not be written. 
+.RE
+.IP "\fB-s\fP"
+Remote command is SSH subsystem (SSH-2 only).
+.IP "\fB-N\fP"
+Don't start a remote command or shell at all (SSH-2 only).
+.IP "\fB\-nc\fP \fIhost\fP:\fIport\fP"
+Make a remote network connection from the server instead of starting a shell or command.
+.IP "\fB\-sercfg\fP \fIconfiguration-string\fP"
+Specify the configuration parameters for the serial port, in \fB-serial\fP mode. \fIconfiguration-string\fP should be a comma-separated list of configuration parameters as follows:
+.RS
+.IP "\fB\(bu\fP"
+Any single digit from 5 to 9 sets the number of data bits.
+.IP "\fB\(bu\fP"
+`\fB1\fP', `\fB1.5\fP' or `\fB2\fP' sets the number of stop bits.
+.IP "\fB\(bu\fP"
+Any other numeric string is interpreted as a baud rate.
+.IP "\fB\(bu\fP"
+A single lower-case letter specifies the parity: `\fBn\fP' for none, `\fBo\fP' for odd, `\fBe\fP' for even, `\fBm\fP' for mark and `\fBs\fP' for space.
+.IP "\fB\(bu\fP"
+A single upper-case letter specifies the flow control: `\fBN\fP' for none, `\fBX\fP' for XON/XOFF, `\fBR\fP' for RTS/CTS and `\fBD\fP' for DSR/DTR.
+.RE
+.IP "\fB\-sshlog\fP \fIlogfile\fP"
+
+.IP "\fB\-sshrawlog\fP \fIlogfile\fP"
+For SSH connections, these options make \fBplink\fP log protocol details to a file. (Some of these may be sensitive, although by default an effort is made to suppress obvious passwords.)
+.RS
+.PP
+\fB\-sshlog\fP logs decoded SSH packets and other events (those that \fB\-v\fP would print). \fB\-sshrawlog\fP additionally logs the raw encrypted packet data. 
+.RE
+.IP "\fB\-shareexists\fP"
+Instead of making a new connection, test for the presence of an existing connection that can be shared. The desired session can be specified in any of the usual ways.
+.RS
+.PP
+Returns immediately with a zero exit status if a suitable `upstream' exists, nonzero otherwise. 
+.RE
+.SH "MORE INFORMATION"
+.PP
+For more information on plink, it's probably best to go and look at the manual on the PuTTY web page:
+.PP
+\fBhttps://www.chiark.greenend.org.uk/~sgtatham/putty/\fP
+.SH "BUGS"
+.PP
+This man page isn't terribly complete. See the above web link for better documentation.

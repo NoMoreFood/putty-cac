@@ -130,10 +130,6 @@ SOURCE=..\..\..\ldisc.c
 # End Source File
 # Begin Source File
 
-SOURCE=..\..\..\ldiscucs.c
-# End Source File
-# Begin Source File
-
 SOURCE=..\..\..\logging.c
 # End Source File
 # Begin Source File

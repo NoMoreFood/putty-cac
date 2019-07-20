@@ -331,6 +331,7 @@
     <ClCompile Include="..\..\..\portfwd.c" />
     <ClCompile Include="..\..\..\proxy.c" />
     <ClCompile Include="..\..\..\pscp.c" />
+    <ClCompile Include="..\..\..\psftpcommon.c" />
     <ClCompile Include="..\..\..\settings.c" />
     <ClCompile Include="..\..\..\sftp.c" />
     <ClCompile Include="..\..\..\sftpcommon.c" />
