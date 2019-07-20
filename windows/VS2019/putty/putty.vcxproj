@@ -316,7 +316,6 @@
     <ClCompile Include="..\..\..\ecc.c" />
     <ClCompile Include="..\..\..\errsock.c" />
     <ClCompile Include="..\..\..\ldisc.c" />
-    <ClCompile Include="..\..\..\ldiscucs.c" />
     <ClCompile Include="..\..\..\logging.c" />
     <ClCompile Include="..\..\..\mainchan.c" />
     <ClCompile Include="..\..\..\marshal.c" />

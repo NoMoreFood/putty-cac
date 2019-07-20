@@ -146,10 +146,6 @@ SOURCE=..\..\..\ldisc.c
 # End Source File
 # Begin Source File
 
-SOURCE=..\..\..\ldiscucs.c
-# End Source File
-# Begin Source File
-
 SOURCE=..\..\..\logging.c
 # End Source File
 # Begin Source File
@@ -672,6 +668,10 @@ SOURCE=..\..\..\sshgssc.h
 # Begin Source File
 
 SOURCE=..\..\..\sshppl.h
+# End Source File
+# Begin Source File
+
+SOURCE=..\..\..\sshserver.h
 # End Source File
 # Begin Source File
 

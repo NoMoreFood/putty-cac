@@ -199,6 +199,10 @@ SOURCE=..\..\..\pscp.c
 # End Source File
 # Begin Source File
 
+SOURCE=..\..\..\psftpcommon.c
+# End Source File
+# Begin Source File
+
 SOURCE=..\..\..\settings.c
 # End Source File
 # Begin Source File
@@ -621,6 +625,10 @@ SOURCE=..\..\..\sshgssc.h
 # Begin Source File
 
 SOURCE=..\..\..\sshppl.h
+# End Source File
+# Begin Source File
+
+SOURCE=..\..\..\sshserver.h
 # End Source File
 # Begin Source File
 

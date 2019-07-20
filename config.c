@@ -858,7 +858,7 @@ static void sessionsaver_handler(union control *ctrl, dlgparam *dlg,
 	     * valid host name in it, then load it and go.
 	     */
 	    if (dlg_last_focused(ctrl, dlg) == ssd->listbox &&
-		!conf_launchable(conf)) {
+		!conf_launchable(conf) && dlg_is_visible(ssd->listbox, dlg)) {
 		Conf *conf2 = conf_new();
 		bool mbl = false;
 		if (!load_selected_session(ssd, dlg, conf2, &mbl)) {
@@ -1899,10 +1899,6 @@ void setup_config_box(struct controlbox *b, bool midsession,
 		  HELPCTX(features_retitle),
 		  conf_checkbox_handler,
 		  I(CONF_no_remote_wintitle));
-    ctrl_checkbox(s, "Disable remote-controlled clearing of scrollback", 'e',
-		  HELPCTX(features_clearscroll),
-		  conf_checkbox_handler,
-		  I(CONF_no_remote_clearscroll));
     ctrl_radiobuttons(s, "Response to remote title query (SECURITY):", 'q', 3,
 		      HELPCTX(features_qtitle),
 		      conf_radiobutton_handler,
@@ -1910,6 +1906,10 @@ void setup_config_box(struct controlbox *b, bool midsession,
 		      "None", I(TITLE_NONE),
 		      "Empty string", I(TITLE_EMPTY),
 		      "Window title", I(TITLE_REAL), NULL);
+    ctrl_checkbox(s, "Disable remote-controlled clearing of scrollback", 'e',
+		  HELPCTX(features_clearscroll),
+		  conf_checkbox_handler,
+		  I(CONF_no_remote_clearscroll));
     ctrl_checkbox(s, "Disable destructive backspace on server sending ^?",'b',
 		  HELPCTX(features_dbackspace),
 		  conf_checkbox_handler, I(CONF_no_dbackspace));
@@ -1918,10 +1918,10 @@ void setup_config_box(struct controlbox *b, bool midsession,
 		  I(CONF_no_remote_charset));
     ctrl_checkbox(s, "Disable Arabic text shaping",
 		  'l', HELPCTX(features_arabicshaping), conf_checkbox_handler,
-		  I(CONF_arabicshaping));
+		  I(CONF_no_arabicshaping));
     ctrl_checkbox(s, "Disable bidirectional text display",
 		  'd', HELPCTX(features_bidi), conf_checkbox_handler,
-		  I(CONF_bidi));
+		  I(CONF_no_bidi));
 
     /*
      * The Window panel.
@@ -2520,10 +2520,12 @@ void setup_config_box(struct controlbox *b, bool midsession,
 			      HELPCTX(ssh_kexlist),
 			      kexlist_handler, P(NULL));
             c->listbox.height = KEX_MAX;
+#ifndef NO_GSSAPI
 	    ctrl_checkbox(s, "Attempt GSSAPI key exchange",
 			  'k', HELPCTX(ssh_gssapi),
 			  conf_checkbox_handler,
 			  I(CONF_try_gssapi_kex));
+#endif
 
 	    s = ctrl_getset(b, "Connection/SSH/Kex", "repeat",
 			    "Options controlling key re-exchange");
@@ -2533,11 +2535,13 @@ void setup_config_box(struct controlbox *b, bool midsession,
 			 conf_editbox_handler,
 			 I(CONF_ssh_rekey_time),
 			 I(-1));
+#ifndef NO_GSSAPI
             ctrl_editbox(s, "Minutes between GSS checks (0 for never)", NO_SHORTCUT, 20,
                          HELPCTX(ssh_kex_repeat),
                          conf_editbox_handler,
                          I(CONF_gssapirekey),
                          I(-1));
+#endif
 	    ctrl_editbox(s, "Max data before rekey (0 for no limit)", 'x', 20,
 			 HELPCTX(ssh_kex_repeat),
 			 conf_editbox_handler,
