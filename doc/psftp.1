@@ -1,0 +1,94 @@
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.TH "psftp" "1" "2004\(hy03\(hy24" "PuTTY\ tool\ suite" "PuTTY\ tool\ suite"
+.SH "NAME"
+.PP
+\fBpsftp\fP \- interactive SFTP (secure file transfer protocol) client
+.SH "SYNOPSIS"
+.PP
+.nf
+\fBpsftp\fP\ [\fIoptions\fP]\ [\fIuser\fP\fB@\fP]\fIhost\fP
+.fi
+.SH "DESCRIPTION"
+.PP
+\fBpsftp\fP is an interactive text-based client for the SSH-based SFTP (secure file transfer) protocol.
+.SH "OPTIONS"
+.PP
+The command-line options supported by \fBpsftp\fP are:
+.IP "\fB-V\fP"
+Show version information and exit.
+.IP "\fB-pgpfp\fP"
+Display the fingerprints of the PuTTY PGP Master Keys and exit, to aid in verifying new files released by the PuTTY team.
+.IP "\fB-b\fP \fIbatchfile\fP"
+Use specified batchfile.
+.IP "\fB-bc\fP"
+Output batchfile commands.
+.IP "\fB-be\fP"
+Don't stop batchfile processing on errors.
+.IP "\fB-v\fP"
+Show verbose messages.
+.IP "\fB-load\fP \fIsession\fP"
+Load settings from saved session.
+.IP "\fB-P\fP \fIport\fP"
+Connect to port \fIport\fP.
+.IP "\fB\-proxycmd\fP \fIcommand\fP"
+Instead of making a TCP connection, use \fIcommand\fP as a proxy; network traffic will be redirected to the standard input and output of \fIcommand\fP. \fIcommand\fP must be a single word, so is likely to need quoting by the shell.
+.RS
+.PP
+The special strings \fB%host\fP and \fB%port\fP in \fIcommand\fP will be replaced by the hostname and port number you want to connect to; to get a literal \fB%\fP sign, enter \fB%%\fP.
+.PP
+Backslash escapes are also supported, such as sequences like \fB\en\fP being replaced by a literal newline; to get a literal backslash, enter \fB\e\e\fP. (Further escaping may be required by the shell.)
+.PP
+(See the main PuTTY manual for full details of the supported \fB%\fP- and backslash-delimited tokens, although most of them are probably not very useful in this context.) 
+.RE
+.IP "\fB-l\fP \fIuser\fP"
+Set remote username to \fIuser\fP.
+.IP "\fB-batch\fP"
+Disable interactive prompts.
+.IP "\fB-no-sanitise-stderr\fP"
+By default, PSFTP will filter control characters from the standard error channel from the server, to prevent remote processes sending confusing escape sequences. This option forces the standard error channel to not be filtered.
+.IP "\fB-pw\fP \fIpassword\fP"
+Set remote password to \fIpassword\fP. \fICAUTION:\fP this will likely make the password visible to other users of the local machine (via commands such as `\fBw\fP').
+.IP "\fB-1\fP"
+Force use of SSH protocol version 1.
+.IP "\fB-2\fP"
+Force use of SSH protocol version 2.
+.IP "\fB-4\fP, \fB-6\fP"
+Force use of IPv4 or IPv6 for network connections.
+.IP "\fB-C\fP"
+Enable SSH compression.
+.IP "\fB-i\fP \fIkeyfile\fP"
+Private key file for user authentication. For SSH-2 keys, this key file must be in PuTTY's PPK format, not OpenSSH's format or anyone else's.
+.RS
+.PP
+If you are using an authentication agent, you can also specify a \fIpublic\fP key here (in RFC 4716 or OpenSSH format), to identify which of the agent's keys to use. 
+.RE
+.IP "\fB\-noagent\fP"
+Don't try to use an authentication agent.
+.IP "\fB\-agent\fP"
+Allow use of an authentication agent. (This option is only necessary to override a setting in a saved session.)
+.IP "\fB\-hostkey\fP \fIkey\fP"
+Specify an acceptable host public key. This option may be specified multiple times; each key can be either a fingerprint (\fB99:aa:bb:...\fP) or a base64-encoded blob in OpenSSH\*(Aqs one-line format.
+.RS
+.PP
+Specifying this option overrides automated host key management; \fIonly\fP the key(s) specified on the command-line will be accepted (unless a saved session also overrides host keys, in which case those will be added to), and the host key cache will not be written. 
+.RE
+.IP "\fB\-sshlog\fP \fIlogfile\fP"
+
+.IP "\fB\-sshrawlog\fP \fIlogfile\fP"
+These options make \fBpsftp\fP log protocol details to a file. (Some of these may be sensitive, although by default an effort is made to suppress obvious passwords.)
+.RS
+.PP
+\fB\-sshlog\fP logs decoded SSH packets and other events (those that \fB\-v\fP would print). \fB\-sshrawlog\fP additionally logs the raw encrypted packet data. 
+.RE
+.SH "COMMANDS"
+.PP
+For a list of commands available inside \fBpsftp\fP, type \fBhelp\fP at the \fBpsftp>\fP prompt.
+.SH "MORE INFORMATION"
+.PP
+For more information on \fBpsftp\fP it\*(Aqs probably best to go and look at the manual on the PuTTY web page:
+.PP
+\fBhttps://www.chiark.greenend.org.uk/~sgtatham/putty/\fP
+.SH "BUGS"
+.PP
+This man page isn't terribly complete. See the above web link for better documentation.

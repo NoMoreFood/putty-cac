@@ -631,6 +631,10 @@ SOURCE=..\..\..\sshppl.h
 # End Source File
 # Begin Source File
 
+SOURCE=..\..\..\sshserver.h
+# End Source File
+# Begin Source File
+
 SOURCE=..\..\..\sshsignals.h
 # End Source File
 # Begin Source File
