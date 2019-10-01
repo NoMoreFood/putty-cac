@@ -4782,13 +4782,13 @@ Chapter 4: Configuring PuTTY
        Here is `PUTTYDEL.REG':
 
          REGEDIT4
-          
+         
          [-HKEY_CURRENT_USER\Software\SimonTatham\PuTTY]
 
        Here is an example `PUTTYRND.REG' file:
 
          REGEDIT4
-          
+         
          [HKEY_CURRENT_USER\Software\SimonTatham\PuTTY]
          "RandSeedFile"="a:\\putty.rnd"
 
@@ -4837,7 +4837,7 @@ Chapter 5: Using PSCP to transfer files securely
 
          Z:\owendadmin>pscp
          PuTTY Secure Copy client
-         Release 0.72
+         Release 0.73
          Usage: pscp [options] [user@]host:source target
                 pscp [options] source [source...] [user@]host:target
                 pscp [options] -ls [user@]host:filespec
@@ -5752,7 +5752,7 @@ Chapter 7: Using the command-line connection tool Plink
 
          Z:\sysosd>plink
          Plink: command-line connection utility
-         Release 0.72
+         Release 0.73
          Usage: plink [options] [user@]host [command]
                 ("host" can also be a PuTTY saved session name)
          Options:
@@ -9947,4 +9947,4 @@ Appendix F: SSH-2 names specified for PuTTY
            These were used in drafts of what eventually became RFC 4345.
            They have been superseded by arcfour128 and arcfour256.
 
-[PuTTY release 0.72]
+[PuTTY release 0.73]

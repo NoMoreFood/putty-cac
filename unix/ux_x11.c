@@ -25,17 +25,17 @@ void platform_get_x11_auth(struct X11Display *disp, Conf *conf)
     needs_free = false;
     xauthfile = getenv("XAUTHORITY");
     if (!xauthfile) {
-	xauthfile = getenv("HOME");
-	if (xauthfile) {
-	    xauthfile = dupcat(xauthfile, "/.Xauthority", NULL);
-	    needs_free = true;
-	}
+        xauthfile = getenv("HOME");
+        if (xauthfile) {
+            xauthfile = dupcat(xauthfile, "/.Xauthority", NULL);
+            needs_free = true;
+        }
     }
 
     if (xauthfile) {
-	x11_get_auth_from_authfile(disp, xauthfile);
-	if (needs_free)
-	    sfree(xauthfile);
+        x11_get_auth_from_authfile(disp, xauthfile);
+        if (needs_free)
+            sfree(xauthfile);
     }
 }
 
@@ -78,8 +78,7 @@ int platform_make_x11_server(Plug *plug, const char *progname, int mindisp,
             char *hostname = get_hostname();
             if (hostname) {
                 char *canonicalname = NULL;
-                a_tcp = name_lookup(hostname, tcp_port, &canonicalname,
-                                    conf, addrtype, NULL, "");
+                a_tcp = sk_namelookup(hostname, &canonicalname, addrtype);
                 sfree(canonicalname);
             }
             sfree(hostname);
