@@ -1,8 +1,8 @@
 @ECHO OFF
 
 :: version information
-SET VER=0.72
-SET VERN=0.72.0.0
+SET VER=0.73
+SET VERN=0.73.0.0
 
 :: cert info to use for signing
 SET CERT=D4C06C609230B7BC433A428BFFD6EDC4F77FD166
