@@ -23,6 +23,7 @@ EXTERN void cert_reverse_array(LPBYTE pb, DWORD cb);
 EXTERN BOOL cert_load_cert(LPCSTR szCert, PCERT_CONTEXT * ppCertContext, HCERTSTORE * phCertStore);
 EXTERN LPSTR cert_get_cert_hash(LPCSTR szIden, PCCERT_CONTEXT pCertContext, LPCSTR szHint);
 EXTERN PVOID cert_pin(LPSTR szCert, BOOL bUnicode, LPVOID szPin, HWND hWnd);
+EXTERN BOOL cert_save_cert_list_enabled(DWORD bEnable);
 EXTERN BOOL cert_cache_enabled(DWORD bEnable);
 EXTERN BOOL cert_auth_prompting(DWORD bEnable);
 EXTERN BOOL cert_smartcard_certs_only(DWORD bEnable);
@@ -43,6 +44,7 @@ EXTERN LPBYTE cert_get_hash(LPCSTR szAlgo, LPCBYTE pDataToHash, DWORD iDataToHas
 #define IDC_PAGEANT_ADD_PKCS 104
 #define IDC_PAGEANT_ADD_CAPI 105
 #define IDC_PAGEANT_CLIP_KEY 106
+#define IDC_PAGEANT_SAVE_CERT 107
 
 #define SHA1_BINARY_SIZE (160 / 8)
 #define SHA1_HEX_SIZE (SHA1_BINARY_SIZE * 2)

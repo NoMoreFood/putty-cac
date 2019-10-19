@@ -1,8 +1,9 @@
 @ECHO OFF
+TITLE Building PuTTY-CAC
 
 :: version information
-SET VER=0.73
-SET VERN=0.73.0.0
+SET VER=0.73u1
+SET VERN=0.73.0.1
 
 :: cert info to use for signing
 SET CERT=D4C06C609230B7BC433A428BFFD6EDC4F77FD166

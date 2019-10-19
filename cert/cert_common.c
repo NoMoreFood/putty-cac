@@ -645,6 +645,13 @@ PVOID cert_pin(LPSTR szCert, BOOL bUnicode, LPVOID szPin, HWND hWnd)
 	return szReturn;
 }
 
+EXTERN BOOL cert_save_cert_list_enabled(DWORD bEnable)
+{
+	static BOOL bSaveCertListEnabled = FALSE;
+	if (bEnable != -1) bSaveCertListEnabled = bEnable;
+	return bSaveCertListEnabled;
+}
+
 EXTERN BOOL cert_cache_enabled(DWORD bEnable)
 {
 	static BOOL bCacheEnabled = FALSE;
