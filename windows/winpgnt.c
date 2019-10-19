@@ -55,10 +55,11 @@
 #define IDM_ADDCAPI  0x0070
 #define IDM_ADDPKCS  0x0080
 #define IDM_AUTOCERT 0x0090
-#define IDM_PINCACHE 0x00A0
-#define IDM_CERTAUTH 0x00B0
-#define IDM_SCONLY   0x00C0
-#define IDM_NOEXPR   0x00D0
+#define IDM_SAVELIST 0x00A0
+#define IDM_PINCACHE 0x00B0
+#define IDM_CERTAUTH 0x00C0
+#define IDM_SCONLY   0x00D0
+#define IDM_NOEXPR   0x00E0
 #endif // PUTTY_CAC
 
 #define APPNAME "Pageant"
@@ -378,6 +379,32 @@ void keylist_update(void)
         }
         SendDlgItemMessage(keylist, 100, LB_SETCURSEL, (WPARAM) - 1, 0);
     }
+
+#ifdef PUTTY_CAC
+	if (cert_save_cert_list_enabled(-1))
+	{
+		/* initialize a double-null terminated string */
+		char* slist = snewn(2, char);
+		int slistsize = 0;
+		memset(slist, 0, 2);
+		ssh2_userkey* ckey = NULL;
+		for (int ikey = 0; (ckey = pageant_nth_ssh2_key(ikey)) != NULL; ikey++)
+		{
+			/* only process cert keys*/
+			if (!cert_is_certpath(ckey->comment)) continue;
+
+			/* append the null seperated, double-null terminated string */
+			slist = srealloc(slist, slistsize + strlen(ckey->comment) + 2);
+			strcpy(&slist[slistsize], ckey->comment);
+			slist[slistsize + strlen(ckey->comment) + 1] = '\0';
+			slistsize += strlen(ckey->comment) + 1;
+		}
+
+		/* commit full list to registry */
+		RegSetKeyValue(HKEY_CURRENT_USER, PUTTY_REG_POS, "SaveCertList",
+			REG_MULTI_SZ, slist, slistsize + 1);
+	}
+#endif /* PUTTY_CAC */
 }
 
 static void win_add_keyfile(Filename *filename)
@@ -1165,6 +1192,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 		Filename *fn = filename_from_str(szCert);
 		char *err = NULL;
 		pageant_add_keyfile(fn, NULL, &err);
+		keylist_update();
 		filename_free(fn);
 		free(szCert);
 		sfree(err);
@@ -1190,6 +1218,14 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 			  AutoloadOn = TRUE;
 		  }
 		  RegSetKeyValue(HKEY_CURRENT_USER, PUTTY_REG_POS, "AutoloadCerts", REG_DWORD, &AutoloadOn, sizeof(DWORD));
+	  } break;
+	  case IDM_SAVELIST: {
+		  DWORD iItem = CheckMenuItem(systray_menu, IDM_PINCACHE, MF_CHECKED);
+		  DWORD iNewState = (iItem == MF_CHECKED) ? MF_UNCHECKED : MF_CHECKED;
+		  CheckMenuItem(systray_menu, IDM_SAVELIST, iNewState);
+		  DWORD SaveCertListEnabled = (iNewState == MF_CHECKED);
+		  cert_save_cert_list_enabled(SaveCertListEnabled);
+		  RegSetKeyValue(HKEY_CURRENT_USER, PUTTY_REG_POS, "SaveCertListEnabled", REG_DWORD, &SaveCertListEnabled, sizeof(DWORD));
 	  } break;
 	  case IDM_PINCACHE: {
 		  DWORD iItem = CheckMenuItem(systray_menu, IDM_PINCACHE, MF_CHECKED);
@@ -1443,6 +1479,14 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 		RegSetKeyValue(HKEY_CURRENT_USER, PUTTY_REG_POS, "AutoloadCerts", REG_DWORD, &AutoloadOn, sizeof(DWORD));
 		break;
 	} 
+	else if (!strcmp(argv[i], "-savecertlist") || !strcmp(argv[i], "-savecertlistoff")) {
+		/*
+		 * Allow setting the save list setting via command line
+		 */
+		DWORD SaveCertListOn = (!strcmp(argv[i], "-savelist")) ? 1 : 0;
+		RegSetKeyValue(HKEY_CURRENT_USER, PUTTY_REG_POS, "SaveCertListEnabled", REG_DWORD, &SaveCertListOn, sizeof(DWORD));
+		break;
+	}
 	else if (!strcmp(argv[i], "-forcepincache") || !strcmp(argv[i], "-forcepincacheoff")) {
 		/*
 		 * Allow setting the pin cache setting via command line
@@ -1547,12 +1591,14 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 	RegGetValue(HKEY_CURRENT_USER, PUTTY_REG_POS, "IgnoreExpiredCerts",
 		RRF_RT_REG_DWORD, NULL, &IgnoredExpiredCerts, &IgnoredExpiredCertsSize);
 	cert_ignore_expired_certs(IgnoredExpiredCerts);
+
 	/* Get Smart Card Certs Only Settings */
 	DWORD SmartCardLogonCertsOnly = 0;
 	DWORD SmartCardLogonCertsOnlySize = sizeof(SmartCardLogonCertsOnly);
 	RegGetValue(HKEY_CURRENT_USER, PUTTY_REG_POS, "SmartCardLogonCertsOnly",
 		RRF_RT_REG_DWORD, NULL, &SmartCardLogonCertsOnly, &SmartCardLogonCertsOnlySize);
 	cert_smartcard_certs_only(SmartCardLogonCertsOnly);
+
 	/* Get Autoload Certificate Settings */
 	DWORD AutoloadCerts = 0;
 	DWORD AutoloadCertsSize = sizeof(AutoloadCerts);
@@ -1572,12 +1618,40 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 		}
 		sfree(pszCert);
 	}
+
+	/* Get SaveCertList Settings */
+	DWORD SaveCertListEnabled = 0;
+	DWORD SaveCertListEnabledSize = sizeof(SaveCertListEnabled);
+	RegGetValue(HKEY_CURRENT_USER, PUTTY_REG_POS, "SaveCertListEnabled",
+		RRF_RT_REG_DWORD, NULL, &SaveCertListEnabled, &SaveCertListEnabledSize);
+	if (cert_save_cert_list_enabled(SaveCertListEnabled))
+	{
+		DWORD iKeySize = 0;
+		char* szKey = NULL;
+		if (RegGetValue(HKEY_CURRENT_USER, PUTTY_REG_POS, "SaveCertList", RRF_RT_REG_MULTI_SZ,
+			NULL, NULL, &iKeySize) == ERROR_SUCCESS &&
+			RegGetValue(HKEY_CURRENT_USER, PUTTY_REG_POS, "SaveCertList", RRF_RT_REG_MULTI_SZ,
+				NULL, (szKey = snewn(iKeySize, char)), &iKeySize) == ERROR_SUCCESS)
+		{
+			for (char* szKeyPart = szKey; *szKeyPart != '\0'; szKeyPart += strlen(szKeyPart) + 1)
+			{
+				char* szErr = NULL;
+				Filename* oFile = filename_from_str(szKeyPart);
+				pageant_add_keyfile(oFile, NULL, &szErr);
+				filename_free(oFile);
+				sfree(szErr);
+			}
+		}
+		sfree(szKey);
+	}
+
 	/* Get Pin Caching Settings */
 	DWORD ForcePinCaching = 0;
 	DWORD ForcePinCachingSize = sizeof(ForcePinCaching);
 	RegGetValue(HKEY_CURRENT_USER, PUTTY_REG_POS, "ForcePinCaching",
 		RRF_RT_REG_DWORD, NULL, &ForcePinCaching, &ForcePinCachingSize);
 	cert_cache_enabled(ForcePinCaching);
+
 	/* Get Cert Auth Prompting Settings */
 	DWORD CertAuthPrompting = 0;
 	DWORD CertAuthPromptingSize = sizeof(CertAuthPrompting);
@@ -1601,17 +1675,19 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 	AppendMenu(systray_menu, MF_ENABLED, IDM_ADDCAPI, "Add &CAPI Cert");
 	AppendMenu(systray_menu, MF_ENABLED, IDM_ADDPKCS, "Add &PKCS Cert");
 	AppendMenu(systray_menu, MF_SEPARATOR, 0, 0);
-	AppendMenu(systray_menu, MF_ENABLED | (AutoloadCerts)
-		? MF_CHECKED : MF_UNCHECKED, IDM_AUTOCERT, "Autoload Certs");
-	AppendMenu(systray_menu, MF_ENABLED | (ForcePinCaching)
-		? MF_CHECKED : MF_UNCHECKED, IDM_PINCACHE, "Force PIN Caching");
-	AppendMenu(systray_menu, MF_ENABLED | (CertAuthPrompting)
-		? MF_CHECKED : MF_UNCHECKED, IDM_CERTAUTH, "Cert Auth Prompting");
+	AppendMenu(systray_menu, MF_ENABLED | ((AutoloadCerts)
+		? MF_CHECKED : MF_UNCHECKED), IDM_AUTOCERT, "Autoload Certs");
+	AppendMenu(systray_menu, MF_ENABLED | ((SaveCertListEnabled)
+		? MF_CHECKED : MF_UNCHECKED), IDM_SAVELIST, "Save Certs Across Sessions");
+	AppendMenu(systray_menu, MF_ENABLED | ((ForcePinCaching)
+		? MF_CHECKED : MF_UNCHECKED), IDM_PINCACHE, "Force PIN Caching");
+	AppendMenu(systray_menu, MF_ENABLED | ((CertAuthPrompting)
+		? MF_CHECKED : MF_UNCHECKED), IDM_CERTAUTH, "Cert Auth Prompting");
 	AppendMenu(systray_menu, MF_SEPARATOR, 0, 0);
-	AppendMenu(systray_menu, MF_ENABLED | (SmartCardLogonCertsOnly)
-		? MF_CHECKED : MF_UNCHECKED, IDM_SCONLY, "Filter: Smart Card Logon Certs");
-	AppendMenu(systray_menu, MF_ENABLED | (IgnoredExpiredCerts)
-		? MF_CHECKED : MF_UNCHECKED, IDM_NOEXPR, "Filter: No Expired Certs");
+	AppendMenu(systray_menu, MF_ENABLED | ((SmartCardLogonCertsOnly)
+		? MF_CHECKED : MF_UNCHECKED), IDM_SCONLY, "Filter: Smart Card Logon Certs");
+	AppendMenu(systray_menu, MF_ENABLED | ((IgnoredExpiredCerts)
+		? MF_CHECKED : MF_UNCHECKED), IDM_NOEXPR, "Filter: No Expired Certs");
 #else 
     AppendMenu(systray_menu, MF_ENABLED, IDM_VIEWKEYS,
            "&View Keys");
