@@ -1678,7 +1678,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 	AppendMenu(systray_menu, MF_ENABLED | ((AutoloadCerts)
 		? MF_CHECKED : MF_UNCHECKED), IDM_AUTOCERT, "Autoload Certs");
 	AppendMenu(systray_menu, MF_ENABLED | ((SaveCertListEnabled)
-		? MF_CHECKED : MF_UNCHECKED), IDM_SAVELIST, "Save Certs Across Sessions");
+		? MF_CHECKED : MF_UNCHECKED), IDM_SAVELIST, "Remember Certs");
 	AppendMenu(systray_menu, MF_ENABLED | ((ForcePinCaching)
 		? MF_CHECKED : MF_UNCHECKED), IDM_PINCACHE, "Force PIN Caching");
 	AppendMenu(systray_menu, MF_ENABLED | ((CertAuthPrompting)
