@@ -1483,7 +1483,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 		/*
 		 * Allow setting the save list setting via command line
 		 */
-		DWORD SaveCertListOn = (!strcmp(argv[i], "-savelist")) ? 1 : 0;
+		DWORD SaveCertListOn = (!strcmp(argv[i], "-savecertlist")) ? 1 : 0;
 		RegSetKeyValue(HKEY_CURRENT_USER, PUTTY_REG_POS, "SaveCertListEnabled", REG_DWORD, &SaveCertListOn, sizeof(DWORD));
 		break;
 	}
