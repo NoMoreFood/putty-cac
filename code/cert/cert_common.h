@@ -33,7 +33,7 @@ EXTERN BOOL cert_ignore_expired_certs(DWORD bEnable);
 EXTERN LPSTR cert_key_string(LPCSTR szCert);
 EXTERN LPSTR cert_subject_string(LPCSTR szCert);
 EXTERN LPSTR cert_prompt(LPCSTR szIden, HWND hWnd, BOOL bAutoSelect);
-EXTERN LPBYTE cert_sign(struct ssh2_userkey * userkey, LPCBYTE pDataToSign, int iDataToSignLen, int * iWrappedSigLen, HWND hWnd);
+EXTERN LPBYTE cert_sign(struct ssh2_userkey * userkey, LPCBYTE pDataToSign, int iDataToSignLen, int * iWrappedSigLen, HWND hWnd, uint32_t flags);
 EXTERN struct ssh2_userkey * cert_load_key(LPCSTR szCert, HWND hWnd);
 EXTERN VOID cert_display_cert(LPCSTR szCert, HWND hWnd);
 EXTERN int cert_all_certs(LPSTR ** pszCert);
