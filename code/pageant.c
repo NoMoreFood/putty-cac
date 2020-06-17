@@ -367,7 +367,7 @@ void pageant_handle_msg(BinarySink *bs,
 		if (cert_is_certpath(key->comment))
 		{
 			DWORD siglen = 0;
-			LPBYTE sig = cert_sign(key, (LPCBYTE)sigdata.ptr, sigdata.len, &siglen, NULL);
+			LPBYTE sig = cert_sign(key, (LPCBYTE)sigdata.ptr, sigdata.len, &siglen, NULL, flags);
 			put_data(BinarySink_UPCAST(signature), sig, siglen);
 		}
 		else
