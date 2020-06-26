@@ -145,10 +145,11 @@ BOOL cert_load_cert(LPCSTR szCert, PCERT_CONTEXT * ppCertContext, HCERTSTORE * p
 	return (*ppCertContext != NULL);
 }
 
-LPBYTE cert_sign(struct ssh2_userkey * userkey, LPCBYTE pDataToSign, int iDataToSignLen, int * iWrappedSigLen, HWND hWnd)
+LPBYTE cert_sign(struct ssh2_userkey * userkey, LPCBYTE pDataToSign, int iDataToSignLen, int * iWrappedSigLen, HWND hWnd, uint32_t flags)
 {
 	LPBYTE pRawSig = NULL;
 	int iRawSigLen = 0;
+	const char * rsasigalgo = NULL;
 	*iWrappedSigLen = 0;
 
 	// sanity check
@@ -172,11 +173,12 @@ LPBYTE cert_sign(struct ssh2_userkey * userkey, LPCBYTE pDataToSign, int iDataTo
 
 	if (cert_is_capipath(userkey->comment))
 	{
-		pRawSig = cert_capi_sign(userkey, pDataToSign, iDataToSignLen, &iRawSigLen, hWnd);
+		pRawSig = cert_capi_sign(userkey, pDataToSign, iDataToSignLen, &iRawSigLen, hWnd, flags, &rsasigalgo);
 	}
 
 	if (cert_is_pkcspath(userkey->comment))
 	{
+		rsasigalgo = "ssh-rsa";
 		pRawSig = cert_pkcs_sign(userkey, pDataToSign, iDataToSignLen, &iRawSigLen, hWnd);
 	}
 
@@ -221,12 +223,12 @@ LPBYTE cert_sign(struct ssh2_userkey * userkey, LPCBYTE pDataToSign, int iDataTo
 		// algorithm name
 		// size of binary signature (4 bytes in big endian)
 		// binary signature
-		int iAlgoNameLen = strlen(userkey->key->vt->ssh_id);
+		int iAlgoNameLen = strlen(rsasigalgo);
 		*iWrappedSigLen = 4 + iAlgoNameLen + 4 + iRawSigLen;
 		pWrappedSig = snewn(*iWrappedSigLen, unsigned char);
 		unsigned char * pWrappedPos = pWrappedSig;
 		PUT_32BIT_MSB_FIRST(pWrappedPos, iAlgoNameLen); pWrappedPos += 4;
-		memcpy(pWrappedPos, userkey->key->vt->ssh_id, iAlgoNameLen); pWrappedPos += iAlgoNameLen;
+		memcpy(pWrappedPos, rsasigalgo, iAlgoNameLen); pWrappedPos += iAlgoNameLen;
 		PUT_32BIT_MSB_FIRST(pWrappedPos, iRawSigLen); pWrappedPos += 4;
 		memcpy(pWrappedPos, pRawSig, iRawSigLen);
 	}
