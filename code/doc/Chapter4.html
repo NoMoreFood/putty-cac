@@ -182,7 +182,8 @@
 <li><a href="#config-ssh-hostkey">4.21 The Host Keys panel</a>
 <ul>
 <li><a href="#config-ssh-hostkey-order">4.21.1 Host key type selection</a></li>
-<li><a href="#config-ssh-kex-manual-hostkeys">4.21.2 Manually configuring host keys</a></li>
+<li><a href="#config-ssh-prefer-known-hostkeys">4.21.2 Preferring known host keys</a></li>
+<li><a href="#config-ssh-kex-manual-hostkeys">4.21.3 Manually configuring host keys</a></li>
 </ul></li>
 <li><a href="#config-ssh-encryption">4.22 The Cipher panel</a></li>
 <li><a href="#config-ssh-auth">4.23 The Auth panel</a>
@@ -1308,7 +1309,7 @@ You might use this, for instance, if you had set up an SSH port forwarding in on
 In normal usage, the second PuTTY will access the <a name="i254"></a>host key cache under the host name and port it actually connected to (i.e. <code>localhost</code> port 10022 in this example). Using the logical host name option, however, you can configure the second PuTTY to cache the host key under the name of the host <em>you</em> know that it's <em>really</em> going to end up talking to (here <code>foovax</code>).
 </p>
 <p>
-This can be useful if you expect to connect to the same actual server through many different channels (perhaps because your port forwarding arrangements keep changing): by consistently setting the logical host name, you can arrange that PuTTY will not keep asking you to reconfirm its host key. Conversely, if you expect to use the same local port number for port forwardings to lots of different servers, you probably didn't want any particular server's host key cached under that local port number. (For this latter case, you could instead explicitly configure host keys in the relevant sessions; see <a href="#config-ssh-kex-manual-hostkeys">section 4.21.2</a>.)
+This can be useful if you expect to connect to the same actual server through many different channels (perhaps because your port forwarding arrangements keep changing): by consistently setting the logical host name, you can arrange that PuTTY will not keep asking you to reconfirm its host key. Conversely, if you expect to use the same local port number for port forwardings to lots of different servers, you probably didn't want any particular server's host key cached under that local port number. (For this latter case, you could instead explicitly configure host keys in the relevant sessions; see <a href="#config-ssh-kex-manual-hostkeys">section 4.21.3</a>.)
 </p>
 <p>
 If you just enter a host name for this option, PuTTY will cache the SSH host key under the default SSH port for that host, irrespective of the port you really connected to (since the typical scenario is like the above example: you connect to a silly real port number and your connection ends up forwarded to the normal port-22 SSH server of some other machine). To override this, you can append a port number to the logical host name, separated by a colon. E.g. entering &#8216;<code>foovax:2200</code>&#8217; as the logical host name will cause the host key to be cached as if you had connected to port 2200 of <code>foovax</code>.
@@ -1807,7 +1808,20 @@ Otherwise, PuTTY will choose a key type based purely on the preference order you
 <p>
 If the first key type PuTTY finds is below the &#8216;warn below here&#8217; line, you will see a warning box when you make the connection, similar to that for cipher selection (see <a href="#config-ssh-encryption">section 4.22</a>).
 </p>
-<h3><a name="config-ssh-kex-manual-hostkeys"></a><a name="S4.21.2"></a>4.21.2 <a name="i351"></a>Manually configuring host keys</h3>
+<h3><a name="config-ssh-prefer-known-hostkeys"></a><a name="S4.21.2"></a>4.21.2 Preferring known host keys</h3>
+<p>
+By default, PuTTY will adjust the preference order for host key algorithms so that any host keys it already knows are moved to the top of the list.
+</p>
+<p>
+This prevents you from having to check and confirm a new host key for a server you already had one for (e.g. because the server has generated an alternative key of a type higher in PuTTY's preference order, or because you changed the preference order itself).
+</p>
+<p>
+However, on the other hand, it can leak information to a listener in the network about <em>whether</em> you already know a host key for this server.
+</p>
+<p>
+For this reason, this policy is configurable. By turning this checkbox off, you can reset PuTTY to always use the exact order of host key algorithms configured in the preference list described in <a href="#config-ssh-hostkey-order">section 4.21.1</a>, so that a listener will find out nothing about what keys you had stored.
+</p>
+<h3><a name="config-ssh-kex-manual-hostkeys"></a><a name="S4.21.3"></a>4.21.3 <a name="i351"></a>Manually configuring host keys</h3>
 <p>
 In some situations, if PuTTY's automated host key management is not doing what you need, you might need to manually configure PuTTY to accept a specific host key, or one of a specific set of host keys.
 </p>
@@ -2449,5 +2463,5 @@ You should replace <code>a:\putty.rnd</code> with the location where you want to
 </p>
 
 <hr><p>If you want to provide feedback on this manual or on the PuTTY tools themselves, see the <a href="https://www.chiark.greenend.org.uk/~sgtatham/putty/feedback.html">Feedback page</a>.</p><address>
-[PuTTY release 0.73]</address></body>
+[PuTTY release 0.74]</address></body>
 </html>

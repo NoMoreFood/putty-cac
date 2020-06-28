@@ -431,7 +431,8 @@ static char *scp_source_err_base(ScpSource *scp, const char *fmt, va_list ap)
     sshfwd_write_ext(scp->sc, true, "\012", 1);
     return msg;
 }
-static void scp_source_err(ScpSource *scp, const char *fmt, ...)
+static PRINTF_LIKE(2, 3) void scp_source_err(
+    ScpSource *scp, const char *fmt, ...)
 {
     va_list ap;
 
@@ -439,7 +440,8 @@ static void scp_source_err(ScpSource *scp, const char *fmt, ...)
     sfree(scp_source_err_base(scp, fmt, ap));
     va_end(ap);
 }
-static void scp_source_abort(ScpSource *scp, const char *fmt, ...)
+static PRINTF_LIKE(2, 3) void scp_source_abort(
+    ScpSource *scp, const char *fmt, ...)
 {
     va_list ap;
     char *msg;
@@ -1074,7 +1076,7 @@ static void scp_sink_coroutine(ScpSink *scp)
          * Send an ack, and read a command.
          */
         sshfwd_write(scp->sc, "\0", 1);
-        scp->command->len = 0;
+        strbuf_clear(scp->command);
         while (1) {
             crMaybeWaitUntilV(scp->input_eof || bufchain_size(&scp->data) > 0);
             if (scp->input_eof)
@@ -1095,7 +1097,7 @@ static void scp_sink_coroutine(ScpSink *scp)
         /*
          * Parse the command.
          */
-        scp->command->len--;           /* chomp the newline */
+        strbuf_chomp(scp->command, '\n');
         scp->command_chr = scp->command->len > 0 ? scp->command->s[0] : '\0';
         if (scp->command_chr == 'T') {
             unsigned long dummy1, dummy2;
@@ -1131,7 +1133,7 @@ static void scp_sink_coroutine(ScpSink *scp)
 
             ptrlen leafname = make_ptrlen(
                 p, scp->command->len - (p - scp->command->s));
-            scp->filename_sb->len = 0;
+            strbuf_clear(scp->filename_sb);
             put_datapl(scp->filename_sb, scp->head->destpath);
             if (scp->head->isdir) {
                 if (scp->filename_sb->len > 0 &&
@@ -1312,7 +1314,8 @@ static void scp_error_send_message_cb(void *vscp)
     sshfwd_initiate_close(scp->sc, scp->message);
 }
 
-static ScpError *scp_error_new(SshChannel *sc, const char *fmt, ...)
+static PRINTF_LIKE(2, 3) ScpError *scp_error_new(
+    SshChannel *sc, const char *fmt, ...)
 {
     va_list ap;
     ScpError *scp = snew(ScpError);

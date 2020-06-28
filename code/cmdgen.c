@@ -53,10 +53,10 @@ int console_get_userpass_input(prompts_t *p)
     int ret = 1;
     for (i = 0; i < p->n_prompts; i++) {
         if (promptsgot < nprompts) {
-            p->prompts[i]->result = dupstr(prompts[promptsgot++]);
+            prompt_set_result(p->prompts[i], prompts[promptsgot++]);
             if (cgtest_verbose)
                 printf("  prompt \"%s\": response \"%s\"\n",
-                       p->prompts[i]->prompt, p->prompts[i]->result);
+                       p->prompts[i]->prompt, p->prompts[i]->result->s);
         } else {
             promptsgot++;           /* track number of requests anyway */
             ret = 0;
@@ -486,7 +486,7 @@ int main(int argc, char **argv)
             bits = 384;
             break;
           case ED25519:
-            bits = 256;
+            bits = 255;
             break;
           default:
             bits = DEFAULT_RSADSA_BITS;
@@ -499,8 +499,8 @@ int main(int argc, char **argv)
         errs = true;
     }
 
-    if (keytype == ED25519 && (bits != 256)) {
-        fprintf(stderr, "puttygen: invalid bits for ED25519, choose 256\n");
+    if (keytype == ED25519 && (bits != 255) && (bits != 256)) {
+        fprintf(stderr, "puttygen: invalid bits for ED25519, choose 255\n");
         errs = true;
     }
 
@@ -619,7 +619,7 @@ int main(int argc, char **argv)
         (intype == SSH_KEYTYPE_SSHCOM && outtype == SSHCOM)) {
         if (!outfile) {
             outfile = infile;
-            outfiletmp = dupcat(outfile, ".tmp", NULL);
+            outfiletmp = dupcat(outfile, ".tmp");
         }
 
         if (!change_passphrase && !comment) {
@@ -774,7 +774,7 @@ int main(int argc, char **argv)
                     perror("puttygen: unable to read passphrase");
                     return 1;
                 } else {
-                    old_passphrase = dupstr(p->prompts[0]->result);
+                    old_passphrase = prompt_get_result(p->prompts[0]);
                     free_prompts(p);
                 }
             }
@@ -903,7 +903,7 @@ int main(int argc, char **argv)
      * we have just generated a key.
      */
     if (!new_passphrase && (change_passphrase || keytype != NOKEYGEN)) {
-        prompts_t *p = new_prompts(NULL);
+        prompts_t *p = new_prompts();
         int ret;
 
         p->to_server = false;
@@ -918,12 +918,13 @@ int main(int argc, char **argv)
             perror("puttygen: unable to read new passphrase");
             return 1;
         } else {
-            if (strcmp(p->prompts[0]->result, p->prompts[1]->result)) {
+            if (strcmp(prompt_get_result_ref(p->prompts[0]),
+                       prompt_get_result_ref(p->prompts[1]))) {
                 free_prompts(p);
                 fprintf(stderr, "puttygen: passphrases do not match\n");
                 return 1;
             }
-            new_passphrase = dupstr(p->prompts[0]->result);
+            new_passphrase = prompt_get_result(p->prompts[0]);
             free_prompts(p);
         }
     }
@@ -1194,7 +1195,7 @@ void test(int retval, ...)
     sfree(argv);
 }
 
-void filecmp(char *file1, char *file2, char *fmt, ...)
+PRINTF_LIKE(3, 4) void filecmp(char *file1, char *file2, char *fmt, ...)
 {
     /*
      * Ideally I should do file comparison myself, to maximise the
@@ -1259,7 +1260,7 @@ char *get_fp(char *filename)
     return cleanup_fp(buf);
 }
 
-void check_fp(char *filename, char *fp, char *fmt, ...)
+PRINTF_LIKE(3, 4) void check_fp(char *filename, char *fp, char *fmt, ...)
 {
     char *newfp;
 
@@ -1335,7 +1336,8 @@ int main(int argc, char **argv)
                     pubfilename, tmpfilename1);
             if (system(cmdbuf) ||
                 (fp = get_fp(tmpfilename1)) == NULL) {
-                printf("UNABLE to test fingerprint matching against OpenSSH");
+                printf("UNABLE to test fingerprint matching against "
+                       "OpenSSH\n");
             }
             sfree(cmdbuf);
         }
@@ -1679,7 +1681,7 @@ int main(int argc, char **argv)
         test(1, "puttygen", "-C", "spurious-new-comment", pubfilename, NULL);
     }
     printf("%d passes, %d fails\n", passes, fails);
-    return 0;
+    return fails == 0 ? 0 : 1;
 }
 
 #endif

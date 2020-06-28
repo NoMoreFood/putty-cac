@@ -461,7 +461,7 @@ static unifont *x11font_create(GtkWidget *widget, const char *name,
         reg = XGetAtomName(disp, (Atom)registry_ret);
         enc = XGetAtomName(disp, (Atom)encoding_ret);
         if (reg && enc) {
-            char *encoding = dupcat(reg, "-", enc, NULL);
+            char *encoding = dupcat(reg, "-", enc);
             pubcs = realcs = charset_from_xenc(encoding);
 
             /*
@@ -1107,7 +1107,7 @@ static void x11font_enum_fonts(GtkWidget *widget,
              * font, which we do by examining the spacing field
              * again.
              */
-            flags = FONTFLAG_SERVERSIDE;
+            int flags = FONTFLAG_SERVERSIDE;
             if (!strchr("CcMm", xlfd->spacing[0]))
                 flags |= FONTFLAG_NONMONOSPACED;
 
@@ -1280,8 +1280,7 @@ static char *x11font_size_increment(unifont *font, int increment)
         if (xlfd_best) {
             char *bare_returned_name = xlfd_recompose(xlfd_best);
             returned_name = dupcat(
-                xfont->u.vt->prefix, ":", bare_returned_name,
-                (const char *)NULL);
+                xfont->u.vt->prefix, ":", bare_returned_name);
             sfree(bare_returned_name);
         }
 
@@ -1459,8 +1458,10 @@ static unifont *pangofont_create_internal(GtkWidget *widget,
     pfont->u.vt = &pangofont_vtable;
     pfont->u.width =
         PANGO_PIXELS(pango_font_metrics_get_approximate_digit_width(metrics));
-    pfont->u.ascent = PANGO_PIXELS(pango_font_metrics_get_ascent(metrics));
-    pfont->u.descent = PANGO_PIXELS(pango_font_metrics_get_descent(metrics));
+    pfont->u.ascent =
+        PANGO_PIXELS_CEIL(pango_font_metrics_get_ascent(metrics));
+    pfont->u.descent =
+        PANGO_PIXELS_CEIL(pango_font_metrics_get_descent(metrics));
     pfont->u.height = pfont->u.ascent + pfont->u.descent;
     pfont->u.want_fallback = false;
 #ifdef DRAW_TEXT_CAIRO
@@ -2042,8 +2043,7 @@ static char *pangofont_size_increment(unifont *font, int increment)
     } else {
         pango_font_description_set_size(desc, size);
         newname = pango_font_description_to_string(desc);
-        retname = dupcat(pfont->u.vt->prefix, ":",
-                         newname, (const char *)NULL);
+        retname = dupcat(pfont->u.vt->prefix, ":", newname);
         g_free(newname);
     }
 
@@ -3780,15 +3780,14 @@ char *unifontsel_get_name(unifontsel *fontsel)
         name = fs->selected->fontclass->scale_fontname
             (GTK_WIDGET(fs->u.window), fs->selected->realname, fs->selsize);
         if (name) {
-            char *ret = dupcat(fs->selected->fontclass->prefix, ":",
-                               name, NULL);
+            char *ret = dupcat(fs->selected->fontclass->prefix, ":", name);
             sfree(name);
             return ret;
         }
     }
 
     return dupcat(fs->selected->fontclass->prefix, ":",
-                  fs->selected->realname, NULL);
+                  fs->selected->realname);
 }
 
 #endif /* GTK_CHECK_VERSION(2,0,0) */

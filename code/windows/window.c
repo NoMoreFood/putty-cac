@@ -89,6 +89,7 @@
 #endif
 
 static Mouse_Button translate_button(Mouse_Button button);
+static void show_mouseptr(bool show);
 static LRESULT CALLBACK WndProc(HWND, UINT, WPARAM, LPARAM);
 static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
                         unsigned char *output);
@@ -1026,10 +1027,10 @@ void cleanup_exit(int code)
 /*
  * Set up, or shut down, an AsyncSelect. Called from winnet.c.
  */
-char *do_select(SOCKET skt, bool startup)
+char *do_select(SOCKET skt, bool enable)
 {
     int msg, events;
-    if (startup) {
+    if (enable) {
         msg = WM_NETEVENT;
         events = (FD_CONNECT | FD_READ | FD_WRITE |
                   FD_OOB | FD_CLOSE | FD_ACCEPT);
@@ -1199,6 +1200,7 @@ static void wintw_set_raw_mouse_mode(TermWin *tw, bool activate)
 static void win_seat_connection_fatal(Seat *seat, const char *msg)
 {
     char *title = dupprintf("%s Fatal Error", appname);
+    show_mouseptr(true);
     MessageBox(hwnd, msg, title, MB_ICONERROR | MB_OK);
     sfree(title);
 
@@ -2128,9 +2130,11 @@ static void win_seat_notify_remote_exit(Seat *seat)
             /* exitcode == INT_MAX indicates that the connection was closed
              * by a fatal error, so an error box will be coming our way and
              * we should not generate this informational one. */
-            if (exitcode != INT_MAX)
+            if (exitcode != INT_MAX) {
+                show_mouseptr(true);
                 MessageBox(hwnd, "Connection closed by remote host",
                            appname, MB_OK | MB_ICONINFORMATION);
+            }
         }
     }
 }
@@ -2369,8 +2373,8 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
                     for (i = 0; i < lenof(popup_menus); i++)
                         EnableMenuItem(popup_menus[i].menu, IDM_FULLSCREEN,
                                        MF_BYCOMMAND |
-                                       (resize_action == RESIZE_DISABLED)
-                                       ? MF_GRAYED : MF_ENABLED);
+                                       (resize_action == RESIZE_DISABLED
+                                        ? MF_GRAYED : MF_ENABLED));
                     /* Gracefully unzoom if necessary */
                     if (IsZoomed(hwnd) && (resize_action == RESIZE_DISABLED))
                         ShowWindow(hwnd, SW_RESTORE);
@@ -5251,7 +5255,7 @@ static void wintw_clip_write(
                                    (int)udata[uindex]);
                     alen = 1; strcpy(after, "}");
                 } else {
-                    blen = sprintf(before, "\\u%d", udata[uindex]);
+                    blen = sprintf(before, "\\u%d", (int)udata[uindex]);
                     alen = 0; after[0] = '\0';
                 }
             }
@@ -5422,6 +5426,7 @@ void modalfatalbox(const char *fmt, ...)
     va_start(ap, fmt);
     message = dupvprintf(fmt, ap);
     va_end(ap);
+    show_mouseptr(true);
     title = dupprintf("%s Fatal Error", appname);
     MessageBox(hwnd, message, title, MB_SYSTEMMODAL | MB_ICONERROR | MB_OK);
     sfree(message);
@@ -5440,6 +5445,7 @@ void nonfatal(const char *fmt, ...)
     va_start(ap, fmt);
     message = dupvprintf(fmt, ap);
     va_end(ap);
+    show_mouseptr(true);
     title = dupprintf("%s Error", appname);
     MessageBox(hwnd, message, title, MB_ICONERROR | MB_OK);
     sfree(message);
@@ -5552,6 +5558,7 @@ static void wintw_bell(TermWin *tw, int mode)
         if (!p_PlaySound || !p_PlaySound(bell_wavefile->path, NULL,
                          SND_ASYNC | SND_FILENAME)) {
             char *buf, *otherbuf;
+            show_mouseptr(true);
             buf = dupprintf(
                 "Unable to play sound file\n%s\nUsing default sound instead",
                 bell_wavefile->path);

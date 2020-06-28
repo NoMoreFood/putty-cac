@@ -132,13 +132,8 @@ void pageant_make_keylist2(BinarySink *bs)
     }
 }
 
-static void plog(void *logctx, pageant_logfn_t logfn, const char *fmt, ...)
-#ifdef __GNUC__
-__attribute__ ((format (PUTTY_PRINTF_ARCHETYPE, 3, 4)))
-#endif
-    ;
-
-static void plog(void *logctx, pageant_logfn_t logfn, const char *fmt, ...)
+static PRINTF_LIKE(3, 4) void plog(void *logctx, pageant_logfn_t logfn,
+                                   const char *fmt, ...)
 {
     /*
      * This is the wrapper that takes a variadic argument list and
@@ -367,7 +362,7 @@ void pageant_handle_msg(BinarySink *bs,
 		if (cert_is_certpath(key->comment))
 		{
 			DWORD siglen = 0;
-			LPBYTE sig = cert_sign(key, (LPCBYTE)sigdata.ptr, sigdata.len, &siglen, NULL, flags);
+			LPBYTE sig = cert_sign(key, (LPCBYTE)sigdata.ptr, sigdata.len, &siglen, flags, NULL);
 			put_data(BinarySink_UPCAST(signature), sig, siglen);
 		}
 		else
@@ -391,19 +386,7 @@ void pageant_handle_msg(BinarySink *bs,
 
             plog(logctx, logfn, "request: SSH1_AGENTC_ADD_RSA_IDENTITY");
 
-            key = snew(RSAKey);
-            memset(key, 0, sizeof(RSAKey));
-
-            get_rsa_ssh1_pub(msg, key, RSA_SSH1_MODULUS_FIRST);
-            get_rsa_ssh1_priv(msg, key);
-
-            /* SSH-1 names p and q the other way round, i.e. we have
-             * the inverse of p mod q and not of q mod p. We swap the
-             * names, because our internal RSA wants iqmp. */
-            key->iqmp = get_mp_ssh1(msg);
-            key->q = get_mp_ssh1(msg);
-            key->p = get_mp_ssh1(msg);
-
+            key = get_rsa_ssh1_priv_agent(msg);
             key->comment = mkstr(get_string(msg));
 
             if (get_err(msg)) {
@@ -1331,10 +1314,14 @@ int pageant_add_keyfile(Filename *filename, const char *passphrase,
             if (resplen < 5 || response[4] != SSH_AGENT_SUCCESS) {
                 *retstr = dupstr("The already running Pageant "
                                  "refused to add the key.");
+                sfree(skey->comment);
+                ssh_key_free(skey->key);
+                sfree(skey);
                 sfree(response);
                 return PAGEANT_ACTION_FAILURE;
             }
 
+            sfree(skey->comment);
             ssh_key_free(skey->key);
             sfree(skey);
             sfree(response);
@@ -1432,6 +1419,7 @@ int pageant_enum_keys(pageant_key_enum_fn_t callback, void *callback_ctx,
         callback(callback_ctx, fingerprint, cbkey.comment, &cbkey);
         sfree(fingerprint);
         sfree(cbkey.comment);
+        strbuf_free(cbkey.blob);
     }
 
     sfree(keylist);

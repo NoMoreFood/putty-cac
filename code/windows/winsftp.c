@@ -274,7 +274,7 @@ DirHandle *open_directory(const char *name, const char **errmsg)
     DirHandle *ret;
 
     /* Enumerate files in dir `foo'. */
-    findfile = dupcat(name, "/*", NULL);
+    findfile = dupcat(name, "/*");
     h = FindFirstFile(findfile, &fdat);
     if (h == INVALID_HANDLE_VALUE) {
         *errmsg = win_strerror(GetLastError());
@@ -395,7 +395,7 @@ WildcardMatcher *begin_wildcard_matching(const char *name)
          (fdat.cFileName[1] == '.' && fdat.cFileName[2] == '\0')))
         ret->name = NULL;
     else
-        ret->name = dupcat(ret->srcpath, fdat.cFileName, NULL);
+        ret->name = dupcat(ret->srcpath, fdat.cFileName);
 
     return ret;
 }
@@ -413,7 +413,7 @@ char *wildcard_get_filename(WildcardMatcher *dir)
              (fdat.cFileName[1] == '.' && fdat.cFileName[2] == '\0')))
             dir->name = NULL;
         else
-            dir->name = dupcat(dir->srcpath, fdat.cFileName, NULL);
+            dir->name = dupcat(dir->srcpath, fdat.cFileName);
     }
 
     if (dir->name) {
@@ -455,7 +455,7 @@ char *dir_file_cat(const char *dir, const char *file)
     return dupcat(
         dir, (ptrlen_endswith(dir_pl, PTRLEN_LITERAL("\\"), NULL) ||
               ptrlen_endswith(dir_pl, PTRLEN_LITERAL("/"), NULL)) ? "" : "\\",
-        file, NULL);
+        file);
 }
 
 /* ----------------------------------------------------------------------
@@ -467,19 +467,21 @@ char *dir_file_cat(const char *dir, const char *file)
  */
 static SOCKET sftp_ssh_socket = INVALID_SOCKET;
 static HANDLE netevent = INVALID_HANDLE_VALUE;
-char *do_select(SOCKET skt, bool startup)
+char *do_select(SOCKET skt, bool enable)
 {
     int events;
-    if (startup)
+    if (enable)
         sftp_ssh_socket = skt;
     else
         sftp_ssh_socket = INVALID_SOCKET;
 
+    if (netevent == INVALID_HANDLE_VALUE)
+        netevent = CreateEvent(NULL, false, false, NULL);
+
     if (p_WSAEventSelect) {
-        if (startup) {
+        if (enable) {
             events = (FD_CONNECT | FD_READ | FD_WRITE |
                       FD_OOB | FD_CLOSE | FD_ACCEPT);
-            netevent = CreateEvent(NULL, false, false, NULL);
         } else {
             events = 0;
         }
@@ -732,7 +734,9 @@ char *ssh_sftp_get_cmdline(const char *prompt, bool no_fds_ok)
     do {
         ret = do_eventsel_loop(ctx->event);
 
-        /* Error return can only occur if netevent==NULL, and it ain't. */
+        /* do_eventsel_loop can't return an error (unlike
+         * ssh_sftp_loop_iteration, which can return -1 if select goes
+         * wrong or if the socket doesn't exist). */
         assert(ret >= 0);
     } while (ret == 0);
 

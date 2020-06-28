@@ -54,9 +54,9 @@ This section describes the basics of how to use Plink for interactive logins and
 <p>
 Once you've got a console window to type into, you can just type <code>plink</code> on its own to bring up a usage message. This tells you the version of Plink you're using, and gives you a brief summary of how to use Plink:
 </p>
-<pre><code>Z:\sysosd&gt;plink
+<pre><code>C:\&gt;plink
 Plink: command-line connection utility
-Release 0.73
+Release 0.74
 Usage: plink [options] [user@]host [command]
        ("host" can also be a PuTTY saved session name)
 Options:
@@ -115,7 +115,7 @@ Once this works, you are ready to use Plink.
 <p>
 To make a simple interactive connection to a remote server, just type <code>plink</code> and then the host name:
 </p>
-<pre><code>Z:\sysosd&gt;plink login.example.com
+<pre><code>C:\&gt;plink login.example.com
 
 Debian GNU/Linux 2.2 flunky.example.com
 flunky login:
@@ -126,13 +126,13 @@ You should then be able to log in as normal and run a session. The output sent b
 <p>
 In order to connect with a different protocol, you can give the command line options <code>-ssh</code>, <code>-telnet</code>, <code>-rlogin</code> or <code>-raw</code>. To make an SSH connection, for example:
 </p>
-<pre><code>Z:\sysosd&gt;plink -ssh login.example.com
+<pre><code>C:\&gt;plink -ssh login.example.com
 login as:
 </code></pre>
 <p>
 If you have already set up a PuTTY saved session, then instead of supplying a host name, you can give the saved session name. This allows you to use public-key authentication, specify a user name, and use most of the other features of PuTTY:
 </p>
-<pre><code>Z:\sysosd&gt;plink my-ssh-session
+<pre><code>C:\&gt;plink my-ssh-session
 Sent username "fred"
 Authenticating with public key "fred@winbox"
 Last login: Thu Dec  6 19:25:33 2001 from :0.0
@@ -187,18 +187,18 @@ Store the private key in Pageant. See <a href="Chapter9.html#pageant">chapter 9<
 <p>
 Once you have done all this, you should be able to run a remote command on the SSH server machine and have it execute automatically with no prompting:
 </p>
-<pre><code>Z:\sysosd&gt;plink login.example.com -l fred echo hello, world
+<pre><code>C:\&gt;plink login.example.com -l fred echo hello, world
 hello, world
 
-Z:\sysosd&gt;
+C:\&gt;
 </code></pre>
 <p>
 Or, if you have set up a saved session with all the connection details:
 </p>
-<pre><code>Z:\sysosd&gt;plink mysession echo hello, world
+<pre><code>C:\&gt;plink mysession echo hello, world
 hello, world
 
-Z:\sysosd&gt;
+C:\&gt;
 </code></pre>
 <p>
 Then you can set up other programs to run this Plink command and talk to it as if it were a process on the server machine.
@@ -375,5 +375,5 @@ Select the folder you want to check out to with the &#8216;Change Folder&#8217; 
 </p>
 
 <hr><p>If you want to provide feedback on this manual or on the PuTTY tools themselves, see the <a href="https://www.chiark.greenend.org.uk/~sgtatham/putty/feedback.html">Feedback page</a>.</p><address>
-[PuTTY release 0.73]</address></body>
+[PuTTY release 0.74]</address></body>
 </html>

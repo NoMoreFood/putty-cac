@@ -505,7 +505,7 @@ static void prompt_add_keyfile(void)
             char *dir = filelist;
             char *filewalker = filelist + strlen(dir) + 1;
             while (*filewalker != '\0') {
-                char *filename = dupcat(dir, "\\", filewalker, NULL);
+                char *filename = dupcat(dir, "\\", filewalker);
                 Filename *fn = filename_from_str(filename);
                 win_add_keyfile(fn);
                 filename_free(fn);
@@ -824,7 +824,7 @@ static void update_sessions(void)
     sb = strbuf_new();
     while(ERROR_SUCCESS == RegEnumKey(hkey, index_key, buf, MAX_PATH)) {
         if(strcmp(buf, PUTTY_DEFAULT) != 0) {
-            sb->len = 0;
+            strbuf_clear(sb);
             unescape_registry_key(buf, sb);
 
             memset(&mii, 0, sizeof(mii));
@@ -1031,7 +1031,7 @@ static char *answer_filemapping_message(const char *mapname)
         mapsize = mbi.RegionSize;
     }
 #ifdef DEBUG_IPC
-    debug("region size = %zd\n", mapsize);
+    debug("region size = %"SIZEu"\n", mapsize);
 #endif
     if (mapsize < 5) {
         err = dupstr("mapping smaller than smallest possible request");

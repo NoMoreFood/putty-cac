@@ -113,14 +113,14 @@ static void abandon_stats(void)
     }
 }
 
-static void tell_user(FILE *stream, const char *fmt, ...)
+static PRINTF_LIKE(2, 3) void tell_user(FILE *stream, const char *fmt, ...)
 {
     char *str, *str2;
     va_list ap;
     va_start(ap, fmt);
     str = dupvprintf(fmt, ap);
     va_end(ap);
-    str2 = dupcat(str, "\n", NULL);
+    str2 = dupcat(str, "\n");
     sfree(str);
     abandon_stats();
     tell_str(stream, str2);
@@ -224,14 +224,14 @@ static void ssh_scp_init(void)
 /*
  *  Print an error message and exit after closing the SSH link.
  */
-static NORETURN void bump(const char *fmt, ...)
+static NORETURN PRINTF_LIKE(1, 2) void bump(const char *fmt, ...)
 {
     char *str, *str2;
     va_list ap;
     va_start(ap, fmt);
     str = dupvprintf(fmt, ap);
     va_end(ap);
-    str2 = dupcat(str, "\n", NULL);
+    str2 = dupcat(str, "\n");
     sfree(str);
     abandon_stats();
     tell_str(stderr, str2);
@@ -762,7 +762,7 @@ int scp_send_filename(const char *name, uint64_t size, int permissions)
         struct fxp_attrs attrs;
 
         if (scp_sftp_targetisdir) {
-            fullname = dupcat(scp_sftp_remotepath, "/", name, NULL);
+            fullname = dupcat(scp_sftp_remotepath, "/", name);
         } else {
             fullname = dupstr(scp_sftp_remotepath);
         }
@@ -812,6 +812,15 @@ int scp_send_filedata(char *data, int len)
         }
 
         while (!xfer_upload_ready(scp_sftp_xfer)) {
+            if (toplevel_callback_pending()) {
+                /* If we have pending callbacks, they might make
+                 * xfer_upload_ready start to return true. So we should
+                 * run them and then re-check xfer_upload_ready, before
+                 * we go as far as waiting for an entire packet to
+                 * arrive. */
+                run_toplevel_callbacks();
+                continue;
+            }
             pktin = sftp_recv();
             ret = xfer_upload_gotpkt(scp_sftp_xfer, pktin);
             if (ret <= 0) {
@@ -917,7 +926,7 @@ int scp_send_dirname(const char *name, int modes)
         bool ret;
 
         if (scp_sftp_targetisdir) {
-            fullname = dupcat(scp_sftp_remotepath, "/", name, NULL);
+            fullname = dupcat(scp_sftp_remotepath, "/", name);
         } else {
             fullname = dupstr(scp_sftp_remotepath);
         }
@@ -1128,8 +1137,7 @@ int scp_get_sink_action(struct scp_sink_action *act)
             if (head->namepos < head->namelen) {
                 head->matched_something = true;
                 fname = dupcat(head->dirpath, "/",
-                               head->names[head->namepos++].filename,
-                               NULL);
+                               head->names[head->namepos++].filename);
                 must_free_fname = true;
             } else {
                 /*
@@ -1307,7 +1315,7 @@ int scp_get_sink_action(struct scp_sink_action *act)
                 act->action = SCP_SINK_RETRY;
             } else {
                 act->action = SCP_SINK_DIR;
-                act->buf->len = 0;
+                strbuf_clear(act->buf);
                 put_asciz(act->buf, stripslashes(fname, false));
                 act->name = act->buf->s;
                 act->size = 0;     /* duhh, it's a directory */
@@ -1327,7 +1335,7 @@ int scp_get_sink_action(struct scp_sink_action *act)
              * It's a file. Return SCP_SINK_FILE.
              */
             act->action = SCP_SINK_FILE;
-            act->buf->len = 0;
+            strbuf_clear(act->buf);
             put_asciz(act->buf, stripslashes(fname, false));
             act->name = act->buf->s;
             if (attrs.flags & SSH_FILEXFER_ATTR_SIZE) {
@@ -1355,7 +1363,7 @@ int scp_get_sink_action(struct scp_sink_action *act)
         char ch;
 
         act->settime = false;
-        act->buf->len = 0;
+        strbuf_clear(act->buf);
 
         while (!done) {
             if (!ssh_scp_recv(&ch, 1))
@@ -1388,7 +1396,7 @@ int scp_get_sink_action(struct scp_sink_action *act)
                            &act->mtime, &act->atime) == 2) {
                     act->settime = true;
                     backend_send(backend, "", 1);
-                    act->buf->len = 0;
+                    strbuf_clear(act->buf);
                     continue;          /* go round again */
                 }
                 bump("Protocol error: Illegal time format");
@@ -1542,14 +1550,14 @@ int scp_finish_filerecv(void)
  *  Send an error message to the other side and to the screen.
  *  Increment error counter.
  */
-static void run_err(const char *fmt, ...)
+static PRINTF_LIKE(1, 2) void run_err(const char *fmt, ...)
 {
     char *str, *str2;
     va_list ap;
     va_start(ap, fmt);
     errs++;
     str = dupvprintf(fmt, ap);
-    str2 = dupcat("pscp: ", str, "\n", NULL);
+    str2 = dupcat("pscp: ", str, "\n");
     sfree(str);
     scp_send_errmsg(str2);
     abandon_stats();
@@ -1697,7 +1705,7 @@ static void rsource(const char *src)
     if (dir != NULL) {
         char *filename;
         while ((filename = read_filename(dir)) != NULL) {
-            char *foundfile = dupcat(src, "/", filename, NULL);
+            char *foundfile = dupcat(src, "/", filename);
             source(foundfile);
             sfree(foundfile);
             sfree(filename);
@@ -1790,7 +1798,7 @@ static void sink(const char *targ, const char *src)
                     with_stripctrl(santarg, act.name) {
                         tell_user(stderr, "warning: remote host sent a"
                                   " compound pathname '%s'", sanname);
-                        tell_user(stderr, "         renaming local",
+                        tell_user(stderr, "         renaming local"
                                   " file to '%s'", santarg);
                     }
                 }
@@ -2232,7 +2240,7 @@ int psftp_main(int argc, char *argv[])
     int i;
     bool sanitise_stderr = true;
 
-    default_protocol = PROT_TELNET;
+    default_protocol = PROT_SSH;
 
     flags = 0
 #ifdef FLAG_SYNCAGENT

@@ -124,7 +124,7 @@ char *canonify(const char *name)
             slash = "";
         else
             slash = "/";
-        fullname = dupcat(pwd, slash, name, NULL);
+        fullname = dupcat(pwd, slash, name);
     }
 
     req = fxp_realpath_send(fullname);
@@ -203,8 +203,8 @@ char *canonify(const char *name)
          * component. Concatenate the last component and return.
          */
         returnname = dupcat(canonname,
-                            canonname[strlen(canonname) - 1] ==
-                            '/' ? "" : "/", fullname + i + 1, NULL);
+                            (strendswith(canonname, "/") ? "" : "/"),
+                            fullname + i + 1);
         sfree(fullname);
         sfree(canonname);
         return returnname;
@@ -376,7 +376,7 @@ bool sftp_get_file(char *fname, char *outfname, bool recurse, bool restart)
                 char *nextfname, *nextoutfname;
                 bool retd;
 
-                nextfname = dupcat(fname, "/", ournames[i]->filename, NULL);
+                nextfname = dupcat(fname, "/", ournames[i]->filename);
                 nextoutfname = dir_file_cat(outfname, ournames[i]->filename);
                 retd = sftp_get_file(
                     nextfname, nextoutfname, recurse, restart);
@@ -601,7 +601,7 @@ bool sftp_put_file(char *fname, char *outfname, bool recurse, bool restart)
         if (restart) {
             while (i < nnames) {
                 char *nextoutfname;
-                nextoutfname = dupcat(outfname, "/", ournames[i], NULL);
+                nextoutfname = dupcat(outfname, "/", ournames[i]);
                 req = fxp_stat_send(nextoutfname);
                 pktin = sftp_wait_for_reply(req);
                 result = fxp_stat_recv(pktin, req, &attrs);
@@ -625,7 +625,7 @@ bool sftp_put_file(char *fname, char *outfname, bool recurse, bool restart)
             bool retd;
 
             nextfname = dir_file_cat(fname, ournames[i]);
-            nextoutfname = dupcat(outfname, "/", ournames[i], NULL);
+            nextoutfname = dupcat(outfname, "/", ournames[i]);
             retd = sftp_put_file(nextfname, nextoutfname, recurse, restart);
             restart = false;           /* after first partial file, do full */
             sfree(nextoutfname);
@@ -722,6 +722,16 @@ bool sftp_put_file(char *fname, char *outfname, bool recurse, bool restart)
             } else {
                 xfer_upload_data(xfer, buffer, len);
             }
+        }
+
+        if (toplevel_callback_pending() && !err && !eof) {
+            /* If we have pending callbacks, they might make
+             * xfer_upload_ready start to return true. So we should
+             * run them and then re-check xfer_upload_ready, before
+             * we go as far as waiting for an entire packet to
+             * arrive. */
+            run_toplevel_callbacks();
+            continue;
         }
 
         if (!xfer_done(xfer)) {
@@ -1557,7 +1567,7 @@ static bool sftp_action_mv(void *vctx, char *srcfname)
 
         p = srcfname + strlen(srcfname);
         while (p > srcfname && p[-1] != '/') p--;
-        newname = dupcat(ctx->dstfname, "/", p, NULL);
+        newname = dupcat(ctx->dstfname, "/", p);
         newcanon = canonify(newname);
         sfree(newname);
 
@@ -2306,6 +2316,16 @@ struct sftp_command *sftp_getcmd(FILE *fp, int mode, int modeflags)
     return cmd;
 }
 
+static void sftp_cmd_free(struct sftp_command *cmd)
+{
+    if (cmd->words) {
+        for (size_t i = 0; i < cmd->nwords; i++)
+            sfree(cmd->words[i]);
+        sfree(cmd->words);
+    }
+    sfree(cmd);
+}
+
 static int do_sftp_init(void)
 {
     struct sftp_packet *pktin;
@@ -2380,13 +2400,7 @@ int do_sftp(int mode, int modeflags, char *batchfile)
             if (!cmd)
                 break;
             ret = cmd->obey(cmd);
-            if (cmd->words) {
-                int i;
-                for(i = 0; i < cmd->nwords; i++)
-                    sfree(cmd->words[i]);
-                sfree(cmd->words);
-            }
-            sfree(cmd);
+            sftp_cmd_free(cmd);
             if (ret < 0)
                 break;
         }
@@ -2403,6 +2417,7 @@ int do_sftp(int mode, int modeflags, char *batchfile)
             if (!cmd)
                 break;
             ret = cmd->obey(cmd);
+            sftp_cmd_free(cmd);
             if (ret < 0)
                 break;
             if (ret == 0) {

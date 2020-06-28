@@ -65,6 +65,7 @@ static const struct PacketProtocolLayerVtable ssh1_login_server_vtable = {
     ssh1_login_server_want_user_input,
     ssh1_login_server_got_user_input,
     ssh1_login_server_reconfigure,
+    ssh_ppl_default_queued_data_size,
     NULL /* no layer names in SSH-1 */,
 };
 
@@ -218,7 +219,7 @@ static void ssh1_login_server_process_queue(PacketProtocolLayer *ppl)
         if (rsa_ssh1_decrypt_pkcs1(s->sesskey, larger, data)) {
             mp_free(s->sesskey);
             s->sesskey = mp_from_bytes_be(ptrlen_from_strbuf(data));
-            data->len = 0;
+            strbuf_clear(data);
             if (rsa_ssh1_decrypt_pkcs1(s->sesskey, smaller, data) &&
                 data->len == sizeof(s->session_key)) {
                 memcpy(s->session_key, data->u, sizeof(s->session_key));
@@ -291,18 +292,34 @@ static void ssh1_login_server_process_queue(PacketProtocolLayer *ppl)
                 mp_int *modulus = get_mp_ssh1(pktin);
                 s->authkey = auth_publickey_ssh1(
                     s->authpolicy, s->username, modulus);
+
+                if (!s->authkey &&
+                    s->ssc->stunt_pretend_to_accept_any_pubkey) {
+                    mp_int *zero = mp_from_integer(0);
+                    mp_int *fake_challenge = mp_random_in_range(zero, modulus);
+
+                    pktout = ssh_bpp_new_pktout(
+                        s->ppl.bpp, SSH1_SMSG_AUTH_RSA_CHALLENGE);
+                    put_mp_ssh1(pktout, fake_challenge);
+                    pq_push(s->ppl.out_pq, pktout);
+
+                    mp_free(zero);
+                    mp_free(fake_challenge);
+                }
+
                 mp_free(modulus);
             }
 
-            if (!s->authkey)
+            if (!s->authkey &&
+                !s->ssc->stunt_pretend_to_accept_any_pubkey)
                 continue;
 
-            if (s->authkey->bytes < 32) {
+            if (s->authkey && s->authkey->bytes < 32) {
                 ppl_logevent("Auth key far too small");
                 continue;
             }
 
-            {
+            if (s->authkey) {
                 unsigned char *rsabuf =
                     snewn(s->authkey->bytes, unsigned char);
 
@@ -341,6 +358,9 @@ static void ssh1_login_server_process_queue(PacketProtocolLayer *ppl)
                                 pktin->type, ssh1_pkt_type(pktin->type));
                 return;
             }
+
+            if (!s->authkey)
+                continue;
 
             {
                 ptrlen response = get_data(pktin, 16);
