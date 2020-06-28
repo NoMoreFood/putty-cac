@@ -315,22 +315,25 @@ bool do_cmdline(int argc, char **argv, bool do_everything, Conf *conf)
     char *val;
 
     /*
-     * Macros to make argument handling easier. Note that because
-     * they need to call `continue', they cannot be contained in
-     * the usual do {...} while (0) wrapper to make them
-     * syntactically single statements; hence it is not legal to
-     * use one of these macros as an unbraced statement between
-     * `if' and `else'.
+     * Macros to make argument handling easier.
+     *
+     * Note that because they need to call `continue', they cannot be
+     * contained in the usual do {...} while (0) wrapper to make them
+     * syntactically single statements. I use the alternative if (1)
+     * {...} else ((void)0).
      */
-#define EXPECTS_ARG { \
-    if (--argc <= 0) { \
-        err = true; \
-        fprintf(stderr, "%s: %s expects an argument\n", appname, p); \
-        continue; \
-    } else \
-        val = *++argv; \
-}
-#define SECOND_PASS_ONLY do { if (!do_everything) continue; } while (0)
+#define EXPECTS_ARG if (1) {                                            \
+        if (--argc <= 0) {                                              \
+            err = true;                                                 \
+            fprintf(stderr, "%s: %s expects an argument\n", appname, p); \
+            continue;                                                   \
+        } else                                                          \
+            val = *++argv;                                              \
+    } else ((void)0)
+#define SECOND_PASS_ONLY if (1) {               \
+        if (!do_everything)                     \
+            continue;                           \
+    } else ((void)0)
 
     while (--argc > 0) {
         const char *p = *++argv;
@@ -566,7 +569,7 @@ static void post_initial_config_box(void *vctx, int result)
 
     if (result > 0) {
         new_session_window(ctx.conf, ctx.geometry_string);
-    } else if (result == 0) {
+    } else {
         /* In this main(), which only runs one session in total, a
          * negative result from the initial config box means we simply
          * terminate. */

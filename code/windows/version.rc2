@@ -41,13 +41,8 @@ BEGIN
 	/* "lang-charset" LLLLCCCC = (UK English, Unicode) */
 	BLOCK "080904B0"
 	BEGIN
-#ifdef PUTTY_CAC	
-	    VALUE "CompanyName",	"Simon Tatham & Bryan Berns"  /* required :/ */
-	    VALUE "ProductName",	"PuTTY-CAC suite"
-#else
 	    VALUE "CompanyName",	"Simon Tatham"  /* required :/ */
 	    VALUE "ProductName",	"PuTTY suite"
-#endif
 	    VALUE "FileDescription",	APPDESC
 	    VALUE "InternalName",	APPNAME
 	    VALUE "OriginalFilename",	APPNAME

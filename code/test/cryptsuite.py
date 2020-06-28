@@ -15,40 +15,15 @@ except ImportError:
 
 from eccref import *
 from testcrypt import *
+from ssh import *
 
 try:
     base64decode = base64.decodebytes
 except AttributeError:
     base64decode = base64.decodestring
 
-def nbits(n):
-    # Mimic mp_get_nbits for ordinary Python integers.
-    assert 0 <= n
-    smax = next(s for s in itertools.count() if (n >> (1 << s)) == 0)
-    toret = 0
-    for shift in reversed([1 << s for s in range(smax)]):
-        if n >> shift != 0:
-            n >>= shift
-            toret += shift
-    assert n <= 1
-    if n == 1:
-        toret += 1
-    return toret
-
 def unhex(s):
     return binascii.unhexlify(s.replace(" ", "").replace("\n", ""))
-
-def ssh_uint32(n):
-    return struct.pack(">L", n)
-def ssh_string(s):
-    return ssh_uint32(len(s)) + s
-def ssh1_mpint(x):
-    bits = nbits(x)
-    bytevals = [0xFF & (x >> (8*n)) for n in range((bits-1)//8, -1, -1)]
-    return struct.pack(">H" + "B" * len(bytevals), bits, *bytevals)
-def ssh2_mpint(x):
-    bytevals = [0xFF & (x >> (8*n)) for n in range(nbits(x)//8, -1, -1)]
-    return struct.pack(">L" + "B" * len(bytevals), len(bytevals), *bytevals)
 
 def rsa_bare(e, n):
     rsa = rsa_new()
@@ -277,6 +252,19 @@ class mpint(MyTestBase):
                 mp_max_into(am_big, am, bm)
                 self.assertEqual(int(am_big), max(ai, bi))
 
+        # Test mp_{eq,hs}_integer in the case where the integer is as
+        # large as possible and the bignum contains very few words. In
+        # modes where BIGNUM_INT_BITS < 64, this used to go wrong.
+        mp10 = mp_new(4)
+        mp_add_integer_into(mp10, mp10, 10)
+        highbit = 1 << 63
+        self.assertEqual(mp_hs_integer(mp10, highbit | 9), 0)
+        self.assertEqual(mp_hs_integer(mp10, highbit | 10), 0)
+        self.assertEqual(mp_hs_integer(mp10, highbit | 11), 0)
+        self.assertEqual(mp_eq_integer(mp10, highbit | 9), 0)
+        self.assertEqual(mp_eq_integer(mp10, highbit | 10), 0)
+        self.assertEqual(mp_eq_integer(mp10, highbit | 11), 0)
+
     def testConditionals(self):
         testnumbers = [(mp_copy(n),n) for n in fibonacci_scattered()]
         for am, ai in testnumbers:
@@ -359,6 +347,22 @@ class mpint(MyTestBase):
         am = mp_copy(ai)
         bm = mp_copy(bi)
         self.assertEqual(int(mp_mul(am, bm)), ai * bi)
+
+    def testAddInteger(self):
+        initial = mp_copy(4444444444444444444444444)
+
+        x = mp_new(mp_max_bits(initial) + 64)
+
+        # mp_{add,sub}_integer_into should be able to cope with any
+        # uintmax_t. Test a number that requires more than 32 bits.
+        mp_add_integer_into(x, initial, 123123123123123)
+        self.assertEqual(int(x), 4444444444567567567567567)
+        mp_sub_integer_into(x, initial, 123123123123123)
+        self.assertEqual(int(x), 4444444444321321321321321)
+
+        # mp_mul_integer_into only takes a uint16_t integer input
+        mp_mul_integer_into(x, initial, 10001)
+        self.assertEqual(int(x), 44448888888888888888888884444)
 
     def testDivision(self):
         divisors = [1, 2, 3, 2**16+1, 2**32-1, 2**32+1, 2**128-159,
@@ -1173,6 +1177,50 @@ class crypt(MyTestBase):
                 ssh_cipher_setkey(cipher, k[:keylen])
                 ssh_cipher_decrypt(cipher, iv[:ivlen])
                 self.assertEqualBin(ssh_cipher_decrypt(cipher, c), p)
+
+    def testRSAKex(self):
+        # Round-trip test of the RSA key exchange functions, plus a
+        # hardcoded plain/ciphertext pair to guard against the
+        # behaviour accidentally changing.
+        def blobs(n, e, d, p, q, iqmp):
+            # For RSA kex, the public blob is formatted exactly like
+            # any other SSH-2 RSA public key. But there's no private
+            # key blob format defined by the protocol, so for the
+            # purposes of making a test RSA private key, we borrow the
+            # function we already had that decodes one out of the wire
+            # format used in the SSH-1 agent protocol.
+            pubblob = ssh_string(b"ssh-rsa") + ssh2_mpint(e) + ssh2_mpint(n)
+            privblob = (ssh_uint32(nbits(n)) + ssh1_mpint(n) + ssh1_mpint(e) +
+                        ssh1_mpint(d) + ssh1_mpint(iqmp) +
+                        ssh1_mpint(q) + ssh1_mpint(p))
+            return pubblob, privblob
+
+        # Parameters for a test key.
+        p = 0xf49e4d21c1ec3d1c20dc8656cc29aadb2644a12c98ed6c81a6161839d20d398d
+        q = 0xa5f0bc464bf23c4c83cf17a2f396b15136fbe205c07cb3bb3bdb7ed357d1cd13
+        n = p*q
+        e = 37
+        d = int(mp_invert(e, (p-1)*(q-1)))
+        iqmp = int(mp_invert(q, p))
+        assert iqmp * q % p == 1
+        assert d * e % (p-1) == 1
+        assert d * e % (q-1) == 1
+
+        pubblob, privblob = blobs(n, e, d, p, q, iqmp)
+
+        pubkey = ssh_rsakex_newkey(pubblob)
+        privkey = get_rsa_ssh1_priv_agent(privblob)
+
+        plain = 0x123456789abcdef
+        hashalg = 'md5'
+        with queued_random_data(64, "rsakex encrypt test"):
+            cipher = ssh_rsakex_encrypt(pubkey, hashalg, ssh2_mpint(plain))
+        decoded = ssh_rsakex_decrypt(privkey, hashalg, cipher)
+        self.assertEqual(int(decoded), plain)
+        self.assertEqualBin(cipher, unhex(
+            '34277d1060dc0a434d98b4239de9cec59902a4a7d17a763587cdf8c25d57f51a'
+            '7964541892e7511798e61dd78429358f4d6a887a50d2c5ebccf0e04f48fc665c'
+        ))
 
     def testPRNG(self):
         hashalg = 'sha256'

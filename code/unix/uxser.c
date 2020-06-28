@@ -199,8 +199,8 @@ static const char *serial_configure(Serial *serial, Conf *conf)
     } else {
         options.c_cflag &= ~CSTOPB;
     }
-    logeventf(serial->logctx, "Configuring %d stop bits",
-              (options.c_cflag & CSTOPB ? 2 : 1));
+    logeventf(serial->logctx, "Configuring %s",
+              (options.c_cflag & CSTOPB ? "2 stop bits" : "1 stop bit"));
 
     options.c_iflag &= ~(IXON|IXOFF);
 #ifdef CRTSCTS
@@ -333,6 +333,7 @@ static const char *serial_init(Seat *seat, Backend **backend_handle,
 static void serial_close(Serial *serial)
 {
     if (serial->fd >= 0) {
+        uxsel_del(serial->fd);
         close(serial->fd);
         serial->fd = -1;
     }

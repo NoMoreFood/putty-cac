@@ -1182,7 +1182,7 @@ static void environ_handler(union control *ctrl, dlgparam *dlg,
                 return;
             }
             conf_set_str_str(conf, CONF_environmt, key, val);
-            str = dupcat(key, "\t", val, NULL);
+            str = dupcat(key, "\t", val);
             dlg_editbox_set(ed->varbox, dlg, "");
             dlg_editbox_set(ed->valbox, dlg, "");
             sfree(str);
@@ -1313,7 +1313,7 @@ static void portfwd_handler(union control *ctrl, dlgparam *dlg,
                 val = dupstr("D");     /* special case */
             }
 
-            key = dupcat(family, type, src, NULL);
+            key = dupcat(family, type, src);
             sfree(src);
 
             if (conf_get_str_str_opt(conf, CONF_portfwd, key)) {
@@ -1480,7 +1480,7 @@ static void clipboard_selector_handler(union control *ctrl, dlgparam *dlg,
                 if (!strcmp(sval, options[i].name))
                     break;             /* needs escaping */
             if (i < lenof(options) || sval[0] == '=') {
-                char *escaped = dupcat("=", sval, (const char *)NULL);
+                char *escaped = dupcat("=", sval);
                 dlg_editbox_set(ctrl, dlg, escaped);
                 sfree(escaped);
             } else {
@@ -1507,7 +1507,7 @@ static void clipboard_selector_handler(union control *ctrl, dlgparam *dlg,
 #endif
         ) {
 #ifdef NAMED_CLIPBOARDS
-        const char *sval = dlg_editbox_get(ctrl, dlg);
+        char *sval = dlg_editbox_get(ctrl, dlg);
         int i;
 
         for (i = 0; i < lenof(options); i++)
@@ -1522,6 +1522,8 @@ static void clipboard_selector_handler(union control *ctrl, dlgparam *dlg,
                 sval++;
             conf_set_str(conf, strsetting, sval);
         }
+
+        sfree(sval);
 #else
         int index = dlg_listbox_index(ctrl, dlg);
         if (index >= 0) {
@@ -2564,6 +2566,10 @@ void setup_config_box(struct controlbox *b, bool midsession,
                               HELPCTX(ssh_hklist),
                               hklist_handler, P(NULL));
             c->listbox.height = 5;
+
+            ctrl_checkbox(s, "Prefer algorithms for which a host key is known",
+                          'p', HELPCTX(ssh_hk_known), conf_checkbox_handler,
+                          I(CONF_ssh_prefer_known_hostkeys));
         }
 
         /*

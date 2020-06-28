@@ -863,8 +863,8 @@ $(BUILDDIR)fromucs.obj: ../charset/fromucs.c ../charset/charset.h \
 		../charset/internal.h
 	$(CC) /Fo$(BUILDDIR) $(COMPAT) $(CFLAGS) $(XFLAGS) /c $<
 
-$(BUILDDIR)fuzzterm.obj: ../fuzzterm.c ../putty.h ../terminal.h ../defs.h \
-		../puttyps.h ../network.h ../misc.h ../marshal.h \
+$(BUILDDIR)fuzzterm.obj: ../fuzzterm.c ../putty.h ../dialog.h ../terminal.h \
+		../defs.h ../puttyps.h ../network.h ../misc.h ../marshal.h \
 		../sshsignals.h ../tree234.h ../windows/winstuff.h \
 		../unix/unix.h ../puttymem.h ../windows/winhelp.h \
 		../charset/charset.h
@@ -1530,11 +1530,11 @@ $(BUILDDIR)sshrsag.obj: ../sshrsag.c ../ssh.h ../mpint.h ../puttymem.h \
 	$(CC) /Fo$(BUILDDIR) $(COMPAT) $(CFLAGS) $(XFLAGS) /c $<
 
 $(BUILDDIR)sshserver.obj: ../sshserver.c ../putty.h ../ssh.h ../sshbpp.h \
-		../sshppl.h ../sshserver.h ../sshgssc.h ../sshgss.h \
-		../defs.h ../puttyps.h ../network.h ../misc.h ../marshal.h \
-		../sshsignals.h ../puttymem.h ../tree234.h ../sshttymodes.h \
-		../pgssapi.h ../windows/winstuff.h ../unix/unix.h \
-		../windows/winhelp.h ../charset/charset.h
+		../sshppl.h ../sshchan.h ../sshserver.h ../sshgssc.h \
+		../sshgss.h ../defs.h ../puttyps.h ../network.h ../misc.h \
+		../marshal.h ../sshsignals.h ../puttymem.h ../tree234.h \
+		../sshttymodes.h ../pgssapi.h ../windows/winstuff.h \
+		../unix/unix.h ../windows/winhelp.h ../charset/charset.h
 	$(CC) /Fo$(BUILDDIR) $(COMPAT) $(CFLAGS) $(XFLAGS) /c $<
 
 $(BUILDDIR)sshsh256.obj: ../sshsh256.c ../ssh.h ../puttymem.h ../tree234.h \
@@ -1756,11 +1756,11 @@ $(BUILDDIR)uxpterm.obj: ../unix/uxpterm.c ../putty.h ../defs.h ../puttyps.h \
 		../tree234.h ../windows/winhelp.h ../charset/charset.h
 	$(CC) /Fo$(BUILDDIR) $(COMPAT) $(CFLAGS) $(XFLAGS) /c $<
 
-$(BUILDDIR)uxpty.obj: ../unix/uxpty.c ../putty.h ../ssh.h ../tree234.h \
-		../sshttymodes.h ../sshsignals.h ../defs.h ../puttyps.h \
-		../network.h ../misc.h ../marshal.h ../puttymem.h \
-		../windows/winstuff.h ../unix/unix.h ../windows/winhelp.h \
-		../charset/charset.h
+$(BUILDDIR)uxpty.obj: ../unix/uxpty.c ../putty.h ../ssh.h ../sshserver.h \
+		../tree234.h ../sshttymodes.h ../sshsignals.h ../defs.h \
+		../puttyps.h ../network.h ../misc.h ../marshal.h \
+		../puttymem.h ../windows/winstuff.h ../unix/unix.h \
+		../windows/winhelp.h ../charset/charset.h
 	$(CC) /Fo$(BUILDDIR) $(COMPAT) $(CFLAGS) $(XFLAGS) /c $<
 
 $(BUILDDIR)uxputty.obj: ../unix/uxputty.c ../putty.h ../storage.h \

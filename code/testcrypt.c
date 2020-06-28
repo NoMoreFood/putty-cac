@@ -35,7 +35,7 @@
 #include "mpint.h"
 #include "ecc.h"
 
-static NORETURN void fatal_error(const char *p, ...)
+static NORETURN PRINTF_LIKE(1, 2) void fatal_error(const char *p, ...)
 {
     va_list ap;
     fprintf(stderr, "testcrypt: ");
@@ -495,12 +495,17 @@ static void return_boolean(strbuf *out, bool b)
     strbuf_catf(out, "%s\n", b ? "true" : "false");
 }
 
-static void return_val_string_asciz(strbuf *out, char *s)
+static void return_val_string_asciz_const(strbuf *out, const char *s)
 {
     strbuf *sb = strbuf_new();
     put_data(sb, s, strlen(s));
-    sfree(s);
     return_val_string(out, sb);
+}
+
+static void return_val_string_asciz(strbuf *out, char *s)
+{
+    return_val_string_asciz_const(out, s);
+    sfree(s);
 }
 
 #define NULLABLE_RETURN_WRAPPER(type_name, c_type)                      \
@@ -516,6 +521,7 @@ NULLABLE_RETURN_WRAPPER(val_string_asciz, char *)
 NULLABLE_RETURN_WRAPPER(val_cipher, ssh_cipher *)
 NULLABLE_RETURN_WRAPPER(val_hash, ssh_hash *)
 NULLABLE_RETURN_WRAPPER(val_key, ssh_key *)
+NULLABLE_RETURN_WRAPPER(val_mpint, mp_int *)
 
 static void handle_hello(BinarySource *in, strbuf *out)
 {
@@ -754,7 +760,7 @@ strbuf *rsa_ssh1_decrypt_pkcs1_wrapper(mp_int *input, RSAKey *key)
     /* Again, return "" on failure */
     strbuf *sb = strbuf_new();
     if (!rsa_ssh1_decrypt_pkcs1(input, key, sb))
-        sb->len = 0;
+        strbuf_clear(sb);
     return sb;
 }
 #define rsa_ssh1_decrypt_pkcs1 rsa_ssh1_decrypt_pkcs1_wrapper
@@ -995,30 +1001,28 @@ static void process_line(BinarySource *in, strbuf *out)
 {
     ptrlen id = get_word(in);
 
-#define DISPATCH_COMMAND(cmd)                   \
-    if (ptrlen_eq_string(id, #cmd)) {           \
-        handle_##cmd(in, out);                  \
-        return;                                 \
-    }
+#define DISPATCH_INTERNAL(cmdname, handler) do {        \
+        if (ptrlen_eq_string(id, cmdname)) {            \
+            handler(in, out);                           \
+            return;                                     \
+        }                                               \
+    } while (0)
+
+#define DISPATCH_COMMAND(cmd) DISPATCH_INTERNAL(#cmd, handle_##cmd)
     DISPATCH_COMMAND(hello);
     DISPATCH_COMMAND(free);
     DISPATCH_COMMAND(newstring);
     DISPATCH_COMMAND(getstring);
     DISPATCH_COMMAND(mp_literal);
     DISPATCH_COMMAND(mp_dump);
+#undef DISPATCH_COMMAND
 
-#define FUNC(rettype, function, ...)            \
-    if (ptrlen_eq_string(id, #function)) {      \
-        handle_##function(in, out);             \
-        return;                                 \
-    }
-
-#define FUNC0 FUNC
-#define FUNC1 FUNC
-#define FUNC2 FUNC
-#define FUNC3 FUNC
-#define FUNC4 FUNC
-#define FUNC5 FUNC
+#define FUNC0(ret,func)           DISPATCH_INTERNAL(#func, handle_##func);
+#define FUNC1(ret,func,x)         DISPATCH_INTERNAL(#func, handle_##func);
+#define FUNC2(ret,func,x,y)       DISPATCH_INTERNAL(#func, handle_##func);
+#define FUNC3(ret,func,x,y,z)     DISPATCH_INTERNAL(#func, handle_##func);
+#define FUNC4(ret,func,x,y,z,v)   DISPATCH_INTERNAL(#func, handle_##func);
+#define FUNC5(ret,func,x,y,z,v,w) DISPATCH_INTERNAL(#func, handle_##func);
 
 #include "testcrypt.h"
 
@@ -1028,6 +1032,8 @@ static void process_line(BinarySource *in, strbuf *out)
 #undef FUNC2
 #undef FUNC1
 #undef FUNC0
+
+#undef DISPATCH_INTERNAL
 
     fatal_error("command '%.*s': unrecognised", PTRLEN_PRINTF(id));
 }
@@ -1109,7 +1115,7 @@ int main(int argc, char **argv)
         for (size_t i = 0; i < sb->len; i++)
             if (sb->s[i] == '\n')
                 lines++;
-        fprintf(outfp, "%zu\n%s", lines, sb->s);
+        fprintf(outfp, "%"SIZEu"\n%s", lines, sb->s);
         fflush(outfp);
         strbuf_free(sb);
         sfree(line);

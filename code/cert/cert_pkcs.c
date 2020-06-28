@@ -50,7 +50,7 @@ void pkcs_lookup_token_cert(LPCSTR szCert, CK_SESSION_HANDLE_PTR phSession, CK_O
 struct WeierstrassPoint { mp_int *X, *Y, *Z; WeierstrassCurve *wc; };
 struct WeierstrassCurve { mp_int *p; MontyContext *mc; ModsqrtContext *sc; mp_int *a, *b; };
 
-BYTE * cert_pkcs_sign(struct ssh2_userkey * userkey, LPCBYTE pDataToSign, int iDataToSignLen, int * iSigLen, HWND hWnd)
+BYTE * cert_pkcs_sign(struct ssh2_userkey * userkey, LPCBYTE pDataToSign, int iDataToSignLen, int * iSigLen, LPCSTR sHashAlgName, HWND hWnd)
 {
 	// get the library to load from based on comment
 	LPSTR szLibrary = strrchr(userkey->comment, '=') + 1;
@@ -234,7 +234,7 @@ BYTE * cert_pkcs_sign(struct ssh2_userkey * userkey, LPCBYTE pDataToSign, int iD
 	// the message to send contains the static sha1 oid header
 	// followed by a sha1 hash of the data sent from the host
 	DWORD iHashSize = 0;
-	LPBYTE pHashData = cert_get_hash(userkey->key->vt->ssh_id, pDataToSign, iDataToSignLen, &iHashSize, TRUE);
+	LPBYTE pHashData = cert_get_hash(sHashAlgName, pDataToSign, iDataToSignLen, &iHashSize, TRUE);
 
 	// setup the signature process to sign using the rsa private key on the card 
 	CK_MECHANISM tSignMech;
@@ -246,6 +246,7 @@ BYTE * cert_pkcs_sign(struct ssh2_userkey * userkey, LPCBYTE pDataToSign, int iD
 	CK_BYTE_PTR pSignature = NULL;
 	CK_ULONG iSignatureLen = 0;
 	CK_RV iResult = CKR_OK;
+
 	if ((iResult = pFunctionList->C_SignInit(hSession, &tSignMech, hPrivateKey)) != CKR_OK ||
 		(iResult = pFunctionList->C_Sign(hSession, pHashData, iHashSize, NULL, &iSignatureLen)) != CKR_OK ||
 		(iResult = pFunctionList->C_Sign(hSession, pHashData, iHashSize,
