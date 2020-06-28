@@ -338,7 +338,7 @@ void keylist_update(void)
 			if (strrchr(listentry, '=') != NULL) *strrchr(listentry, '=') = '\0';
 			if (strrchr(listentry, ':') != NULL) *strrchr(listentry, ':') = '\0';
 			LPSTR subjectname = cert_subject_string(skey->comment);
-			LPSTR listentryname = dupcat(listentry, "\t", subjectname, NULL);
+			LPSTR listentryname = dupcat(listentry, "\t", subjectname);
 			sfree(subjectname);
 			sfree(listentry);
 			listentry = listentryname;
@@ -636,7 +636,7 @@ static INT_PTR CALLBACK KeyListProc(HWND hwnd, UINT msg,
 
 				/* add to cumulative key string */
 				LPSTR szKeyStringNew = dupcat(szKeyString, (strlen(szKeyString) > 0) ? "\n" : "",
-					szKeyStringAddon, NULL);
+					szKeyStringAddon);
 
 				/* cleanup and replace string */
 				sfree(szKeyStringAddon);
