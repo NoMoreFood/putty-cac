@@ -44,7 +44,7 @@ LPSTR cert_get_cert_hash(LPCSTR szIden, PCCERT_CONTEXT pCertContext, LPCSTR szHi
 	DWORD iThumbHexSize = _countof(szThumbHex);
 	CryptBinaryToStringA(pbThumbBinary, cbThumbBinary,
 		CRYPT_STRING_HEXRAW | CRYPT_STRING_NOCRLF, (LPSTR)szThumbHex, &iThumbHexSize);
-	return dupcat(szIden, szThumbHex, (szHint != NULL) ? "=" : "", (szHint != NULL) ? szHint : "", NULL);
+	return dupcat(szIden, szThumbHex, (szHint != NULL) ? "=" : "", (szHint != NULL) ? szHint : "");
 }
 
 LPSTR cert_prompt(LPCSTR szIden, HWND hWnd, BOOL bAutoSelect)
