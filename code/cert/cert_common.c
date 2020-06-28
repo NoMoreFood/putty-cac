@@ -145,11 +145,10 @@ BOOL cert_load_cert(LPCSTR szCert, PCERT_CONTEXT * ppCertContext, HCERTSTORE * p
 	return (*ppCertContext != NULL);
 }
 
-LPBYTE cert_sign(struct ssh2_userkey * userkey, LPCBYTE pDataToSign, int iDataToSignLen, int * iWrappedSigLen, HWND hWnd, uint32_t flags)
+LPBYTE cert_sign(struct ssh2_userkey * userkey, LPCBYTE pDataToSign, int iDataToSignLen, int * iWrappedSigLen, int iAgentFlags, HWND hWnd)
 {
 	LPBYTE pRawSig = NULL;
 	int iRawSigLen = 0;
-	const char * rsasigalgo = NULL;
 	*iWrappedSigLen = 0;
 
 	// sanity check
@@ -170,16 +169,26 @@ LPBYTE cert_sign(struct ssh2_userkey * userkey, LPCBYTE pDataToSign, int iDataTo
 		// return if user did not confirm usage
 		if (iResponse != IDYES) return NULL;
 	}
-
-	if (cert_is_capipath(userkey->comment))
-	{
-		pRawSig = cert_capi_sign(userkey, pDataToSign, iDataToSignLen, &iRawSigLen, hWnd, flags, &rsasigalgo);
+	
+	// determine hashing algorithmn for signing
+	LPCSTR sHashAlgName = userkey->key->vt->ssh_id;
+	if (strstr(userkey->key->vt->ssh_id, "ssh-rsa") && iAgentFlags & SSH_AGENT_RSA_SHA2_256) {
+		sHashAlgName = "rsa-sha2-256";
+	}
+	if (strstr(userkey->key->vt->ssh_id, "ssh-rsa") && iAgentFlags & SSH_AGENT_RSA_SHA2_512) {
+		sHashAlgName = "rsa-sha2-512";
 	}
 
+	// if capi, sign data using capi
+	if (cert_is_capipath(userkey->comment))
+	{
+		pRawSig = cert_capi_sign(userkey, pDataToSign, iDataToSignLen, &iRawSigLen, sHashAlgName, hWnd);
+	}
+
+	// if pkcs, sign data using capi
 	if (cert_is_pkcspath(userkey->comment))
 	{
-		rsasigalgo = "ssh-rsa";
-		pRawSig = cert_pkcs_sign(userkey, pDataToSign, iDataToSignLen, &iRawSigLen, hWnd);
+		pRawSig = cert_pkcs_sign(userkey, pDataToSign, iDataToSignLen, &iRawSigLen, sHashAlgName, hWnd);
 	}
 
 	// sanity check
@@ -223,12 +232,12 @@ LPBYTE cert_sign(struct ssh2_userkey * userkey, LPCBYTE pDataToSign, int iDataTo
 		// algorithm name
 		// size of binary signature (4 bytes in big endian)
 		// binary signature
-		int iAlgoNameLen = strlen(rsasigalgo);
+		int iAlgoNameLen = strlen(sHashAlgName);
 		*iWrappedSigLen = 4 + iAlgoNameLen + 4 + iRawSigLen;
 		pWrappedSig = snewn(*iWrappedSigLen, unsigned char);
 		unsigned char * pWrappedPos = pWrappedSig;
 		PUT_32BIT_MSB_FIRST(pWrappedPos, iAlgoNameLen); pWrappedPos += 4;
-		memcpy(pWrappedPos, rsasigalgo, iAlgoNameLen); pWrappedPos += iAlgoNameLen;
+		memcpy(pWrappedPos, sHashAlgName, iAlgoNameLen); pWrappedPos += iAlgoNameLen;
 		PUT_32BIT_MSB_FIRST(pWrappedPos, iRawSigLen); pWrappedPos += 4;
 		memcpy(pWrappedPos, pRawSig, iRawSigLen);
 	}
@@ -505,38 +514,65 @@ void cert_convert_legacy(LPSTR szCert)
 	}
 }
 
-LPBYTE cert_get_hash(LPCSTR szAlgo, LPCBYTE pDataToHash, DWORD iDataToHashSize, DWORD * iHashedDataSize, BOOL bPrependDigest)
+LPBYTE cert_get_hash(LPCSTR szAlgo, LPCBYTE pDataToHash, DWORD iDataToHashSize, DWORD * iHashedDataSize, BOOL bRequestDigest)
 {
-	// id-sha1 OBJECT IDENTIFIER 
 	const BYTE OID_SHA1[] = {
 		0x30, 0x21, /* type Sequence, length 0x21 (33) */
-		0x30, 0x09, /* type Sequence, length 0x09 */
-		0x06, 0x05, /* type OID, length 0x05 */
+		0x30, 0x09, /* type Sequence, length 0x09 (9) */
+		0x06, 0x05, /* type OID, length 0x05 (5) */
 		0x2b, 0x0e, 0x03, 0x02, 0x1a, /* id-sha1 OID */
-		0x05, 0x00, /* NULL */
-		0x04, 0x14  /* Octet string, length 0x14 (20), followed by sha1 hash */
+		0x05, 0x00, /* type NULL, length 0x0 (0) */
+		0x04, 0x14  /* type Octet string, length 0x14 (20), followed by sha1 hash */
 	};
+	const BYTE OID_SHA256[] = {
+		0x30, 0x31, /* type Sequence, length 0x31 (49) */
+		0x30, 0x0d, /* type Sequence, length 0x0d (13) */
+		0x06, 0x09, /* type OID, length 0x09 (9) */
+		0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x01, /* id-sha256 OID */
+		0x05, 0x00, /* type NULL, length 0x0 (0) */
+		0x04, 0x20  /* type Octet string, length 0x20 (32), followed by sha256 hash */
+	};
+	const BYTE OID_SHA512[] = {
+		0x30, 0x51, /* type Sequence, length 0x51 (81) */
+		0x30, 0x0d, /* type Sequence, length 0x0d (13) */
+		0x06, 0x09, /* type OID, length 0x09 (9) */
+		0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x03, /* id-sha512 OID */
+		0x05, 0x00, /* type NULL, length 0x0 (0) */
+		0x04, 0x40  /* type Octet string, length 0x40 (64), followed by sha512 hash */
+	};
+
+	// determine algo to use for hashing
+	ALG_ID iHashAlg = CALG_SHA1;
+	if (strcmp(szAlgo, "rsa-sha2-256") == 0) iHashAlg = CALG_SHA_256;
+	if (strcmp(szAlgo, "rsa-sha2-512") == 0) iHashAlg = CALG_SHA_512;
+	if (strcmp(szAlgo, "ecdsa-sha2-nistp256") == 0) iHashAlg = CALG_SHA_256;
+	if (strcmp(szAlgo, "ecdsa-sha2-nistp384") == 0) iHashAlg = CALG_SHA_384;
+	if (strcmp(szAlgo, "ecdsa-sha2-nistp521") == 0) iHashAlg = CALG_SHA_512;
+
+	// for rsa, prepend the hash digest if requested
+	size_t iDigestSize = 0;
+	LPBYTE pDigest = NULL;
+	const BOOL bNeedsDigest = bRequestDigest && (strstr(szAlgo, "rsa") != NULL);
+	if (bNeedsDigest && iHashAlg == CALG_SHA1)
+	{
+		iDigestSize = sizeof(OID_SHA1);
+		pDigest = (LPBYTE)OID_SHA1;
+	}
+	if (bNeedsDigest && iHashAlg == CALG_SHA_256)
+	{
+		iDigestSize = sizeof(OID_SHA256);
+		pDigest = (LPBYTE)OID_SHA256;
+	}
+	if (bNeedsDigest && iHashAlg == CALG_SHA_512)
+	{
+		iDigestSize = sizeof(OID_SHA512);
+		pDigest = (LPBYTE)OID_SHA512;
+	}
 
 	HCRYPTPROV hHashProv = (ULONG_PTR)NULL;
 	HCRYPTHASH hHash = (ULONG_PTR)NULL;
 	LPBYTE pHashData = NULL;
 	*iHashedDataSize = 0;
-
-	// determine algo to use for hashing
-	ALG_ID iHashAlg = CALG_SHA1;
-	if (strcmp(szAlgo, "ecdsa-sha2-nistp256") == 0) iHashAlg = CALG_SHA_256;
-	if (strcmp(szAlgo, "ecdsa-sha2-nistp384") == 0) iHashAlg = CALG_SHA_384;
-	if (strcmp(szAlgo, "ecdsa-sha2-nistp521") == 0) iHashAlg = CALG_SHA_512;
-
-	// for sha1, prepend the hash digest if requested
-	// this is necessary for some signature algorithms
-	size_t iDigestSize = 0;
-	LPBYTE pDigest = NULL;
-	if (iHashAlg == CALG_SHA1 && bPrependDigest)
-	{
-		iDigestSize = sizeof(OID_SHA1);
-		pDigest = (LPBYTE)OID_SHA1;
-	}
 
 	// acquire crypto provider, hash data, and export hashed binary data
 	if (CryptAcquireContext(&hHashProv, NULL, NULL, PROV_RSA_AES, CRYPT_VERIFYCONTEXT) == FALSE ||
@@ -554,9 +590,12 @@ LPBYTE cert_get_hash(LPCSTR szAlgo, LPCBYTE pDataToHash, DWORD iDataToHashSize, 
 		}
 	}
 
-	// prepend the digest
-	*iHashedDataSize += iDigestSize;
-	memcpy(pHashData, pDigest, iDigestSize);
+	// prepend the digest if necessary
+	if (bNeedsDigest)
+	{
+		*iHashedDataSize += iDigestSize;
+		memcpy(pHashData, pDigest, iDigestSize);
+	}
 
 	// cleanup and return
 	if (hHash != (ULONG_PTR)NULL) CryptDestroyHash(hHash);

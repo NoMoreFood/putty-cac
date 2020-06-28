@@ -16,26 +16,22 @@
 #include "cert_capi.h"
 #undef DEFINE_VARIABLES
 
-BYTE * cert_capi_sign(struct ssh2_userkey * userkey, LPCBYTE pDataToSign, int iDataToSignLen, int * iSigLen, HWND hWnd, uint32_t flags, const char ** sign_alg_name)
+BYTE * cert_capi_sign(struct ssh2_userkey * userkey, LPCBYTE pDataToSign, int iDataToSignLen, int * iSigLen, LPCSTR sHashAlgName, HWND hWnd)
 {
 	//Use flags to determine requested signature hash algorithm
-	ALG_ID halg;
-	LPCWSTR nchalg;
-	if (flags & SSH_AGENT_RSA_SHA2_256) {
-		halg = CALG_SHA_256;
-		nchalg = NCRYPT_SHA256_ALGORITHM;
-		*sign_alg_name = "rsa-sha2-256";
+	ALG_ID iHashAlg = CALG_SHA1;
+	LPCWSTR iHashAlgNCrypt = NCRYPT_SHA1_ALGORITHM;
+	if (strcmp(sHashAlgName, "rsa-sha2-256") == 0)
+	{
+		iHashAlg = CALG_SHA_256;
+		iHashAlgNCrypt = NCRYPT_SHA256_ALGORITHM;
 	}
-	else if (flags & SSH_AGENT_RSA_SHA2_512) {
-		halg = CALG_SHA_512;
-		nchalg = NCRYPT_SHA512_ALGORITHM;
-		*sign_alg_name = "rsa-sha2-512";
+	if (strcmp(sHashAlgName, "rsa-sha2-512") == 0)
+	{
+		iHashAlg = CALG_SHA_512;
+		iHashAlgNCrypt = NCRYPT_SHA512_ALGORITHM;
 	}
-	else {
-		halg = CALG_SHA1;
-		nchalg = NCRYPT_SHA1_ALGORITHM;
-		*sign_alg_name = "ssh-rsa";
-	}
+
 	// get a handle to the certificate
 	HCERTSTORE hCertStore = NULL;
 	PCCERT_CONTEXT pCertCtx = NULL;
@@ -83,7 +79,7 @@ BYTE * cert_capi_sign(struct ssh2_userkey * userkey, LPCBYTE pDataToSign, int iD
 
 			// CSP implementation
 			HCRYPTHASH hHash = (ULONG_PTR)NULL;
-			if (CryptCreateHash((HCRYPTPROV)hCryptProv, halg, 0, 0, &hHash) != FALSE &&
+			if (CryptCreateHash((HCRYPTPROV)hCryptProv, iHashAlg, 0, 0, &hHash) != FALSE &&
 				CryptHashData(hHash, (LPBYTE)pDataToSign, iDataToSignLen, 0) != FALSE &&
 				CryptSignHash(hHash, pProviderInfo->dwKeySpec, NULL, 0, NULL, &iSig) != FALSE &&
 				CryptSignHash(hHash, pProviderInfo->dwKeySpec, NULL, 0, pSig = snewn(iSig, BYTE), &iSig) != FALSE)
@@ -128,14 +124,14 @@ BYTE * cert_capi_sign(struct ssh2_userkey * userkey, LPCBYTE pDataToSign, int iD
 			PVOID pPadInfo = NULL;
 			if (strcmp(userkey->key->vt->ssh_id, "ssh-rsa") == 0)
 			{
-				tInfo.pszAlgId = nchalg;
+				tInfo.pszAlgId = iHashAlgNCrypt;
 				iPadFlag = BCRYPT_PAD_PKCS1;
 				pPadInfo = &tInfo;
 			}
 
 			// hash and sign
 			DWORD iHashDataSize = 0;
-			LPBYTE pHashData = cert_get_hash(userkey->key->vt->ssh_id, pDataToSign, iDataToSignLen, &iHashDataSize, FALSE);
+			LPBYTE pHashData = cert_get_hash(sHashAlgName, pDataToSign, iDataToSignLen, &iHashDataSize, FALSE);
 			if (pHashData != NULL &&
 				NCryptSignHash(hNCryptKey, pPadInfo, pHashData, iHashDataSize, NULL, 0, &iSig, iPadFlag) == ERROR_SUCCESS &&
 				NCryptSignHash(hNCryptKey, pPadInfo, pHashData, iHashDataSize, pSig = snewn(iSig, BYTE), iSig, &iSig, iPadFlag) == ERROR_SUCCESS)

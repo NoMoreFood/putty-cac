@@ -12,7 +12,7 @@ not described here; and the pterm and command-line puttygen and pageant
 utilities are not described at all. The only Unix-specific documentation
 that currently exists is the man pages.
 
-This manual is copyright 1997-2019 Simon Tatham. All rights reserved. You
+This manual is copyright 1997-2020 Simon Tatham. All rights reserved. You
 may distribute this documentation under the MIT licence. See appendix C for
 the licence text in full.
 
@@ -1177,7 +1177,7 @@ Chapter 3: Using PuTTY
        by telling it exactly what host key to expect, which can be
        useful if the normal automatic host key store in the Registry is
        unavailable. The argument to this option should be either a host key
-       fingerprint, or an SSH-2 public key blob. See section 4.21.2 for
+       fingerprint, or an SSH-2 public key blob. See section 4.21.3 for
        more information.
 
        You can specify this option more than once if you want to configure
@@ -3017,7 +3017,7 @@ Chapter 4: Configuring PuTTY
        servers, you probably didn't want any particular server's host
        key cached under that local port number. (For this latter case,
        you could instead explicitly configure host keys in the relevant
-       sessions; see section 4.21.2.)
+       sessions; see section 4.21.3.)
 
        If you just enter a host name for this option, PuTTY will cache the
        SSH host key under the default SSH port for that host, irrespective
@@ -3781,7 +3781,28 @@ Chapter 4: Configuring PuTTY
        line, you will see a warning box when you make the connection,
        similar to that for cipher selection (see section 4.22).
 
-4.21.2 Manually configuring host keys
+4.21.2 Preferring known host keys
+
+       By default, PuTTY will adjust the preference order for host key
+       algorithms so that any host keys it already knows are moved to the
+       top of the list.
+
+       This prevents you from having to check and confirm a new host key
+       for a server you already had one for (e.g. because the server has
+       generated an alternative key of a type higher in PuTTY's preference
+       order, or because you changed the preference order itself).
+
+       However, on the other hand, it can leak information to a listener
+       in the network about _whether_ you already know a host key for this
+       server.
+
+       For this reason, this policy is configurable. By turning this
+       checkbox off, you can reset PuTTY to always use the exact order of
+       host key algorithms configured in the preference list described in
+       section 4.21.1, so that a listener will find out nothing about what
+       keys you had stored.
+
+4.21.3 Manually configuring host keys
 
        In some situations, if PuTTY's automated host key management is not
        doing what you need, you might need to manually configure PuTTY to
@@ -4835,9 +4856,9 @@ Chapter 5: Using PSCP to transfer files securely
        version of PSCP you're using, and gives you a brief summary of how
        to use PSCP:
 
-         Z:\owendadmin>pscp
+         C:\>pscp
          PuTTY Secure Copy client
-         Release 0.73
+         Release 0.74
          Usage: pscp [options] [user@]host:source target
                 pscp [options] source [source...] [user@]host:target
                 pscp [options] -ls [user@]host:filespec
@@ -5750,9 +5771,9 @@ Chapter 7: Using the command-line connection tool Plink
        version of Plink you're using, and gives you a brief summary of how
        to use Plink:
 
-         Z:\sysosd>plink
+         C:\>plink
          Plink: command-line connection utility
-         Release 0.73
+         Release 0.74
          Usage: plink [options] [user@]host [command]
                 ("host" can also be a PuTTY saved session name)
          Options:
@@ -5811,7 +5832,7 @@ Chapter 7: Using the command-line connection tool Plink
        To make a simple interactive connection to a remote server, just
        type `plink' and then the host name:
 
-         Z:\sysosd>plink login.example.com
+         C:\>plink login.example.com
          
          Debian GNU/Linux 2.2 flunky.example.com
          flunky login:
@@ -5828,7 +5849,7 @@ Chapter 7: Using the command-line connection tool Plink
        command line options `-ssh', `-telnet', `-rlogin' or `-raw'. To make
        an SSH connection, for example:
 
-         Z:\sysosd>plink -ssh login.example.com
+         C:\>plink -ssh login.example.com
          login as:
 
        If you have already set up a PuTTY saved session, then instead of
@@ -5836,7 +5857,7 @@ Chapter 7: Using the command-line connection tool Plink
        allows you to use public-key authentication, specify a user name,
        and use most of the other features of PuTTY:
 
-         Z:\sysosd>plink my-ssh-session
+         C:\>plink my-ssh-session
          Sent username "fred"
          Authenticating with public key "fred@winbox"
          Last login: Thu Dec  6 19:25:33 2001 from :0.0
@@ -5906,18 +5927,18 @@ Chapter 7: Using the command-line connection tool Plink
        command on the SSH server machine and have it execute automatically
        with no prompting:
 
-         Z:\sysosd>plink login.example.com -l fred echo hello, world
+         C:\>plink login.example.com -l fred echo hello, world
          hello, world
          
-         Z:\sysosd>
+         C:\>
 
        Or, if you have set up a saved session with all the connection
        details:
 
-         Z:\sysosd>plink mysession echo hello, world
+         C:\>plink mysession echo hello, world
          hello, world
          
-         Z:\sysosd>
+         C:\>
 
        Then you can set up other programs to run this Plink command and
        talk to it as if it were a process on the server machine.
@@ -8771,7 +8792,8 @@ Appendix B: Feedback and bug reporting
 
        (If the file contains confidential information, then you could
        encrypt it with our Secure Contact Key; see section E.1 for
-       details.)
+       details. Please _only_ use this for information that _needs_ to be
+       confidential.)
 
        Some people like to send mail in MS Word format. Please _don't_
        send us bug reports, or any other mail, as a Word document. Word
@@ -9149,7 +9171,7 @@ Appendix B: Feedback and bug reporting
 Appendix C: PuTTY Licence
 -------------------------
 
-       PuTTY is copyright 1997-2019 Simon Tatham.
+       PuTTY is copyright 1997-2020 Simon Tatham.
 
        Portions copyright Robert de Bath, Joris van Rantwijk, Delian
        Delchev, Andreas Schultz, Jeroen Massar, Wez Furlong, Nicolas Barry,
@@ -9947,4 +9969,4 @@ Appendix F: SSH-2 names specified for PuTTY
            These were used in drafts of what eventually became RFC 4345.
            They have been superseded by arcfour128 and arcfour256.
 
-[PuTTY release 0.73]
+[PuTTY release 0.74]

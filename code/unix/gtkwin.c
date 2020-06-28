@@ -131,6 +131,7 @@ struct GtkFrontend {
      */
     cairo_surface_t *surface;
 #endif
+    int backing_w, backing_h;
 #if GTK_CHECK_VERSION(2,0,0)
     GtkIMContext *imc;
 #endif
@@ -235,7 +236,7 @@ static void post_fatal_message_box(void *vctx, int result)
 static void common_connfatal_message_box(
     GtkFrontend *inst, const char *msg, post_dialog_fn_t postfn)
 {
-    char *title = dupcat(appname, " Fatal Error", NULL);
+    char *title = dupcat(appname, " Fatal Error");
     GtkWidget *dialog = create_message_box(
         inst->window, title, msg,
         string_width("REASONABLY LONG LINE OF TEXT FOR BASIC SANITY"),
@@ -661,7 +662,7 @@ gint delete_window(GtkWidget *widget, GdkEvent *event, GtkFrontend *inst)
          * case we'll just re-emphasise that one.
          */
         if (!find_and_raise_dialog(inst, DIALOG_SLOT_WARN_ON_CLOSE)) {
-            char *title = dupcat(appname, " Exit Confirmation", NULL);
+            char *title = dupcat(appname, " Exit Confirmation");
             GtkWidget *dialog = create_message_box(
                 inst->window, title,
                 "Are you sure you want to close this session?",
@@ -747,6 +748,14 @@ static void drawing_area_setup(GtkFrontend *inst, int width, int height)
     new_scale = 1;
 #endif
 
+    int new_backing_w = w * inst->font_width + 2*inst->window_border;
+    int new_backing_h = h * inst->font_height + 2*inst->window_border;
+    new_backing_w *= new_scale;
+    new_backing_h *= new_scale;
+
+    if (inst->backing_w != new_backing_w || inst->backing_h != new_backing_h)
+        inst->drawing_area_setup_needed = true;
+
     /*
      * This event might be spurious; some GTK setups have been known
      * to call it when nothing at all has changed. Check if we have
@@ -757,34 +766,28 @@ static void drawing_area_setup(GtkFrontend *inst, int width, int height)
 
     inst->drawing_area_setup_needed = false;
     inst->scale = new_scale;
-
-    {
-        int backing_w = w * inst->font_width + 2*inst->window_border;
-        int backing_h = h * inst->font_height + 2*inst->window_border;
-
-        backing_w *= inst->scale;
-        backing_h *= inst->scale;
+    inst->backing_w = new_backing_w;
+    inst->backing_h = new_backing_h;
 
 #ifndef NO_BACKING_PIXMAPS
-        if (inst->pixmap) {
-            gdk_pixmap_unref(inst->pixmap);
-            inst->pixmap = NULL;
-        }
+    if (inst->pixmap) {
+        gdk_pixmap_unref(inst->pixmap);
+        inst->pixmap = NULL;
+    }
 
-        inst->pixmap = gdk_pixmap_new(gtk_widget_get_window(inst->area),
-                                      backing_w, backing_h, -1);
+    inst->pixmap = gdk_pixmap_new(gtk_widget_get_window(inst->area),
+                                  inst->backing_w, inst->backing_h, -1);
 #endif
 
 #ifdef DRAW_TEXT_CAIRO
-        if (inst->surface) {
-            cairo_surface_destroy(inst->surface);
-            inst->surface = NULL;
-        }
-
-        inst->surface = cairo_image_surface_create(CAIRO_FORMAT_ARGB32,
-                                                   backing_w, backing_h);
-#endif
+    if (inst->surface) {
+        cairo_surface_destroy(inst->surface);
+        inst->surface = NULL;
     }
+
+    inst->surface = cairo_image_surface_create(
+        CAIRO_FORMAT_ARGB32, inst->backing_w, inst->backing_h);
+#endif
 
     draw_backing_rect(inst);
 
@@ -1080,8 +1083,7 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
                     char *old = state_string;
                     state_string = dupcat(state_string,
                                           state_string[0] ? "|" : "",
-                                          mod_bits[i].name,
-                                          (char *)NULL);
+                                          mod_bits[i].name);
                     sfree(old);
 
                     val &= ~mod_bits[i].mod_bit;
@@ -2180,21 +2182,26 @@ gboolean button_event(GtkWidget *widget, GdkEventButton *event, gpointer data)
 gboolean scroll_event(GtkWidget *widget, GdkEventScroll *event, gpointer data)
 {
     GtkFrontend *inst = (GtkFrontend *)data;
+    GdkScrollDirection dir;
 
 #if GTK_CHECK_VERSION(3,4,0)
     gdouble dx, dy;
     if (gdk_event_get_scroll_deltas((GdkEvent *)event, &dx, &dy)) {
         return scroll_internal(inst, dy, event->state, event->x, event->y);
-    } else
+    } else if (!gdk_event_get_scroll_direction((GdkEvent *)event, &dir)) {
         return false;
+    }
 #else
+    dir = event->direction;
+#endif
+
     guint button;
     GdkEventButton *event_button;
     gboolean ret;
 
-    if (event->direction == GDK_SCROLL_UP)
+    if (dir == GDK_SCROLL_UP)
         button = 4;
-    else if (event->direction == GDK_SCROLL_DOWN)
+    else if (dir == GDK_SCROLL_DOWN)
         button = 5;
     else
         return false;
@@ -2214,7 +2221,6 @@ gboolean scroll_event(GtkWidget *widget, GdkEventScroll *event, gpointer data)
     ret = button_internal(inst, event_button);
     gdk_event_free((GdkEvent *)event_button);
     return ret;
-#endif
 }
 #endif
 
@@ -4596,7 +4602,7 @@ void change_settings_menuitem(GtkMenuItem *item, gpointer data)
     if (find_and_raise_dialog(inst, DIALOG_SLOT_RECONFIGURE))
         return;
 
-    title = dupcat(appname, " Reconfiguration", NULL);
+    title = dupcat(appname, " Reconfiguration");
 
     ctx = snew(struct after_change_settings_dialog_ctx);
     ctx->inst = inst;
@@ -5489,7 +5495,7 @@ void new_session_window(Conf *conf, const char *geometry_string)
                    paste_clipboard_menuitem);
         MKMENUITEM("Copy All", copy_all_menuitem);
         MKSEP();
-        s = dupcat("About ", appname, NULL);
+        s = dupcat("About ", appname);
         MKMENUITEM(s, about_menuitem);
         sfree(s);
 #undef MKMENUITEM

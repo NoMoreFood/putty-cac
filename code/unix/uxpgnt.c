@@ -329,7 +329,7 @@ static char *askpass_tty(const char *prompt)
     p->to_server = false;
     p->from_server = false;
     p->name = dupstr("Pageant passphrase prompt");
-    add_prompt(p, dupcat(prompt, ": ", (const char *)NULL), false);
+    add_prompt(p, dupcat(prompt, ": "), false);
     ret = console_get_userpass_input(p);
     assert(ret >= 0);
 
@@ -338,7 +338,7 @@ static char *askpass_tty(const char *prompt)
         free_prompts(p);
         return NULL;
     } else {
-        char *passphrase = dupstr(p->prompts[0]->result);
+        char *passphrase = prompt_get_result(p->prompts[0]);
         free_prompts(p);
         return passphrase;
     }
@@ -1093,6 +1093,8 @@ int main(int argc, char **argv)
             return 1;
 
         puts(passphrase);
+        fflush(stdout);
+
         smemclr(passphrase, strlen(passphrase));
         sfree(passphrase);
         return 0;

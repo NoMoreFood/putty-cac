@@ -81,7 +81,7 @@
 #include "mpint.h"
 #include "ecc.h"
 
-static NORETURN void fatal_error(const char *p, ...)
+static NORETURN PRINTF_LIKE(1, 2) void fatal_error(const char *p, ...)
 {
     va_list ap;
     fprintf(stderr, "testsc: ");
@@ -160,7 +160,7 @@ VOLATILE_WRAPPED_DEFN(, void, log_to_file, (const char *filename))
 static const char *outdir = NULL;
 char *log_filename(const char *basename, size_t index)
 {
-    return dupprintf("%s/%s.%04zu", outdir, basename, index);
+    return dupprintf("%s/%s.%04"SIZEu, outdir, basename, index);
 }
 
 static char *last_filename;
@@ -1454,6 +1454,15 @@ int main(int argc, char **argv)
     if (is_dry_run) {
         printf("Dry run (DynamoRIO instrumentation not detected)\n");
     } else {
+        /* Print the address of main() in this run. The idea is that
+         * if this image is compiled to be position-independent, then
+         * PC values in the logs won't match the ones you get if you
+         * disassemble the binary, so it'll be harder to match up the
+         * log messages to the code. But if you know the address of a
+         * fixed (and not inlined) function in both worlds, you can
+         * find out the offset between them. */
+        printf("Live run, main = %p\n", (void *)main);
+
         if (!outdir) {
             fprintf(stderr, "expected -O <outdir> option\n");
             return 1;
@@ -1565,7 +1574,7 @@ int main(int argc, char **argv)
         printf("All tests passed\n");
         return 0;
     } else {
-        printf("%zu tests failed\n", nrun - npass);
+        printf("%"SIZEu" tests failed\n", nrun - npass);
         return 1;
     }
 }

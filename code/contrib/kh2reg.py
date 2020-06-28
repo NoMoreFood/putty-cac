@@ -73,8 +73,8 @@ class HMAC(object):
 def openssh_hashed_host_match(hashed_host, try_host):
     if hashed_host.startswith(b'|1|'):
         salt, expected = hashed_host[3:].split(b'|')
-        salt = base64.decodestring(salt)
-        expected = base64.decodestring(expected)
+        salt = base64.decodebytes(salt)
+        expected = base64.decodebytes(expected)
         mac = HMAC(hashlib.sha1, 64)
     else:
         return False # unrecognised magic number prefix
@@ -225,14 +225,14 @@ def handle_line(line, output_formatter, try_hosts):
             # Treat as SSH-1-type host key.
             # Format: hostpat bits10 exp10 mod10 comment...
             # (PuTTY doesn't store the number of bits.)
-            keyparams = map (int, fields[2:4])
+            keyparams = list(map(int, fields[2:4]))
             keytype = "rsa"
 
         else:
 
             # Treat as SSH-2-type host key.
             # Format: hostpat keytype keyblob64 comment...
-            sshkeytype, blob = fields[1], base64.decodestring(
+            sshkeytype, blob = fields[1], base64.decodebytes(
                 fields[2].encode("ASCII"))
 
             # 'blob' consists of a number of
@@ -259,12 +259,12 @@ def handle_line(line, output_formatter, try_hosts):
                 keytype = "rsa2"
                 # The rest of the subfields we can treat as an opaque list
                 # of bignums (same numbers and order as stored by PuTTY).
-                keyparams = map (strtoint, subfields[1:])
+                keyparams = list(map(strtoint, subfields[1:]))
 
             elif sshkeytype == "ssh-dss":
                 keytype = "dss"
                 # Same again.
-                keyparams = map (strtoint, subfields[1:])
+                keyparams = list(map(strtoint, subfields[1:]))
 
             elif sshkeytype in nist_curves:
                 keytype = sshkeytype

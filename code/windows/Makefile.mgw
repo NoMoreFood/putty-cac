@@ -471,10 +471,11 @@ errsock.o: ../errsock.c ../tree234.h ../putty.h ../network.h ../defs.h \
 fromucs.o: ../charset/fromucs.c ../charset/charset.h ../charset/internal.h
 	$(CC) $(COMPAT) $(CFLAGS) $(XFLAGS) -c ../charset/fromucs.c
 
-fuzzterm.o: ../fuzzterm.c ../putty.h ../terminal.h ../defs.h ../puttyps.h \
-		../network.h ../misc.h ../marshal.h ../sshsignals.h \
-		../tree234.h ../windows/winstuff.h ../unix/unix.h \
-		../puttymem.h ../windows/winhelp.h ../charset/charset.h
+fuzzterm.o: ../fuzzterm.c ../putty.h ../dialog.h ../terminal.h ../defs.h \
+		../puttyps.h ../network.h ../misc.h ../marshal.h \
+		../sshsignals.h ../tree234.h ../windows/winstuff.h \
+		../unix/unix.h ../puttymem.h ../windows/winhelp.h \
+		../charset/charset.h
 	$(CC) $(COMPAT) $(CFLAGS) $(XFLAGS) -c ../fuzzterm.c
 
 gtkapp.o: ../unix/gtkapp.c ../putty.h ../unix/gtkmisc.h ../defs.h \
@@ -1111,8 +1112,8 @@ sshrsag.o: ../sshrsag.c ../ssh.h ../mpint.h ../puttymem.h ../tree234.h \
 	$(CC) $(COMPAT) $(CFLAGS) $(XFLAGS) -c ../sshrsag.c
 
 sshserver.o: ../sshserver.c ../putty.h ../ssh.h ../sshbpp.h ../sshppl.h \
-		../sshserver.h ../sshgssc.h ../sshgss.h ../defs.h \
-		../puttyps.h ../network.h ../misc.h ../marshal.h \
+		../sshchan.h ../sshserver.h ../sshgssc.h ../sshgss.h \
+		../defs.h ../puttyps.h ../network.h ../misc.h ../marshal.h \
 		../sshsignals.h ../puttymem.h ../tree234.h ../sshttymodes.h \
 		../pgssapi.h ../windows/winstuff.h ../unix/unix.h \
 		../windows/winhelp.h ../charset/charset.h
@@ -1324,10 +1325,11 @@ uxpterm.o: ../unix/uxpterm.c ../putty.h ../defs.h ../puttyps.h ../network.h \
 		../windows/winhelp.h ../charset/charset.h
 	$(CC) $(COMPAT) $(CFLAGS) $(XFLAGS) -c ../unix/uxpterm.c
 
-uxpty.o: ../unix/uxpty.c ../putty.h ../ssh.h ../tree234.h ../sshttymodes.h \
-		../sshsignals.h ../defs.h ../puttyps.h ../network.h \
-		../misc.h ../marshal.h ../puttymem.h ../windows/winstuff.h \
-		../unix/unix.h ../windows/winhelp.h ../charset/charset.h
+uxpty.o: ../unix/uxpty.c ../putty.h ../ssh.h ../sshserver.h ../tree234.h \
+		../sshttymodes.h ../sshsignals.h ../defs.h ../puttyps.h \
+		../network.h ../misc.h ../marshal.h ../puttymem.h \
+		../windows/winstuff.h ../unix/unix.h ../windows/winhelp.h \
+		../charset/charset.h
 	$(CC) $(COMPAT) $(CFLAGS) $(XFLAGS) -c ../unix/uxpty.c
 
 uxputty.o: ../unix/uxputty.c ../putty.h ../storage.h ../unix/gtkcompat.h \

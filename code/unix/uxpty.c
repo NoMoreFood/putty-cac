@@ -25,6 +25,7 @@
 
 #include "putty.h"
 #include "ssh.h"
+#include "sshserver.h" /* to check the prototypes of server-needed things */
 #include "tree234.h"
 
 #ifndef OMIT_UTMP
@@ -205,6 +206,8 @@ static void setup_utmp(char *ttyname, char *location)
     struct timeval tv;
 
     pw = getpwuid(getuid());
+    if (!pw)
+        return; /* can't stamp utmp if we don't have a username */
     memset(&utmp_entry, 0, sizeof(utmp_entry));
     utmp_entry.ut_type = USER_PROCESS;
     utmp_entry.ut_pid = getpid();
@@ -889,6 +892,15 @@ Backend *pty_backend_create(
         pty->fds[i].pty = pty;
     }
 
+    if (pty_signal_pipe[0] < 0) {
+        if (pipe(pty_signal_pipe) < 0) {
+            perror("pipe");
+            exit(1);
+        }
+        cloexec(pty_signal_pipe[0]);
+        cloexec(pty_signal_pipe[1]);
+    }
+
     pty->seat = seat;
     pty->backend.vt = &pty_backend;
 
@@ -1134,7 +1146,7 @@ Backend *pty_backend_create(
             for (val = conf_get_str_strs(conf, CONF_environmt, NULL, &key);
                  val != NULL;
                  val = conf_get_str_strs(conf, CONF_environmt, key, &key)) {
-                char *varval = dupcat(key, "=", val, NULL);
+                char *varval = dupcat(key, "=", val);
                 putenv(varval);
                 /*
                  * We must not free varval, since putenv links it
@@ -1247,14 +1259,6 @@ Backend *pty_backend_create(
         add234(ptys_by_pid, pty);
     }
 
-    if (pty_signal_pipe[0] < 0) {
-        if (pipe(pty_signal_pipe) < 0) {
-            perror("pipe");
-            exit(1);
-        }
-        cloexec(pty_signal_pipe[0]);
-        cloexec(pty_signal_pipe[1]);
-    }
     pty_uxsel_setup(pty);
 
     return &pty->backend;
