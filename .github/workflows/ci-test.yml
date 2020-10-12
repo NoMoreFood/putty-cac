@@ -56,11 +56,11 @@ jobs:
                              # https://help.github.com/en/actions/reference/workflow-syntax-for-github-actions#jobsjob_idruns-on
 
     runs-on: windows-2019  # For a list of available runner types, refer to
-    defaults:
-      run:
-        shell: cmd
-        # %ComSpec% /D /E:ON /V:OFF /S /C "CALL "{0}"".
-        working-directory: packager
+#    defaults:
+#      run:
+#        shell: cmd
+#        # %ComSpec% /D /E:ON /V:OFF /S /C "CALL "{0}"".
+#        working-directory: packager
 
     env:
       Solution_Name: putty.sln                         # Replace with your solution name, i.e. MyWpfApp.sln.
@@ -104,4 +104,11 @@ jobs:
     # Create the app package by building and packaging the Windows Application Packaging project
     - name: run packager/build.cmd
       #run: cd packager & build.cmd
+      #run: |
+      #  cd packager
+      #  build.cmd
+      #shell: cmd
       run: build.cmd
+      shell: cmd
+      # %ComSpec% /D /E:ON /V:OFF /S /C "CALL "{0}"".
+      working-directory: packager
