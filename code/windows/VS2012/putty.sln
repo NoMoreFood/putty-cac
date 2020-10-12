@@ -1,0 +1,61 @@
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 2012
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "pageant", "pageant\pageant.vcxproj", "{27e8f930-2567-4fdc-82c1-0662af3cdf6d}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "plink", "plink\plink.vcxproj", "{4478087b-1dc8-4c3e-b624-13661de1947e}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "pscp", "pscp\pscp.vcxproj", "{26d200f3-250a-494f-aaa4-c992ec4345aa}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "psftp", "psftp\psftp.vcxproj", "{3caa8123-13fe-450d-bfe7-fcda524d6830}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "putty", "putty\putty.vcxproj", "{8f44624a-d188-4188-b9aa-5f99f20723e1}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "puttygen", "puttygen\puttygen.vcxproj", "{617b1bef-aa10-42b4-8f69-4c183bc1ec0f}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "puttytel", "puttytel\puttytel.vcxproj", "{b7dd98ff-b336-4d23-9c07-e5fa7a9f3130}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "testcrypt", "testcrypt\testcrypt.vcxproj", "{232ff6d5-a626-4562-977c-2ab72baa29fd}"
+EndProject
+Global
+    GlobalSection(SolutionConfigurationPlatforms) = preSolution
+        Debug|Win32 = Debug|Win32
+        Release|Win32 = Release|Win32
+    EndGlobalSection
+    GlobalSection(ProjectConfigurationPlatforms) = postSolution
+        {3caa8123-13fe-450d-bfe7-fcda524d6830}.Debug|Win32.ActiveCfg = Debug|Win32
+        {3caa8123-13fe-450d-bfe7-fcda524d6830}.Debug|Win32.Build.0 = Debug|Win32
+        {3caa8123-13fe-450d-bfe7-fcda524d6830}.Release|Win32.ActiveCfg = Release|Win32
+        {3caa8123-13fe-450d-bfe7-fcda524d6830}.Release|Win32.Build.0 = Release|Win32
+        {b7dd98ff-b336-4d23-9c07-e5fa7a9f3130}.Debug|Win32.ActiveCfg = Debug|Win32
+        {b7dd98ff-b336-4d23-9c07-e5fa7a9f3130}.Debug|Win32.Build.0 = Debug|Win32
+        {b7dd98ff-b336-4d23-9c07-e5fa7a9f3130}.Release|Win32.ActiveCfg = Release|Win32
+        {b7dd98ff-b336-4d23-9c07-e5fa7a9f3130}.Release|Win32.Build.0 = Release|Win32
+        {26d200f3-250a-494f-aaa4-c992ec4345aa}.Debug|Win32.ActiveCfg = Debug|Win32
+        {26d200f3-250a-494f-aaa4-c992ec4345aa}.Debug|Win32.Build.0 = Debug|Win32
+        {26d200f3-250a-494f-aaa4-c992ec4345aa}.Release|Win32.ActiveCfg = Release|Win32
+        {26d200f3-250a-494f-aaa4-c992ec4345aa}.Release|Win32.Build.0 = Release|Win32
+        {27e8f930-2567-4fdc-82c1-0662af3cdf6d}.Debug|Win32.ActiveCfg = Debug|Win32
+        {27e8f930-2567-4fdc-82c1-0662af3cdf6d}.Debug|Win32.Build.0 = Debug|Win32
+        {27e8f930-2567-4fdc-82c1-0662af3cdf6d}.Release|Win32.ActiveCfg = Release|Win32
+        {27e8f930-2567-4fdc-82c1-0662af3cdf6d}.Release|Win32.Build.0 = Release|Win32
+        {232ff6d5-a626-4562-977c-2ab72baa29fd}.Debug|Win32.ActiveCfg = Debug|Win32
+        {232ff6d5-a626-4562-977c-2ab72baa29fd}.Debug|Win32.Build.0 = Debug|Win32
+        {232ff6d5-a626-4562-977c-2ab72baa29fd}.Release|Win32.ActiveCfg = Release|Win32
+        {232ff6d5-a626-4562-977c-2ab72baa29fd}.Release|Win32.Build.0 = Release|Win32
+        {8f44624a-d188-4188-b9aa-5f99f20723e1}.Debug|Win32.ActiveCfg = Debug|Win32
+        {8f44624a-d188-4188-b9aa-5f99f20723e1}.Debug|Win32.Build.0 = Debug|Win32
+        {8f44624a-d188-4188-b9aa-5f99f20723e1}.Release|Win32.ActiveCfg = Release|Win32
+        {8f44624a-d188-4188-b9aa-5f99f20723e1}.Release|Win32.Build.0 = Release|Win32
+        {617b1bef-aa10-42b4-8f69-4c183bc1ec0f}.Debug|Win32.ActiveCfg = Debug|Win32
+        {617b1bef-aa10-42b4-8f69-4c183bc1ec0f}.Debug|Win32.Build.0 = Debug|Win32
+        {617b1bef-aa10-42b4-8f69-4c183bc1ec0f}.Release|Win32.ActiveCfg = Release|Win32
+        {617b1bef-aa10-42b4-8f69-4c183bc1ec0f}.Release|Win32.Build.0 = Release|Win32
+        {4478087b-1dc8-4c3e-b624-13661de1947e}.Debug|Win32.ActiveCfg = Debug|Win32
+        {4478087b-1dc8-4c3e-b624-13661de1947e}.Debug|Win32.Build.0 = Debug|Win32
+        {4478087b-1dc8-4c3e-b624-13661de1947e}.Release|Win32.ActiveCfg = Release|Win32
+        {4478087b-1dc8-4c3e-b624-13661de1947e}.Release|Win32.Build.0 = Release|Win32
+    EndGlobalSection
+    GlobalSection(SolutionProperties) = preSolution
+        HideSolutionNode = FALSE
+    EndGlobalSection
+EndGlobal
