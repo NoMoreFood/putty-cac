@@ -1,5 +1,6 @@
 @ECHO OFF
-IF x%Configuration%=xDebug ECHO ON
+IF /I NOT "%Configuration%"=="Release" ECHO ON
+::IF x%Configuration%=xDebug ECHO ON
 TITLE Building PuTTY-CAC
 
 :: version information
