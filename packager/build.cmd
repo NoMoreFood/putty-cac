@@ -19,9 +19,10 @@ SET BINDIR=%INSTDIR%\..\binaries
 
 
 :: determine if runnig in CONTINUOUS_INTEGRATION
-IF DEFINED CI SET CI=true
-IF DEFINED TRAVIS SET CI=true
-IF DEFINED CONTINUOUS_INTEGRATION SET CI=true
+IF DEFINED CI SET CIrun=true
+IF DEFINED GITHUB_ACTIONS SET CIrun=true
+IF DEFINED TRAVIS SET CIrun=true
+IF DEFINED CONTINUOUS_INTEGRATION SET CIrun=true
 
 :: determine 32-bit program files directory
 IF DEFINED ProgramFiles SET PX86=%ProgramFiles%
@@ -40,8 +41,8 @@ FOR %%X IN (Win32 x64 Debug Release Temp .vs) DO (
 FORFILES /S /P "%BINDIR%" /M "*.*" /C "CMD /C IF /I @ext NEQ """exe""" DEL /Q @file"
 
 :: sign the main executables
-IF NOT DEFINED CI signtool sign /sha1 %CERT% /fd sha1 /tr %TSAURL% /td sha1 /d %LIBNAME% /du %LIBURL% "%BINDIR%\x86\*.exe" "%BINDIR%\x64\*.exe" 
-IF NOT DEFINED CI signtool sign /sha1 %CERT% /as /fd sha256 /tr %TSAURL% /td sha256 /d %LIBNAME% /du %LIBURL% "%BINDIR%\x86\*.exe" "%BINDIR%\x64\*.exe" 
+IF NOT DEFINED CIrun signtool sign /sha1 %CERT% /fd sha1 /tr %TSAURL% /td sha1 /d %LIBNAME% /du %LIBURL% "%BINDIR%\x86\*.exe" "%BINDIR%\x64\*.exe" 
+IF NOT DEFINED CIrun signtool sign /sha1 %CERT% /as /fd sha256 /tr %TSAURL% /td sha256 /d %LIBNAME% /du %LIBURL% "%BINDIR%\x86\*.exe" "%BINDIR%\x64\*.exe" 
 
 :: copy prereqs from build dir and 'real' installer
 MKDIR "%BASEDIR%\build"
