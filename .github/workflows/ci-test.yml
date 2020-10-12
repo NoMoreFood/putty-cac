@@ -112,3 +112,11 @@ jobs:
       shell: cmd
       # %ComSpec% /D /E:ON /V:OFF /S /C "CALL "{0}"".
       working-directory: packager
+
+    # Upload the MSIX package: https://github.com/marketplace/actions/upload-artifact
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v2
+      with:
+        name: Package
+        path: binaries/
+        #path: ${{ env.Wap_Project_Directory }}\AppPackages
