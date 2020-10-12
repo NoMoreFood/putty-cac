@@ -1,4 +1,5 @@
 @ECHO OFF
+IF x%Configuration%=xDebug ECHO ON
 TITLE Building PuTTY-CAC
 
 :: version information
@@ -16,7 +17,6 @@ SET INSTDIR=%~dp0
 SET INSTDIR=%INSTDIR:~0,-1%
 SET BASEDIR=%INSTDIR%\..\code
 SET BINDIR=%INSTDIR%\..\binaries
-
 
 :: determine if runnig in CONTINUOUS_INTEGRATION
 IF DEFINED CI SET CIrun=true
