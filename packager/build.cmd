@@ -75,10 +75,13 @@ POPD
 
 :: output hash information
 SET HASHFILE=%BINDIR%\puttycac-hash.txt
+SET HASHFILEgnuCORE=%BINDIR%\puttycac-hash.sha256
 IF EXIST "%HASHFILE%" DEL /F "%HASHFILE%"
 POWERSHELL -NoProfile -NonInteractive -NoLogo -Command "Get-ChildItem -Include @('*.msi','*.exe','*.zip') -Path '%BINDIR%' -Recurse | Get-FileHash -Algorithm SHA256 | Out-File -Append '%HASHFILE%' -Width 256"
 POWERSHELL -NoProfile -NonInteractive -NoLogo -Command "Get-ChildItem -Include @('*.msi','*.exe','*.zip') -Path '%BINDIR%' -Recurse | Get-FileHash -Algorithm SHA1 | Out-File -Append '%HASHFILE%' -Width 256"
 POWERSHELL -NoProfile -NonInteractive -NoLogo -Command "Get-ChildItem -Include @('*.msi','*.exe','*.zip') -Path '%BINDIR%' -Recurse | Get-FileHash -Algorithm MD5 | Out-File -Append '%HASHFILE%' -Width 256"
 POWERSHELL -NoProfile -NonInteractive -NoLogo -Command "$Data = Get-Content '%HASHFILE%'; $Data.Replace((Get-Item -LiteralPath '%BINDIR%').FullName + '\','').Trim() | Set-Content '%HASHFILE%'"
+:: output hash information in sha256sum formart
+POWERSHELL -NoProfile -NonInteractive -NoLogo -Command "Get-ChildItem -Include @('*.msi','*.exe','*.zip') -Path '%BINDIR%' -Recurse | Get-FileHash -Algorithm SHA256 | Format-Table @{Label='Hash'; Expression={$_.Hash.ToLower()}}, @{Label='File'; Expression={$_.Path.Replace((Get-Item -LiteralPath '%BINDIR%').FullName + '\','*').Trim()}} -AutoSize -HideTableHeaders"
 
 PAUSE
