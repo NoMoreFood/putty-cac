@@ -22,6 +22,7 @@ IF DEFINED ProgramFiles SET PX86=%ProgramFiles%
 IF DEFINED ProgramFiles(x86) SET PX86=%ProgramFiles(x86)%
 
 :: setup paths
+SET PATHorg=%PATH%
 SET PATH=%WINDIR%\system32;%WINDIR%\system32\WindowsPowerShell\v1.0
 SET PATH=%PATH%;%PX86%\Windows Kits\10\bin\10.0.18362.0\x64
 SET PATH=%PATH%;%PX86%\Windows Kits\8.1\bin\x64
@@ -179,7 +180,6 @@ goto :eof
 :_2dos_main
 
 :doHASHmain
-echo on
 SETLOCAL
 IF EXIST "%HASHFILE%.hashsums" DEL /F "%HASHFILE%.hashsums"
 
@@ -212,5 +212,9 @@ type "%HASHFILE%.%HASHALG%sum" >> "%HASHFILE%.hashsums"
 ENDLOCAL
 goto :doHASHeof
 :doHASHeof
+
+:: restore paths
+SET PATH=%PATHorg%
+
 
 PAUSE

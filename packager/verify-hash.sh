@@ -24,11 +24,11 @@ shasum -c *.sha1sum
 shasum -c *.sha256sum
 shasum -c *.sha512sum
 
-rhash --verbose -c %PREFIX%.md5sum
-rhash --verbose -c %PREFIX%.sha1sum
-rhash --verbose -c %PREFIX%.sha256sum
-rhash --verbose -c %PREFIX%.sha512sum
-rhash --verbose -c %PREFIX%.hashsums
+rhash --verbose -c *.md5sum
+rhash --verbose -c *.sha1sum
+rhash --verbose -c *.sha256sum
+rhash --verbose -c *.sha512sum
+rhash --verbose -c *.hashsums
 
 echo now some tests will fail:
 shasum -c *.hashsums
