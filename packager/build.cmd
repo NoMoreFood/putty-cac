@@ -84,4 +84,136 @@ POWERSHELL -NoProfile -NonInteractive -NoLogo -Command "$Data = Get-Content '%HA
 :: output hash information in sha256sum formart
 POWERSHELL -NoProfile -NonInteractive -NoLogo -Command "Get-ChildItem -Include @('*.msi','*.exe','*.zip') -Path '%BINDIR%' -Recurse | Get-FileHash -Algorithm SHA256 | Format-Table @{Label='Hash'; Expression={$_.Hash.ToLower()}}, @{Label='File'; Expression={$_.Path.Replace((Get-Item -LiteralPath '%BINDIR%').FullName + '\','*').Trim()}} -AutoSize -HideTableHeaders"
 
+goto :doHASHmain
+:doHASH
+   SETLOCAL
+   set _HASHALG=%1
+   set _BINDIR=%2
+   set _HASHFILE=%3
+   IF EXIST "%_HASHFILE%" DEL /F "%_HASHFILE%"
+
+:: 80% working but not easy to read:: POWERSHELL -NoProfile -NonInteractive -NoLogo -Command "Get-ChildItem -Include @('*.msi','*.exe','*.zip') -Path '%_BINDIR%' -Recurse | Get-FileHash -Algorithm '%_HASHALG%' | Format-Table @{Label='Hash'; Expression={$_.Hash.ToLower()}}, @{Label='File'; Expression={$_.Path.Replace((Get-Item -LiteralPath '%_BINDIR%').FullName + '\','*').Trim()}} -HideTableHeaders | Out-File -Encoding ASCII -Append '%_HASHFILE%' -Width 512 "
+
+   POWERSHELL -NoProfile -NonInteractive -NoLogo -Command "Get-ChildItem -Include @('*.msi','*.exe','*.zip') -Path '%_BINDIR%' -Recurse | Get-FileHash -Algorithm '%_HASHALG%' | Format-Table @{Label='Hash'; Expression={$_.Hash.ToLower()}}, Path -HideTableHeaders | Out-File -Encoding ASCII -Append '%_HASHFILE%' -Width 512"
+   POWERSHELL -NoProfile -NonInteractive -NoLogo -Command "$Data = Get-Content '%_HASHFILE%'; $Data.Replace((Get-Item -LiteralPath '%_BINDIR%').FullName + '\','*').Trim() | Set-Content '%_HASHFILE%'"
+
+   :: replace \ with / form output
+   ::echo "replace \ with / form output"
+   ::POWERSHELL -NoProfile -NonInteractive -NoLogo -Command "(gc '%_HASHFILE%').Replace('\','/').Trim() | set-content '%_HASHFILE%'"
+   POWERSHELL -NoProfile -NonInteractive -NoLogo -Command "(gc '%_HASHFILE%').Replace('\','/') | set-content '%_HASHFILE%'"
+
+   :: remove Leading and Trailing Spaces form output
+   ::echo "remove Leading and Trailing Spaces form output"
+   ::POWERSHELL -NoProfile -NonInteractive -NoLogo -Command "(gc '%_HASHFILE%').trim() | set-content '%_HASHFILE%'"
+
+   :: remove empty lines and Leading and Trailing Spaces form output
+   ::echo "remove empty lines and Leading and Trailing Spaces form output"
+   ::POWERSHELL -NoProfile -NonInteractive -NoLogo -Command "(gc '%_HASHFILE%').trim() | where {$_ -ne ''} | set-content '%_HASHFILE%'"
+   
+   :: remove empty lines
+   ::echo "remove empty lines"
+   POWERSHELL -NoProfile -NonInteractive -NoLogo -Command "(gc '%_HASHFILE%') | where {$_ -ne ''} | set-content '%_HASHFILE%'"
+
+   :: 2unix / dos2unix output
+   CALL :_2unix %_HASHFILE%
+ENDLOCAL & SET _result=%_var2% & EXIT /B
+goto :eof
+
+
+
+goto :_2dos_main
+:_2dos
+SETLOCAL
+CALL :_dos2unix %1
+CALL :_mac2unix %1
+CALL :_unix2dos %1
+ENDLOCAL & SET _result=%_var2% & EXIT /B
+goto :eof
+
+:_2unix
+SETLOCAL
+CALL :_dos2unix %1
+CALL :_mac2unix %1
+ENDLOCAL & SET _result=%_var2% & EXIT /B
+goto :eof
+
+:_2mac
+SETLOCAL
+CALL :_dos2unix %1
+CALL :_unix2mac %1
+ENDLOCAL & SET _result=%_var2% & EXIT /B
+goto :eof
+
+
+
+:_dos2unix
+:: dos2unix, powershell => v2
+   SETLOCAL
+   set _HASHFILE=%1
+   POWERSHELL -NoProfile -NonInteractive -NoLogo -Command "$original_file =(Convert-Path %_HASHFILE%) ; $text = [IO.File]::ReadAllText($original_file) -replace \"`r`n\", \"`n\" ; [IO.File]::WriteAllText($original_file, $text)"
+ENDLOCAL & SET _result=%_var2% & EXIT /B
+goto :eof
+
+:_unix2dos
+:: unix2dos, powershell => v2
+   SETLOCAL
+   set _HASHFILE=%1
+   POWERSHELL -NoProfile -NonInteractive -NoLogo -Command "$original_file =(Convert-Path %_HASHFILE%) ; $text = [IO.File]::ReadAllText($original_file) -replace \"`n\", \"`r`n\" ; [IO.File]::WriteAllText($original_file, $text)"
+ENDLOCAL & SET _result=%_var2% & EXIT /B
+goto :eof
+
+:_unix2mac
+:: unix2mac, powershell => v2
+   SETLOCAL
+   set _HASHFILE=%1
+   POWERSHELL -NoProfile -NonInteractive -NoLogo -Command "$original_file =(Convert-Path %_HASHFILE%) ; $text = [IO.File]::ReadAllText($original_file) -replace \"`n\", \"`r\" ; [IO.File]::WriteAllText($original_file, $text)"
+ENDLOCAL & SET _result=%_var2% & EXIT /B
+goto :eof
+
+:_mac2unix
+:: mac2unix, powershell => v2
+   SETLOCAL
+   set _HASHFILE=%1
+   POWERSHELL -NoProfile -NonInteractive -NoLogo -Command "$original_file =(Convert-Path %_HASHFILE%) ; $text = [IO.File]::ReadAllText($original_file) -replace \"`r\", \"`n\" ; [IO.File]::WriteAllText($original_file, $text)"
+ENDLOCAL & SET _result=%_var2% & EXIT /B
+goto :eof
+
+
+:_2dos_main
+
+:doHASHmain
+echo on
+SETLOCAL
+IF EXIST "%HASHFILE%.hashsums" DEL /F "%HASHFILE%.hashsums"
+
+set "HASHALG=sha512"
+CALL :doHASH "%HASHALG%" "%BINDIR%" "%HASHFILE%.%HASHALG%sum"
+::CALL :doHASH "%HASHALG%" "%BINDIR%" %HASHFILE%.%HASHALG%sum
+echo # %HASHALG%>> "%HASHFILE%.hashsums"
+type "%HASHFILE%.%HASHALG%sum" >> "%HASHFILE%.hashsums"
+
+set "HASHALG=sha256"
+CALL :doHASH "%HASHALG%" "%BINDIR%" "%HASHFILE%.%HASHALG%sum"
+::CALL :doHASH "%HASHALG%" "%BINDIR%" %HASHFILE%.%HASHALG%sum
+echo # %HASHALG%>> "%HASHFILE%.hashsums"
+type "%HASHFILE%.%HASHALG%sum" >> "%HASHFILE%.hashsums"
+
+set "HASHALG=sha1"
+CALL :doHASH "%HASHALG%" "%BINDIR%" "%HASHFILE%.%HASHALG%sum"
+::CALL :doHASH "%HASHALG%" "%BINDIR%" %HASHFILE%.%HASHALG%sum
+echo # %HASHALG%>> "%HASHFILE%.hashsums"
+type "%HASHFILE%.%HASHALG%sum" >> "%HASHFILE%.hashsums"
+
+set "HASHALG=md5"
+CALL :doHASH "%HASHALG%" "%BINDIR%" "%HASHFILE%.%HASHALG%sum"
+::CALL :doHASH "%HASHALG%" "%BINDIR%" %HASHFILE%.%HASHALG%sum
+echo # %HASHALG%>> "%HASHFILE%.hashsums"
+type "%HASHFILE%.%HASHALG%sum" >> "%HASHFILE%.hashsums"
+
+:: 2unix / dos2unix "%HASHFILE%.hashsums"
+   CALL :_2unix %HASHFILE%.hashsums
+ENDLOCAL
+goto :doHASHeof
+:doHASHeof
+
 PAUSE
