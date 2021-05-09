@@ -306,12 +306,19 @@
     <ClCompile Include="..\..\..\import.c" />
     <ClCompile Include="..\..\..\marshal.c" />
     <ClCompile Include="..\..\..\memory.c" />
+    <ClCompile Include="..\..\..\millerrabin.c" />
     <ClCompile Include="..\..\..\misc.c" />
     <ClCompile Include="..\..\..\mpint.c" />
+    <ClCompile Include="..\..\..\mpunsafe.c" />
     <ClCompile Include="..\..\..\notiming.c" />
+    <ClCompile Include="..\..\..\pockle.c" />
+    <ClCompile Include="..\..\..\primecandidate.c" />
+    <ClCompile Include="..\..\..\smallprimes.c" />
     <ClCompile Include="..\..\..\sshaes.c" />
+    <ClCompile Include="..\..\..\sshargon2.c" />
     <ClCompile Include="..\..\..\sshauxcrypt.c" />
     <ClCompile Include="..\..\..\sshbcrypt.c" />
+    <ClCompile Include="..\..\..\sshblake2.c" />
     <ClCompile Include="..\..\..\sshblowf.c" />
     <ClCompile Include="..\..\..\sshdes.c" />
     <ClCompile Include="..\..\..\sshdss.c" />
@@ -329,6 +336,7 @@
     <ClCompile Include="..\..\..\sshsh256.c" />
     <ClCompile Include="..\..\..\sshsh512.c" />
     <ClCompile Include="..\..\..\sshsha.c" />
+    <ClCompile Include="..\..\..\sshsha3.c" />
     <ClCompile Include="..\..\..\stripctrl.c" />
     <ClCompile Include="..\..\..\tree234.c" />
     <ClCompile Include="..\..\..\utils.c" />

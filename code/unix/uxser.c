@@ -63,14 +63,15 @@ static void serial_select_result(int fd, int event);
 static void serial_uxsel_setup(Serial *serial);
 static void serial_try_write(Serial *serial);
 
-static const char *serial_configure(Serial *serial, Conf *conf)
+static char *serial_configure(Serial *serial, Conf *conf)
 {
     struct termios options;
     int bflag, bval, speed, flow, parity;
     const char *str;
 
     if (serial->fd < 0)
-        return "Unable to reconfigure already-closed serial connection";
+        return dupstr("Unable to reconfigure already-closed "
+                      "serial connection");
 
     tcgetattr(serial->fd, &options);
 
@@ -189,7 +190,8 @@ static const char *serial_configure(Serial *serial, Conf *conf)
       case 6: options.c_cflag |= CS6; break;
       case 7: options.c_cflag |= CS7; break;
       case 8: options.c_cflag |= CS8; break;
-      default: return "Invalid number of data bits (need 5, 6, 7 or 8)";
+      default: return dupstr("Invalid number of data bits "
+                             "(need 5, 6, 7 or 8)");
     }
     logeventf(serial->logctx, "Configuring %d data bits",
               conf_get_int(conf, CONF_serdatabits));
@@ -266,7 +268,7 @@ static const char *serial_configure(Serial *serial, Conf *conf)
     options.c_cc[VTIME] = 0;
 
     if (tcsetattr(serial->fd, TCSANOW, &options) < 0)
-        return "Unable to configure serial port";
+        return dupprintf("Configuring serial port: %s", strerror(errno));
 
     return NULL;
 }
@@ -279,20 +281,20 @@ static const char *serial_configure(Serial *serial, Conf *conf)
  * Also places the canonical host name into `realhost'. It must be
  * freed by the caller.
  */
-static const char *serial_init(Seat *seat, Backend **backend_handle,
-                               LogContext *logctx, Conf *conf,
-                               const char *host, int port, char **realhost,
-                               bool nodelay, bool keepalive)
+static char *serial_init(const BackendVtable *vt, Seat *seat,
+                         Backend **backend_handle, LogContext *logctx,
+                         Conf *conf, const char *host, int port,
+                         char **realhost, bool nodelay, bool keepalive)
 {
     Serial *serial;
-    const char *err;
+    char *err;
     char *line;
 
     /* No local authentication phase in this protocol */
     seat_set_trust_status(seat, false);
 
     serial = snew(Serial);
-    serial->backend.vt = &serial_backend;
+    serial->backend.vt = vt;
     *backend_handle = &serial->backend;
 
     serial->seat = seat;
@@ -306,7 +308,8 @@ static const char *serial_init(Seat *seat, Backend **backend_handle,
 
     serial->fd = open(line, O_RDWR | O_NOCTTY | O_NDELAY | O_NONBLOCK);
     if (serial->fd < 0)
-        return "Unable to open serial port";
+        return dupprintf("Opening serial port '%s': %s",
+                         line, strerror(errno));
 
     cloexec(serial->fd);
 
@@ -354,10 +357,14 @@ static void serial_reconfig(Backend *be, Conf *conf)
 {
     Serial *serial = container_of(be, Serial, backend);
 
-    /*
-     * FIXME: what should we do if this returns an error?
-     */
-    serial_configure(serial, conf);
+    char *err = serial_configure(serial, conf);
+    if (err) {
+        /*
+         * FIXME: apart from freeing the dynamically allocated
+         * message, what should we do if this returns an error?
+         */
+        sfree(err);
+    }
 }
 
 static void serial_select_result(int fd, int event)
@@ -560,24 +567,29 @@ static int serial_cfg_info(Backend *be)
     return 0;
 }
 
-const struct BackendVtable serial_backend = {
-    serial_init,
-    serial_free,
-    serial_reconfig,
-    serial_send,
-    serial_sendbuffer,
-    serial_size,
-    serial_special,
-    serial_get_specials,
-    serial_connected,
-    serial_exitcode,
-    serial_sendok,
-    serial_ldisc,
-    serial_provide_ldisc,
-    serial_unthrottle,
-    serial_cfg_info,
-    NULL /* test_for_upstream */,
-    "serial",
-    PROT_SERIAL,
-    0
+const BackendVtable serial_backend = {
+    .init = serial_init,
+    .free = serial_free,
+    .reconfig = serial_reconfig,
+    .send = serial_send,
+    .sendbuffer = serial_sendbuffer,
+    .size = serial_size,
+    .special = serial_special,
+    .get_specials = serial_get_specials,
+    .connected = serial_connected,
+    .exitcode = serial_exitcode,
+    .sendok = serial_sendok,
+    .ldisc_option_state = serial_ldisc,
+    .provide_ldisc = serial_provide_ldisc,
+    .unthrottle = serial_unthrottle,
+    .cfg_info = serial_cfg_info,
+    .id = "serial",
+    .displayname = "Serial",
+    .protocol = PROT_SERIAL,
+    .serial_parity_mask = ((1 << SER_PAR_NONE) |
+                           (1 << SER_PAR_ODD) |
+                           (1 << SER_PAR_EVEN)),
+    .serial_flow_mask =   ((1 << SER_FLOW_NONE) |
+                           (1 << SER_FLOW_XONXOFF) |
+                           (1 << SER_FLOW_RTSCTS)),
 };

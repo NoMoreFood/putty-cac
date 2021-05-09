@@ -11,10 +11,11 @@
 
 #include <sys/types.h>
 #include <sys/wait.h>
+#include <sys/stat.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <termios.h>
 
-#define PUTTY_DO_GLOBALS               /* actually _define_ globals */
 #include "putty.h"
 #include "ssh.h"
 #include "misc.h"
@@ -29,23 +30,139 @@ void cmdline_error(const char *fmt, ...)
     exit(1);
 }
 
-FILE *pageant_logfp = NULL;
-void pageant_log(void *ctx, const char *fmt, va_list ap)
+static void setup_sigchld_handler(void);
+
+typedef enum RuntimePromptType {
+    RTPROMPT_UNAVAILABLE,
+    RTPROMPT_DEBUG,
+    RTPROMPT_GUI,
+} RuntimePromptType;
+
+static const char *progname;
+
+struct uxpgnt_client {
+    FILE *logfp;
+    strbuf *prompt_buf;
+    RuntimePromptType prompt_type;
+    bool prompt_active;
+    PageantClientDialogId *dlgid;
+    int passphrase_fd;
+    int termination_pid;
+
+    PageantListenerClient plc;
+};
+
+static void uxpgnt_log(PageantListenerClient *plc, const char *fmt, va_list ap)
 {
-    if (!pageant_logfp)
+    struct uxpgnt_client *upc = container_of(plc, struct uxpgnt_client, plc);
+
+    if (!upc->logfp)
         return;
 
-    fprintf(pageant_logfp, "pageant: ");
-    vfprintf(pageant_logfp, fmt, ap);
-    fprintf(pageant_logfp, "\n");
+    fprintf(upc->logfp, "pageant: ");
+    vfprintf(upc->logfp, fmt, ap);
+    fprintf(upc->logfp, "\n");
 }
 
-/*
- * In Pageant our selects are synchronous, so these functions are
- * empty stubs.
- */
-uxsel_id *uxsel_input_add(int fd, int rwx) { return NULL; }
-void uxsel_input_remove(uxsel_id *id) { }
+static int make_pipe_to_askpass(const char *msg)
+{
+    int pipefds[2];
+
+    setup_sigchld_handler();
+
+    if (pipe(pipefds) < 0)
+        return -1;
+
+    pid_t pid = fork();
+    if (pid < 0) {
+        close(pipefds[0]);
+        close(pipefds[1]);
+        return -1;
+    }
+
+    if (pid == 0) {
+        const char *args[5] = {
+            progname, "--gui-prompt", "--askpass", msg, NULL
+        };
+
+        dup2(pipefds[1], 1);
+        cloexec(pipefds[0]);
+        cloexec(pipefds[1]);
+
+        /*
+         * See comment in fork_and_exec_self() in gtkmain.c.
+         */
+        execv("/proc/self/exe", (char **)args);
+        execvp(progname, (char **)args);
+        perror("exec");
+        _exit(127);
+    }
+
+    close(pipefds[1]);
+    return pipefds[0];
+}
+
+static bool uxpgnt_ask_passphrase(
+    PageantListenerClient *plc, PageantClientDialogId *dlgid,
+    const char *comment)
+{
+    struct uxpgnt_client *upc = container_of(plc, struct uxpgnt_client, plc);
+
+    assert(!upc->dlgid); /* Pageant core should be serialising requests */
+
+    char *msg = dupprintf(
+        "A client of Pageant wants to use the following encrypted key:\n"
+        "%s\n"
+        "If you intended this, enter the passphrase to decrypt the key.",
+        comment);
+
+    switch (upc->prompt_type) {
+      case RTPROMPT_UNAVAILABLE:
+        sfree(msg);
+        return false;
+
+      case RTPROMPT_GUI:
+        upc->passphrase_fd = make_pipe_to_askpass(msg);
+        sfree(msg);
+        if (upc->passphrase_fd < 0)
+            return false; /* something went wrong */
+        break;
+
+      case RTPROMPT_DEBUG:
+        fprintf(upc->logfp, "pageant passphrase request: %s\n", msg);
+        sfree(msg);
+        break;
+    }
+
+    upc->prompt_active = true;
+    upc->dlgid = dlgid;
+    return true;
+}
+
+static void passphrase_done(struct uxpgnt_client *upc, bool success)
+{
+    PageantClientDialogId *dlgid = upc->dlgid;
+    upc->dlgid = NULL;
+    upc->prompt_active = false;
+
+    if (upc->logfp)
+        fprintf(upc->logfp, "pageant passphrase response: %s\n",
+                success ? "success" : "failure");
+
+    if (success)
+        pageant_passphrase_request_success(
+            dlgid, ptrlen_from_strbuf(upc->prompt_buf));
+    else
+        pageant_passphrase_request_refused(dlgid);
+
+    strbuf_free(upc->prompt_buf);
+    upc->prompt_buf = strbuf_new_nm();
+}
+
+static const PageantListenerClientVtable uxpgnt_vtable = {
+    .log = uxpgnt_log,
+    .ask_passphrase = uxpgnt_ask_passphrase,
+};
 
 /*
  * More stubs.
@@ -66,14 +183,16 @@ static void usage(void)
 {
     printf("Pageant: SSH agent\n");
     printf("%s\n", ver);
-    printf("Usage: pageant <lifetime> [key files]\n");
-    printf("       pageant [key files] --exec <command> [args]\n");
-    printf("       pageant -a [key files]\n");
+    printf("Usage: pageant <lifetime> [[--encrypted] key files]\n");
+    printf("       pageant [[--encrypted] key files] --exec <command> [args]\n");
+    printf("       pageant -a [--encrypted] [key files]\n");
     printf("       pageant -d [key identifiers]\n");
+    printf("       pageant -D\n");
+    printf("       pageant -r [key identifiers]\n");
+    printf("       pageant -R\n");
     printf("       pageant --public [key identifiers]\n");
     printf("       pageant ( --public-openssh | -L ) [key identifiers]\n");
-    printf("       pageant -l\n");
-    printf("       pageant -D\n");
+    printf("       pageant -l [-E fptype]\n");
     printf("Lifetime options, for running Pageant as an agent:\n");
     printf("  -X           run with the lifetime of the X server\n");
     printf("  -T           run with the lifetime of the controlling tty\n");
@@ -87,11 +206,16 @@ static void usage(void)
     printf("  --public-openssh, -L   print public keys in OpenSSH format\n");
     printf("  -d           delete key(s) from the agent\n");
     printf("  -D           delete all keys from the agent\n");
+    printf("  -r           re-encrypt keys in the agent (forget cleartext\n");
+    printf("  -R           re-encrypt all possible keys in the agent\n");
     printf("Other options:\n");
     printf("  -v           verbose mode (in agent mode)\n");
     printf("  -s -c        force POSIX or C shell syntax (in agent mode)\n");
-    printf("  --tty-prompt force tty-based passphrase prompt (in -a mode)\n");
-    printf("  --gui-prompt force GUI-based passphrase prompt (in -a mode)\n");
+    printf("  --symlink path   create symlink to socket (in agent mode)\n");
+    printf("  --encrypted  when adding keys, don't decrypt\n");
+    printf("  -E alg, --fptype alg   fingerprint type for -l (sha256, md5)\n");
+    printf("  --tty-prompt force tty-based passphrase prompt\n");
+    printf("  --gui-prompt force GUI-based passphrase prompt\n");
     printf("  --askpass <prompt>   behave like a standalone askpass program\n");
     exit(1);
 }
@@ -152,7 +276,7 @@ void chan_no_request_response(Channel *chan, bool success) {}
  * except that x11_closing has to signal back to the main loop that
  * it's time to terminate.
  */
-static void x11_log(Plug *p, int type, SockAddr *addr, int port,
+static void x11_log(Plug *p, PlugLogType type, SockAddr *addr, int port,
                     const char *error_msg, int error_code) {}
 static void x11_receive(Plug *plug, int urgent, const char *data, size_t len) {}
 static void x11_sent(Plug *plug, size_t bufsize) {}
@@ -165,7 +289,7 @@ struct X11Connection {
     Plug plug;
 };
 
-char *socketname;
+static char *socketname;
 static enum { SHELL_AUTO, SHELL_SH, SHELL_CSH } shell_type = SHELL_AUTO;
 void pageant_print_env(int pid)
 {
@@ -248,16 +372,31 @@ void pageant_fork_and_print_env(bool retain_tty)
     }
 }
 
-int signalpipe[2];
+static int signalpipe[2] = { -1, -1 };
 
-void sigchld(int signum)
+static void sigchld(int signum)
 {
     if (write(signalpipe[1], "x", 1) <= 0)
         /* not much we can do about it */;
 }
 
+static void setup_sigchld_handler(void)
+{
+    if (signalpipe[0] >= 0)
+        return;
+
+    /*
+     * Set up the pipe we'll use to tell us about SIGCHLD.
+     */
+    if (pipe(signalpipe) < 0) {
+        perror("pipe");
+        exit(1);
+    }
+    putty_signal(SIGCHLD, sigchld);
+}
+
 #define TTY_LIFE_POLL_INTERVAL (TICKSPERSEC * 30)
-void *dummy_timer_ctx;
+static void *dummy_timer_ctx;
 static void tty_life_timer(void *ctx, unsigned long now)
 {
     schedule_timer(TTY_LIFE_POLL_INTERVAL, tty_life_timer, &dummy_timer_ctx);
@@ -265,12 +404,18 @@ static void tty_life_timer(void *ctx, unsigned long now)
 
 typedef enum {
     KEYACT_AGENT_LOAD,
-    KEYACT_CLIENT_ADD,
+    KEYACT_AGENT_LOAD_ENCRYPTED,
+    KEYACT_CLIENT_BASE,
+    KEYACT_CLIENT_ADD = KEYACT_CLIENT_BASE,
+    KEYACT_CLIENT_ADD_ENCRYPTED,
     KEYACT_CLIENT_DEL,
     KEYACT_CLIENT_DEL_ALL,
     KEYACT_CLIENT_LIST,
     KEYACT_CLIENT_PUBLIC_OPENSSH,
-    KEYACT_CLIENT_PUBLIC
+    KEYACT_CLIENT_PUBLIC,
+    KEYACT_CLIENT_SIGN,
+    KEYACT_CLIENT_REENCRYPT,
+    KEYACT_CLIENT_REENCRYPT_ALL,
 } keyact;
 struct cmdline_key_action {
     struct cmdline_key_action *next;
@@ -280,10 +425,11 @@ struct cmdline_key_action {
 
 bool is_agent_action(keyact action)
 {
-    return action == KEYACT_AGENT_LOAD;
+    return action < KEYACT_CLIENT_BASE;
 }
 
-struct cmdline_key_action *keyact_head = NULL, *keyact_tail = NULL;
+static struct cmdline_key_action *keyact_head = NULL, *keyact_tail = NULL;
+static uint32_t sign_flags = 0;
 
 void add_keyact(keyact action, const char *filename)
 {
@@ -313,14 +459,15 @@ bool have_controlling_tty(void)
     }
 }
 
-char **exec_args = NULL;
-enum {
+static char **exec_args = NULL;
+static enum {
     LIFE_UNSPEC, LIFE_X11, LIFE_TTY, LIFE_DEBUG, LIFE_PERM, LIFE_EXEC
 } life = LIFE_UNSPEC;
-const char *display = NULL;
-enum {
+static const char *display = NULL;
+static enum {
     PROMPT_UNSPEC, PROMPT_TTY, PROMPT_GUI
 } prompt_type = PROMPT_UNSPEC;
+static FingerprintType key_list_fptype = SSH_FPTYPE_DEFAULT;
 
 static char *askpass_tty(const char *prompt)
 {
@@ -391,7 +538,7 @@ static char *askpass(const char *prompt)
     }
 }
 
-static bool unix_add_keyfile(const char *filename_str)
+static bool unix_add_keyfile(const char *filename_str, bool add_encrypted)
 {
     Filename *filename = filename_from_str(filename_str);
     int status;
@@ -403,7 +550,7 @@ static bool unix_add_keyfile(const char *filename_str)
     /*
      * Try without a passphrase.
      */
-    status = pageant_add_keyfile(filename, NULL, &err);
+    status = pageant_add_keyfile(filename, NULL, &err, add_encrypted);
     if (status == PAGEANT_ACTION_OK) {
         goto cleanup;
     } else if (status == PAGEANT_ACTION_FAILURE) {
@@ -425,7 +572,8 @@ static bool unix_add_keyfile(const char *filename_str)
         if (!passphrase)
             break;
 
-        status = pageant_add_keyfile(filename, passphrase, &err);
+        status = pageant_add_keyfile(filename, passphrase, &err,
+                                     add_encrypted);
 
         smemclr(passphrase, strlen(passphrase));
         sfree(passphrase);
@@ -446,49 +594,106 @@ static bool unix_add_keyfile(const char *filename_str)
     return ret;
 }
 
-void key_list_callback(void *ctx, const char *fingerprint,
-                       const char *comment, struct pageant_pubkey *key)
+void key_list_callback(void *ctx, char **fingerprints, const char *comment,
+                       uint32_t ext_flags, struct pageant_pubkey *key)
 {
-    printf("%s %s\n", fingerprint, comment);
+    const char *mode = "";
+    if (ext_flags & LIST_EXTENDED_FLAG_HAS_NO_CLEARTEXT_KEY)
+        mode = " (encrypted)";
+    else if (ext_flags & LIST_EXTENDED_FLAG_HAS_ENCRYPTED_KEY_FILE)
+        mode = " (re-encryptable)";
+
+    FingerprintType this_type =
+        ssh2_pick_fingerprint(fingerprints, key_list_fptype);
+    printf("%s %s%s\n", fingerprints[this_type], comment, mode);
 }
 
 struct key_find_ctx {
     const char *string;
     bool match_fp, match_comment;
+    bool match_fptypes[SSH_N_FPTYPES];
     struct pageant_pubkey *found;
     int nfound;
 };
 
-bool match_fingerprint_string(const char *string, const char *fingerprint)
+static bool match_fingerprint_string(
+    const char *string_orig, char **fingerprints,
+    const struct key_find_ctx *ctx)
 {
     const char *hash;
 
-    /* Find the hash in the fingerprint string. It'll be the word at the end. */
-    hash = strrchr(fingerprint, ' ');
-    assert(hash);
-    hash++;
+    for (unsigned fptype = 0; fptype < SSH_N_FPTYPES; fptype++) {
+        if (!ctx->match_fptypes[fptype])
+            continue;
 
-    /* Now see if the search string is a prefix of the full hash,
-     * neglecting colons and case differences. */
-    while (1) {
-        while (*string == ':') string++;
-        while (*hash == ':') hash++;
-        if (!*string)
-            return true;
-        if (tolower((unsigned char)*string) != tolower((unsigned char)*hash))
-            return false;
-        string++;
+        const char *fingerprint = fingerprints[fptype];
+        if (!fingerprint)
+            continue;
+
+        /* Find the hash in the fingerprint string. It'll be the word
+         * at the end. */
+        hash = strrchr(fingerprint, ' ');
+        assert(hash);
         hash++;
+
+        const char *string = string_orig;
+        bool case_sensitive;
+        const char *ignore_chars = "";
+
+        switch (fptype) {
+          case SSH_FPTYPE_MD5:
+            /* MD5 fingerprints are in hex, so disregard case differences. */
+            case_sensitive = false;
+            /* And we don't really need to force the user to type the
+             * colons in between the digits, which are always the
+             * same. */
+            ignore_chars = ":";
+            break;
+          case SSH_FPTYPE_SHA256:
+            /* Skip over the "SHA256:" prefix, which we don't really
+             * want to force the user to type. On the other hand,
+             * tolerate it on the input string. */
+            assert(strstartswith(hash, "SHA256:"));
+            hash += 7;
+            if (strstartswith(string, "SHA256:"))
+                string += 7;
+            /* SHA256 fingerprints are base64, which is intrinsically
+             * case sensitive. */
+            case_sensitive = true;
+            break;
+        }
+
+        /* Now see if the search string is a prefix of the full hash,
+         * neglecting colons and (where appropriate) case differences. */
+        while (1) {
+            string += strspn(string, ignore_chars);
+            hash += strspn(hash, ignore_chars);
+            if (!*string)
+                return true;
+            char sc = *string, hc = *hash;
+            if (!case_sensitive) {
+                sc = tolower((unsigned char)sc);
+                hc = tolower((unsigned char)hc);
+            }
+            if (sc != hc)
+                break;
+            string++;
+            hash++;
+        }
     }
+
+    return false;
 }
 
-void key_find_callback(void *vctx, const char *fingerprint,
-                       const char *comment, struct pageant_pubkey *key)
+void key_find_callback(void *vctx, char **fingerprints,
+                       const char *comment, uint32_t ext_flags,
+                       struct pageant_pubkey *key)
 {
     struct key_find_ctx *ctx = (struct key_find_ctx *)vctx;
 
     if ((ctx->match_comment && !strcmp(ctx->string, comment)) ||
-        (ctx->match_fp && match_fingerprint_string(ctx->string, fingerprint)))
+        (ctx->match_fp && match_fingerprint_string(ctx->string, fingerprints,
+                                                   ctx)))
     {
         if (!ctx->found)
             ctx->found = pageant_pubkey_copy(key);
@@ -498,10 +703,12 @@ void key_find_callback(void *vctx, const char *fingerprint,
 
 struct pageant_pubkey *find_key(const char *string, char **retstr)
 {
-    struct key_find_ctx actx, *ctx = &actx;
+    struct key_find_ctx ctx[1];
     struct pageant_pubkey key_in, *key_ret;
     bool try_file = true, try_fp = true, try_comment = true;
     bool file_errors = false;
+    bool try_all_fptypes = true;
+    FingerprintType fptype = SSH_FPTYPE_DEFAULT;
 
     /*
      * Trim off disambiguating prefixes telling us how to interpret
@@ -524,6 +731,18 @@ struct pageant_pubkey *find_key(const char *string, char **retstr)
         string += 12;
         try_file = false;
         try_comment = false;
+    } else if (!strnicmp(string, "md5:", 4)) {
+        string += 4;
+        try_file = false;
+        try_comment = false;
+        try_all_fptypes = false;
+        fptype = SSH_FPTYPE_MD5;
+    } else if (!strncmp(string, "sha256:", 7)) {
+        string += 7;
+        try_file = false;
+        try_comment = false;
+        try_all_fptypes = false;
+        fptype = SSH_FPTYPE_SHA256;
     }
 
     /*
@@ -537,8 +756,8 @@ struct pageant_pubkey *find_key(const char *string, char **retstr)
             const char *error;
 
             key_in.blob = strbuf_new();
-            if (!rsa_ssh1_loadpub(fn, BinarySink_UPCAST(key_in.blob),
-                                  NULL, &error)) {
+            if (!rsa1_loadpub_f(fn, BinarySink_UPCAST(key_in.blob),
+                                NULL, &error)) {
                 strbuf_free(key_in.blob);
                 key_in.blob = NULL;
                 if (file_errors) {
@@ -567,8 +786,8 @@ struct pageant_pubkey *find_key(const char *string, char **retstr)
             const char *error;
 
             key_in.blob = strbuf_new();
-            if (!ssh2_userkey_loadpub(fn, NULL, BinarySink_UPCAST(key_in.blob),
-                                     NULL, &error)) {
+            if (!ppk_loadpub_f(fn, NULL, BinarySink_UPCAST(key_in.blob),
+                               NULL, &error)) {
                 strbuf_free(key_in.blob);
                 key_in.blob = NULL;
                 if (file_errors) {
@@ -609,6 +828,8 @@ struct pageant_pubkey *find_key(const char *string, char **retstr)
     ctx->string = string;
     ctx->match_fp = try_fp;
     ctx->match_comment = try_comment;
+    for (unsigned i = 0; i < SSH_N_FPTYPES; i++)
+        ctx->match_fptypes[i] = (try_all_fptypes || i == fptype);
     ctx->found = NULL;
     ctx->nfound = 0;
     if (pageant_enum_keys(key_find_callback, ctx, retstr) ==
@@ -636,6 +857,9 @@ void run_client(void)
     struct pageant_pubkey *key;
     bool errors = false;
     char *retstr;
+    LoadedFile *message = lf_new(AGENT_MAX_MSGLEN);
+    bool message_loaded = false, message_ok = false;
+    strbuf *signature = strbuf_new();
 
     if (!agent_exists()) {
         fprintf(stderr, "pageant: no agent running to talk to\n");
@@ -645,7 +869,9 @@ void run_client(void)
     for (act = keyact_head; act; act = act->next) {
         switch (act->action) {
           case KEYACT_CLIENT_ADD:
-            if (!unix_add_keyfile(act->filename))
+          case KEYACT_CLIENT_ADD_ENCRYPTED:
+            if (!unix_add_keyfile(act->filename,
+                                  act->action == KEYACT_CLIENT_ADD_ENCRYPTED))
                 errors = true;
             break;
           case KEYACT_CLIENT_LIST:
@@ -661,6 +887,18 @@ void run_client(void)
             if (!(key = find_key(act->filename, &retstr)) ||
                 pageant_delete_key(key, &retstr) == PAGEANT_ACTION_FAILURE) {
                 fprintf(stderr, "pageant: deleting key '%s': %s\n",
+                        act->filename, retstr);
+                sfree(retstr);
+                errors = true;
+            }
+            if (key)
+                pageant_pubkey_free(key);
+            break;
+          case KEYACT_CLIENT_REENCRYPT:
+            key = NULL;
+            if (!(key = find_key(act->filename, &retstr)) ||
+                pageant_reencrypt_key(key, &retstr) == PAGEANT_ACTION_FAILURE) {
+                fprintf(stderr, "pageant: re-encrypting key '%s': %s\n",
                         act->filename, retstr);
                 sfree(retstr);
                 errors = true;
@@ -707,42 +945,191 @@ void run_client(void)
                 errors = true;
             }
             break;
+          case KEYACT_CLIENT_REENCRYPT_ALL: {
+            int status = pageant_reencrypt_all_keys(&retstr);
+            if (status == PAGEANT_ACTION_FAILURE) {
+                fprintf(stderr, "pageant: re-encrypting all keys: "
+                        "%s\n", retstr);
+                sfree(retstr);
+                errors = true;
+            } else if (status == PAGEANT_ACTION_WARNING) {
+                fprintf(stderr, "pageant: re-encrypting all keys: "
+                        "warning: %s\n", retstr);
+                sfree(retstr);
+            }
+            break;
+          }
+          case KEYACT_CLIENT_SIGN:
+            key = NULL;
+            if (!message_loaded) {
+                message_loaded = true;
+                switch(lf_load_fp(message, stdin)) {
+                  case LF_TOO_BIG:
+                    fprintf(stderr, "pageant: message to sign is too big\n");
+                    errors = true;
+                    break;
+                  case LF_ERROR:
+                    fprintf(stderr, "pageant: reading message to sign: %s\n",
+                            strerror(errno));
+                    errors = true;
+                    break;
+                  case LF_OK:
+                    message_ok = true;
+                    break;
+                }
+            }
+            if (!message_ok)
+                break;
+            strbuf_clear(signature);
+            if (!(key = find_key(act->filename, &retstr)) ||
+                pageant_sign(key, ptrlen_from_lf(message), signature,
+                             sign_flags, &retstr) == PAGEANT_ACTION_FAILURE) {
+                fprintf(stderr, "pageant: signing with key '%s': %s\n",
+                        act->filename, retstr);
+                sfree(retstr);
+                errors = true;
+            } else {
+                fwrite(signature->s, 1, signature->len, stdout);
+            }
+            if (key)
+                pageant_pubkey_free(key);
+            break;
           default:
             unreachable("Invalid client action found");
         }
     }
+
+    lf_free(message);
+    strbuf_free(signature);
 
     if (errors)
         exit(1);
 }
 
 static const PlugVtable X11Connection_plugvt = {
-    x11_log,
-    x11_closing,
-    x11_receive,
-    x11_sent,
-    NULL
+    .log = x11_log,
+    .closing = x11_closing,
+    .receive = x11_receive,
+    .sent = x11_sent,
 };
 
-void run_agent(void)
+
+static bool agent_loop_pw_setup(void *vctx, pollwrapper *pw)
+{
+    struct uxpgnt_client *upc = (struct uxpgnt_client *)vctx;
+
+    if (signalpipe[0] >= 0) {
+        pollwrap_add_fd_rwx(pw, signalpipe[0], SELECT_R);
+    }
+
+    if (upc->prompt_active)
+        pollwrap_add_fd_rwx(pw, upc->passphrase_fd, SELECT_R);
+
+    return true;
+}
+
+static void agent_loop_pw_check(void *vctx, pollwrapper *pw)
+{
+    struct uxpgnt_client *upc = (struct uxpgnt_client *)vctx;
+
+    if (life == LIFE_TTY) {
+        /*
+         * Every time we wake up (whether it was due to tty_timer
+         * elapsing or for any other reason), poll to see if we still
+         * have a controlling terminal. If we don't, then our
+         * containing tty session has ended, so it's time to clean up
+         * and leave.
+         */
+        if (!have_controlling_tty()) {
+            time_to_die = true;
+            return;
+        }
+    }
+
+    if (signalpipe[0] >= 0 &&
+        pollwrap_check_fd_rwx(pw, signalpipe[0], SELECT_R)) {
+        char c[1];
+        if (read(signalpipe[0], c, 1) <= 0)
+            /* ignore error */;
+        /* ignore its value; it'll be `x' */
+        while (1) {
+            int status;
+            pid_t pid;
+            pid = waitpid(-1, &status, WNOHANG);
+            if (pid <= 0)
+                break;
+            if (pid == upc->termination_pid)
+                time_to_die = true;
+        }
+    }
+
+    if (upc->prompt_active &&
+        pollwrap_check_fd_rwx(pw, upc->passphrase_fd, SELECT_R)) {
+        char c;
+        int retd = read(upc->passphrase_fd, &c, 1);
+
+        switch (upc->prompt_type) {
+          case RTPROMPT_GUI:
+            if (retd <= 0) {
+                close(upc->passphrase_fd);
+                upc->passphrase_fd = -1;
+                bool ok = (retd == 0);
+                if (!strbuf_chomp(upc->prompt_buf, '\n'))
+                    ok = false;
+                passphrase_done(upc, ok);
+            } else {
+                put_byte(upc->prompt_buf, c);
+            }
+            break;
+          case RTPROMPT_DEBUG:
+            if (retd <= 0) {
+                passphrase_done(upc, false);
+                /* Now never try to read from stdin again */
+                upc->prompt_type = RTPROMPT_UNAVAILABLE;
+                break;
+            }
+
+            switch (c) {
+              case '\n':
+              case '\r':
+                passphrase_done(upc, true);
+                break;
+              case '\004':
+                passphrase_done(upc, false);
+                break;
+              case '\b':
+              case '\177':
+                strbuf_shrink_by(upc->prompt_buf, 1);
+                break;
+              case '\025':
+                strbuf_clear(upc->prompt_buf);
+                break;
+              default:
+                put_byte(upc->prompt_buf, c);
+                break;
+            }
+            break;
+          case RTPROMPT_UNAVAILABLE:
+            unreachable("Should never have started a prompt at all");
+        }
+    }
+}
+
+static bool agent_loop_continue(void *vctx, bool fd, bool cb)
+{
+    return !time_to_die;
+}
+
+void run_agent(FILE *logfp, const char *symlink_path)
 {
     const char *err;
     char *errw;
     struct pageant_listen_state *pl;
     Plug *pl_plug;
     Socket *sock;
-    unsigned long now;
-    int *fdlist;
-    int fd;
-    int i, fdstate;
-    size_t fdsize;
-    int termination_pid = -1;
     bool errors = false;
     Conf *conf;
     const struct cmdline_key_action *act;
-
-    fdlist = NULL;
-    fdsize = 0;
 
     pageant_init();
 
@@ -750,8 +1137,10 @@ void run_agent(void)
      * Start by loading any keys provided on the command line.
      */
     for (act = keyact_head; act; act = act->next) {
-        assert(act->action == KEYACT_AGENT_LOAD);
-        if (!unix_add_keyfile(act->filename))
+        assert(act->action == KEYACT_AGENT_LOAD ||
+               act->action == KEYACT_AGENT_LOAD_ENCRYPTED);
+        if (!unix_add_keyfile(act->filename,
+                              act->action == KEYACT_AGENT_LOAD_ENCRYPTED))
             errors = true;
     }
     if (errors)
@@ -760,7 +1149,15 @@ void run_agent(void)
     /*
      * Set up a listening socket and run Pageant on it.
      */
-    pl = pageant_listener_new(&pl_plug);
+    struct uxpgnt_client upc[1];
+    memset(upc, 0, sizeof(upc));
+    upc->plc.vt = &uxpgnt_vtable;
+    upc->logfp = logfp;
+    upc->passphrase_fd = -1;
+    upc->termination_pid = -1;
+    upc->prompt_buf = strbuf_new_nm();
+    upc->prompt_type = display ? RTPROMPT_GUI : RTPROMPT_UNAVAILABLE;
+    pl = pageant_listener_new(&pl_plug, &upc->plc);
     sock = platform_make_agent_socket(pl_plug, PAGEANT_DIR_PREFIX,
                                       &errw, &socketname);
     if (!sock) {
@@ -770,13 +1167,35 @@ void run_agent(void)
     }
     pageant_listener_got_socket(pl, sock);
 
+    if (symlink_path) {
+        /*
+         * Try to make a symlink to the Unix socket, in a location of
+         * the user's choosing.
+         *
+         * If the link already exists, we want to replace it. There
+         * are two ways we could do this: either make it under another
+         * name and then rename it over the top, or remove the old
+         * link first. The former is what 'ln -sf' does, on the
+         * grounds that it's more atomic. But I think in this case,
+         * where the expected use case is that the previous agent has
+         * long since shut down, atomicity isn't a critical concern
+         * compared to not accidentally overwriting some non-symlink
+         * that might have important data in it!
+         */
+        struct stat st;
+        if (lstat(symlink_path, &st) == 0 && S_ISLNK(st.st_mode))
+            unlink(symlink_path);
+        if (symlink(socketname, symlink_path) < 0)
+            fprintf(stderr, "pageant: making symlink %s: %s\n",
+                    symlink_path, strerror(errno));
+    }
+
     conf = conf_new();
     conf_set_int(conf, CONF_proxy_type, PROXY_NONE);
 
     /*
      * Lifetime preparations.
      */
-    signalpipe[0] = signalpipe[1] = -1;
     if (life == LIFE_X11) {
         struct X11Display *disp;
         void *greeting;
@@ -823,20 +1242,43 @@ void run_agent(void)
         pageant_fork_and_print_env(false);
     } else if (life == LIFE_DEBUG) {
         pageant_print_env(getpid());
-        pageant_logfp = stdout;
+        upc->logfp = stdout;
+
+        struct termios orig_termios;
+        upc->passphrase_fd = fileno(stdin);
+        if (tcgetattr(upc->passphrase_fd, &orig_termios) == 0) {
+            struct termios new_termios = orig_termios;
+            new_termios.c_lflag &= ~(ECHO | ECHOE | ECHOK | ECHONL | ICANON);
+
+            /*
+             * Try to set up a watchdog process that will restore
+             * termios if we crash or are killed. If successful, turn
+             * off echo, for runtime passphrase prompts.
+             */
+            int pipefd[2];
+            if (pipe(pipefd) == 0) {
+                pid_t pid = fork();
+                if (pid == 0) {
+                    tcsetattr(upc->passphrase_fd, TCSADRAIN, &new_termios);
+                    close(pipefd[1]);
+                    char buf[4096];
+                    while (read(pipefd[0], buf, sizeof(buf)) > 0);
+                    tcsetattr(upc->passphrase_fd, TCSADRAIN, &new_termios);
+                    _exit(0);
+                } else if (pid > 0) {
+                    upc->prompt_type = RTPROMPT_DEBUG;
+                }
+
+                close(pipefd[0]);
+                if (pid < 0)
+                    close(pipefd[1]);
+            }
+        }
     } else if (life == LIFE_EXEC) {
         pid_t agentpid, pid;
 
         agentpid = getpid();
-
-        /*
-         * Set up the pipe we'll use to tell us about SIGCHLD.
-         */
-        if (pipe(signalpipe) < 0) {
-            perror("pipe");
-            exit(1);
-        }
-        putty_signal(SIGCHLD, sigchld);
+        setup_sigchld_handler();
 
         pid = fork();
         if (pid < 0) {
@@ -849,147 +1291,26 @@ void run_agent(void)
             perror("exec");
             _exit(127);
         } else {
-            termination_pid = pid;
+            upc->termination_pid = pid;
         }
     }
 
-    /*
-     * Now we've decided on our logging arrangements, pass them on to
-     * pageant.c.
-     */
-    pageant_listener_set_logfn(pl, NULL, pageant_logfp ? pageant_log : NULL);
+    if (!upc->logfp)
+        upc->plc.suppress_logging = true;
 
-    now = GETTICKCOUNT();
-
-    pollwrapper *pw = pollwrap_new();
-
-    while (!time_to_die) {
-        int rwx;
-        int ret;
-        unsigned long next;
-
-        pollwrap_clear(pw);
-
-        if (signalpipe[0] >= 0) {
-            pollwrap_add_fd_rwx(pw, signalpipe[0], SELECT_R);
-        }
-
-        /* Count the currently active fds. */
-        i = 0;
-        for (fd = first_fd(&fdstate, &rwx); fd >= 0;
-             fd = next_fd(&fdstate, &rwx)) i++;
-
-        /* Expand the fdlist buffer if necessary. */
-        sgrowarray(fdlist, fdsize, i);
-
-        /*
-         * Add all currently open fds to pw, and store them in fdlist
-         * as well.
-         */
-        int fdcount = 0;
-        for (fd = first_fd(&fdstate, &rwx); fd >= 0;
-             fd = next_fd(&fdstate, &rwx)) {
-            fdlist[fdcount++] = fd;
-            pollwrap_add_fd_rwx(pw, fd, rwx);
-        }
-
-        if (toplevel_callback_pending()) {
-            ret = pollwrap_poll_instant(pw);
-        } else if (run_timers(now, &next)) {
-            unsigned long then;
-            long ticks;
-
-            then = now;
-            now = GETTICKCOUNT();
-            if (now - then > next - then)
-                ticks = 0;
-            else
-                ticks = next - now;
-
-            bool overflow = false;
-            if (ticks > INT_MAX) {
-                ticks = INT_MAX;
-                overflow = true;
-            }
-
-            ret = pollwrap_poll_timeout(pw, ticks);
-            if (ret == 0 && !overflow)
-                now = next;
-            else
-                now = GETTICKCOUNT();
-        } else {
-            ret = pollwrap_poll_endless(pw);
-        }
-
-        if (ret < 0 && errno == EINTR)
-            continue;
-
-        if (ret < 0) {
-            perror("poll");
-            exit(1);
-        }
-
-        if (life == LIFE_TTY) {
-            /*
-             * Every time we wake up (whether it was due to tty_timer
-             * elapsing or for any other reason), poll to see if we
-             * still have a controlling terminal. If we don't, then
-             * our containing tty session has ended, so it's time to
-             * clean up and leave.
-             */
-            if (!have_controlling_tty()) {
-                time_to_die = true;
-                break;
-            }
-        }
-
-        for (i = 0; i < fdcount; i++) {
-            fd = fdlist[i];
-            int rwx = pollwrap_get_fd_rwx(pw, fd);
-            /*
-             * We must process exceptional notifications before
-             * ordinary readability ones, or we may go straight
-             * past the urgent marker.
-             */
-            if (rwx & SELECT_X)
-                select_result(fd, SELECT_X);
-            if (rwx & SELECT_R)
-                select_result(fd, SELECT_R);
-            if (rwx & SELECT_W)
-                select_result(fd, SELECT_W);
-        }
-
-        if (signalpipe[0] >= 0 &&
-            pollwrap_check_fd_rwx(pw, signalpipe[0], SELECT_R)) {
-            char c[1];
-            if (read(signalpipe[0], c, 1) <= 0)
-                /* ignore error */;
-            /* ignore its value; it'll be `x' */
-            while (1) {
-                int status;
-                pid_t pid;
-                pid = waitpid(-1, &status, WNOHANG);
-                if (pid <= 0)
-                    break;
-                if (pid == termination_pid)
-                    time_to_die = true;
-            }
-        }
-
-        run_toplevel_callbacks();
-    }
+    cli_main_loop(agent_loop_pw_setup, agent_loop_pw_check,
+                  agent_loop_continue, upc);
 
     /*
-     * When we come here, we're terminating, and should clean up our
-     * Unix socket file if possible.
+     * Before terminating, clean up our Unix socket file if possible.
      */
     if (unlink(socketname) < 0) {
         fprintf(stderr, "pageant: %s: %s\n", socketname, strerror(errno));
         exit(1);
     }
 
+    strbuf_free(upc->prompt_buf);
     conf_free(conf);
-    pollwrap_free(pw);
 }
 
 int main(int argc, char **argv)
@@ -997,6 +1318,10 @@ int main(int argc, char **argv)
     bool doing_opts = true;
     keyact curr_keyact = KEYACT_AGENT_LOAD;
     const char *standalone_askpass_prompt = NULL;
+    const char *symlink_path = NULL;
+    FILE *logfp = NULL;
+
+    progname = argv[0];
 
     /*
      * Process the command line.
@@ -1010,17 +1335,21 @@ int main(int argc, char **argv)
                 usage();
                 exit(0);
             } else if (!strcmp(p, "-v")) {
-                pageant_logfp = stderr;
+                logfp = stderr;
             } else if (!strcmp(p, "-a")) {
                 curr_keyact = KEYACT_CLIENT_ADD;
             } else if (!strcmp(p, "-d")) {
                 curr_keyact = KEYACT_CLIENT_DEL;
+            } else if (!strcmp(p, "-r")) {
+                curr_keyact = KEYACT_CLIENT_REENCRYPT;
             } else if (!strcmp(p, "-s")) {
                 shell_type = SHELL_SH;
             } else if (!strcmp(p, "-c")) {
                 shell_type = SHELL_CSH;
             } else if (!strcmp(p, "-D")) {
                 add_keyact(KEYACT_CLIENT_DEL_ALL, NULL);
+            } else if (!strcmp(p, "-R")) {
+                add_keyact(KEYACT_CLIENT_REENCRYPT_ALL, NULL);
             } else if (!strcmp(p, "-l")) {
                 add_keyact(KEYACT_CLIENT_LIST, NULL);
             } else if (!strcmp(p, "--public")) {
@@ -1031,8 +1360,31 @@ int main(int argc, char **argv)
                 life = LIFE_X11;
             } else if (!strcmp(p, "-T")) {
                 life = LIFE_TTY;
+            } else if (!strcmp(p, "--no-decrypt") ||
+                       !strcmp(p, "-no-decrypt") ||
+                       !strcmp(p, "--no_decrypt") ||
+                       !strcmp(p, "-no_decrypt") ||
+                       !strcmp(p, "--nodecrypt") ||
+                       !strcmp(p, "-nodecrypt") ||
+                       !strcmp(p, "--encrypted") ||
+                       !strcmp(p, "-encrypted")) {
+                if (curr_keyact == KEYACT_AGENT_LOAD)
+                    curr_keyact = KEYACT_AGENT_LOAD_ENCRYPTED;
+                else if (curr_keyact == KEYACT_CLIENT_ADD)
+                    curr_keyact = KEYACT_CLIENT_ADD_ENCRYPTED;
+                else {
+                    fprintf(stderr, "pageant: unexpected -E while not adding "
+                            "keys\n");
+                    exit(1);
+                }
             } else if (!strcmp(p, "--debug")) {
                 life = LIFE_DEBUG;
+            } else if (!strcmp(p, "--test-sign")) {
+                curr_keyact = KEYACT_CLIENT_SIGN;
+                sign_flags = 0;
+            } else if (strstartswith(p, "--test-sign-with-flags=")) {
+                curr_keyact = KEYACT_CLIENT_SIGN;
+                sign_flags = atoi(p + strlen("--test-sign-with-flags="));
             } else if (!strcmp(p, "--permanent")) {
                 life = LIFE_PERM;
             } else if (!strcmp(p, "--exec")) {
@@ -1058,8 +1410,37 @@ int main(int argc, char **argv)
                             "after --askpass\n");
                     exit(1);
                 }
+            } else if (!strcmp(p, "--symlink")) {
+                if (--argc > 0) {
+                    symlink_path = *++argv;
+                } else {
+                    fprintf(stderr, "pageant: expected a pathname "
+                            "after --symlink\n");
+                    exit(1);
+                }
+            } else if (!strcmp(p, "-E") || !strcmp(p, "--fptype")) {
+                const char *keyword;
+                if (--argc > 0) {
+                    keyword = *++argv;
+                } else {
+                    fprintf(stderr, "pageant: expected a type string "
+                            "after %s\n", p);
+                    exit(1);
+                }
+                if (!strcmp(keyword, "md5"))
+                    key_list_fptype = SSH_FPTYPE_MD5;
+                else if (!strcmp(keyword, "sha256"))
+                    key_list_fptype = SSH_FPTYPE_SHA256;
+                else {
+                    fprintf(stderr, "pageant: unknown fingerprint type `%s'\n",
+                            keyword);
+                    exit(1);
+                }
             } else if (!strcmp(p, "--")) {
                 doing_opts = false;
+            } else {
+                fprintf(stderr, "pageant: unrecognised option '%s'\n", p);
+                exit(1);
             }
         } else {
             /*
@@ -1133,8 +1514,8 @@ int main(int argc, char **argv)
             has_lifetime = true;
 
         if (has_lifetime && has_client_actions) {
-            fprintf(stderr, "pageant: client key actions (-a, -d, -D, -l, -L)"
-                    " do not go with an agent lifetime option\n");
+            fprintf(stderr, "pageant: client key actions (-a, -d, -D, -r, -R, "
+                    "-l, -L) do not go with an agent lifetime option\n");
             exit(1);
         }
         if (!has_lifetime && has_agent_actions) {
@@ -1149,7 +1530,7 @@ int main(int argc, char **argv)
         }
 
         if (has_lifetime) {
-            run_agent();
+            run_agent(logfp, symlink_path);
         } else if (has_client_actions) {
             run_client();
         }

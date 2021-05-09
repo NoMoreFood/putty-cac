@@ -166,7 +166,6 @@
     <ClCompile Include="..\..\..\proxy.c" />
     <ClCompile Include="..\..\..\raw.c" />
     <ClCompile Include="..\..\..\rlogin.c" />
-    <ClCompile Include="..\..\..\sercfg.c" />
     <ClCompile Include="..\..\..\sessprep.c" />
     <ClCompile Include="..\..\..\settings.c" />
     <ClCompile Include="..\..\..\ssh.c" />
@@ -186,7 +185,9 @@
     <ClCompile Include="..\..\..\ssh2userauth.c" />
     <ClCompile Include="..\..\..\sshaes.c" />
     <ClCompile Include="..\..\..\ssharcf.c" />
+    <ClCompile Include="..\..\..\sshargon2.c" />
     <ClCompile Include="..\..\..\sshauxcrypt.c" />
+    <ClCompile Include="..\..\..\sshblake2.c" />
     <ClCompile Include="..\..\..\sshblowf.c" />
     <ClCompile Include="..\..\..\sshccp.c" />
     <ClCompile Include="..\..\..\sshcommon.c" />
@@ -207,10 +208,13 @@
     <ClCompile Include="..\..\..\sshsh256.c" />
     <ClCompile Include="..\..\..\sshsh512.c" />
     <ClCompile Include="..\..\..\sshsha.c" />
+    <ClCompile Include="..\..\..\sshsha3.c" />
     <ClCompile Include="..\..\..\sshshare.c" />
+    <ClCompile Include="..\..\..\sshutils.c" />
     <ClCompile Include="..\..\..\sshverstring.c" />
     <ClCompile Include="..\..\..\sshzlib.c" />
     <ClCompile Include="..\..\..\stripctrl.c" />
+    <ClCompile Include="..\..\..\supdup.c" />
     <ClCompile Include="..\..\..\telnet.c" />
     <ClCompile Include="..\..\..\terminal.c" />
     <ClCompile Include="..\..\..\timing.c" />
@@ -241,6 +245,7 @@
     <ClCompile Include="..\..\winprint.c" />
     <ClCompile Include="..\..\winproxy.c" />
     <ClCompile Include="..\..\winsecur.c" />
+    <ClCompile Include="..\..\winselgui.c" />
     <ClCompile Include="..\..\winser.c" />
     <ClCompile Include="..\..\winshare.c" />
     <ClCompile Include="..\..\winstore.c" />
@@ -293,6 +298,7 @@
     <ClInclude Include="..\..\win_res.h" />
     <ClInclude Include="..\..\wincapi.h" />
     <ClInclude Include="..\..\winhelp.h" />
+    <ClInclude Include="..\..\winseat.h" />
     <ClInclude Include="..\..\winsecur.h" />
     <ClInclude Include="..\..\winstuff.h" />
   </ItemGroup>

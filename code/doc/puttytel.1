@@ -3,7 +3,7 @@
 .TH "puttytel" "1" "2004\(hy03\(hy24" "PuTTY\ tool\ suite" "PuTTY\ tool\ suite"
 .SH "NAME"
 .PP
-\fBputtytel\fP \- GUI Telnet and Rlogin client for X
+\fBputtytel\fP \- GUI Telnet, Rlogin, and SUPDUP client for X
 .SH "SYNOPSIS"
 .PP
 .nf
@@ -11,7 +11,7 @@
 .fi
 .SH "DESCRIPTION"
 .PP
-\fBputtytel\fP is a graphical Telnet and Rlogin client for X. It is a direct port of the Windows Telnet and Rlogin client of the same name, and a cut-down cryptography-free version of PuTTY.
+\fBputtytel\fP is a graphical Telnet, Rlogin, and SUPDUP client for X. It is a direct port of the Windows Telnet, Rlogin, and SUPDUP client of the same name, and a cut-down cryptography-free version of PuTTY.
 .SH "OPTIONS"
 .PP
 The command-line options supported by \fBputtytel\fP are:
@@ -67,7 +67,7 @@ Display a message summarizing the available options.
 Display the fingerprints of the PuTTY PGP Master Keys, to aid in verifying new files released by the PuTTY team.
 .IP "\fB\-load\fP \fIsession\fP"
 Load a saved session by name. This allows you to run a saved session straight from the command line without having to go through the configuration box first.
-.IP "\fB\-telnet\fP, \fB\-rlogin\fP, \fB\-raw\fP"
+.IP "\fB\-telnet\fP, \fB\-rlogin\fP, \fB\-supdup\fP, \fB\-raw\fP"
 Select the protocol \fBputtytel\fP will use to make the connection.
 .IP "\fB\-proxycmd\fP \fIcommand\fP"
 Instead of making a TCP connection, use \fIcommand\fP as a proxy; network traffic will be redirected to the standard input and output of \fIcommand\fP. \fIcommand\fP must be a single word, so is likely to need quoting by the shell.

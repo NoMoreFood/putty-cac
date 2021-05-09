@@ -38,7 +38,6 @@
 #include <sys/ioctl.h>
 #include <sys/time.h>
 
-#define PUTTY_DO_GLOBALS               /* actually _define_ globals */
 #include "putty.h"
 #include "mpint.h"
 #include "ssh.h"
@@ -96,12 +95,6 @@ char *x_get_default(const char *key)
     return NULL;                       /* this is a stub */
 }
 
-/*
- * Our selects are synchronous, so these functions are empty stubs.
- */
-uxsel_id *uxsel_input_add(int fd, int rwx) { return NULL; }
-void uxsel_input_remove(uxsel_id *id) { }
-
 void old_keyfile_warning(void) { }
 
 void timer_change_notify(unsigned long next)
@@ -109,6 +102,11 @@ void timer_change_notify(unsigned long next)
 }
 
 char *platform_get_x_display(void) { return NULL; }
+
+void make_unix_sftp_filehandle_key(void *data, size_t size)
+{
+    random_read(data, size);
+}
 
 static bool verbose;
 
@@ -160,9 +158,10 @@ static int server_askappend(
 }
 
 static const LogPolicyVtable server_logpolicy_vt = {
-    server_eventlog,
-    server_askappend,
-    server_logging_error,
+    .eventlog = server_eventlog,
+    .askappend = server_askappend,
+    .logging_error = server_logging_error,
+    .verbose = null_lp_verbose_no,
 };
 
 struct AuthPolicy_ssh1_pubkey {
@@ -312,7 +311,7 @@ static void show_help(FILE *fp)
     safety_warning(fp);
     fputs("\n"
           "usage:   uppity [options]\n"
-          "options: --listen PORT        listen to a port on localhost\n"
+          "options: --listen [PORT|PATH] listen to a port on localhost, or Unix socket\n"
           "         --listen-once        (with --listen) stop after one "
           "connection\n"
           "         --hostkey KEY        SSH host key (need at least one)\n"
@@ -344,7 +343,7 @@ static void show_help(FILE *fp)
           "         --exitsignum         send buggy numeric \"exit-signal\" "
           "message\n"
           "         --verbose            print event log messages to standard "
-          "output\n"
+          "error\n"
           "         --sshlog FILE        write SSH packet log to FILE\n"
           "         --sshrawlog FILE     write SSH packets + raw data log"
           " to FILE\n"
@@ -453,7 +452,7 @@ static Plug *server_conn_plug(
         &inst->ap, &inst->logpolicy, &unix_live_sftpserver_vt);
 }
 
-static void server_log(Plug *plug, int type, SockAddr *addr, int port,
+static void server_log(Plug *plug, PlugLogType type, SockAddr *addr, int port,
                        const char *error_msg, int error_code)
 {
     log_to_stderr((unsigned)-1, error_msg);
@@ -490,7 +489,7 @@ static int server_accepting(Plug *p, accept_fn_t constructor, accept_ctx_t ctx)
 
     SocketPeerInfo *pi = sk_peer_info(s);
 
-    if (!sk_peer_trusted(s)) {
+    if (pi->addressfamily != ADDRTYPE_LOCAL && !sk_peer_trusted(s)) {
         fprintf(stderr, "rejected connection from %s (untrustworthy peer)\n",
                 pi->log_text);
         sk_free_peer_info(pi);
@@ -510,21 +509,15 @@ static int server_accepting(Plug *p, accept_fn_t constructor, accept_ctx_t ctx)
 }
 
 static const PlugVtable server_plugvt = {
-    server_log,
-    server_closing,
-    NULL,                          /* recv */
-    NULL,                          /* send */
-    server_accepting
+    .log = server_log,
+    .closing = server_closing,
+    .accepting = server_accepting,
 };
 
 int main(int argc, char **argv)
 {
-    int *fdlist;
-    int fd;
-    int i, fdstate;
-    size_t fdsize;
-    unsigned long now;
     int listen_port = -1;
+    const char *listen_socket = NULL;
 
     ssh_key **hostkeys = NULL;
     size_t nhostkeys = 0, hostkeysize = 0;
@@ -540,6 +533,7 @@ int main(int argc, char **argv)
 
     memset(&ssc, 0, sizeof(ssc));
 
+    ssc.application_name = "Uppity";
     ssc.session_starting_dir = getenv("HOME");
     ssc.ssh1_cipher_mask = SSH1_SUPPORTED_CIPHER_MASK;
     ssc.ssh1_allow_compression = true;
@@ -567,7 +561,13 @@ int main(int argc, char **argv)
         } else if (longoptnoarg(arg, "--verbose") || !strcmp(arg, "-v")) {
             verbose = true;
         } else if (longoptarg(arg, "--listen", &val, &argc, &argv)) {
-            listen_port = atoi(val);
+            if (val[0] == '/') {
+                listen_port = -1;
+                listen_socket = val;
+            } else {
+                listen_port = atoi(val);
+                listen_socket = NULL;
+            }
         } else if (!strcmp(arg, "--listen-once")) {
             listen_once = true;
         } else if (longoptarg(arg, "--hostkey", &val, &argc, &argv)) {
@@ -581,7 +581,7 @@ int main(int argc, char **argv)
             if (keytype == SSH_KEYTYPE_SSH2) {
                 ssh2_userkey *uk;
                 ssh_key *key;
-                uk = ssh2_load_userkey(keyfile, NULL, &error);
+                uk = ppk_load_f(keyfile, NULL, &error);
                 filename_free(keyfile);
                 if (!uk || !uk->key) {
                     fprintf(stderr, "%s: unable to load host key '%s': "
@@ -598,7 +598,7 @@ int main(int argc, char **argv)
                 sfree(uk->comment);
                 sfree(uk);
 
-                for (i = 0; i < nhostkeys; i++)
+                for (int i = 0; i < nhostkeys; i++)
                     if (ssh_key_alg(hostkeys[i]) == ssh_key_alg(key)) {
                         fprintf(stderr, "%s: host key '%s' duplicates key "
                                 "type %s\n", appname, val,
@@ -615,7 +615,7 @@ int main(int argc, char **argv)
                     exit(1);
                 }
                 hostkey1 = snew(RSAKey);
-                if (!rsa_ssh1_loadkey(keyfile, hostkey1, NULL, &error)) {
+                if (!rsa1_load_f(keyfile, hostkey1, NULL, &error)) {
                     fprintf(stderr, "%s: unable to load host key '%s': "
                             "%s\n", appname, val, error);
                     exit(1);
@@ -647,8 +647,7 @@ int main(int argc, char **argv)
                 ssc.rsa_kex_key = snew(RSAKey);
             }
 
-            if (!rsa_ssh1_loadkey(keyfile, ssc.rsa_kex_key,
-                                  NULL, &error)) {
+            if (!rsa1_load_f(keyfile, ssc.rsa_kex_key, NULL, &error)) {
                 fprintf(stderr, "%s: unable to load RSA kex key '%s': "
                         "%s\n", appname, val, error);
                 exit(1);
@@ -669,8 +668,8 @@ int main(int argc, char **argv)
                 struct AuthPolicy_ssh2_pubkey *node;
                 void *blob;
 
-                if (!ssh2_userkey_loadpub(keyfile, NULL, BinarySink_UPCAST(sb),
-                                          NULL, &error)) {
+                if (!ppk_loadpub_f(keyfile, NULL, BinarySink_UPCAST(sb),
+                                   NULL, &error)) {
                     fprintf(stderr, "%s: unable to load user key '%s': "
                             "%s\n", appname, val, error);
                     exit(1);
@@ -690,8 +689,8 @@ int main(int argc, char **argv)
                 BinarySource src[1];
                 struct AuthPolicy_ssh1_pubkey *node;
 
-                if (!rsa_ssh1_loadpub(keyfile, BinarySink_UPCAST(sb),
-                                      NULL, &error)) {
+                if (!rsa1_loadpub_f(keyfile, BinarySink_UPCAST(sb),
+                                    NULL, &error)) {
                     fprintf(stderr, "%s: unable to load user key '%s': "
                             "%s\n", appname, val, error);
                     exit(1);
@@ -784,6 +783,8 @@ int main(int argc, char **argv)
             conf_set_int(conf, CONF_logxfovr, LGXF_OVR);
         } else if (!strcmp(arg, "--pretend-to-accept-any-pubkey")) {
             ssc.stunt_pretend_to_accept_any_pubkey = true;
+        } else if (!strcmp(arg, "--open-unconditional-agent-socket")) {
+            ssc.stunt_open_unconditional_agent_socket = true;
         } else {
             fprintf(stderr, "%s: unrecognised option '%s'\n", appname, arg);
             exit(1);
@@ -794,9 +795,6 @@ int main(int argc, char **argv)
         fprintf(stderr, "%s: specify at least one host key\n", appname);
         exit(1);
     }
-
-    fdlist = NULL;
-    fdsize = 0;
 
     random_ref();
 
@@ -818,14 +816,24 @@ int main(int argc, char **argv)
     scfg.ap_shared = &aps;
     scfg.next_id = 0;
 
-    if (listen_port >= 0) {
+    if (listen_port >= 0 || listen_socket) {
         listening = true;
         scfg.listening_plug.vt = &server_plugvt;
-        scfg.listening_socket = sk_newlistener(
-            NULL, listen_port, &scfg.listening_plug, true, ADDRTYPE_UNSPEC);
+        char *msg;
+        if (listen_port >= 0) {
+            scfg.listening_socket = sk_newlistener(
+                NULL, listen_port, &scfg.listening_plug, true,
+                ADDRTYPE_UNSPEC);
+            msg = dupprintf("%s: listening on port %d",
+                            appname, listen_port);
+        } else {
+            SockAddr *addr = unix_sock_addr(listen_socket);
+            scfg.listening_socket = new_unix_listener(
+                addr, &scfg.listening_plug);
+            msg = dupprintf("%s: listening on Unix socket %s",
+                            appname, listen_socket);
+        }
 
-        char *msg = dupprintf("%s: listening on port %d",
-                              appname, listen_port);
         log_to_stderr(-1, msg);
         sfree(msg);
     } else {
@@ -835,90 +843,8 @@ int main(int argc, char **argv)
         log_to_stderr(inst->id, "speaking SSH on stdio");
     }
 
-    now = GETTICKCOUNT();
+    cli_main_loop(cliloop_no_pw_setup, cliloop_no_pw_check,
+                  cliloop_always_continue, NULL);
 
-    pollwrapper *pw = pollwrap_new();
-    while (!finished) {
-        int rwx;
-        int ret;
-        unsigned long next;
-
-        pollwrap_clear(pw);
-
-        /* Count the currently active fds. */
-        i = 0;
-        for (fd = first_fd(&fdstate, &rwx); fd >= 0;
-             fd = next_fd(&fdstate, &rwx)) i++;
-
-        /* Expand the fdlist buffer if necessary. */
-        sgrowarray(fdlist, fdsize, i);
-
-        /*
-         * Add all currently open fds to the select sets, and store
-         * them in fdlist as well.
-         */
-        int fdcount = 0;
-        for (fd = first_fd(&fdstate, &rwx); fd >= 0;
-             fd = next_fd(&fdstate, &rwx)) {
-            fdlist[fdcount++] = fd;
-            pollwrap_add_fd_rwx(pw, fd, rwx);
-        }
-
-        if (toplevel_callback_pending()) {
-            ret = pollwrap_poll_instant(pw);
-        } else if (run_timers(now, &next)) {
-            do {
-                unsigned long then;
-                long ticks;
-
-                then = now;
-                now = GETTICKCOUNT();
-                if (now - then > next - then)
-                    ticks = 0;
-                else
-                    ticks = next - now;
-
-                bool overflow = false;
-                if (ticks > INT_MAX) {
-                    ticks = INT_MAX;
-                    overflow = true;
-                }
-
-                ret = pollwrap_poll_timeout(pw, ticks);
-                if (ret == 0 && !overflow)
-                    now = next;
-                else
-                    now = GETTICKCOUNT();
-            } while (ret < 0 && errno == EINTR);
-        } else {
-            ret = pollwrap_poll_endless(pw);
-        }
-
-        if (ret < 0 && errno == EINTR)
-            continue;
-
-        if (ret < 0) {
-            perror("poll");
-            exit(1);
-        }
-
-        for (i = 0; i < fdcount; i++) {
-            fd = fdlist[i];
-            int rwx = pollwrap_get_fd_rwx(pw, fd);
-            /*
-             * We must process exceptional notifications before
-             * ordinary readability ones, or we may go straight
-             * past the urgent marker.
-             */
-            if (rwx & SELECT_X)
-                select_result(fd, SELECT_X);
-            if (rwx & SELECT_R)
-                select_result(fd, SELECT_R);
-            if (rwx & SELECT_W)
-                select_result(fd, SELECT_W);
-        }
-
-        run_toplevel_callbacks();
-    }
-    exit(0);
+    return 0;
 }

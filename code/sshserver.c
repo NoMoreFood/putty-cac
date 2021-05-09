@@ -46,6 +46,8 @@ struct server {
     LogPolicy *logpolicy;
     const SftpServerVtable *sftpserver_vt;
 
+    agentfwd *stunt_agentfwd;
+
     Seat seat;
     Ssh ssh;
     struct ssh_version_receiver version_receiver;
@@ -103,28 +105,31 @@ static int server_confirm_weak_cached_hostkey(
     void (*callback)(void *ctx, int result), void *ctx) { return 1; }
 
 static const SeatVtable server_seat_vt = {
-    nullseat_output,
-    nullseat_eof,
-    nullseat_get_userpass_input,
-    nullseat_notify_remote_exit,
-    nullseat_connection_fatal,
-    nullseat_update_specials_menu,
-    nullseat_get_ttymode,
-    nullseat_set_busy_status,
-    nullseat_verify_ssh_host_key,
-    server_confirm_weak_crypto_primitive,
-    server_confirm_weak_cached_hostkey,
-    nullseat_is_never_utf8,
-    nullseat_echoedit_update,
-    nullseat_get_x_display,
-    nullseat_get_windowid,
-    nullseat_get_window_pixel_size,
-    nullseat_stripctrl_new,
-    nullseat_set_trust_status,
+    .output = nullseat_output,
+    .eof = nullseat_eof,
+    .get_userpass_input = nullseat_get_userpass_input,
+    .notify_remote_exit = nullseat_notify_remote_exit,
+    .connection_fatal = nullseat_connection_fatal,
+    .update_specials_menu = nullseat_update_specials_menu,
+    .get_ttymode = nullseat_get_ttymode,
+    .set_busy_status = nullseat_set_busy_status,
+    .verify_ssh_host_key = nullseat_verify_ssh_host_key,
+    .confirm_weak_crypto_primitive = server_confirm_weak_crypto_primitive,
+    .confirm_weak_cached_hostkey = server_confirm_weak_cached_hostkey,
+    .is_utf8 = nullseat_is_never_utf8,
+    .echoedit_update = nullseat_echoedit_update,
+    .get_x_display = nullseat_get_x_display,
+    .get_windowid = nullseat_get_windowid,
+    .get_window_pixel_size = nullseat_get_window_pixel_size,
+    .stripctrl_new = nullseat_stripctrl_new,
+    .set_trust_status = nullseat_set_trust_status,
+    .verbose = nullseat_verbose_no,
+    .interactive = nullseat_interactive_no,
+    .get_cursor_position = nullseat_get_cursor_position,
 };
 
-static void server_socket_log(Plug *plug, int type, SockAddr *addr, int port,
-                              const char *error_msg, int error_code)
+static void server_socket_log(Plug *plug, PlugLogType type, SockAddr *addr,
+                              int port, const char *error_msg, int error_code)
 {
     /* server *srv = container_of(plug, server, plug); */
     /* FIXME */
@@ -232,11 +237,10 @@ Conf *make_ssh_server_conf(void)
 }
 
 static const PlugVtable ssh_server_plugvt = {
-    server_socket_log,
-    server_closing,
-    server_receive,
-    server_sent,
-    NULL
+    .log = server_socket_log,
+    .closing = server_closing,
+    .receive = server_receive,
+    .sent = server_sent,
 };
 
 Plug *ssh_server_plug(
@@ -281,7 +285,9 @@ void ssh_server_start(Plug *plug, Socket *socket)
     server *srv = container_of(plug, server, plug);
     const char *our_protoversion;
 
-    if (srv->hostkey1 && srv->nhostkeys) {
+    if (srv->ssc->bare_connection) {
+        our_protoversion = "2.0";     /* SSH-2 only */
+    } else if (srv->hostkey1 && srv->nhostkeys) {
         our_protoversion = "1.99";    /* offer both SSH-1 and SSH-2 */
     } else if (srv->hostkey1) {
         our_protoversion = "1.5";     /* SSH-1 only */
@@ -296,9 +302,9 @@ void ssh_server_start(Plug *plug, Socket *socket)
     srv->ic_out_raw.ctx = srv;
     srv->version_receiver.got_ssh_version = server_got_ssh_version;
     srv->bpp = ssh_verstring_new(
-        srv->conf, srv->logctx, false /* bare_connection */,
+        srv->conf, srv->logctx, srv->ssc->bare_connection,
         our_protoversion, &srv->version_receiver,
-        true, "Uppity");
+        true, srv->ssc->application_name);
     server_connect_bpp(srv);
     queue_idempotent_callback(&srv->bpp->ic_in_raw);
 }
@@ -315,6 +321,9 @@ static void ssh_server_free_callback(void *vsrv)
 
     if (srv->socket)
         sk_close(srv->socket);
+
+    if (srv->stunt_agentfwd)
+        agentfwd_free(srv->stunt_agentfwd);
 
     if (srv->base_layer)
         ssh_ppl_free(srv->base_layer);
@@ -491,7 +500,19 @@ static void server_got_ssh_version(struct ssh_version_receiver *rcv,
     old_bpp = srv->bpp;
     srv->remote_bugs = ssh_verstring_get_bugs(old_bpp);
 
-    if (major_version == 2) {
+    if (srv->ssc->bare_connection) {
+        srv->bpp = ssh2_bare_bpp_new(srv->logctx);
+        server_connect_bpp(srv);
+
+        connection_layer = ssh2_connection_new(
+            &srv->ssh, NULL, false, srv->conf,
+            ssh_verstring_get_local(old_bpp), &srv->cl);
+        ssh2connection_server_configure(connection_layer,
+                                        srv->sftpserver_vt, srv->ssc);
+        server_connect_ppl(srv, connection_layer);
+
+        srv->base_layer = connection_layer;
+    } else if (major_version == 2) {
         PacketProtocolLayer *userauth_layer, *transport_child_layer;
 
         srv->bpp = ssh2_bpp_new(srv->logctx, &srv->stats, true);
@@ -552,6 +573,16 @@ static void server_got_ssh_version(struct ssh_version_receiver *rcv,
 #ifdef FIXME // we probably will want one of these, in the end
     srv->pinger = pinger_new(srv->conf, &srv->backend);
 #endif
+
+    if (srv->ssc->stunt_open_unconditional_agent_socket) {
+        char *socketname;
+        srv->stunt_agentfwd = agentfwd_new(srv->cl, &socketname);
+        if (srv->stunt_agentfwd) {
+            logeventf(srv->logctx, "opened unconditional agent socket at %s\n",
+                      socketname);
+            sfree(socketname);
+        }
+    }
 
     queue_idempotent_callback(&srv->bpp->ic_in_raw);
     ssh_ppl_process_queue(srv->base_layer);

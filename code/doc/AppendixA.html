@@ -106,22 +106,23 @@
 </ul></li>
 <li><a href="#faq-admin">A.9 Administrative questions</a>
 <ul>
-<li><a href="#faq-domain">A.9.1 Would you like me to register you a nicer domain name?</a></li>
-<li><a href="#faq-webhosting">A.9.2 Would you like free web hosting for the PuTTY web site?</a></li>
-<li><a href="#faq-link">A.9.3 Would you link to my web site from the PuTTY web site?</a></li>
-<li><a href="#faq-sourceforge">A.9.4 Why don't you move PuTTY to SourceForge?</a></li>
-<li><a href="#faq-mailinglist1">A.9.5 Why can't I subscribe to the putty-bugs mailing list?</a></li>
-<li><a href="#faq-mailinglist2">A.9.6 If putty-bugs isn't a general-subscription mailing list, what is?</a></li>
-<li><a href="#faq-donations">A.9.7 How can I donate to PuTTY development?</a></li>
-<li><a href="#faq-permission">A.9.8 Can I have permission to put PuTTY on a cover disk / distribute it with other software / etc?</a></li>
-<li><a href="#faq-indemnity">A.9.9 Can you sign an agreement indemnifying us against security problems in PuTTY?</a></li>
-<li><a href="#faq-permission-form">A.9.10 Can you sign this form granting us permission to use/distribute PuTTY?</a></li>
-<li><a href="#faq-permission-future">A.9.11 Can you write us a formal notice of permission to use PuTTY?</a></li>
-<li><a href="#faq-permission-general">A.9.12 Can you sign <em>anything</em> for us?</a></li>
-<li><a href="#faq-permission-assurance">A.9.13 If you won't sign anything, can you give us some sort of assurance that you won't make PuTTY closed-source in future?</a></li>
-<li><a href="#faq-export-cert">A.9.14 Can you provide us with export control information / FIPS certification for PuTTY?</a></li>
-<li><a href="#faq-vendor">A.9.15 As one of our existing software vendors, can you just fill in this questionnaire for us?</a></li>
-<li><a href="#faq-checksums">A.9.16 The <code>sha1sums</code> / <code>sha256sums</code> / etc files on your download page don't match the binaries.</a></li>
+<li><a href="#faq-putty-org">A.9.1 Is <code>putty.org</code> your website?</a></li>
+<li><a href="#faq-domain">A.9.2 Would you like me to register you a nicer domain name?</a></li>
+<li><a href="#faq-webhosting">A.9.3 Would you like free web hosting for the PuTTY web site?</a></li>
+<li><a href="#faq-link">A.9.4 Would you link to my web site from the PuTTY web site?</a></li>
+<li><a href="#faq-sourceforge">A.9.5 Why don't you move PuTTY to SourceForge?</a></li>
+<li><a href="#faq-mailinglist1">A.9.6 Why can't I subscribe to the putty-bugs mailing list?</a></li>
+<li><a href="#faq-mailinglist2">A.9.7 If putty-bugs isn't a general-subscription mailing list, what is?</a></li>
+<li><a href="#faq-donations">A.9.8 How can I donate to PuTTY development?</a></li>
+<li><a href="#faq-permission">A.9.9 Can I have permission to put PuTTY on a cover disk / distribute it with other software / etc?</a></li>
+<li><a href="#faq-indemnity">A.9.10 Can you sign an agreement indemnifying us against security problems in PuTTY?</a></li>
+<li><a href="#faq-permission-form">A.9.11 Can you sign this form granting us permission to use/distribute PuTTY?</a></li>
+<li><a href="#faq-permission-future">A.9.12 Can you write us a formal notice of permission to use PuTTY?</a></li>
+<li><a href="#faq-permission-general">A.9.13 Can you sign <em>anything</em> for us?</a></li>
+<li><a href="#faq-permission-assurance">A.9.14 If you won't sign anything, can you give us some sort of assurance that you won't make PuTTY closed-source in future?</a></li>
+<li><a href="#faq-export-cert">A.9.15 Can you provide us with export control information / FIPS certification for PuTTY?</a></li>
+<li><a href="#faq-vendor">A.9.16 As one of our existing software vendors, can you just fill in this questionnaire for us?</a></li>
+<li><a href="#faq-checksums">A.9.17 The <code>sha1sums</code> / <code>sha256sums</code> / etc files on your download page don't match the binaries.</a></li>
 </ul></li>
 <li><a href="#faq-misc">A.10 Miscellaneous questions</a>
 <ul>
@@ -139,7 +140,7 @@ This FAQ is published on the PuTTY web site, and also provided as an appendix in
 <h2><a name="faq-intro"></a><a name="SA.1"></a>A.1 Introduction</h2>
 <h3><a name="faq-what"></a><a name="QA.1.1"></a>A.1.1 What is PuTTY?</h3>
 <p>
-PuTTY is a client program for the SSH, Telnet and Rlogin network protocols.
+PuTTY is a client program for the SSH, Telnet, Rlogin, and SUPDUP network protocols.
 </p>
 <p>
 These protocols are all used to run a remote session on a computer, over a network. PuTTY implements the client end of that session: the end at which the session is displayed, rather than the end at which it runs.
@@ -192,7 +193,7 @@ Yes, all of PuTTY's settings can be saved in named session profiles. You can als
 </p>
 <h3><a name="faq-disksettings"></a><a name="QA.2.6"></a>A.2.6 Does PuTTY support storing its settings in a disk file?</h3>
 <p>
-Not at present, although <a href="Chapter4.html#config-file">section 4.30</a> in the documentation gives a method of achieving the same effect.
+Not at present, although <a href="Chapter4.html#config-file">section 4.32</a> in the documentation gives a method of achieving the same effect.
 </p>
 <h3><a name="faq-fullscreen"></a><a name="QA.2.7"></a>A.2.7 Does PuTTY support full-screen mode, like a DOS box?</h3>
 <p>
@@ -533,7 +534,7 @@ If you're not sure, the <a name="i26"></a>32-bit version is generally the safe o
 The 64-bit version (first released in 0.68) will only run if you have a 64-bit processor <em>and</em> a <a name="i27"></a>64-bit edition of Windows (both of these things are likely to be true of any recent Windows PC). It will run somewhat faster (in particular, the cryptography will be faster, especially during link setup), but it will consume slightly more memory.
 </p>
 <p>
-If you need to use an external <a name="i28"></a>DLL for GSSAPI authentication, that DLL may only be available in a 32-bit or 64-bit form, and that will dictate the version of PuTTY you need to use. (You will probably know if you're doing this; see <a href="Chapter4.html#config-ssh-auth-gssapi-libraries">section 4.24.2</a> in the documentation.)
+If you need to use an external <a name="i28"></a>DLL for GSSAPI authentication, that DLL may only be available in a 32-bit or 64-bit form, and that will dictate the version of PuTTY you need to use. (You will probably know if you're doing this; see <a href="Chapter4.html#config-ssh-auth-gssapi-libraries">section 4.22.2</a> in the documentation.)
 </p>
 <h2><a name="faq-trouble"></a><a name="SA.7"></a>A.7 Troubleshooting</h2>
 <h3><a name="faq-pscp-protocol"></a><a name="QA.7.1"></a>A.7.1 Why do I see &#8216;Fatal: Protocol error: Expected control record&#8217; in PSCP?</h3>
@@ -733,7 +734,7 @@ In the documentation for PuTTY 0.53 and 0.53b, we mentioned that we'd like to he
 Recent versions of PuTTY automatically initiate <a name="i56"></a>repeat key exchange once per hour, to improve session security. If your client or server machine is slow, you may experience this as a delay of anything up to thirty seconds or so.
 </p>
 <p>
-These <a name="i57"></a>delays are inconvenient, but they are there for your protection. If they really cause you a problem, you can choose to turn off periodic rekeying using the &#8216;Kex&#8217; configuration panel (see <a href="Chapter4.html#config-ssh-kex">section 4.20</a>), but be aware that you will be sacrificing security for this. (Falling back to SSH-1 would also remove the delays, but would lose a <em>lot</em> more security still. We do not recommend it.)
+These <a name="i57"></a>delays are inconvenient, but they are there for your protection. If they really cause you a problem, you can choose to turn off periodic rekeying using the &#8216;Kex&#8217; configuration panel (see <a href="Chapter4.html#config-ssh-kex">section 4.18</a>), but be aware that you will be sacrificing security for this. (Falling back to SSH-1 would also remove the delays, but would lose a <em>lot</em> more security still. We do not recommend it.)
 </p>
 <h3><a name="faq-xpwontrun"></a><a name="QA.7.21"></a>A.7.21 PuTTY fails to start up. Windows claims that &#8216;the application configuration is incorrect&#8217;.</h3>
 <p>
@@ -751,7 +752,7 @@ On 64-bit systems, <code>C:\WINDOWS\SYSTEM32</code> is intended to contain only 
 If your SSH server has started unexpectedly closing SSH connections after you enter your password, and it worked before 0.68, you may have a buggy server that objects to certain SSH protocol extensions.
 </p>
 <p>
-The SSH protocol recently gained a new &#8216;terminal mode&#8217;, <code>IUTF8</code>, which PuTTY sends by default; see <a href="Chapter4.html#config-ttymodes">section 4.25.2</a>. This is the first new terminal mode since the SSH-2 protocol was defined. While servers are supposed to ignore modes they don't know about, some buggy servers will unceremoniously close the connection if they see anything they don't recognise. SSH servers in embedded devices, network appliances, and the like seem to disproportionately have this bug.
+The SSH protocol recently gained a new &#8216;terminal mode&#8217;, <code>IUTF8</code>, which PuTTY sends by default; see <a href="Chapter4.html#config-ttymodes">section 4.23.2</a>. This is the first new terminal mode since the SSH-2 protocol was defined. While servers are supposed to ignore modes they don't know about, some buggy servers will unceremoniously close the connection if they see anything they don't recognise. SSH servers in embedded devices, network appliances, and the like seem to disproportionately have this bug.
 </p>
 <p>
 If you think you have such a server, from 0.69 onwards you can disable sending of the <code>IUTF8</code> mode: on the SSH / TTY panel, select <code>IUTF8</code> on the list, select &#8216;Nothing&#8217;, and press &#8216;Set&#8217;. (It's not possible to disable sending this mode in 0.68.)
@@ -769,7 +770,7 @@ If you do trust the PC, then it's probably OK to use PuTTY on it (but if you don
 PuTTY will leave some Registry entries, and a random seed file, on the PC (see <a href="#faq-settings">question A.5.2</a>). Windows 7 and up also remember some information about recently launched sessions for the &#8216;jump list&#8217; feature.
 </p>
 <p>
-If you are using PuTTY on a public PC, or somebody else's PC, you might want to clean this information up when you leave. You can do that automatically, by running the command <code>putty -cleanup</code>. See <a href="Chapter3.html#using-cleanup">section 3.8.2</a> in the documentation for more detail. (Note that this only removes settings for the currently logged-in user on <a name="i64"></a>multi-user systems.)
+If you are using PuTTY on a public PC, or somebody else's PC, you might want to clean this information up when you leave. You can do that automatically, by running the command <code>putty -cleanup</code>. See <a href="Chapter3.html#using-cleanup">section 3.11.2</a> in the documentation for more detail. (Note that this only removes settings for the currently logged-in user on <a name="i64"></a>multi-user systems.)
 </p>
 <p>
 If PuTTY was installed from the installer package, it will also appear in &#8216;Add/Remove Programs&#8217;. Current versions of the installer do not offer to remove the above-mentioned items, so if you want them removed you should run <code>putty -cleanup</code> before uninstalling.
@@ -789,18 +790,25 @@ The recently added elliptic-curve signature methods are also DSA-style algorithm
 Unfortunately not. The <code>VirtualLock()</code> function in the Windows API doesn't do a proper job: it may prevent small pieces of a process's memory from being paged to disk while the process is running, but it doesn't stop the process's memory as a whole from being swapped completely out to disk when the process is long-term inactive. And Pageant spends most of its time inactive.
 </p>
 <h2><a name="faq-admin"></a><a name="SA.9"></a>A.9 Administrative questions</h2>
-<h3><a name="faq-domain"></a><a name="QA.9.1"></a>A.9.1 Would you like me to register you a nicer domain name?</h3>
+<h3><a name="faq-putty-org"></a><a name="QA.9.1"></a>A.9.1 Is <code>putty.org</code> your website?</h3>
+<p>
+No, it isn't. <code>putty.org</code> is run by an opportunist who uses it to advertise their own commercial SSH implementation to people looking for our free one. We don't own that site, we can't control it, and we don't advise anyone to use it in preference to our own site.
+</p>
+<p>
+The real PuTTY web site, run by the PuTTY team, has always been at <a href="https://www.chiark.greenend.org.uk/~sgtatham/putty/"><code>https://www.chiark.greenend.org.uk/~sgtatham/putty/</code></a>.
+</p>
+<h3><a name="faq-domain"></a><a name="QA.9.2"></a>A.9.2 Would you like me to register you a nicer domain name?</h3>
 <p>
 No, thank you. Even if you can find one (most of them seem to have been registered already, by people who didn't ask whether we actually wanted it before they applied), we're happy with the PuTTY web site being exactly where it is. It's not hard to find (just type &#8216;putty&#8217; into <a href="http://www.google.com/">google.com</a> and we're the first link returned), and we don't believe the administrative hassle of moving the site would be worth the benefit.
 </p>
 <p>
 In addition, if we <em>did</em> want a custom domain name, we would want to run it ourselves, so we knew for certain that it would continue to point where we wanted it, and wouldn't suddenly change or do strange things. Having it registered for us by a third party who we don't even know is not the best way to achieve this.
 </p>
-<h3><a name="faq-webhosting"></a><a name="QA.9.2"></a>A.9.2 Would you like free web hosting for the PuTTY web site?</h3>
+<h3><a name="faq-webhosting"></a><a name="QA.9.3"></a>A.9.3 Would you like free web hosting for the PuTTY web site?</h3>
 <p>
 We already have some, thanks.
 </p>
-<h3><a name="faq-link"></a><a name="QA.9.3"></a>A.9.3 Would you link to my web site from the PuTTY web site?</h3>
+<h3><a name="faq-link"></a><a name="QA.9.4"></a>A.9.4 Would you link to my web site from the PuTTY web site?</h3>
 <p>
 Only if the content of your web page is of definite direct interest to PuTTY users. If your content is unrelated, or only tangentially related, to PuTTY, then the link would simply be advertising for you.
 </p>
@@ -816,9 +824,9 @@ In particular, we aren't interested in trading links for money (see above), and 
 <p>
 If you have software based on PuTTY, or specifically designed to interoperate with PuTTY, or in some other way of genuine interest to PuTTY users, then we will probably be happy to add a link to you on our Links page. And if you're running a particularly valuable mirror of the PuTTY web site, we might be interested in linking to you from our Mirrors page.
 </p>
-<h3><a name="faq-sourceforge"></a><a name="QA.9.4"></a>A.9.4 Why don't you move PuTTY to SourceForge?</h3>
+<h3><a name="faq-sourceforge"></a><a name="QA.9.5"></a>A.9.5 Why don't you move PuTTY to SourceForge?</h3>
 <p>
-Partly, because we don't want to move the web site location (see <a href="#faq-domain">question A.9.1</a>).
+Partly, because we don't want to move the web site location (see <a href="#faq-domain">question A.9.2</a>).
 </p>
 <p>
 Also, security reasons. PuTTY is a security product, and as such it is particularly important to guard the code and the web site against unauthorised modifications which might introduce subtle security flaws. Therefore, we prefer that the Git repository, web site and FTP site remain where they are, under the direct control of system administrators we know and trust personally, rather than being run by a large organisation full of people we've never met and which is known to have had breakins in the past.
@@ -826,18 +834,18 @@ Also, security reasons. PuTTY is a security product, and as such it is particula
 <p>
 No offence to SourceForge; I think they do a wonderful job. But they're not ideal for everyone, and in particular they're not ideal for us.
 </p>
-<h3><a name="faq-mailinglist1"></a><a name="QA.9.5"></a>A.9.5 Why can't I subscribe to the putty-bugs mailing list?</h3>
+<h3><a name="faq-mailinglist1"></a><a name="QA.9.6"></a>A.9.6 Why can't I subscribe to the putty-bugs mailing list?</h3>
 <p>
 Because you're not a member of the PuTTY core development team. The putty-bugs mailing list is not a general newsgroup-like discussion forum; it's a contact address for the core developers, and an <em>internal</em> mailing list for us to discuss things among ourselves. If we opened it up for everybody to subscribe to, it would turn into something more like a newsgroup and we would be completely overwhelmed by the volume of traffic. It's hard enough to keep up with the list as it is.
 </p>
-<h3><a name="faq-mailinglist2"></a><a name="QA.9.6"></a>A.9.6 If putty-bugs isn't a general-subscription mailing list, what is?</h3>
+<h3><a name="faq-mailinglist2"></a><a name="QA.9.7"></a>A.9.7 If putty-bugs isn't a general-subscription mailing list, what is?</h3>
 <p>
 There isn't one, that we know of.
 </p>
 <p>
 If someone else wants to set up a mailing list or other forum for PuTTY users to help each other with common problems, that would be fine with us, though the PuTTY team would almost certainly not have the time to read it. It's probably better to use one of the established newsgroups for this purpose (see <a href="AppendixB.html#feedback-other-fora">section B.1.2</a>).
 </p>
-<h3><a name="faq-donations"></a><a name="QA.9.7"></a>A.9.7 How can I donate to PuTTY development?</h3>
+<h3><a name="faq-donations"></a><a name="QA.9.8"></a>A.9.8 How can I donate to PuTTY development?</h3>
 <p>
 Please, <em>please</em> don't feel you have to. PuTTY is completely free software, and not shareware. We think it's very important that <em>everybody</em> who wants to use PuTTY should be able to, whether they have any money or not; so the last thing we would want is for a PuTTY user to feel guilty because they haven't paid us any money. If you want to keep your money, please do keep it. We wouldn't dream of asking for any.
 </p>
@@ -847,14 +855,14 @@ Having said all that, if you still really <em>want</em> to give us money, we won
 <p>
 Small donations (tens of dollars or tens of euros) will probably be spent on beer or curry, which helps motivate our volunteer team to continue doing this for the world. Larger donations will be spent on something that actually helps development, if we can find anything (perhaps new hardware, or a copy of Windows XP), but if we can't find anything then we'll just distribute the money among the developers. If you want to be sure your donation is going towards something worthwhile, ask us first. If you don't like these terms, feel perfectly free not to donate. We don't mind.
 </p>
-<h3><a name="faq-permission"></a><a name="QA.9.8"></a>A.9.8 Can I have permission to put PuTTY on a cover disk / distribute it with other software / etc?</h3>
+<h3><a name="faq-permission"></a><a name="QA.9.9"></a>A.9.9 Can I have permission to put PuTTY on a cover disk / distribute it with other software / etc?</h3>
 <p>
 Yes. For most things, you need not bother asking us explicitly for permission; our licence already grants you permission.
 </p>
 <p>
 See <a href="AppendixB.html#feedback-permission">section B.8</a> for more details.
 </p>
-<h3><a name="faq-indemnity"></a><a name="QA.9.9"></a>A.9.9 Can you sign an agreement indemnifying us against security problems in PuTTY?</h3>
+<h3><a name="faq-indemnity"></a><a name="QA.9.10"></a>A.9.10 Can you sign an agreement indemnifying us against security problems in PuTTY?</h3>
 <p>
 No!
 </p>
@@ -876,24 +884,24 @@ Free software fundamentally does not work on the basis of financial guarantees. 
 <p>
 If you <em>really</em> want financial security, see if you can find a security engineer who will take financial responsibility for the correctness of their review. (This might be less likely to suffer from the everything-failing-at-once problem mentioned above, because such an engineer would probably be reviewing a lot of <em>different</em> products which would tend to fail independently.) Failing that, see if you can persuade an insurance company to insure you against security incidents, and if the insurer demands it as a condition then get our code reviewed by a security engineer they're happy with.
 </p>
-<h3><a name="faq-permission-form"></a><a name="QA.9.10"></a>A.9.10 Can you sign this form granting us permission to use/distribute PuTTY?</h3>
+<h3><a name="faq-permission-form"></a><a name="QA.9.11"></a>A.9.11 Can you sign this form granting us permission to use/distribute PuTTY?</h3>
 <p>
-If your form contains any clause along the lines of &#8216;the undersigned represents and warrants&#8217;, we're not going to sign it. This is particularly true if it asks us to warrant that PuTTY is secure; see <a href="#faq-indemnity">question A.9.9</a> for more discussion of this. But it doesn't really matter what we're supposed to be warranting: even if it's something we already believe is true, such as that we don't infringe any third-party copyright, we will not sign a document accepting any legal or financial liability. This is simply because the PuTTY development project has no income out of which to satisfy that liability, or pay legal costs, should it become necessary. We cannot afford to be sued. We are assuring you that <em>we have done our best</em>; if that isn't good enough for you, tough.
+If your form contains any clause along the lines of &#8216;the undersigned represents and warrants&#8217;, we're not going to sign it. This is particularly true if it asks us to warrant that PuTTY is secure; see <a href="#faq-indemnity">question A.9.10</a> for more discussion of this. But it doesn't really matter what we're supposed to be warranting: even if it's something we already believe is true, such as that we don't infringe any third-party copyright, we will not sign a document accepting any legal or financial liability. This is simply because the PuTTY development project has no income out of which to satisfy that liability, or pay legal costs, should it become necessary. We cannot afford to be sued. We are assuring you that <em>we have done our best</em>; if that isn't good enough for you, tough.
 </p>
 <p>
 The existing PuTTY licence document already gives you permission to use or distribute PuTTY in pretty much any way which does not involve pretending you wrote it or suing us if it goes wrong. We think that really ought to be enough for anybody.
 </p>
 <p>
-See also <a href="#faq-permission-general">question A.9.12</a> for another reason why we don't want to do this sort of thing.
+See also <a href="#faq-permission-general">question A.9.13</a> for another reason why we don't want to do this sort of thing.
 </p>
-<h3><a name="faq-permission-future"></a><a name="QA.9.11"></a>A.9.11 Can you write us a formal notice of permission to use PuTTY?</h3>
+<h3><a name="faq-permission-future"></a><a name="QA.9.12"></a>A.9.12 Can you write us a formal notice of permission to use PuTTY?</h3>
 <p>
 We could, in principle, but it isn't clear what use it would be. If you think there's a serious chance of one of the PuTTY copyright holders suing you (which we don't!), you would presumably want a signed notice from <em>all</em> of them; and we couldn't provide that even if we wanted to, because many of the copyright holders are people who contributed some code in the past and with whom we subsequently lost contact. Therefore the best we would be able to do <em>even in theory</em> would be to have the core development team sign the document, which wouldn't guarantee you that some other copyright holder might not sue.
 </p>
 <p>
-See also <a href="#faq-permission-general">question A.9.12</a> for another reason why we don't want to do this sort of thing.
+See also <a href="#faq-permission-general">question A.9.13</a> for another reason why we don't want to do this sort of thing.
 </p>
-<h3><a name="faq-permission-general"></a><a name="QA.9.12"></a>A.9.12 Can you sign <em>anything</em> for us?</h3>
+<h3><a name="faq-permission-general"></a><a name="QA.9.13"></a>A.9.13 Can you sign <em>anything</em> for us?</h3>
 <p>
 Not unless there's an incredibly good reason.
 </p>
@@ -903,7 +911,7 @@ We are generally unwilling to set a precedent that involves us having to enter i
 <p>
 If your company policy requires you to have an individual agreement with the supplier of any software you use, then your company policy is simply not well suited to using popular free software, and we urge you to consider this as a flaw in your policy.
 </p>
-<h3><a name="faq-permission-assurance"></a><a name="QA.9.13"></a>A.9.13 If you won't sign anything, can you give us some sort of assurance that you won't make PuTTY closed-source in future?</h3>
+<h3><a name="faq-permission-assurance"></a><a name="QA.9.14"></a>A.9.14 If you won't sign anything, can you give us some sort of assurance that you won't make PuTTY closed-source in future?</h3>
 <p>
 Yes and no.
 </p>
@@ -919,14 +927,14 @@ If we <em>were</em> to stop developing PuTTY, or to decide to make all future re
 <p>
 (Finally, we can also confidently predict that if we made PuTTY closed-source and someone made an open-source fork, most people would switch to the latter. Therefore, it would be pretty stupid of us to try it.)
 </p>
-<h3><a name="faq-export-cert"></a><a name="QA.9.14"></a>A.9.14 Can you provide us with export control information / FIPS certification for PuTTY?</h3>
+<h3><a name="faq-export-cert"></a><a name="QA.9.15"></a>A.9.15 Can you provide us with export control information / FIPS certification for PuTTY?</h3>
 <p>
 Some people have asked us for an Export Control Classification Number (ECCN) for PuTTY. We don't know whether we have one, and as a team of free software developers based in the UK we don't have the time, money, or effort to deal with US bureaucracy to investigate any further. We believe that PuTTY falls under 5D002 on the US Commerce Control List, but that shouldn't be taken as definitive. If you need to know more you should seek professional legal advice. The same applies to any other country's legal requirements and restrictions.
 </p>
 <p>
 Similarly, some people have asked us for FIPS certification of the PuTTY tools. Unless someone else is prepared to do the necessary work and pay any costs, we can't provide this.
 </p>
-<h3><a name="faq-vendor"></a><a name="QA.9.15"></a>A.9.15 As one of our existing software vendors, can you just fill in this questionnaire for us?</h3>
+<h3><a name="faq-vendor"></a><a name="QA.9.16"></a>A.9.16 As one of our existing software vendors, can you just fill in this questionnaire for us?</h3>
 <p>
 We periodically receive requests like this, from organisations which have apparently sent out a form letter to everyone listed in their big spreadsheet of &#8216;software vendors&#8217; requiring them all to answer some long list of questions about supported OS versions, paid support arrangements, compliance with assorted local regulations we haven't heard of, contact phone numbers, and other such administrivia. Many of the questions are obviously meaningless when applied to PuTTY (we don't provide any paid support in the first place!), most of the rest could have been answered with only a very quick look at our website, and some we are actively unwilling to answer (we are private individuals, why would we want to give out our home phone numbers to large corporations?).
 </p>
@@ -945,7 +953,7 @@ It's not that we are unwilling to <em>provide information</em>. We put as much o
 <p>
 If you work for an organisation which you think might be at risk of making this mistake, we urge you to reorganise your list of software suppliers so that it clearly distinguishes paid vendors who know about you from free software developers who don't have any idea who you are. Then, only send out these mass mailings to the former.
 </p>
-<h3><a name="faq-checksums"></a><a name="QA.9.16"></a>A.9.16 The <code>sha1sums</code> / <code>sha256sums</code> / etc files on your download page don't match the binaries.</h3>
+<h3><a name="faq-checksums"></a><a name="QA.9.17"></a>A.9.17 The <code>sha1sums</code> / <code>sha256sums</code> / etc files on your download page don't match the binaries.</h3>
 <p>
 People report this every so often, and usually the reason turns out to be that they've matched up the wrong checksums file with the wrong binaries.
 </p>
@@ -996,5 +1004,5 @@ Exactly like the English word &#8216;putty&#8217;, which we pronounce /&#712;p&#
 </p>
 
 <hr><p>If you want to provide feedback on this manual or on the PuTTY tools themselves, see the <a href="https://www.chiark.greenend.org.uk/~sgtatham/putty/feedback.html">Feedback page</a>.</p><address>
-[PuTTY release 0.74]</address></body>
+[PuTTY release 0.75]</address></body>
 </html>

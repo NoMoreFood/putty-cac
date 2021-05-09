@@ -2,11 +2,11 @@
 TITLE Building PuTTY-CAC
 
 :: version information
-SET VER=0.74
-SET VERN=0.74.0.0
+SET VER=0.75
+SET VERN=0.75.0.0
 
 :: cert info to use for signing
-SET CERT=193A6FACBFBFC43ADB74ABB669543FCBC1C4F26C
+SET CERT=BC4F81C0B3B32755A8CC9A6B91713958294788F0
 set TSAURL=http://time.certum.pl/
 set LIBNAME=PuTTY-CAC
 set LIBURL=https://github.com/NoMoreFood/putty-cac
@@ -23,7 +23,7 @@ IF DEFINED ProgramFiles(x86) SET PX86=%ProgramFiles(x86)%
 
 :: setup paths
 SET PATH=%WINDIR%\system32;%WINDIR%\system32\WindowsPowerShell\v1.0
-SET PATH=%PATH%;%PX86%\Windows Kits\10\bin\10.0.18362.0\x64
+SET PATH=%PATH%;%PX86%\Windows Kits\10\bin\10.0.19041.0\x64
 SET PATH=%PATH%;%PX86%\Windows Kits\8.1\bin\x64
 SET PATH=%PATH%;%PX86%\WiX Toolset v3.11\bin
 
@@ -34,7 +34,6 @@ FOR %%X IN (Win32 x64 Debug Release Temp .vs) DO (
 FORFILES /S /P "%BINDIR%" /M "*.*" /C "CMD /C IF /I @ext NEQ """exe""" DEL /Q @file"
 
 :: sign the main executables
-signtool sign /sha1 %CERT% /fd sha1 /tr %TSAURL% /td sha1 /d %LIBNAME% /du %LIBURL% "%BINDIR%\x86\*.exe" "%BINDIR%\x64\*.exe" 
 signtool sign /sha1 %CERT% /as /fd sha256 /tr %TSAURL% /td sha256 /d %LIBNAME% /du %LIBURL% "%BINDIR%\x86\*.exe" "%BINDIR%\x64\*.exe" 
 
 :: copy prereqs from build dir and 'real' installer

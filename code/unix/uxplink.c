@@ -15,8 +15,8 @@
 #include <sys/ioctl.h>
 #include <sys/time.h>
 
-#define PUTTY_DO_GLOBALS               /* actually _define_ globals */
 #include "putty.h"
+#include "ssh.h"
 #include "storage.h"
 #include "tree234.h"
 
@@ -38,7 +38,7 @@ void cmdline_error(const char *fmt, ...)
 static bool local_tty = false; /* do we have a local tty? */
 
 static Backend *backend;
-Conf *conf;
+static Conf *conf;
 
 /*
  * Default settings that are specific to Unix plink.
@@ -315,12 +315,12 @@ void cleanup_termios(void)
         tcsetattr(STDIN_FILENO, TCSANOW, &orig_termios);
 }
 
-bufchain stdout_data, stderr_data;
-bufchain_sink stdout_bcs, stderr_bcs;
-StripCtrlChars *stdout_scc, *stderr_scc;
-BinarySink *stdout_bs, *stderr_bs;
+static bufchain stdout_data, stderr_data;
+static bufchain_sink stdout_bcs, stderr_bcs;
+static StripCtrlChars *stdout_scc, *stderr_scc;
+static BinarySink *stdout_bs, *stderr_bs;
 
-enum { EOF_NO, EOF_PENDING, EOF_SENT } outgoingeof;
+static enum { EOF_NO, EOF_PENDING, EOF_SENT } outgoingeof;
 
 size_t try_output(bool is_stderr)
 {
@@ -379,25 +379,35 @@ static int plink_get_userpass_input(Seat *seat, prompts_t *p, bufchain *input)
     return ret;
 }
 
+static bool plink_seat_interactive(Seat *seat)
+{
+    return (!*conf_get_str(conf, CONF_remote_cmd) &&
+            !*conf_get_str(conf, CONF_remote_cmd2) &&
+            !*conf_get_str(conf, CONF_ssh_nc_host));
+}
+
 static const SeatVtable plink_seat_vt = {
-    plink_output,
-    plink_eof,
-    plink_get_userpass_input,
-    nullseat_notify_remote_exit,
-    console_connection_fatal,
-    nullseat_update_specials_menu,
-    plink_get_ttymode,
-    nullseat_set_busy_status,
-    console_verify_ssh_host_key,
-    console_confirm_weak_crypto_primitive,
-    console_confirm_weak_cached_hostkey,
-    nullseat_is_never_utf8,
-    plink_echoedit_update,
-    nullseat_get_x_display,
-    nullseat_get_windowid,
-    nullseat_get_window_pixel_size,
-    console_stripctrl_new,
-    console_set_trust_status,
+    .output = plink_output,
+    .eof = plink_eof,
+    .get_userpass_input = plink_get_userpass_input,
+    .notify_remote_exit = nullseat_notify_remote_exit,
+    .connection_fatal = console_connection_fatal,
+    .update_specials_menu = nullseat_update_specials_menu,
+    .get_ttymode = plink_get_ttymode,
+    .set_busy_status = nullseat_set_busy_status,
+    .verify_ssh_host_key = console_verify_ssh_host_key,
+    .confirm_weak_crypto_primitive = console_confirm_weak_crypto_primitive,
+    .confirm_weak_cached_hostkey = console_confirm_weak_cached_hostkey,
+    .is_utf8 = nullseat_is_never_utf8,
+    .echoedit_update = plink_echoedit_update,
+    .get_x_display = nullseat_get_x_display,
+    .get_windowid = nullseat_get_windowid,
+    .get_window_pixel_size = nullseat_get_window_pixel_size,
+    .stripctrl_new = console_stripctrl_new,
+    .set_trust_status = console_set_trust_status,
+    .verbose = cmdline_seat_verbose,
+    .interactive = plink_seat_interactive,
+    .get_cursor_position = nullseat_get_cursor_position,
 };
 static Seat plink_seat[1] = {{ &plink_seat_vt }};
 
@@ -467,20 +477,13 @@ static void from_tty(void *vbuf, unsigned len)
     }
 }
 
-int signalpipe[2];
+static int signalpipe[2];
 
 void sigwinch(int signum)
 {
     if (write(signalpipe[1], "x", 1) <= 0)
         /* not much we can do about it */;
 }
-
-/*
- * In Plink our selects are synchronous, so these functions are
- * empty stubs.
- */
-uxsel_id *uxsel_input_add(int fd, int rwx) { return NULL; }
-void uxsel_input_remove(uxsel_id *id) { }
 
 /*
  * Short description of parameters.
@@ -498,6 +501,8 @@ static void usage(void)
     printf("  -load sessname  Load settings from saved session\n");
     printf("  -ssh -telnet -rlogin -raw -serial\n");
     printf("            force use of a particular protocol\n");
+    printf("  -ssh-connection\n");
+    printf("            force use of the bare ssh-connection protocol\n");
     printf("  -P port   connect to specified port\n");
     printf("  -l user   connect with specified username\n");
     printf("  -batch    disable all interactive prompts\n");
@@ -516,7 +521,7 @@ static void usage(void)
     printf("  -X -x     enable / disable X11 forwarding\n");
     printf("  -A -a     enable / disable agent forwarding\n");
     printf("  -t -T     enable / disable pty allocation\n");
-    printf("  -1 -2     force use of particular protocol version\n");
+    printf("  -1 -2     force use of particular SSH protocol version\n");
     printf("  -4 -6     force use of IPv4 or IPv6\n");
     printf("  -C        enable compression\n");
     printf("  -i key    private key file for user authentication\n");
@@ -524,7 +529,7 @@ static void usage(void)
     printf("  -agent    enable use of Pageant\n");
     printf("  -noshare  disable use of connection sharing\n");
     printf("  -share    enable use of connection sharing\n");
-    printf("  -hostkey aa:bb:cc:...\n");
+    printf("  -hostkey keyid\n");
     printf("            manually specify a host key (may be repeated)\n");
     printf("  -sanitise-stderr, -sanitise-stdout, "
            "-no-sanitise-stderr, -no-sanitise-stdout\n");
@@ -540,6 +545,9 @@ static void usage(void)
     printf("  -sshlog file\n");
     printf("  -sshrawlog file\n");
     printf("            log protocol details to a file\n");
+    printf("  -logoverwrite\n");
+    printf("  -logappend\n");
+    printf("            control what happens when a log file already exists\n");
     printf("  -shareexists\n");
     printf("            test whether a connection-sharing upstream exists\n");
     exit(1);
@@ -560,30 +568,107 @@ const bool share_can_be_upstream = true;
 
 const bool buildinfo_gtk_relevant = false;
 
+const unsigned cmdline_tooltype =
+    TOOLTYPE_HOST_ARG |
+    TOOLTYPE_HOST_ARG_CAN_BE_SESSION |
+    TOOLTYPE_HOST_ARG_PROTOCOL_PREFIX |
+    TOOLTYPE_HOST_ARG_FROM_LAUNCHABLE_LOAD;
+
+static bool seen_stdin_eof = false;
+
+static bool plink_pw_setup(void *vctx, pollwrapper *pw)
+{
+    pollwrap_add_fd_rwx(pw, signalpipe[0], SELECT_R);
+
+    if (!seen_stdin_eof &&
+        backend_connected(backend) &&
+        backend_sendok(backend) &&
+        backend_sendbuffer(backend) < MAX_STDIN_BACKLOG) {
+        /* If we're OK to send, then try to read from stdin. */
+        pollwrap_add_fd_rwx(pw, STDIN_FILENO, SELECT_R);
+    }
+
+    if (bufchain_size(&stdout_data) > 0) {
+        /* If we have data for stdout, try to write to stdout. */
+        pollwrap_add_fd_rwx(pw, STDOUT_FILENO, SELECT_W);
+    }
+
+    if (bufchain_size(&stderr_data) > 0) {
+        /* If we have data for stderr, try to write to stderr. */
+        pollwrap_add_fd_rwx(pw, STDERR_FILENO, SELECT_W);
+    }
+
+    return true;
+}
+
+static void plink_pw_check(void *vctx, pollwrapper *pw)
+{
+    if (pollwrap_check_fd_rwx(pw, signalpipe[0], SELECT_R)) {
+        char c[1];
+        struct winsize size;
+        if (read(signalpipe[0], c, 1) <= 0)
+            /* ignore error */;
+        /* ignore its value; it'll be `x' */
+        if (ioctl(STDIN_FILENO, TIOCGWINSZ, (void *)&size) >= 0)
+            backend_size(backend, size.ws_col, size.ws_row);
+    }
+
+    if (pollwrap_check_fd_rwx(pw, STDIN_FILENO, SELECT_R)) {
+        char buf[4096];
+        int ret;
+
+        if (backend_connected(backend)) {
+            ret = read(STDIN_FILENO, buf, sizeof(buf));
+            noise_ultralight(NOISE_SOURCE_IOLEN, ret);
+            if (ret < 0) {
+                perror("stdin: read");
+                exit(1);
+            } else if (ret == 0) {
+                backend_special(backend, SS_EOF, 0);
+                seen_stdin_eof = true;
+            } else {
+                if (local_tty)
+                    from_tty(buf, ret);
+                else
+                    backend_send(backend, buf, ret);
+            }
+        }
+    }
+
+    if (pollwrap_check_fd_rwx(pw, STDOUT_FILENO, SELECT_W)) {
+        backend_unthrottle(backend, try_output(false));
+    }
+
+    if (pollwrap_check_fd_rwx(pw, STDERR_FILENO, SELECT_W)) {
+        backend_unthrottle(backend, try_output(true));
+    }
+}
+
+static bool plink_continue(void *vctx, bool found_any_fd,
+                           bool ran_any_callback)
+{
+    if (!backend_connected(backend) &&
+        bufchain_size(&stdout_data) == 0 && bufchain_size(&stderr_data) == 0)
+        return false;                  /* terminate main loop */
+    return true;
+}
+
 int main(int argc, char **argv)
 {
-    bool sending;
-    int *fdlist;
-    int fd;
-    int i, fdstate;
-    size_t fdsize;
     int exitcode;
     bool errors;
     enum TriState sanitise_stdout = AUTO, sanitise_stderr = AUTO;
     bool use_subsystem = false;
     bool just_test_share_exists = false;
-    unsigned long now;
     struct winsize size;
     const struct BackendVtable *backvt;
 
-    fdlist = NULL;
-    fdsize = 0;
     /*
      * Initialise port and protocol to sensible defaults. (These
      * will be overridden by more or less anything.)
      */
-    default_protocol = PROT_SSH;
-    default_port = 22;
+    settings_set_default_protocol(PROT_SSH);
+    settings_set_default_port(22);
 
     bufchain_init(&stdout_data);
     bufchain_init(&stderr_data);
@@ -593,22 +678,14 @@ int main(int argc, char **argv)
     stderr_bs = BinarySink_UPCAST(&stderr_bcs);
     outgoingeof = EOF_NO;
 
-    flags = FLAG_STDERR_TTY;
-    cmdline_tooltype |=
-        (TOOLTYPE_HOST_ARG |
-         TOOLTYPE_HOST_ARG_CAN_BE_SESSION |
-         TOOLTYPE_HOST_ARG_PROTOCOL_PREFIX |
-         TOOLTYPE_HOST_ARG_FROM_LAUNCHABLE_LOAD);
-
     stderr_tty_init();
     /*
      * Process the command line.
      */
     conf = conf_new();
     do_defaults(NULL, conf);
-    loaded_session = false;
-    default_protocol = conf_get_int(conf, CONF_protocol);
-    default_port = conf_get_int(conf, CONF_port);
+    settings_set_default_protocol(conf_get_int(conf, CONF_protocol));
+    settings_set_default_port(conf_get_int(conf, CONF_port));
     errors = false;
     {
         /*
@@ -618,10 +695,10 @@ int main(int argc, char **argv)
         if (p) {
             const struct BackendVtable *vt = backend_vt_from_name(p);
             if (vt) {
-                default_protocol = vt->protocol;
-                default_port = vt->default_port;
-                conf_set_int(conf, CONF_protocol, default_protocol);
-                conf_set_int(conf, CONF_port, default_port);
+                settings_set_default_protocol(vt->protocol);
+                settings_set_default_port(vt->default_port);
+                conf_set_int(conf, CONF_protocol, vt->protocol);
+                conf_set_int(conf, CONF_port, vt->default_port);
             }
         }
     }
@@ -737,11 +814,6 @@ int main(int argc, char **argv)
     if (use_subsystem)
         conf_set_bool(conf, CONF_ssh_subsys, true);
 
-    if (!*conf_get_str(conf, CONF_remote_cmd) &&
-        !*conf_get_str(conf, CONF_remote_cmd2) &&
-        !*conf_get_str(conf, CONF_ssh_nc_host))
-        flags |= FLAG_INTERACTIVE;
-
     /*
      * Select protocol. This is farmed out into a table in a
      * separate file to enable an ssh-free variant.
@@ -750,6 +822,13 @@ int main(int argc, char **argv)
     if (!backvt) {
         fprintf(stderr,
                 "Internal fault: Unsupported protocol found\n");
+        return 1;
+    }
+
+    if (backvt->flags & BACKEND_NEEDS_TERMINAL) {
+        fprintf(stderr,
+                "Plink doesn't support %s, which needs terminal emulation\n",
+                backvt->displayname);
         return 1;
     }
 
@@ -825,8 +904,8 @@ int main(int argc, char **argv)
 
     if (just_test_share_exists) {
         if (!backvt->test_for_upstream) {
-            fprintf(stderr, "Connection sharing not supported for connection "
-                    "type '%s'\n", backvt->name);
+            fprintf(stderr, "Connection sharing not supported for this "
+                    "connection type (%s)'\n", backvt->displayname);
             return 1;
         }
         if (backvt->test_for_upstream(conf_get_str(conf, CONF_host),
@@ -839,10 +918,9 @@ int main(int argc, char **argv)
     /*
      * Start up the connection.
      */
-    logctx = log_init(default_logpolicy, conf);
+    logctx = log_init(console_cli_logpolicy, conf);
     {
-        const char *error;
-        char *realhost;
+        char *error, *realhost;
         /* nodelay is only useful if stdin is a terminal device */
         bool nodelay = conf_get_bool(conf, CONF_tcp_nodelay) && isatty(0);
 
@@ -858,6 +936,7 @@ int main(int argc, char **argv)
                              conf_get_bool(conf, CONF_tcp_keepalives));
         if (error) {
             fprintf(stderr, "Unable to open connection:\n%s\n", error);
+            sfree(error);
             return 1;
         }
         ldisc_create(conf, NULL, backend, plink_seat);
@@ -872,158 +951,9 @@ int main(int argc, char **argv)
     local_tty = (tcgetattr(STDIN_FILENO, &orig_termios) == 0);
     atexit(cleanup_termios);
     seat_echoedit_update(plink_seat, 1, 1);
-    sending = false;
-    now = GETTICKCOUNT();
 
-    pollwrapper *pw = pollwrap_new();
+    cli_main_loop(plink_pw_setup, plink_pw_check, plink_continue, NULL);
 
-    while (1) {
-        int rwx;
-        int ret;
-        unsigned long next;
-
-        pollwrap_clear(pw);
-
-        pollwrap_add_fd_rwx(pw, signalpipe[0], SELECT_R);
-
-        if (!sending &&
-            backend_connected(backend) &&
-            backend_sendok(backend) &&
-            backend_sendbuffer(backend) < MAX_STDIN_BACKLOG) {
-            /* If we're OK to send, then try to read from stdin. */
-            pollwrap_add_fd_rwx(pw, STDIN_FILENO, SELECT_R);
-        }
-
-        if (bufchain_size(&stdout_data) > 0) {
-            /* If we have data for stdout, try to write to stdout. */
-            pollwrap_add_fd_rwx(pw, STDOUT_FILENO, SELECT_W);
-        }
-
-        if (bufchain_size(&stderr_data) > 0) {
-            /* If we have data for stderr, try to write to stderr. */
-            pollwrap_add_fd_rwx(pw, STDERR_FILENO, SELECT_W);
-        }
-
-        /* Count the currently active fds. */
-        i = 0;
-        for (fd = first_fd(&fdstate, &rwx); fd >= 0;
-             fd = next_fd(&fdstate, &rwx)) i++;
-
-        /* Expand the fdlist buffer if necessary. */
-        sgrowarray(fdlist, fdsize, i);
-
-        /*
-         * Add all currently open fds to pw, and store them in fdlist
-         * as well.
-         */
-        int fdcount = 0;
-        for (fd = first_fd(&fdstate, &rwx); fd >= 0;
-             fd = next_fd(&fdstate, &rwx)) {
-            fdlist[fdcount++] = fd;
-            pollwrap_add_fd_rwx(pw, fd, rwx);
-        }
-
-        if (toplevel_callback_pending()) {
-            ret = pollwrap_poll_instant(pw);
-        } else if (run_timers(now, &next)) {
-            do {
-                unsigned long then;
-                long ticks;
-
-                then = now;
-                now = GETTICKCOUNT();
-                if (now - then > next - then)
-                    ticks = 0;
-                else
-                    ticks = next - now;
-
-                bool overflow = false;
-                if (ticks > INT_MAX) {
-                    ticks = INT_MAX;
-                    overflow = true;
-                }
-
-                ret = pollwrap_poll_timeout(pw, ticks);
-                if (ret == 0 && !overflow)
-                    now = next;
-                else
-                    now = GETTICKCOUNT();
-            } while (ret < 0 && errno == EINTR);
-        } else {
-            ret = pollwrap_poll_endless(pw);
-        }
-
-        if (ret < 0 && errno == EINTR)
-            continue;
-
-        if (ret < 0) {
-            perror("poll");
-            exit(1);
-        }
-
-        for (i = 0; i < fdcount; i++) {
-            fd = fdlist[i];
-            int rwx = pollwrap_get_fd_rwx(pw, fd);
-            /*
-             * We must process exceptional notifications before
-             * ordinary readability ones, or we may go straight
-             * past the urgent marker.
-             */
-            if (rwx & SELECT_X)
-                select_result(fd, SELECT_X);
-            if (rwx & SELECT_R)
-                select_result(fd, SELECT_R);
-            if (rwx & SELECT_W)
-                select_result(fd, SELECT_W);
-        }
-
-        if (pollwrap_check_fd_rwx(pw, signalpipe[0], SELECT_R)) {
-            char c[1];
-            struct winsize size;
-            if (read(signalpipe[0], c, 1) <= 0)
-                /* ignore error */;
-            /* ignore its value; it'll be `x' */
-            if (ioctl(STDIN_FILENO, TIOCGWINSZ, (void *)&size) >= 0)
-                backend_size(backend, size.ws_col, size.ws_row);
-        }
-
-        if (pollwrap_check_fd_rwx(pw, STDIN_FILENO, SELECT_R)) {
-            char buf[4096];
-            int ret;
-
-            if (backend_connected(backend)) {
-                ret = read(STDIN_FILENO, buf, sizeof(buf));
-                noise_ultralight(NOISE_SOURCE_IOLEN, ret);
-                if (ret < 0) {
-                    perror("stdin: read");
-                    exit(1);
-                } else if (ret == 0) {
-                    backend_special(backend, SS_EOF, 0);
-                    sending = false;   /* send nothing further after this */
-                } else {
-                    if (local_tty)
-                        from_tty(buf, ret);
-                    else
-                        backend_send(backend, buf, ret);
-                }
-            }
-        }
-
-        if (pollwrap_check_fd_rwx(pw, STDOUT_FILENO, SELECT_W)) {
-            backend_unthrottle(backend, try_output(false));
-        }
-
-        if (pollwrap_check_fd_rwx(pw, STDERR_FILENO, SELECT_W)) {
-            backend_unthrottle(backend, try_output(true));
-        }
-
-        run_toplevel_callbacks();
-
-        if (!backend_connected(backend) &&
-            bufchain_size(&stdout_data) == 0 &&
-            bufchain_size(&stderr_data) == 0)
-            break;                     /* we closed the connection */
-    }
     exitcode = backend_exitcode(backend);
     if (exitcode < 0) {
         fprintf(stderr, "Remote process exit code unavailable\n");

@@ -48,6 +48,8 @@
       <Filter>Source Files</Filter>
     </ClCompile>    <ClCompile Include="..\..\..\nogss.c">
       <Filter>Source Files</Filter>
+    </ClCompile>    <ClCompile Include="..\..\..\norand.c">
+      <Filter>Source Files</Filter>
     </ClCompile>    <ClCompile Include="..\..\..\pinger.c">
       <Filter>Source Files</Filter>
     </ClCompile>    <ClCompile Include="..\..\..\proxy.c">
@@ -56,13 +58,13 @@
       <Filter>Source Files</Filter>
     </ClCompile>    <ClCompile Include="..\..\..\rlogin.c">
       <Filter>Source Files</Filter>
-    </ClCompile>    <ClCompile Include="..\..\..\sercfg.c">
-      <Filter>Source Files</Filter>
     </ClCompile>    <ClCompile Include="..\..\..\sessprep.c">
       <Filter>Source Files</Filter>
     </ClCompile>    <ClCompile Include="..\..\..\settings.c">
       <Filter>Source Files</Filter>
     </ClCompile>    <ClCompile Include="..\..\..\stripctrl.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>    <ClCompile Include="..\..\..\supdup.c">
       <Filter>Source Files</Filter>
     </ClCompile>    <ClCompile Include="..\..\..\telnet.c">
       <Filter>Source Files</Filter>
@@ -109,6 +111,8 @@
     </ClCompile>    <ClCompile Include="..\..\winproxy.c">
       <Filter>Source Files</Filter>
     </ClCompile>    <ClCompile Include="..\..\winsecur.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>    <ClCompile Include="..\..\winselgui.c">
       <Filter>Source Files</Filter>
     </ClCompile>    <ClCompile Include="..\..\winser.c">
       <Filter>Source Files</Filter>
@@ -175,6 +179,8 @@
     </ClInclude>    <ClInclude Include="..\..\win_res.h">
       <Filter>Header Files</Filter>
     </ClInclude>    <ClInclude Include="..\..\winhelp.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>    <ClInclude Include="..\..\winseat.h">
       <Filter>Header Files</Filter>
     </ClInclude>    <ClInclude Include="..\..\winsecur.h">
       <Filter>Header Files</Filter>

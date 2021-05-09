@@ -461,158 +461,39 @@ char *dir_file_cat(const char *dir, const char *file)
 /* ----------------------------------------------------------------------
  * Platform-specific network handling.
  */
-
-/*
- * Be told what socket we're supposed to be using.
- */
-static SOCKET sftp_ssh_socket = INVALID_SOCKET;
-static HANDLE netevent = INVALID_HANDLE_VALUE;
-char *do_select(SOCKET skt, bool enable)
+struct winsftp_cliloop_ctx {
+    HANDLE other_event;
+    int toret;
+};
+static bool winsftp_cliloop_pre(void *vctx, const HANDLE **extra_handles,
+                                size_t *n_extra_handles)
 {
-    int events;
-    if (enable)
-        sftp_ssh_socket = skt;
-    else
-        sftp_ssh_socket = INVALID_SOCKET;
+    struct winsftp_cliloop_ctx *ctx = (struct winsftp_cliloop_ctx *)vctx;
 
-    if (netevent == INVALID_HANDLE_VALUE)
-        netevent = CreateEvent(NULL, false, false, NULL);
-
-    if (p_WSAEventSelect) {
-        if (enable) {
-            events = (FD_CONNECT | FD_READ | FD_WRITE |
-                      FD_OOB | FD_CLOSE | FD_ACCEPT);
-        } else {
-            events = 0;
-        }
-        if (p_WSAEventSelect(skt, netevent, events) == SOCKET_ERROR) {
-            switch (p_WSAGetLastError()) {
-              case WSAENETDOWN:
-                return "Network is down";
-              default:
-                return "WSAEventSelect(): unknown error";
-            }
-        }
+    if (ctx->other_event != INVALID_HANDLE_VALUE) {
+        *extra_handles = &ctx->other_event;
+        *n_extra_handles = 1;
     }
-    return NULL;
-}
 
+    return true;
+}
+static bool winsftp_cliloop_post(void *vctx, size_t extra_handle_index)
+{
+    struct winsftp_cliloop_ctx *ctx = (struct winsftp_cliloop_ctx *)vctx;
+
+    if (ctx->other_event != INVALID_HANDLE_VALUE &&
+        extra_handle_index == 0)
+        ctx->toret = 1;       /* other_event was set */
+
+    return false; /* always run only one loop iteration */
+}
 int do_eventsel_loop(HANDLE other_event)
 {
-    int n, nhandles, nallhandles, netindex, otherindex;
-    unsigned long next, then;
-    long ticks;
-    HANDLE *handles;
-    SOCKET *sklist;
-    int skcount;
-    unsigned long now = GETTICKCOUNT();
-
-    if (toplevel_callback_pending()) {
-        ticks = 0;
-        next = now;
-    } else if (run_timers(now, &next)) {
-        then = now;
-        now = GETTICKCOUNT();
-        if (now - then > next - then)
-            ticks = 0;
-        else
-            ticks = next - now;
-    } else {
-        ticks = INFINITE;
-        /* no need to initialise next here because we can never get
-         * WAIT_TIMEOUT */
-    }
-
-    handles = handle_get_events(&nhandles);
-    handles = sresize(handles, nhandles+2, HANDLE);
-    nallhandles = nhandles;
-
-    if (netevent != INVALID_HANDLE_VALUE)
-        handles[netindex = nallhandles++] = netevent;
-    else
-        netindex = -1;
-    if (other_event != INVALID_HANDLE_VALUE)
-        handles[otherindex = nallhandles++] = other_event;
-    else
-        otherindex = -1;
-
-    n = WaitForMultipleObjects(nallhandles, handles, false, ticks);
-
-    if ((unsigned)(n - WAIT_OBJECT_0) < (unsigned)nhandles) {
-        handle_got_event(handles[n - WAIT_OBJECT_0]);
-    } else if (netindex >= 0 && n == WAIT_OBJECT_0 + netindex) {
-        WSANETWORKEVENTS things;
-        SOCKET socket;
-        int i, socketstate;
-
-        /*
-         * We must not call select_result() for any socket
-         * until we have finished enumerating within the
-         * tree. This is because select_result() may close
-         * the socket and modify the tree.
-         */
-        /* Count the active sockets. */
-        i = 0;
-        for (socket = first_socket(&socketstate);
-             socket != INVALID_SOCKET;
-             socket = next_socket(&socketstate)) i++;
-
-        /* Expand the buffer if necessary. */
-        sklist = snewn(i, SOCKET);
-
-        /* Retrieve the sockets into sklist. */
-        skcount = 0;
-        for (socket = first_socket(&socketstate);
-             socket != INVALID_SOCKET;
-             socket = next_socket(&socketstate)) {
-            sklist[skcount++] = socket;
-        }
-
-        /* Now we're done enumerating; go through the list. */
-        for (i = 0; i < skcount; i++) {
-            WPARAM wp;
-            socket = sklist[i];
-            wp = (WPARAM) socket;
-            if (!p_WSAEnumNetworkEvents(socket, NULL, &things)) {
-                static const struct { int bit, mask; } eventtypes[] = {
-                    {FD_CONNECT_BIT, FD_CONNECT},
-                    {FD_READ_BIT, FD_READ},
-                    {FD_CLOSE_BIT, FD_CLOSE},
-                    {FD_OOB_BIT, FD_OOB},
-                    {FD_WRITE_BIT, FD_WRITE},
-                    {FD_ACCEPT_BIT, FD_ACCEPT},
-                };
-                int e;
-
-                noise_ultralight(NOISE_SOURCE_IOID, socket);
-
-                for (e = 0; e < lenof(eventtypes); e++)
-                    if (things.lNetworkEvents & eventtypes[e].mask) {
-                        LPARAM lp;
-                        int err = things.iErrorCode[eventtypes[e].bit];
-                        lp = WSAMAKESELECTREPLY(eventtypes[e].mask, err);
-                        select_result(wp, lp);
-                    }
-            }
-        }
-
-        sfree(sklist);
-    }
-
-    sfree(handles);
-
-    run_toplevel_callbacks();
-
-    if (n == WAIT_TIMEOUT) {
-        now = next;
-    } else {
-        now = GETTICKCOUNT();
-    }
-
-    if (otherindex >= 0 && n == WAIT_OBJECT_0 + otherindex)
-        return 1;
-
-    return 0;
+    struct winsftp_cliloop_ctx ctx[1];
+    ctx->other_event = other_event;
+    ctx->toret = 0;
+    cli_main_loop(winsftp_cliloop_pre, winsftp_cliloop_post, ctx);
+    return ctx->toret;
 }
 
 /*
@@ -630,12 +511,13 @@ int ssh_sftp_loop_iteration(void)
         fd_set readfds;
         int ret;
         unsigned long now = GETTICKCOUNT(), then;
+        SOCKET skt = winselcli_unique_socket();
 
-        if (sftp_ssh_socket == INVALID_SOCKET)
+        if (skt == INVALID_SOCKET)
             return -1;                 /* doom */
 
-        if (socket_writable(sftp_ssh_socket))
-            select_result((WPARAM) sftp_ssh_socket, (LPARAM) FD_WRITE);
+        if (socket_writable(skt))
+            select_result((WPARAM) skt, (LPARAM) FD_WRITE);
 
         do {
             unsigned long next;
@@ -657,7 +539,7 @@ int ssh_sftp_loop_iteration(void)
             }
 
             FD_ZERO(&readfds);
-            FD_SET(sftp_ssh_socket, &readfds);
+            FD_SET(skt, &readfds);
             ret = p_select(1, &readfds, NULL, NULL, ptv);
 
             if (ret < 0)
@@ -669,7 +551,7 @@ int ssh_sftp_loop_iteration(void)
 
         } while (ret == 0);
 
-        select_result((WPARAM) sftp_ssh_socket, (LPARAM) FD_READ);
+        select_result((WPARAM) skt, (LPARAM) FD_READ);
 
         return 0;
     } else {
@@ -705,14 +587,14 @@ static DWORD WINAPI command_read_thread(void *param)
 char *ssh_sftp_get_cmdline(const char *prompt, bool no_fds_ok)
 {
     int ret;
-    struct command_read_ctx actx, *ctx = &actx;
+    struct command_read_ctx ctx[1];
     DWORD threadid;
     HANDLE hThread;
 
     fputs(prompt, stdout);
     fflush(stdout);
 
-    if ((sftp_ssh_socket == INVALID_SOCKET && no_fds_ok) ||
+    if ((winselcli_unique_socket() == INVALID_SOCKET && no_fds_ok) ||
         p_WSAEventSelect == NULL) {
         return fgetline(stdin);        /* very simple */
     }
@@ -746,10 +628,10 @@ char *ssh_sftp_get_cmdline(const char *prompt, bool no_fds_ok)
     return ctx->line;
 }
 
-void platform_psftp_pre_conn_setup(void)
+void platform_psftp_pre_conn_setup(LogPolicy *lp)
 {
-    if (restricted_acl) {
-        lp_eventlog(default_logpolicy, "Running with restricted process ACL");
+    if (restricted_acl()) {
+        lp_eventlog(lp, "Running with restricted process ACL");
     }
 }
 

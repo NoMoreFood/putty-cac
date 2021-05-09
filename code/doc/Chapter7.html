@@ -56,7 +56,7 @@ Once you've got a console window to type into, you can just type <code>plink</co
 </p>
 <pre><code>C:\&gt;plink
 Plink: command-line connection utility
-Release 0.74
+Release 0.75
 Usage: plink [options] [user@]host [command]
        ("host" can also be a PuTTY saved session name)
 Options:
@@ -66,6 +66,8 @@ Options:
   -load sessname  Load settings from saved session
   -ssh -telnet -rlogin -raw -serial
             force use of a particular protocol
+  -ssh-connection
+            force use of the bare ssh-connection protocol
   -P port   connect to specified port
   -l user   connect with specified username
   -batch    disable all interactive prompts
@@ -84,7 +86,7 @@ The following options only apply to SSH connections:
   -X -x     enable / disable X11 forwarding
   -A -a     enable / disable agent forwarding
   -t -T     enable / disable pty allocation
-  -1 -2     force use of particular protocol version
+  -1 -2     force use of particular SSH protocol version
   -4 -6     force use of IPv4 or IPv6
   -C        enable compression
   -i key    private key file for user authentication
@@ -92,7 +94,7 @@ The following options only apply to SSH connections:
   -agent    enable use of Pageant
   -noshare  disable use of connection sharing
   -share    enable use of connection sharing
-  -hostkey aa:bb:cc:...
+  -hostkey keyid
             manually specify a host key (may be repeated)
   -sanitise-stderr, -sanitise-stdout, -no-sanitise-stderr, -no-sanitise-stdout
             do/don't strip control chars from standard output/error
@@ -105,6 +107,9 @@ The following options only apply to SSH connections:
   -sshlog file
   -sshrawlog file
             log protocol details to a file
+  -logoverwrite
+  -logappend
+            control what happens when a log file already exists
   -shareexists
             test whether a connection-sharing upstream exists
 </code></pre>
@@ -124,7 +129,7 @@ flunky login:
 You should then be able to log in as normal and run a session. The output sent by the server will be written straight to your command prompt window, which will most likely not interpret terminal <a name="i7"></a>control codes in the way the server expects it to. So if you run any full-screen applications, for example, you can expect to see strange characters appearing in your window. Interactive connections like this are not the main point of Plink.
 </p>
 <p>
-In order to connect with a different protocol, you can give the command line options <code>-ssh</code>, <code>-telnet</code>, <code>-rlogin</code> or <code>-raw</code>. To make an SSH connection, for example:
+In order to connect with a different protocol, you can give the command line options <code>-ssh</code>, <code>-ssh-connection</code>, <code>-telnet</code>, <code>-rlogin</code>, or <code>-raw</code>. To make an SSH connection, for example:
 </p>
 <pre><code>C:\&gt;plink -ssh login.example.com
 login as:
@@ -139,7 +144,7 @@ Last login: Thu Dec  6 19:25:33 2001 from :0.0
 fred@flunky:~$
 </code></pre>
 <p>
-(You can also use the <code>-load</code> command-line option to load a saved session; see <a href="Chapter3.html#using-cmdline-load">section 3.8.3.1</a>. If you use <code>-load</code>, the saved session exists, and it specifies a hostname, you cannot also specify a <code>host</code> or <code>user@host</code> argument - it will be treated as part of the remote command.)
+(You can also use the <code>-load</code> command-line option to load a saved session; see <a href="Chapter3.html#using-cmdline-load">section 3.11.3.1</a>. If you use <code>-load</code>, the saved session exists, and it specifies a hostname, you cannot also specify a <code>host</code> or <code>user@host</code> argument - it will be treated as part of the remote command.)
 </p>
 <h3><a name="plink-usage-batch"></a><a name="S7.2.2"></a>7.2.2 Using Plink for automated connections</h3>
 <p>
@@ -162,7 +167,7 @@ Usually Plink is not invoked directly by a user, but run automatically by anothe
 Next, you are likely to need to avoid the various interactive prompts Plink can produce. You might be prompted to verify the host key of the server you're connecting to, to enter a user name, or to enter a password.
 </p>
 <p>
-To avoid being prompted for the server host key when using Plink for an automated connection, you should first make a <em>manual</em> connection (using either of PuTTY or Plink) to the same server, verify the host key (see <a href="Chapter2.html#gs-hostkey">section 2.2</a> for more information), and select Yes to add the host key to the Registry. After that, Plink commands connecting to that server should not give a host key prompt unless the host key changes.
+To avoid being prompted for the server host key when using Plink for an automated connection, you can first make a <em>manual</em> connection (using either of PuTTY or Plink) to the same server, verify the host key (see <a href="Chapter2.html#gs-hostkey">section 2.2</a> for more information), and select &#8216;Accept&#8217; to add the host key to the Registry. After that, Plink commands connecting to that server should not give a host key prompt unless the host key changes. Alternatively, you can specify the appropriate host key(s) on Plink's command line every time you use it; see <a href="Chapter3.html#using-cmdline-hostkey">section 3.11.3.20</a>.
 </p>
 <p>
 To avoid being prompted for a user name, you can:
@@ -178,7 +183,7 @@ Set up a PuTTY saved session that describes the server you are connecting to, an
 To avoid being prompted for a password, you should almost certainly set up <a name="i9"></a>public-key authentication. (See <a href="Chapter8.html#pubkey">chapter 8</a> for a general introduction to public-key authentication.) Again, you can do this in two ways:
 </p>
 <ul><li>
-Set up a PuTTY saved session that describes the server you are connecting to, and that also specifies a private key file (see <a href="Chapter4.html#config-ssh-privkey">section 4.23.8</a>). For this to work without prompting, your private key will need to have no passphrase.
+Set up a PuTTY saved session that describes the server you are connecting to, and that also specifies a private key file (see <a href="Chapter4.html#config-ssh-privkey">section 4.21.8</a>). For this to work without prompting, your private key will need to have no passphrase.
 </li>
 <li>
 Store the private key in Pageant. See <a href="Chapter9.html#pageant">chapter 9</a> for further information.
@@ -205,7 +210,7 @@ Then you can set up other programs to run this Plink command and talk to it as i
 </p>
 <h3><a name="plink-options"></a><a name="S7.2.3"></a>7.2.3 Plink command line options</h3>
 <p>
-Plink accepts all the general command line options supported by the PuTTY tools. See <a href="Chapter3.html#using-general-opts">section 3.8.3</a> for a description of these options.
+Plink accepts all the general command line options supported by the PuTTY tools. See <a href="Chapter3.html#using-general-opts">section 3.11.3</a> for a description of these options.
 </p>
 <p>
 Plink also supports some of its own options. The following sections describe Plink's specific command-line options.
@@ -226,7 +231,7 @@ If you specify the <code>-s</code> option, Plink passes the specified command as
 </p>
 <h4><a name="plink-option-share"></a><a name="S7.2.3.3"></a>7.2.3.3 <a name="i13"></a><code>-share</code>: Test and try to share an existing connection.</h4>
 <p>
-This option tris to detect if an existing connection can be shared (See <a href="Chapter4.html#config-ssh-sharing">section 4.19.5</a> for more information about SSH connection sharing.) and reuses that connection.
+This option tris to detect if an existing connection can be shared (See <a href="Chapter4.html#config-ssh-sharing">section 4.17.5</a> for more information about SSH connection sharing.) and reuses that connection.
 </p>
 <p>
 A Plink invocation of the form:
@@ -241,7 +246,7 @@ will test whether there is currently a viable &#8216;upstream&#8217; for the ses
 </p>
 <h4><a name="plink-option-shareexists"></a><a name="S7.2.3.4"></a>7.2.3.4 <a name="i14"></a><code>-shareexists</code>: test for connection-sharing upstream</h4>
 <p>
-This option does not make a new connection; instead it allows testing for the presence of an existing connection that can be shared. (See <a href="Chapter4.html#config-ssh-sharing">section 4.19.5</a> for more information about SSH connection sharing.)
+This option does not make a new connection; instead it allows testing for the presence of an existing connection that can be shared. (See <a href="Chapter4.html#config-ssh-sharing">section 4.17.5</a> for more information about SSH connection sharing.)
 </p>
 <p>
 A Plink invocation of the form:
@@ -262,37 +267,37 @@ In some situations, Plink applies a sanitisation pass to the output received fro
 The idea of this is to prevent remote processes from sending confusing escape sequences through the standard error channel when Plink is being used as a transport for something like <code>git</code> or CVS. If the server actually wants to send an error message, it will probably be plain text; if the server abuses that channel to try to write over unexpected parts of your terminal display, Plink will try to stop it.
 </p>
 <p>
-By default, this only happens for output channels which are sent to a Windows console device, or a Unix terminal device. (Any output stream going somewhere else is likely to be needed by an 8-bit protocol and must not be tampered with at all.) It also stops happening if you tell Plink to allocate a remote pseudo-terminal (see <a href="Chapter3.html#using-cmdline-pty">section 3.8.3.12</a> and <a href="Chapter4.html#config-ssh-pty">section 4.25.1</a>), on the basis that in that situation you often <em>want</em> escape sequences from the server to go to your terminal.
+By default, this only happens for output channels which are sent to a Windows console device, or a Unix terminal device. (Any output stream going somewhere else is likely to be needed by an 8-bit protocol and must not be tampered with at all.) It also stops happening if you tell Plink to allocate a remote pseudo-terminal (see <a href="Chapter3.html#using-cmdline-pty">section 3.11.3.12</a> and <a href="Chapter4.html#config-ssh-pty">section 4.23.1</a>), on the basis that in that situation you often <em>want</em> escape sequences from the server to go to your terminal.
 </p>
 <p>
 But in case Plink guesses wrong about whether you want this sanitisation, you can override it in either direction, using one of these options:
 </p>
-<dl><dd>
+<dl><dt>
 <code>-sanitise-stderr</code>
-</dd>
-<dt>
+</dt>
+<dd>
 Sanitise server data written to Plink's standard error channel, regardless of terminals and consoles and remote ptys.
-</dt>
-<dd>
+</dd>
+<dt>
 <code>-no-sanitise-stderr</code>
-</dd>
-<dt>
+</dt>
+<dd>
 Do not sanitise server data written to Plink's standard error channel.
-</dt>
-<dd>
+</dd>
+<dt>
 <code>-sanitise-stdout</code>
-</dd>
-<dt>
-Sanitise server data written to Plink's standard output channel.
 </dt>
 <dd>
-<code>-no-sanitise-stdout</code>
+Sanitise server data written to Plink's standard output channel.
 </dd>
 <dt>
-Do not sanitise server data written to Plink's standard output channel.
+<code>-no-sanitise-stdout</code>
 </dt>
+<dd>
+Do not sanitise server data written to Plink's standard output channel.
+</dd>
 </dl>
-<h4><a name="plink-option-antispoof"></a><a name="S7.2.3.6"></a>7.2.3.6 <a name="i19"></a>: turn off authentication spoofing protection prompt</h4>
+<h4><a name="plink-option-antispoof"></a><a name="S7.2.3.6"></a>7.2.3.6 <a name="i19"></a>-no-antispoof: turn off authentication spoofing protection prompt</h4>
 <p>
 In SSH, some possible server authentication methods require user input (for example, password authentication, or entering a private key passphrase), and others do not (e.g. a private key held in Pageant).
 </p>
@@ -375,5 +380,5 @@ Select the folder you want to check out to with the &#8216;Change Folder&#8217; 
 </p>
 
 <hr><p>If you want to provide feedback on this manual or on the PuTTY tools themselves, see the <a href="https://www.chiark.greenend.org.uk/~sgtatham/putty/feedback.html">Feedback page</a>.</p><address>
-[PuTTY release 0.74]</address></body>
+[PuTTY release 0.75]</address></body>
 </html>

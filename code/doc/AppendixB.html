@@ -61,7 +61,7 @@ Since the PuTTY contact address is a mailing list, e-mails larger than 40Kb will
 If you are considering sending any kind of large data file to the PuTTY team, it's almost always a bad idea, or at the very least it would be better to ask us first whether we actually need the file. Alternatively, you could put the file on a web site and just send us the URL; that way, we don't have to download it unless we decide we actually need it, and only one of us needs to download it instead of it being automatically copied to all the developers.
 </p>
 <p>
-(If the file contains confidential information, then you could encrypt it with our Secure Contact Key; see <a href="AppendixE.html#pgpkeys-pubkey">section E.1</a> for details. Please <em>only</em> use this for information that <em>needs</em> to be confidential.)
+(If the file contains confidential information, then you could encrypt it with our Secure Contact Key; see <a href="AppendixF.html#pgpkeys-pubkey">section F.1</a> for details. Please <em>only</em> use this for information that <em>needs</em> to be confidential.)
 </p>
 <p>
 Some people like to send mail in MS Word format. Please <em>don't</em> send us bug reports, or any other mail, as a Word document. Word documents are roughly fifty times larger than writing the same report in plain text. In addition, most of the PuTTY team read their e-mail on Unix machines, so copying the file to a Windows box to run Word is very inconvenient. Not only that, but several of us don't even <em>have</em> a copy of Word!
@@ -122,7 +122,7 @@ Tell us what <a name="i4"></a>version of PuTTY you are running. To find this out
 PuTTY is a multi-platform application; tell us what version of what OS you are running PuTTY on. (If you're running on Unix, or Windows for Arm, tell us, or we'll assume you're running on Windows for Intel as this is overwhelmingly the case.)
 </li>
 <li>
-Tell us what protocol you are connecting with: SSH, Telnet, Rlogin, or Raw mode, or a serial connection.
+Tell us what protocol you are connecting with: SSH, Telnet, Rlogin, SUPDUP, or Raw mode, or a serial connection.
 </li>
 <li>
 Tell us what kind of server you are connecting to; what OS, and if possible what SSH server (if you're using SSH). You can get some of this information from the PuTTY Event Log (see <a href="Chapter3.html#using-eventlog">section 3.1.3.1</a> in the manual).
@@ -151,7 +151,7 @@ It is reasonable to report bugs in PuTTY's documentation, if you think the docum
 If you've found a security vulnerability in PuTTY, you might well want to notify us using an encrypted communications channel, to avoid disclosing information about the vulnerability before a fixed release is available.
 </p>
 <p>
-For this purpose, we provide a GPG key suitable for encryption: the Secure Contact Key. See <a href="AppendixE.html#pgpkeys-pubkey">section E.1</a> for details of this.
+For this purpose, we provide a GPG key suitable for encryption: the Secure Contact Key. See <a href="AppendixF.html#pgpkeys-pubkey">section F.1</a> for details of this.
 </p>
 <p>
 (Of course, vulnerabilities are also bugs, so please do include as much information as possible about them, the same way you would with any other bug report.)
@@ -174,7 +174,7 @@ If you can't find your feature in either the development snapshots <em>or</em> t
 Do as much of the design as you can. Think about &#8216;corner cases&#8217;; think about how your feature interacts with other existing features. Think about the user interface; if you can't come up with a simple and intuitive interface to your feature, you shouldn't be surprised if we can't either. Always imagine whether it's possible for there to be more than one, or less than one, of something you'd assumed there would be one of. (For example, if you were to want PuTTY to put an icon in the System tray rather than the Taskbar, you should think about what happens if there's more than one PuTTY active; how would the user tell which was which?)
 </li>
 <li>
-If you can program, it may be worth offering to write the feature yourself and send us a patch. However, it is likely to be helpful if you confer with us first; there may be design issues you haven't thought of, or we may be about to make big changes to the code which your patch would clash with, or something. If you check with the maintainers first, there is a better chance of your code actually being usable. Also, read the design principles listed in <a href="AppendixD.html#udp">appendix D</a>: if you do not conform to them, we will probably not be able to accept your patch.
+If you can program, it may be worth offering to write the feature yourself and send us a patch. However, it is likely to be helpful if you confer with us first; there may be design issues you haven't thought of, or we may be about to make big changes to the code which your patch would clash with, or something. If you check with the maintainers first, there is a better chance of your code actually being usable. Also, read the design principles listed in <a href="AppendixE.html#udp">appendix E</a>: if you do not conform to them, we will probably not be able to accept your patch.
 </li>
 </ul>
 <h2><a name="feedback-feature-priority"></a><a name="SB.5"></a>B.5 Requesting features that have already been requested</h2>
@@ -223,7 +223,7 @@ If you want to report a problem with our web site, check that you're looking at 
 </p>
 <h2><a name="feedback-permission"></a><a name="SB.8"></a>B.8 Asking permission for things</h2>
 <p>
-PuTTY is distributed under the MIT Licence (see <a href="AppendixC.html#licence">appendix C</a> for details). This means you can do almost <em>anything</em> you like with our software, our source code, and our documentation. The only things you aren't allowed to do are to remove our copyright notices or the licence text itself, or to hold us legally responsible if something goes wrong.
+PuTTY is distributed under the MIT Licence (see <a href="AppendixD.html#licence">appendix D</a> for details). This means you can do almost <em>anything</em> you like with our software, our source code, and our documentation. The only things you aren't allowed to do are to remove our copyright notices or the licence text itself, or to hold us legally responsible if something goes wrong.
 </p>
 <p>
 So if you want permission to include PuTTY on a magazine cover disk, or as part of a collection of useful software on a CD or a web site, then <em>permission is already granted</em>. You don't have to mail us and ask. Just go ahead and do it. We don't mind.
@@ -269,5 +269,5 @@ The actual address to mail is <code>&lt;<a href="mailto:putty@projects.tartarus.
 </p>
 
 <hr><p>If you want to provide feedback on this manual or on the PuTTY tools themselves, see the <a href="https://www.chiark.greenend.org.uk/~sgtatham/putty/feedback.html">Feedback page</a>.</p><address>
-[PuTTY release 0.74]</address></body>
+[PuTTY release 0.75]</address></body>
 </html>

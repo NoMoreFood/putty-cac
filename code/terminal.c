@@ -55,12 +55,12 @@
 
 #define has_compat(x) ( ((CL_##x)&term->compatibility_level) != 0 )
 
-const char *EMPTY_WINDOW_TITLE = "";
+static const char *const EMPTY_WINDOW_TITLE = "";
 
-const char sco2ansicolour[] = { 0, 4, 2, 6, 1, 5, 3, 7 };
+static const char sco2ansicolour[] = { 0, 4, 2, 6, 1, 5, 3, 7 };
 
 #define sel_nl_sz  (sizeof(sel_nl)/sizeof(wchar_t))
-const wchar_t sel_nl[] = SEL_NL;
+static const wchar_t sel_nl[] = SEL_NL;
 
 /*
  * Fetch the character at a particular position in a line array,
@@ -99,6 +99,7 @@ static void term_print_finish(Terminal *);
 static void scroll(Terminal *, int, int, int, bool);
 static void parse_optionalrgb(optionalrgb *out, unsigned *values);
 static void term_added_data(Terminal *term);
+static void term_update_raw_mouse_mode(Terminal *term);
 
 static termline *newtermline(Terminal *term, int cols, bool bce)
 {
@@ -131,6 +132,24 @@ static void unlineptr(termline *line)
     if (line->temporary)
         freetermline(line);
 }
+
+const int colour_indices_conf_to_oscp[CONF_NCOLOURS] = {
+    #define COLOUR_ENTRY(id,name) OSCP_COLOUR_##id,
+    CONF_COLOUR_LIST(COLOUR_ENTRY)
+    #undef COLOUR_ENTRY
+};
+
+const int colour_indices_conf_to_osc4[CONF_NCOLOURS] = {
+    #define COLOUR_ENTRY(id,name) OSC4_COLOUR_##id,
+    CONF_COLOUR_LIST(COLOUR_ENTRY)
+    #undef COLOUR_ENTRY
+};
+
+const int colour_indices_oscp_to_osc4[OSCP_NCOLOURS] = {
+    #define COLOUR_ENTRY(id) OSC4_COLOUR_##id,
+    OSCP_COLOUR_LIST(COLOUR_ENTRY)
+    #undef COLOUR_ENTRY
+};
 
 #ifdef TERM_CC_DIAGS
 /*
@@ -461,9 +480,10 @@ static void makerle(strbuf *b, termline *ldata,
                     oldstate = state;
                     makeliteral(b, c, &state);
                     tmplen = b->len - tmppos;
+                    bool match = tmplen == thislen &&
+                        !memcmp(b->u + runpos+1, b->u + tmppos, tmplen);
                     strbuf_shrink_to(b, tmppos);
-                    if (tmplen != thislen ||
-                        memcmp(b->u + runpos+1, b->u + tmppos, tmplen)) {
+                    if (!match) {
                         state = oldstate;
                         break;         /* run over */
                     }
@@ -723,6 +743,11 @@ static compressed_scrollback_line *compressline(termline *ldata)
     makerle(b, ldata, makeliteral_truecolour);
     makerle(b, ldata, makeliteral_cc);
 
+    size_t linelen = b->len - sizeof(compressed_scrollback_line);
+    compressed_scrollback_line *line =
+        (compressed_scrollback_line *)strbuf_to_str(b);
+    line->len = linelen;
+
     /*
      * Diagnostics: ensure that the compressed data really does
      * decompress to the right thing.
@@ -742,7 +767,7 @@ static compressed_scrollback_line *compressline(termline *ldata)
         printf("\n");
 #endif
 
-        dcl = decompressline((compressed_scrollback_line *)b->u);
+        dcl = decompressline(line);
         assert(ldata->cols == dcl->cols);
         assert(ldata->lattr == dcl->lattr);
         for (i = 0; i < ldata->cols; i++)
@@ -759,10 +784,6 @@ static compressed_scrollback_line *compressline(termline *ldata)
 #endif
 #endif /* TERM_CC_DIAGS */
 
-    size_t linelen = b->len - sizeof(compressed_scrollback_line);
-    compressed_scrollback_line *line =
-        (compressed_scrollback_line *)strbuf_to_str(b);
-    line->len = linelen;
     return line;
 }
 
@@ -1166,41 +1187,58 @@ static void check_line_size(Terminal *term, termline *line)
 
 static void term_schedule_tblink(Terminal *term);
 static void term_schedule_cblink(Terminal *term);
+static void term_update_callback(void *ctx);
 
 static void term_timer(void *ctx, unsigned long now)
 {
     Terminal *term = (Terminal *)ctx;
-    bool update = false;
 
     if (term->tblink_pending && now == term->next_tblink) {
         term->tblinker = !term->tblinker;
         term->tblink_pending = false;
         term_schedule_tblink(term);
-        update = true;
+        term->window_update_pending = true;
     }
 
     if (term->cblink_pending && now == term->next_cblink) {
         term->cblinker = !term->cblinker;
         term->cblink_pending = false;
         term_schedule_cblink(term);
-        update = true;
+        term->window_update_pending = true;
     }
 
     if (term->in_vbell && now == term->vbell_end) {
         term->in_vbell = false;
-        update = true;
+        term->window_update_pending = true;
     }
 
-    if (update ||
-        (term->window_update_pending && now == term->next_update))
+    if (term->window_update_cooldown &&
+        now == term->window_update_cooldown_end) {
+        term->window_update_cooldown = false;
+    }
+
+    if (term->window_update_pending)
+        term_update_callback(term);
+}
+
+static void term_update_callback(void *ctx)
+{
+    Terminal *term = (Terminal *)ctx;
+    if (!term->window_update_pending)
+        return;
+    if (!term->window_update_cooldown) {
         term_update(term);
+        term->window_update_cooldown = true;
+        term->window_update_cooldown_end = schedule_timer(
+            UPDATE_DELAY, term_timer, term);
+    }
 }
 
 static void term_schedule_update(Terminal *term)
 {
     if (!term->window_update_pending) {
         term->window_update_pending = true;
-        term->next_update = schedule_timer(UPDATE_DELAY, term_timer, term);
+        queue_toplevel_callback(term_update_callback, term);
     }
 }
 
@@ -1336,6 +1374,8 @@ static void power_on(Terminal *term, bool clear)
     term->xterm_extended_mouse = false;
     term->urxvt_extended_mouse = false;
     win_set_raw_mouse_mode(term->win, false);
+    term->win_pointer_shape_pending = true;
+    term->win_pointer_shape_raw = false;
     term->bracketed_paste = false;
     term->srm_echo = false;
     {
@@ -1360,6 +1400,7 @@ static void power_on(Terminal *term, bool clear)
     term->curs.x = 0;
     term_schedule_tblink(term);
     term_schedule_cblink(term);
+    term_schedule_update(term);
 }
 
 /*
@@ -1369,8 +1410,55 @@ void term_update(Terminal *term)
 {
     term->window_update_pending = false;
 
+    if (term->win_move_pending) {
+        win_move(term->win, term->win_move_pending_x,
+                 term->win_move_pending_y);
+        term->win_move_pending = false;
+    }
+    if (term->win_resize_pending) {
+        win_request_resize(term->win, term->win_resize_pending_w,
+                           term->win_resize_pending_h);
+        term->win_resize_pending = false;
+    }
+    if (term->win_zorder_pending) {
+        win_set_zorder(term->win, term->win_zorder_top);
+        term->win_zorder_pending = false;
+    }
+    if (term->win_minimise_pending) {
+        win_set_minimised(term->win, term->win_minimise_enable);
+        term->win_minimise_pending = false;
+    }
+    if (term->win_maximise_pending) {
+        win_set_maximised(term->win, term->win_maximise_enable);
+        term->win_maximise_pending = false;
+    }
+    if (term->win_title_pending) {
+        win_set_title(term->win, term->window_title);
+        term->win_title_pending = false;
+    }
+    if (term->win_icon_title_pending) {
+        win_set_icon_title(term->win, term->icon_title);
+        term->win_icon_title_pending = false;
+    }
+    if (term->win_pointer_shape_pending) {
+        win_set_raw_mouse_mode_pointer(term->win, term->win_pointer_shape_raw);
+        term->win_pointer_shape_pending = false;
+    }
+    if (term->win_refresh_pending) {
+        win_refresh(term->win);
+        term->win_refresh_pending = false;
+    }
+    if (term->win_palette_pending) {
+        unsigned start = term->win_palette_pending_min;
+        unsigned ncolours = term->win_palette_pending_limit - start;
+        win_palette_set(term->win, start, ncolours, term->palette + start);
+        term->win_palette_pending = false;
+    }
+
     if (win_setup_draw_ctx(term->win)) {
-        bool need_sbar_update = term->seen_disp_event;
+        bool need_sbar_update = term->seen_disp_event ||
+            term->win_scrollbar_update_pending;
+        term->win_scrollbar_update_pending = false;
         if (term->seen_disp_event && term->scroll_on_disp) {
             term->disptop = 0;         /* return to main screen */
             term->seen_disp_event = false;
@@ -1486,6 +1574,7 @@ void term_copy_stuff_from_conf(Terminal *term)
     term->rxvt_homeend = conf_get_bool(term->conf, CONF_rxvt_homeend);
     term->scroll_on_disp = conf_get_bool(term->conf, CONF_scroll_on_disp);
     term->scroll_on_key = conf_get_bool(term->conf, CONF_scroll_on_key);
+    term->xterm_mouse_forbidden = conf_get_bool(term->conf, CONF_no_mouse_rep);
     term->xterm_256_colour = conf_get_bool(term->conf, CONF_xterm_256_colour);
     term->true_colour = conf_get_bool(term->conf, CONF_true_colour);
 
@@ -1511,6 +1600,17 @@ void term_copy_stuff_from_conf(Terminal *term)
             }
         }
     }
+}
+
+void term_pre_reconfig(Terminal *term, Conf *conf)
+{
+
+    /*
+     * Copy the current window title into the stored previous
+     * configuration, so that doing nothing to the window title field
+     * in the config box doesn't reset the title to its startup state.
+     */
+    conf_set_str(conf, CONF_wintitle, term->window_title);
 }
 
 /*
@@ -1563,6 +1663,17 @@ void term_reconfig(Terminal *term, Conf *conf)
         }
     }
 
+    {
+        const char *old_title = conf_get_str(term->conf, CONF_wintitle);
+        const char *new_title = conf_get_str(conf, CONF_wintitle);
+        if (strcmp(old_title, new_title)) {
+            sfree(term->window_title);
+            term->window_title = dupstr(new_title);
+            term->win_title_pending = true;
+            term_schedule_update(term);
+        }
+    }
+
     conf_free(term->conf);
     term->conf = conf_copy(conf);
 
@@ -1583,10 +1694,6 @@ void term_reconfig(Terminal *term, Conf *conf)
 
     if (conf_get_bool(term->conf, CONF_no_alt_screen))
         swap_screen(term, 0, false, false);
-    if (conf_get_bool(term->conf, CONF_no_mouse_rep)) {
-        term->xterm_mouse = 0;
-        win_set_raw_mouse_mode(term->win, 0);
-    }
     if (conf_get_bool(term->conf, CONF_no_remote_charset)) {
         term->cset_attr[0] = term->cset_attr[1] = CSET_ASCII;
         term->sco_acs = term->alt_sco_acs = 0;
@@ -1598,6 +1705,7 @@ void term_reconfig(Terminal *term, Conf *conf)
     term_schedule_tblink(term);
     term_schedule_cblink(term);
     term_copy_stuff_from_conf(term);
+    term_update_raw_mouse_mode(term);
 }
 
 /*
@@ -1649,12 +1757,141 @@ void term_clrsb(Terminal *term)
     term->alt_sblines = 0;
 
     /*
-     * Update the scrollbar to reflect the new state of the world.
+     * The scrollbar will need updating to reflect the new state of
+     * the world.
      */
-    update_sbar(term);
+    term->win_scrollbar_update_pending = true;
+    term_schedule_update(term);
 }
 
 const optionalrgb optionalrgb_none = {0, 0, 0, 0};
+
+void term_setup_window_titles(Terminal *term, const char *title_hostname)
+{
+    const char *conf_title = conf_get_str(term->conf, CONF_wintitle);
+    sfree(term->window_title);
+    sfree(term->icon_title);
+    if (*conf_title) {
+        term->window_title = dupstr(conf_title);
+        term->icon_title = dupstr(conf_title);
+    } else {
+        if (title_hostname && *title_hostname)
+            term->window_title = dupcat(title_hostname, " - ", appname);
+        else
+            term->window_title = dupstr(appname);
+        term->icon_title = dupstr(term->window_title);
+    }
+    term->win_title_pending = true;
+    term->win_icon_title_pending = true;
+}
+
+static void palette_rebuild(Terminal *term)
+{
+    unsigned min_changed = OSC4_NCOLOURS, max_changed = 0;
+
+    for (unsigned i = 0; i < OSC4_NCOLOURS; i++) {
+        rgb new_value;
+        bool found = false;
+
+        for (unsigned j = lenof(term->subpalettes); j-- > 0 ;) {
+            if (term->subpalettes[j].present[i]) {
+                new_value = term->subpalettes[j].values[i];
+                found = true;
+                break;
+            }
+        }
+
+        assert(found);    /* we expect SUBPAL_CONF to always be set */
+
+        if (new_value.r != term->palette[i].r ||
+            new_value.g != term->palette[i].g ||
+            new_value.b != term->palette[i].b) {
+            term->palette[i] = new_value;
+            if (min_changed > i)
+                min_changed = i;
+            if (max_changed < i)
+                max_changed = i;
+        }
+    }
+
+    if (min_changed <= max_changed) {
+        /*
+         * At least one colour changed, so schedule a redraw event to
+         * pass the result back to the TermWin. This also requires
+         * invalidating the rest of the window, because usually all
+         * the text will need redrawing in the new colours.
+         */
+        term->win_palette_pending = true;
+        term->win_palette_pending_min = min_changed;
+        term->win_palette_pending_limit = max_changed + 1;
+        term_invalidate(term);
+        term_schedule_update(term);
+    }
+}
+
+static void palette_reset(Terminal *term, bool overrides_only)
+{
+    if (!overrides_only) {
+        for (unsigned i = 0; i < OSC4_NCOLOURS; i++)
+            term->subpalettes[SUBPAL_CONF].present[i] = true;
+
+        /*
+         * Copy all the palette information out of the Conf.
+         */
+        for (unsigned i = 0; i < CONF_NCOLOURS; i++) {
+            rgb *col = &term->subpalettes[SUBPAL_CONF].values[
+                colour_indices_conf_to_osc4[i]];
+            col->r = conf_get_int_int(term->conf, CONF_colours, i*3+0);
+            col->g = conf_get_int_int(term->conf, CONF_colours, i*3+1);
+            col->b = conf_get_int_int(term->conf, CONF_colours, i*3+2);
+        }
+
+        /*
+         * Directly invent the rest of the xterm-256 colours.
+         */
+        for (unsigned i = 0; i < 216; i++) {
+            rgb *col = &term->subpalettes[SUBPAL_CONF].values[i + 16];
+            int r = i / 36, g = (i / 6) % 6, b = i % 6;
+            col->r = r ? r * 40 + 55 : 0;
+            col->g = g ? g * 40 + 55 : 0;
+            col->b = b ? b * 40 + 55 : 0;
+        }
+        for (unsigned i = 0; i < 24; i++) {
+            rgb *col = &term->subpalettes[SUBPAL_CONF].values[i + 232];
+            int shade = i * 10 + 8;
+            col->r = col->g = col->b = shade;
+        }
+
+        /*
+         * Get rid of all escape-sequence configuration.
+         */
+        for (unsigned i = 0; i < OSC4_NCOLOURS; i++)
+            term->subpalettes[SUBPAL_SESSION].present[i] = false;
+    }
+
+    /*
+     * Re-fetch any OS-local overrides.
+     */
+    for (unsigned i = 0; i < OSC4_NCOLOURS; i++)
+        term->subpalettes[SUBPAL_PLATFORM].present[i] = false;
+    win_palette_get_overrides(term->win);
+
+    /*
+     * Rebuild the composite palette.
+     */
+    palette_rebuild(term);
+}
+
+void term_palette_override(Terminal *term, unsigned osc4_index, rgb rgb)
+{
+    /*
+     * We never expect to be called except as re-entry from our own
+     * call to win_palette_get_overrides above, so we need not mess
+     * about calling palette_rebuild.
+     */
+    term->subpalettes[SUBPAL_PLATFORM].present[osc4_index] = true;
+    term->subpalettes[SUBPAL_PLATFORM].values[osc4_index] = rgb;
+}
 
 /*
  * Initialise the terminal.
@@ -1720,6 +1957,7 @@ Terminal *term_init(Conf *myconf, struct unicode_data *ucsdata, TermWin *win)
     term->wcFromTo_size = 0;
 
     term->window_update_pending = false;
+    term->window_update_cooldown = false;
 
     term->bidi_cache_size = 0;
     term->pre_bidi_cache = term->post_bidi_cache = NULL;
@@ -1747,6 +1985,26 @@ Terminal *term_init(Conf *myconf, struct unicode_data *ucsdata, TermWin *win)
     term->trusted = true;
 
     term->bracketed_paste_active = false;
+
+    term->window_title = dupstr("");
+    term->icon_title = dupstr("");
+    term->minimised = false;
+    term->winpos_x = term->winpos_y = 0;
+    term->winpixsize_x = term->winpixsize_y = 0;
+
+    term->win_move_pending = false;
+    term->win_resize_pending = false;
+    term->win_zorder_pending = false;
+    term->win_minimise_pending = false;
+    term->win_maximise_pending = false;
+    term->win_title_pending = false;
+    term->win_icon_title_pending = false;
+    term->win_pointer_shape_pending = false;
+    term->win_refresh_pending = false;
+    term->win_scrollbar_update_pending = false;
+    term->win_palette_pending = false;
+
+    palette_reset(term, false);
 
     return term;
 }
@@ -1802,12 +2060,21 @@ void term_free(Terminal *term)
 
     conf_free(term->conf);
 
+    sfree(term->window_title);
+    sfree(term->icon_title);
+
     sfree(term);
 }
 
 void term_set_trust_status(Terminal *term, bool trusted)
 {
     term->trusted = trusted;
+}
+
+void term_get_cursor_position(Terminal *term, int *x, int *y)
+{
+    *x = term->curs.x;
+    *y = term->curs.y;
 }
 
 /*
@@ -1992,8 +2259,8 @@ void term_size(Terminal *term, int newrows, int newcols, int newsavelines)
 
     swap_screen(term, save_alt_which, false, false);
 
-    update_sbar(term);
-    term_update(term);
+    term->win_scrollbar_update_pending = true;
+    term_schedule_update(term);
     if (term->backend)
         backend_size(term->backend, term->cols, term->rows);
 }
@@ -2642,6 +2909,15 @@ static void insch(Terminal *term, int n)
     }
 }
 
+static void term_update_raw_mouse_mode(Terminal *term)
+{
+    bool want_raw = (term->xterm_mouse != 0 && !term->xterm_mouse_forbidden);
+    win_set_raw_mouse_mode(term->win, want_raw);
+    term->win_pointer_shape_pending = true;
+    term->win_pointer_shape_raw = want_raw;
+    term_schedule_update(term);
+}
+
 /*
  * Toggle terminal mode `mode' to state `state'. (`query' indicates
  * whether the mode is a DEC private one or a normal one.)
@@ -2665,8 +2941,12 @@ static void toggle_mode(Terminal *term, int mode, int query, bool state)
             break;
           case 3:                      /* DECCOLM: 80/132 columns */
             deselect(term);
-            if (!term->no_remote_resize)
-                win_request_resize(term->win, state ? 132 : 80, term->rows);
+            if (!term->no_remote_resize) {
+                term->win_resize_pending = true;
+                term->win_resize_pending_w = state ? 132 : 80;
+                term->win_resize_pending_h = term->rows;
+                term_schedule_update(term);
+            }
             term->reset_132 = state;
             term->alt_t = term->marg_t = 0;
             term->alt_b = term->marg_b = term->rows - 1;
@@ -2713,11 +2993,11 @@ static void toggle_mode(Terminal *term, int mode, int query, bool state)
             break;
           case 1000:                   /* xterm mouse 1 (normal) */
             term->xterm_mouse = state ? 1 : 0;
-            win_set_raw_mouse_mode(term->win, state);
+            term_update_raw_mouse_mode(term);
             break;
           case 1002:                   /* xterm mouse 2 (inc. button drags) */
             term->xterm_mouse = state ? 2 : 0;
-            win_set_raw_mouse_mode(term->win, state);
+            term_update_raw_mouse_mode(term);
             break;
           case 1006:                   /* xterm extended mouse */
             term->xterm_extended_mouse = state;
@@ -2786,27 +3066,34 @@ static void do_osc(Terminal *term)
         switch (term->esc_args[0]) {
           case 0:
           case 1:
-            if (!term->no_remote_wintitle)
-                win_set_icon_title(term->win, term->osc_string);
+            if (!term->no_remote_wintitle) {
+                sfree(term->icon_title);
+                term->icon_title = dupstr(term->osc_string);
+                term->win_icon_title_pending = true;
+                term_schedule_update(term);
+            }
             if (term->esc_args[0] == 1)
                 break;
             /* fall through: parameter 0 means set both */
           case 2:
           case 21:
-            if (!term->no_remote_wintitle)
-                win_set_title(term->win, term->osc_string);
+            if (!term->no_remote_wintitle) {
+                sfree(term->window_title);
+                term->window_title = dupstr(term->osc_string);
+                term->win_title_pending = true;
+                term_schedule_update(term);
+            }
             break;
           case 4:
             if (term->ldisc && !strcmp(term->osc_string, "?")) {
-                int r, g, b;
-                if (win_palette_get(term->win, toint(term->esc_args[1]),
-                                    &r, &g, &b)) {
+                unsigned index = term->esc_args[1];
+                if (index < OSC4_NCOLOURS) {
+                    rgb colour = term->palette[index];
                     char *reply_buf = dupprintf(
-                        "\033]4;%u;rgb:%04x/%04x/%04x\007",
-                        term->esc_args[1],
-                        (unsigned)r * 0x0101,
-                        (unsigned)g * 0x0101,
-                        (unsigned)b * 0x0101);
+                        "\033]4;%u;rgb:%04x/%04x/%04x\007", index,
+                        (unsigned)colour.r * 0x0101,
+                        (unsigned)colour.g * 0x0101,
+                        (unsigned)colour.b * 0x0101);
                     ldisc_send(term->ldisc, reply_buf, strlen(reply_buf),
                                false);
                     sfree(reply_buf);
@@ -3392,7 +3679,7 @@ static void term_out(Terminal *term)
                               term->curs.x, &term->erase_char);
             }
         } else
-            /* Or normal C0 controls. */
+        /* Or normal C0 controls. */
         if ((c & ~0x1F) == 0 && term->termstate < DO_CTRLS) {
             switch (c) {
               case '\005':             /* ENQ: terminal type query */
@@ -3412,71 +3699,70 @@ static void term_out(Terminal *term)
                     strbuf_free(buf);
                 }
                 break;
-              case '\007':            /* BEL: Bell */
-                {
-                    struct beeptime *newbeep;
-                    unsigned long ticks;
+              case '\007': {            /* BEL: Bell */
+                struct beeptime *newbeep;
+                unsigned long ticks;
 
-                    ticks = GETTICKCOUNT();
+                ticks = GETTICKCOUNT();
 
-                    if (!term->beep_overloaded) {
-                        newbeep = snew(struct beeptime);
-                        newbeep->ticks = ticks;
-                        newbeep->next = NULL;
-                        if (!term->beephead)
-                            term->beephead = newbeep;
-                        else
-                            term->beeptail->next = newbeep;
-                        term->beeptail = newbeep;
-                        term->nbeeps++;
-                    }
-
-                    /*
-                     * Throw out any beeps that happened more than
-                     * t seconds ago.
-                     */
-                    while (term->beephead &&
-                           term->beephead->ticks < ticks - term->bellovl_t) {
-                        struct beeptime *tmp = term->beephead;
-                        term->beephead = tmp->next;
-                        sfree(tmp);
-                        if (!term->beephead)
-                            term->beeptail = NULL;
-                        term->nbeeps--;
-                    }
-
-                    if (term->bellovl && term->beep_overloaded &&
-                        ticks - term->lastbeep >= (unsigned)term->bellovl_s) {
-                        /*
-                         * If we're currently overloaded and the
-                         * last beep was more than s seconds ago,
-                         * leave overload mode.
-                         */
-                        term->beep_overloaded = false;
-                    } else if (term->bellovl && !term->beep_overloaded &&
-                               term->nbeeps >= term->bellovl_n) {
-                        /*
-                         * Now, if we have n or more beeps
-                         * remaining in the queue, go into overload
-                         * mode.
-                         */
-                        term->beep_overloaded = true;
-                    }
-                    term->lastbeep = ticks;
-
-                    /*
-                     * Perform an actual beep if we're not overloaded.
-                     */
-                    if (!term->bellovl || !term->beep_overloaded) {
-                        win_bell(term->win, term->beep);
-
-                        if (term->beep == BELL_VISUAL) {
-                            term_schedule_vbell(term, false, 0);
-                        }
-                    }
-                    seen_disp_event(term);
+                if (!term->beep_overloaded) {
+                    newbeep = snew(struct beeptime);
+                    newbeep->ticks = ticks;
+                    newbeep->next = NULL;
+                    if (!term->beephead)
+                        term->beephead = newbeep;
+                    else
+                        term->beeptail->next = newbeep;
+                    term->beeptail = newbeep;
+                    term->nbeeps++;
                 }
+
+                /*
+                 * Throw out any beeps that happened more than
+                 * t seconds ago.
+                 */
+                while (term->beephead &&
+                       term->beephead->ticks < ticks - term->bellovl_t) {
+                    struct beeptime *tmp = term->beephead;
+                    term->beephead = tmp->next;
+                    sfree(tmp);
+                    if (!term->beephead)
+                        term->beeptail = NULL;
+                    term->nbeeps--;
+                }
+
+                if (term->bellovl && term->beep_overloaded &&
+                    ticks - term->lastbeep >= (unsigned)term->bellovl_s) {
+                    /*
+                     * If we're currently overloaded and the
+                     * last beep was more than s seconds ago,
+                     * leave overload mode.
+                     */
+                    term->beep_overloaded = false;
+                } else if (term->bellovl && !term->beep_overloaded &&
+                           term->nbeeps >= term->bellovl_n) {
+                    /*
+                     * Now, if we have n or more beeps
+                     * remaining in the queue, go into overload
+                     * mode.
+                     */
+                    term->beep_overloaded = true;
+                }
+                term->lastbeep = ticks;
+
+                /*
+                 * Perform an actual beep if we're not overloaded.
+                 */
+                if (!term->bellovl || !term->beep_overloaded) {
+                    win_bell(term->win, term->beep);
+
+                    if (term->beep == BELL_VISUAL) {
+                        term_schedule_vbell(term, false, 0);
+                    }
+                }
+                seen_disp_event(term);
                 break;
+              }
               case '\b':              /* BS: Back space */
                 if (term->curs.x == 0 && (term->curs.y == 0 || !term->wrap))
                     /* do nothing */ ;
@@ -3543,28 +3829,27 @@ static void term_out(Terminal *term)
                 if (term->logctx)
                     logtraffic(term->logctx, (unsigned char) c, LGTYP_ASCII);
                 break;
-              case '\t':              /* HT: Character tabulation */
-                {
-                    pos old_curs = term->curs;
-                    termline *ldata = scrlineptr(term->curs.y);
+              case '\t': {              /* HT: Character tabulation */
+                pos old_curs = term->curs;
+                termline *ldata = scrlineptr(term->curs.y);
 
-                    do {
-                        term->curs.x++;
-                    } while (term->curs.x < term->cols - 1 &&
-                             !term->tabs[term->curs.x]);
+                do {
+                    term->curs.x++;
+                } while (term->curs.x < term->cols - 1 &&
+                         !term->tabs[term->curs.x]);
 
-                    if ((ldata->lattr & LATTR_MODE) != LATTR_NORM) {
-                        if (term->curs.x >= term->cols / 2)
-                            term->curs.x = term->cols / 2 - 1;
-                    } else {
-                        if (term->curs.x >= term->cols)
-                            term->curs.x = term->cols - 1;
-                    }
-
-                    check_selection(term, old_curs, term->curs);
+                if ((ldata->lattr & LATTR_MODE) != LATTR_NORM) {
+                    if (term->curs.x >= term->cols / 2)
+                        term->curs.x = term->cols / 2 - 1;
+                } else {
+                    if (term->curs.x >= term->cols)
+                        term->curs.x = term->cols - 1;
                 }
+
+                check_selection(term, old_curs, term->curs);
                 seen_disp_event(term);
                 break;
+              }
             }
         } else
             switch (term->termstate) {
@@ -3667,8 +3952,12 @@ static void term_out(Terminal *term)
                     if (term->ldisc)   /* cause ldisc to notice changes */
                         ldisc_echoedit_update(term->ldisc);
                     if (term->reset_132) {
-                        if (!term->no_remote_resize)
-                            win_request_resize(term->win, 80, term->rows);
+                        if (!term->no_remote_resize) {
+                            term->win_resize_pending = true;
+                            term->win_resize_pending_w = 80;
+                            term->win_resize_pending_h = term->rows;
+                            term_schedule_update(term);
+                        }
                         term->reset_132 = false;
                     }
                     if (term->scroll_on_disp)
@@ -3680,62 +3969,60 @@ static void term_out(Terminal *term)
                     term->tabs[term->curs.x] = true;
                     break;
 
-                  case ANSI('8', '#'):  /* DECALN: fills screen with Es :-) */
+                  case ANSI('8', '#'): { /* DECALN: fills screen with Es :-) */
                     compatibility(VT100);
-                    {
-                        termline *ldata;
-                        int i, j;
-                        pos scrtop, scrbot;
+                    termline *ldata;
+                    int i, j;
+                    pos scrtop, scrbot;
 
-                        for (i = 0; i < term->rows; i++) {
-                            ldata = scrlineptr(i);
-                            check_line_size(term, ldata);
-                            for (j = 0; j < term->cols; j++) {
-                                copy_termchar(ldata, j,
-                                              &term->basic_erase_char);
-                                ldata->chars[j].chr = 'E';
-                            }
-                            ldata->lattr = LATTR_NORM;
+                    for (i = 0; i < term->rows; i++) {
+                        ldata = scrlineptr(i);
+                        check_line_size(term, ldata);
+                        for (j = 0; j < term->cols; j++) {
+                            copy_termchar(ldata, j,
+                                          &term->basic_erase_char);
+                            ldata->chars[j].chr = 'E';
                         }
-                        if (term->scroll_on_disp)
-                            term->disptop = 0;
-                        seen_disp_event(term);
-                        scrtop.x = scrtop.y = 0;
-                        scrbot.x = 0;
-                        scrbot.y = term->rows;
-                        check_selection(term, scrtop, scrbot);
+                        ldata->lattr = LATTR_NORM;
                     }
+                    if (term->scroll_on_disp)
+                        term->disptop = 0;
+                    seen_disp_event(term);
+                    scrtop.x = scrtop.y = 0;
+                    scrbot.x = 0;
+                    scrbot.y = term->rows;
+                    check_selection(term, scrtop, scrbot);
                     break;
+                  }
 
                   case ANSI('3', '#'):
                   case ANSI('4', '#'):
                   case ANSI('5', '#'):
-                  case ANSI('6', '#'):
+                  case ANSI('6', '#'): {
                     compatibility(VT100);
-                    {
-                        int nlattr;
-                        termline *ldata;
+                    int nlattr;
+                    termline *ldata;
 
-                        switch (ANSI(c, term->esc_query)) {
-                          case ANSI('3', '#'): /* DECDHL: 2*height, top */
-                            nlattr = LATTR_TOP;
-                            break;
-                          case ANSI('4', '#'): /* DECDHL: 2*height, bottom */
-                            nlattr = LATTR_BOT;
-                            break;
-                          case ANSI('5', '#'): /* DECSWL: normal */
-                            nlattr = LATTR_NORM;
-                            break;
-                          default: /* case ANSI('6', '#'): DECDWL: 2*width */
-                            nlattr = LATTR_WIDE;
-                            break;
-                        }
-                        ldata = scrlineptr(term->curs.y);
-                        check_line_size(term, ldata);
-                        check_trust_status(term, ldata);
-                        ldata->lattr = nlattr;
+                    switch (ANSI(c, term->esc_query)) {
+                      case ANSI('3', '#'): /* DECDHL: 2*height, top */
+                        nlattr = LATTR_TOP;
+                        break;
+                      case ANSI('4', '#'): /* DECDHL: 2*height, bottom */
+                        nlattr = LATTR_BOT;
+                        break;
+                      case ANSI('5', '#'): /* DECSWL: normal */
+                        nlattr = LATTR_NORM;
+                        break;
+                      default: /* case ANSI('6', '#'): DECDWL: 2*width */
+                        nlattr = LATTR_WIDE;
+                        break;
                     }
+                    ldata = scrlineptr(term->curs.y);
+                    check_line_size(term, ldata);
+                    check_trust_status(term, ldata);
+                    ldata->lattr = nlattr;
                     break;
+                  }
                   /* GZD4: G0 designate 94-set */
                   case ANSI('A', '('):
                     compatibility(VT100);
@@ -3914,34 +4201,32 @@ static void term_out(Terminal *term)
                              (term->dec_om ? 2 : 0));
                         seen_disp_event(term);
                         break;
-                      case 'J':       /* ED: erase screen or parts of it */
-                        {
-                            unsigned int i = def(term->esc_args[0], 0);
-                            if (i == 3) {
-                                /* Erase Saved Lines (xterm)
-                                 * This follows Thomas Dickey's xterm. */
-                                if (!term->no_remote_clearscroll)
-                                    term_clrsb(term);
-                            } else {
-                                i++;
-                                if (i > 3)
-                                    i = 0;
-                                erase_lots(term, false, !!(i & 2), !!(i & 1));
-                            }
+                      case 'J': {       /* ED: erase screen or parts of it */
+                        unsigned int i = def(term->esc_args[0], 0);
+                        if (i == 3) {
+                            /* Erase Saved Lines (xterm)
+                             * This follows Thomas Dickey's xterm. */
+                            if (!term->no_remote_clearscroll)
+                                term_clrsb(term);
+                        } else {
+                            i++;
+                            if (i > 3)
+                                i = 0;
+                            erase_lots(term, false, !!(i & 2), !!(i & 1));
                         }
                         if (term->scroll_on_disp)
                             term->disptop = 0;
                         seen_disp_event(term);
                         break;
-                      case 'K':       /* EL: erase line or parts of it */
-                        {
-                            unsigned int i = def(term->esc_args[0], 0) + 1;
-                            if (i > 3)
-                                i = 0;
-                            erase_lots(term, true, !!(i & 2), !!(i & 1));
-                        }
+                      }
+                      case 'K': {       /* EL: erase line or parts of it */
+                        unsigned int i = def(term->esc_args[0], 0) + 1;
+                        if (i > 3)
+                            i = 0;
+                        erase_lots(term, true, !!(i & 2), !!(i & 1));
                         seen_disp_event(term);
                         break;
+                      }
                       case 'L':       /* IL: insert lines */
                         compatibility(VT102);
                         CLAMP(term->esc_args[0], term->rows);
@@ -3995,41 +4280,34 @@ static void term_out(Terminal *term)
                       case 'h':       /* SM: toggle modes to high */
                       case ANSI_QUE('h'):
                         compatibility(VT100);
-                        {
-                            int i;
-                            for (i = 0; i < term->esc_nargs; i++)
-                                toggle_mode(term, term->esc_args[i],
-                                            term->esc_query, true);
-                        }
+                        for (int i = 0; i < term->esc_nargs; i++)
+                            toggle_mode(term, term->esc_args[i],
+                                        term->esc_query, true);
                         break;
                       case 'i':         /* MC: Media copy */
-                      case ANSI_QUE('i'):
+                      case ANSI_QUE('i'): {
                         compatibility(VT100);
-                        {
-                            char *printer;
-                            if (term->esc_nargs != 1) break;
-                            if (term->esc_args[0] == 5 &&
-                                (printer = conf_get_str(term->conf,
-                                                        CONF_printer))[0]) {
-                                term->printing = true;
-                                term->only_printing = !term->esc_query;
-                                term->print_state = 0;
-                                term_print_setup(term, printer);
-                            } else if (term->esc_args[0] == 4 &&
-                                       term->printing) {
-                                term_print_finish(term);
-                            }
+                        char *printer;
+                        if (term->esc_nargs != 1) break;
+                        if (term->esc_args[0] == 5 &&
+                            (printer = conf_get_str(term->conf,
+                                                    CONF_printer))[0]) {
+                            term->printing = true;
+                            term->only_printing = !term->esc_query;
+                            term->print_state = 0;
+                            term_print_setup(term, printer);
+                        } else if (term->esc_args[0] == 4 &&
+                                   term->printing) {
+                            term_print_finish(term);
                         }
                         break;
+                      }
                       case 'l':       /* RM: toggle modes to low */
                       case ANSI_QUE('l'):
                         compatibility(VT100);
-                        {
-                            int i;
-                            for (i = 0; i < term->esc_nargs; i++)
-                                toggle_mode(term, term->esc_args[i],
-                                            term->esc_query, false);
-                        }
+                        for (int i = 0; i < term->esc_nargs; i++)
+                            toggle_mode(term, term->esc_args[i],
+                                        term->esc_query, false);
                         break;
                       case 'g':       /* TBC: clear tabs */
                         compatibility(VT100);
@@ -4079,222 +4357,222 @@ static void term_out(Terminal *term)
                         }
                         break;
                       case 'm':       /* SGR: set graphics rendition */
-                        {
-                            /*
-                             * A VT100 without the AVO only had one
-                             * attribute, either underline or
-                             * reverse video depending on the
-                             * cursor type, this was selected by
-                             * CSI 7m.
-                             *
-                             * case 2:
-                             *  This is sometimes DIM, eg on the
-                             *  GIGI and Linux
-                             * case 8:
-                             *  This is sometimes INVIS various ANSI.
-                             * case 21:
-                             *  This like 22 disables BOLD, DIM and INVIS
-                             *
-                             * The ANSI colours appear on any
-                             * terminal that has colour (obviously)
-                             * but the interaction between sgr0 and
-                             * the colours varies but is usually
-                             * related to the background colour
-                             * erase item. The interaction between
-                             * colour attributes and the mono ones
-                             * is also very implementation
-                             * dependent.
-                             *
-                             * The 39 and 49 attributes are likely
-                             * to be unimplemented.
-                             */
-                            int i;
-                            for (i = 0; i < term->esc_nargs; i++) {
-                                switch (def(term->esc_args[i], 0)) {
-                                  case 0:       /* restore defaults */
-                                    term->curr_attr = term->default_attr;
-                                    term->curr_truecolour =
-                                        term->basic_erase_char.truecolour;
-                                    break;
-                                  case 1:       /* enable bold */
-                                    compatibility(VT100AVO);
-                                    term->curr_attr |= ATTR_BOLD;
-                                    break;
-                                  case 2:       /* enable dim */
-                                    compatibility(OTHER);
-                                    term->curr_attr |= ATTR_DIM;
-                                    break;
-                                  case 21:      /* (enable double underline) */
-                                    compatibility(OTHER);
-                                  case 4:       /* enable underline */
-                                    compatibility(VT100AVO);
-                                    term->curr_attr |= ATTR_UNDER;
-                                    break;
-                                  case 5:       /* enable blink */
-                                    compatibility(VT100AVO);
-                                    term->curr_attr |= ATTR_BLINK;
-                                    break;
-                                  case 6:       /* SCO light bkgrd */
-                                    compatibility(SCOANSI);
-                                    term->blink_is_real = false;
-                                    term->curr_attr |= ATTR_BLINK;
-                                    term_schedule_tblink(term);
-                                    break;
-                                  case 7:       /* enable reverse video */
-                                    term->curr_attr |= ATTR_REVERSE;
-                                    break;
-                                  case 10:      /* SCO acs off */
-                                    compatibility(SCOANSI);
-                                    if (term->no_remote_charset) break;
-                                    term->sco_acs = 0; break;
-                                  case 11:      /* SCO acs on */
-                                    compatibility(SCOANSI);
-                                    if (term->no_remote_charset) break;
-                                    term->sco_acs = 1; break;
-                                  case 12:      /* SCO acs on, |0x80 */
-                                    compatibility(SCOANSI);
-                                    if (term->no_remote_charset) break;
-                                    term->sco_acs = 2; break;
-                                  case 22:      /* disable bold and dim */
-                                    compatibility2(OTHER, VT220);
-                                    term->curr_attr &= ~(ATTR_BOLD | ATTR_DIM);
-                                    break;
-                                  case 24:      /* disable underline */
-                                    compatibility2(OTHER, VT220);
-                                    term->curr_attr &= ~ATTR_UNDER;
-                                    break;
-                                  case 25:      /* disable blink */
-                                    compatibility2(OTHER, VT220);
-                                    term->curr_attr &= ~ATTR_BLINK;
-                                    break;
-                                  case 27:      /* disable reverse video */
-                                    compatibility2(OTHER, VT220);
-                                    term->curr_attr &= ~ATTR_REVERSE;
-                                    break;
-                                  case 30:
-                                  case 31:
-                                  case 32:
-                                  case 33:
-                                  case 34:
-                                  case 35:
-                                  case 36:
-                                  case 37:
-                                    /* foreground */
-                                    term->curr_truecolour.fg.enabled = false;
-                                    term->curr_attr &= ~ATTR_FGMASK;
-                                    term->curr_attr |=
-                                        (term->esc_args[i] - 30)<<ATTR_FGSHIFT;
-                                    break;
-                                  case 90:
-                                  case 91:
-                                  case 92:
-                                  case 93:
-                                  case 94:
-                                  case 95:
-                                  case 96:
-                                  case 97:
-                                    /* aixterm-style bright foreground */
-                                    term->curr_truecolour.fg.enabled = false;
-                                    term->curr_attr &= ~ATTR_FGMASK;
-                                    term->curr_attr |=
-                                        ((term->esc_args[i] - 90 + 8)
-                                         << ATTR_FGSHIFT);
-                                    break;
-                                  case 39:      /* default-foreground */
-                                    term->curr_truecolour.fg.enabled = false;
-                                    term->curr_attr &= ~ATTR_FGMASK;
-                                    term->curr_attr |= ATTR_DEFFG;
-                                    break;
-                                  case 40:
-                                  case 41:
-                                  case 42:
-                                  case 43:
-                                  case 44:
-                                  case 45:
-                                  case 46:
-                                  case 47:
-                                    /* background */
-                                    term->curr_truecolour.bg.enabled = false;
-                                    term->curr_attr &= ~ATTR_BGMASK;
-                                    term->curr_attr |=
-                                        (term->esc_args[i] - 40)<<ATTR_BGSHIFT;
-                                    break;
-                                  case 100:
-                                  case 101:
-                                  case 102:
-                                  case 103:
-                                  case 104:
-                                  case 105:
-                                  case 106:
-                                  case 107:
-                                    /* aixterm-style bright background */
-                                    term->curr_truecolour.bg.enabled = false;
-                                    term->curr_attr &= ~ATTR_BGMASK;
-                                    term->curr_attr |=
-                                        ((term->esc_args[i] - 100 + 8)
-                                         << ATTR_BGSHIFT);
-                                    break;
-                                  case 49:      /* default-background */
-                                    term->curr_truecolour.bg.enabled = false;
-                                    term->curr_attr &= ~ATTR_BGMASK;
-                                    term->curr_attr |= ATTR_DEFBG;
-                                    break;
+                        /*
+                         * A VT100 without the AVO only had one
+                         * attribute, either underline or reverse
+                         * video depending on the cursor type, this
+                         * was selected by CSI 7m.
+                         *
+                         * case 2:
+                         *  This is sometimes DIM, eg on the GIGI and
+                         *  Linux
+                         * case 8:
+                         *  This is sometimes INVIS various ANSI.
+                         * case 21:
+                         *  This like 22 disables BOLD, DIM and INVIS
+                         *
+                         * The ANSI colours appear on any terminal
+                         * that has colour (obviously) but the
+                         * interaction between sgr0 and the colours
+                         * varies but is usually related to the
+                         * background colour erase item. The
+                         * interaction between colour attributes and
+                         * the mono ones is also very implementation
+                         * dependent.
+                         *
+                         * The 39 and 49 attributes are likely to be
+                         * unimplemented.
+                         */
+                        for (int i = 0; i < term->esc_nargs; i++)
+                        switch (def(term->esc_args[i], 0)) {
+                          case 0:       /* restore defaults */
+                            term->curr_attr = term->default_attr;
+                            term->curr_truecolour =
+                                term->basic_erase_char.truecolour;
+                            break;
+                          case 1:       /* enable bold */
+                            compatibility(VT100AVO);
+                            term->curr_attr |= ATTR_BOLD;
+                            break;
+                          case 2:       /* enable dim */
+                            compatibility(OTHER);
+                            term->curr_attr |= ATTR_DIM;
+                            break;
+                          case 21:      /* (enable double underline) */
+                            compatibility(OTHER);
+                          case 4:       /* enable underline */
+                            compatibility(VT100AVO);
+                            term->curr_attr |= ATTR_UNDER;
+                            break;
+                          case 5:       /* enable blink */
+                            compatibility(VT100AVO);
+                            term->curr_attr |= ATTR_BLINK;
+                            break;
+                          case 6:       /* SCO light bkgrd */
+                            compatibility(SCOANSI);
+                            term->blink_is_real = false;
+                            term->curr_attr |= ATTR_BLINK;
+                            term_schedule_tblink(term);
+                            break;
+                          case 7:       /* enable reverse video */
+                            term->curr_attr |= ATTR_REVERSE;
+                            break;
+                          case 9:       /* enable strikethrough */
+                            term->curr_attr |= ATTR_STRIKE;
+                            break;
+                          case 10:      /* SCO acs off */
+                            compatibility(SCOANSI);
+                            if (term->no_remote_charset) break;
+                            term->sco_acs = 0; break;
+                          case 11:      /* SCO acs on */
+                            compatibility(SCOANSI);
+                            if (term->no_remote_charset) break;
+                            term->sco_acs = 1; break;
+                          case 12:      /* SCO acs on, |0x80 */
+                            compatibility(SCOANSI);
+                            if (term->no_remote_charset) break;
+                            term->sco_acs = 2; break;
+                          case 22:      /* disable bold and dim */
+                            compatibility2(OTHER, VT220);
+                            term->curr_attr &= ~(ATTR_BOLD | ATTR_DIM);
+                            break;
+                          case 24:      /* disable underline */
+                            compatibility2(OTHER, VT220);
+                            term->curr_attr &= ~ATTR_UNDER;
+                            break;
+                          case 25:      /* disable blink */
+                            compatibility2(OTHER, VT220);
+                            term->curr_attr &= ~ATTR_BLINK;
+                            break;
+                          case 27:      /* disable reverse video */
+                            compatibility2(OTHER, VT220);
+                            term->curr_attr &= ~ATTR_REVERSE;
+                            break;
+                          case 29:      /* disable strikethrough */
+                            term->curr_attr &= ~ATTR_STRIKE;
+                            break;
+                          case 30:
+                          case 31:
+                          case 32:
+                          case 33:
+                          case 34:
+                          case 35:
+                          case 36:
+                          case 37:
+                            /* foreground */
+                            term->curr_truecolour.fg.enabled = false;
+                            term->curr_attr &= ~ATTR_FGMASK;
+                            term->curr_attr |=
+                                (term->esc_args[i] - 30)<<ATTR_FGSHIFT;
+                            break;
+                          case 90:
+                          case 91:
+                          case 92:
+                          case 93:
+                          case 94:
+                          case 95:
+                          case 96:
+                          case 97:
+                            /* aixterm-style bright foreground */
+                            term->curr_truecolour.fg.enabled = false;
+                            term->curr_attr &= ~ATTR_FGMASK;
+                            term->curr_attr |=
+                                ((term->esc_args[i] - 90 + 8)
+                                 << ATTR_FGSHIFT);
+                            break;
+                          case 39:      /* default-foreground */
+                            term->curr_truecolour.fg.enabled = false;
+                            term->curr_attr &= ~ATTR_FGMASK;
+                            term->curr_attr |= ATTR_DEFFG;
+                            break;
+                          case 40:
+                          case 41:
+                          case 42:
+                          case 43:
+                          case 44:
+                          case 45:
+                          case 46:
+                          case 47:
+                            /* background */
+                            term->curr_truecolour.bg.enabled = false;
+                            term->curr_attr &= ~ATTR_BGMASK;
+                            term->curr_attr |=
+                                (term->esc_args[i] - 40)<<ATTR_BGSHIFT;
+                            break;
+                          case 100:
+                          case 101:
+                          case 102:
+                          case 103:
+                          case 104:
+                          case 105:
+                          case 106:
+                          case 107:
+                            /* aixterm-style bright background */
+                            term->curr_truecolour.bg.enabled = false;
+                            term->curr_attr &= ~ATTR_BGMASK;
+                            term->curr_attr |=
+                                ((term->esc_args[i] - 100 + 8)
+                                 << ATTR_BGSHIFT);
+                            break;
+                          case 49:      /* default-background */
+                            term->curr_truecolour.bg.enabled = false;
+                            term->curr_attr &= ~ATTR_BGMASK;
+                            term->curr_attr |= ATTR_DEFBG;
+                            break;
 
-                                    /*
-                                     * 256-colour and true-colour
-                                     * sequences. A 256-colour
-                                     * foreground is selected by a
-                                     * sequence of 3 arguments in the
-                                     * form 38;5;n, where n is in the
-                                     * range 0-255. A true-colour RGB
-                                     * triple is selected by 5 args of
-                                     * the form 38;2;r;g;b. Replacing
-                                     * the initial 38 with 48 in both
-                                     * cases selects the same colour
-                                     * as the background.
-                                     */
-                                  case 38:
-                                    if (i+2 < term->esc_nargs &&
-                                        term->esc_args[i+1] == 5) {
-                                        term->curr_attr &= ~ATTR_FGMASK;
-                                        term->curr_attr |=
-                                            ((term->esc_args[i+2] & 0xFF)
-                                             << ATTR_FGSHIFT);
-                                        term->curr_truecolour.fg =
-                                            optionalrgb_none;
-                                        i += 2;
-                                        }
-                                    if (i + 4 < term->esc_nargs &&
-                                        term->esc_args[i + 1] == 2) {
-                                        parse_optionalrgb(
-                                            &term->curr_truecolour.fg,
-                                            term->esc_args + (i+2));
-                                        i += 4;
-                                    }
-                                    break;
-                                  case 48:
-                                    if (i+2 < term->esc_nargs &&
-                                        term->esc_args[i+1] == 5) {
-                                        term->curr_attr &= ~ATTR_BGMASK;
-                                        term->curr_attr |=
-                                            ((term->esc_args[i+2] & 0xFF)
-                                             << ATTR_BGSHIFT);
-                                        term->curr_truecolour.bg =
-                                            optionalrgb_none;
-                                        i += 2;
-                                    }
-                                    if (i + 4 < term->esc_nargs &&
-                                        term->esc_args[i+1] == 2) {
-                                        parse_optionalrgb(
-                                            &term->curr_truecolour.bg,
-                                            term->esc_args + (i+2));
-                                        i += 4;
-                                    }
-                                    break;
-                                }
+                            /*
+                             * 256-colour and true-colour
+                             * sequences. A 256-colour
+                             * foreground is selected by a
+                             * sequence of 3 arguments in the
+                             * form 38;5;n, where n is in the
+                             * range 0-255. A true-colour RGB
+                             * triple is selected by 5 args of
+                             * the form 38;2;r;g;b. Replacing
+                             * the initial 38 with 48 in both
+                             * cases selects the same colour
+                             * as the background.
+                             */
+                          case 38:
+                            if (i+2 < term->esc_nargs &&
+                                term->esc_args[i+1] == 5) {
+                                term->curr_attr &= ~ATTR_FGMASK;
+                                term->curr_attr |=
+                                    ((term->esc_args[i+2] & 0xFF)
+                                     << ATTR_FGSHIFT);
+                                term->curr_truecolour.fg =
+                                    optionalrgb_none;
+                                i += 2;
                             }
-                            set_erase_char(term);
+                            if (i + 4 < term->esc_nargs &&
+                                term->esc_args[i + 1] == 2) {
+                                parse_optionalrgb(
+                                    &term->curr_truecolour.fg,
+                                    term->esc_args + (i+2));
+                                i += 4;
+                            }
+                            break;
+                          case 48:
+                            if (i+2 < term->esc_nargs &&
+                                term->esc_args[i+1] == 5) {
+                                term->curr_attr &= ~ATTR_BGMASK;
+                                term->curr_attr |=
+                                    ((term->esc_args[i+2] & 0xFF)
+                                     << ATTR_BGSHIFT);
+                                term->curr_truecolour.bg =
+                                    optionalrgb_none;
+                                i += 2;
+                            }
+                            if (i + 4 < term->esc_nargs &&
+                                term->esc_args[i+1] == 2) {
+                                parse_optionalrgb(
+                                    &term->curr_truecolour.bg,
+                                    term->esc_args + (i+2));
+                                i += 4;
+                            }
+                            break;
                         }
+                        set_erase_char(term);
                         break;
                       case 's':       /* save cursor */
                         save_cursor(term, true);
@@ -4314,9 +4592,13 @@ static void term_out(Terminal *term)
                             && (term->esc_args[0] < 1 ||
                                 term->esc_args[0] >= 24)) {
                             compatibility(VT340TEXT);
-                            if (!term->no_remote_resize)
-                                win_request_resize(term->win, term->cols,
-                                                   def(term->esc_args[0], 24));
+                            if (!term->no_remote_resize) {
+                                term->win_resize_pending = true;
+                                term->win_resize_pending_w = term->cols;
+                                term->win_resize_pending_h =
+                                    def(term->esc_args[0], 24);
+                                term_schedule_update(term);
+                            }
                             deselect(term);
                         } else if (term->esc_nargs >= 1 &&
                                    term->esc_args[0] >= 1 &&
@@ -4324,21 +4606,29 @@ static void term_out(Terminal *term)
                             compatibility(OTHER);
 
                             switch (term->esc_args[0]) {
-                                int x, y, len;
+                                int len;
                                 char buf[80];
                                 const char *p;
                               case 1:
-                                win_set_minimised(term->win, false);
+                                term->win_minimise_pending = true;
+                                term->win_minimise_enable = false;
+                                term_schedule_update(term);
                                 break;
                               case 2:
-                                win_set_minimised(term->win, true);
+                                term->win_minimise_pending = true;
+                                term->win_minimise_enable = true;
+                                term_schedule_update(term);
                                 break;
                               case 3:
                                 if (term->esc_nargs >= 3) {
-                                    if (!term->no_remote_resize)
-                                        win_move(term->win,
-                                                 def(term->esc_args[1], 0),
-                                                 def(term->esc_args[2], 0));
+                                    if (!term->no_remote_resize) {
+                                        term->win_move_pending = true;
+                                        term->win_move_pending_x =
+                                            def(term->esc_args[1], 0);
+                                        term->win_move_pending_y =
+                                            def(term->esc_args[2], 0);
+                                        term_schedule_update(term);
+                                    }
                                 }
                                 break;
                               case 4:
@@ -4349,52 +4639,60 @@ static void term_out(Terminal *term)
                                 break;
                               case 5:
                                 /* move to top */
-                                win_set_zorder(term->win, true);
+                                term->win_zorder_pending = true;
+                                term->win_zorder_top = true;
+                                term_schedule_update(term);
                                 break;
                               case 6:
                                 /* move to bottom */
-                                win_set_zorder(term->win, false);
+                                term->win_zorder_pending = true;
+                                term->win_zorder_top = false;
+                                term_schedule_update(term);
                                 break;
                               case 7:
-                                win_refresh(term->win);
+                                term->win_refresh_pending = true;
+                                term_schedule_update(term);
                                 break;
                               case 8:
-                                if (term->esc_nargs >= 3) {
-                                    if (!term->no_remote_resize)
-                                        win_request_resize(
-                                            term->win,
-                                            def(term->esc_args[2],
-                                                term->conf_width),
-                                            def(term->esc_args[1],
-                                                term->conf_height));
+                                if (term->esc_nargs >= 3 &&
+                                    !term->no_remote_resize) {
+                                    term->win_resize_pending = true;
+                                    term->win_resize_pending_w =
+                                        def(term->esc_args[2],
+                                            term->conf_width);
+                                    term->win_resize_pending_h =
+                                        def(term->esc_args[1],
+                                            term->conf_height);
+                                    term_schedule_update(term);
                                 }
                                 break;
                               case 9:
-                                if (term->esc_nargs >= 2)
-                                    win_set_maximised(
-                                        term->win,
-                                        term->esc_args[1] ? true : false);
+                                if (term->esc_nargs >= 2) {
+                                    term->win_maximise_pending = true;
+                                    term->win_maximise_enable =
+                                        term->esc_args[1];
+                                    term_schedule_update(term);
+                                }
                                 break;
                               case 11:
                                 if (term->ldisc)
-                                    ldisc_send(term->ldisc,
-                                               win_is_minimised(term->win) ?
+                                    ldisc_send(term->ldisc, term->minimised ?
                                                "\033[2t" : "\033[1t", 4,
                                                false);
                                 break;
                               case 13:
                                 if (term->ldisc) {
-                                    win_get_pos(term->win, &x, &y);
                                     len = sprintf(buf, "\033[3;%u;%ut",
-                                                  (unsigned)x,
-                                                  (unsigned)y);
+                                                  term->winpos_x,
+                                                  term->winpos_y);
                                     ldisc_send(term->ldisc, buf, len, false);
                                 }
                                 break;
                               case 14:
                                 if (term->ldisc) {
-                                    win_get_pixels(term->win, &x, &y);
-                                    len = sprintf(buf, "\033[4;%d;%dt", y, x);
+                                    len = sprintf(buf, "\033[4;%u;%ut",
+                                                  term->winpixsize_y,
+                                                  term->winpixsize_x);
                                     ldisc_send(term->ldisc, buf, len, false);
                                 }
                                 break;
@@ -4426,7 +4724,7 @@ static void term_out(Terminal *term)
                                 if (term->ldisc &&
                                     term->remote_qtitle_action != TITLE_NONE) {
                                     if(term->remote_qtitle_action == TITLE_REAL)
-                                        p = win_get_title(term->win, true);
+                                        p = term->icon_title;
                                     else
                                         p = EMPTY_WINDOW_TITLE;
                                     len = strlen(p);
@@ -4441,7 +4739,7 @@ static void term_out(Terminal *term)
                                 if (term->ldisc &&
                                     term->remote_qtitle_action != TITLE_NONE) {
                                     if(term->remote_qtitle_action == TITLE_REAL)
-                                        p = win_get_title(term->win, false);
+                                        p = term->window_title;
                                     else
                                         p = EMPTY_WINDOW_TITLE;
                                     len = strlen(p);
@@ -4480,10 +4778,13 @@ static void term_out(Terminal *term)
                          */
                         compatibility(VT420);
                         if (term->esc_nargs == 1 && term->esc_args[0] > 0) {
-                            if (!term->no_remote_resize)
-                                win_request_resize(term->win, term->cols,
-                                                   def(term->esc_args[0],
-                                                       term->conf_height));
+                            if (!term->no_remote_resize) {
+                                term->win_resize_pending = true;
+                                term->win_resize_pending_w = term->cols;
+                                term->win_resize_pending_h =
+                                    def(term->esc_args[0], term->conf_height);
+                                term_schedule_update(term);
+                            }
                             deselect(term);
                         }
                         break;
@@ -4495,39 +4796,40 @@ static void term_out(Terminal *term)
                          */
                         compatibility(VT340TEXT);
                         if (term->esc_nargs <= 1) {
-                            if (!term->no_remote_resize)
-                                win_request_resize(
-                                    term->win,
-                                    def(term->esc_args[0], term->conf_width),
-                                    term->rows);
+                            if (!term->no_remote_resize) {
+                                term->win_resize_pending = true;
+                                term->win_resize_pending_w =
+                                    def(term->esc_args[0], term->conf_width);
+                                term->win_resize_pending_h = term->rows;
+                                term_schedule_update(term);
+                            }
                             deselect(term);
                         }
                         break;
-                      case 'X':     /* ECH: write N spaces w/o moving cursor */
+                      case 'X': {   /* ECH: write N spaces w/o moving cursor */
                         /* XXX VTTEST says this is vt220, vt510 manual
                          * says vt100 */
                         compatibility(ANSIMIN);
                         CLAMP(term->esc_args[0], term->cols);
-                        {
-                            int n = def(term->esc_args[0], 1);
-                            pos cursplus;
-                            int p = term->curs.x;
-                            termline *cline = scrlineptr(term->curs.y);
+                        int n = def(term->esc_args[0], 1);
+                        pos cursplus;
+                        int p = term->curs.x;
+                        termline *cline = scrlineptr(term->curs.y);
 
-                            check_trust_status(term, cline);
-                            if (n > term->cols - term->curs.x)
-                                n = term->cols - term->curs.x;
-                            cursplus = term->curs;
-                            cursplus.x += n;
-                            check_boundary(term, term->curs.x, term->curs.y);
-                            check_boundary(term, term->curs.x+n, term->curs.y);
-                            check_selection(term, term->curs, cursplus);
-                            while (n--)
-                                copy_termchar(cline, p++,
-                                              &term->erase_char);
-                            seen_disp_event(term);
-                        }
+                        check_trust_status(term, cline);
+                        if (n > term->cols - term->curs.x)
+                            n = term->cols - term->curs.x;
+                        cursplus = term->curs;
+                        cursplus.x += n;
+                        check_boundary(term, term->curs.x, term->curs.y);
+                        check_boundary(term, term->curs.x+n, term->curs.y);
+                        check_selection(term, term->curs, cursplus);
+                        while (n--)
+                            copy_termchar(cline, p++,
+                                          &term->erase_char);
+                        seen_disp_event(term);
                         break;
+                      }
                       case 'x':       /* DECREQTPARM: report terminal characteristics */
                         compatibility(VT100);
                         if (term->ldisc) {
@@ -4540,22 +4842,21 @@ static void term_out(Terminal *term)
                             }
                         }
                         break;
-                      case 'Z':         /* CBT */
+                      case 'Z': {         /* CBT */
                         compatibility(OTHER);
                         CLAMP(term->esc_args[0], term->cols);
-                        {
-                            int i = def(term->esc_args[0], 1);
-                            pos old_curs = term->curs;
+                        int i = def(term->esc_args[0], 1);
+                        pos old_curs = term->curs;
 
-                            for(;i>0 && term->curs.x>0; i--) {
-                                do {
-                                    term->curs.x--;
-                                } while (term->curs.x >0 &&
-                                         !term->tabs[term->curs.x]);
-                            }
-                            check_selection(term, old_curs, term->curs);
+                        for(;i>0 && term->curs.x>0; i--) {
+                            do {
+                                term->curs.x--;
+                            } while (term->curs.x >0 &&
+                                     !term->tabs[term->curs.x]);
                         }
+                        check_selection(term, old_curs, term->curs);
                         break;
+                      }
                       case ANSI('c', '='):      /* Hide or Show Cursor */
                         compatibility(SCOANSI);
                         switch(term->esc_args[0]) {
@@ -4707,10 +5008,11 @@ static void term_out(Terminal *term)
                          */
                         if (!has_compat(VT420) && has_compat(VT100)) {
                             if (!term->no_remote_resize) {
-                                if (term->reset_132)
-                                    win_request_resize(term->win, 132, 24);
-                                else
-                                    win_request_resize(term->win, 80, 24);
+                                term->win_resize_pending = true;
+                                term->win_resize_pending_w =
+                                    term->reset_132 ? 132 : 80;
+                                term->win_resize_pending_h = 24;
+                                term_schedule_update(term);
                             }
                         }
 #endif
@@ -4725,7 +5027,7 @@ static void term_out(Terminal *term)
                     term->osc_strlen = 0;
                     break;
                   case 'R':            /* Linux palette reset */
-                    win_palette_reset(term->win);
+                    palette_reset(term, false);
                     term_invalidate(term);
                     term->termstate = TOPLEVEL;
                     break;
@@ -4807,32 +5109,40 @@ static void term_out(Terminal *term)
                 else if (term->osc_strlen < OSC_STR_MAX)
                     term->osc_string[term->osc_strlen++] = (char)c;
                 break;
-              case SEEN_OSC_P:
-                {
-                    int max = (term->osc_strlen == 0 ? 21 : 15);
-                    int val;
-                    if ((int)c >= '0' && (int)c <= '9')
-                        val = c - '0';
-                    else if ((int)c >= 'A' && (int)c <= 'A' + max - 10)
-                        val = c - 'A' + 10;
-                    else if ((int)c >= 'a' && (int)c <= 'a' + max - 10)
-                        val = c - 'a' + 10;
-                    else {
-                        term->termstate = TOPLEVEL;
-                        break;
-                    }
-                    term->osc_string[term->osc_strlen++] = val;
-                    if (term->osc_strlen >= 7) {
-                        win_palette_set(
-                            term->win, term->osc_string[0],
-                            term->osc_string[1] * 16 + term->osc_string[2],
-                            term->osc_string[3] * 16 + term->osc_string[4],
-                            term->osc_string[5] * 16 + term->osc_string[6]);
-                        term_invalidate(term);
-                        term->termstate = TOPLEVEL;
-                    }
+              case SEEN_OSC_P: {
+                int max = (term->osc_strlen == 0 ? 21 : 15);
+                int val;
+                if ((int)c >= '0' && (int)c <= '9')
+                    val = c - '0';
+                else if ((int)c >= 'A' && (int)c <= 'A' + max - 10)
+                    val = c - 'A' + 10;
+                else if ((int)c >= 'a' && (int)c <= 'a' + max - 10)
+                    val = c - 'a' + 10;
+                else {
+                    term->termstate = TOPLEVEL;
+                    break;
+                }
+                term->osc_string[term->osc_strlen++] = val;
+                if (term->osc_strlen >= 7) {
+                    unsigned oscp_index = term->osc_string[0];
+                    assert(oscp_index < OSCP_NCOLOURS);
+                    unsigned osc4_index =
+                        colour_indices_oscp_to_osc4[oscp_index];
+
+                    rgb *value = &term->subpalettes[SUBPAL_SESSION].values[
+                        osc4_index];
+                    value->r = term->osc_string[1] * 16 + term->osc_string[2];
+                    value->g = term->osc_string[3] * 16 + term->osc_string[4];
+                    value->b = term->osc_string[5] * 16 + term->osc_string[6];
+                    term->subpalettes[SUBPAL_SESSION].present[
+                        osc4_index] = true;
+
+                    palette_rebuild(term);
+
+                    term->termstate = TOPLEVEL;
                 }
                 break;
+              }
               case SEEN_OSC_W:
                 switch (c) {
                   case '0':
@@ -5853,8 +6163,8 @@ void term_scroll(Terminal *term, int rel, int where)
         term->disptop = sbtop;
     if (term->disptop > 0)
         term->disptop = 0;
-    update_sbar(term);
-    term_update(term);
+    term->win_scrollbar_update_pending = true;
+    term_schedule_update(term);
 }
 
 /*
@@ -6810,7 +7120,7 @@ void term_mouse(Terminal *term, Mouse_Button braw, Mouse_Button bcooked,
      */
     if (term->selstate != DRAGGING)
         term_out(term);
-    term_update(term);
+    term_schedule_update(term);
 }
 
 int format_arrow_key(char *buf, Terminal *term, int xkey, bool ctrl)
@@ -7145,7 +7455,7 @@ char *term_get_ttymode(Terminal *term, const char *mode)
     if (strcmp(mode, "ERASE") == 0) {
         val = term->bksp_is_delete ? "^?" : "^H";
     } else if (strcmp(mode, "IUTF8") == 0) {
-        val = win_is_utf8(term->win) ? "yes" : "no";
+        val = (term->ucsdata->line_codepage == CP_UTF8) ? "yes" : "no";
     }
     /* FIXME: perhaps we should set ONLCR based on lfhascr as well? */
     /* FIXME: or ECHO and friends based on local echo state? */
@@ -7276,4 +7586,26 @@ int term_get_userpass_input(Terminal *term, prompts_t *p, bufchain *input)
         p->data = NULL;
         return +1; /* all done */
     }
+}
+
+void term_notify_minimised(Terminal *term, bool minimised)
+{
+    term->minimised = minimised;
+}
+
+void term_notify_palette_overrides_changed(Terminal *term)
+{
+    palette_reset(term, true);
+}
+
+void term_notify_window_pos(Terminal *term, int x, int y)
+{
+    term->winpos_x = x;
+    term->winpos_y = y;
+}
+
+void term_notify_window_size_pixels(Terminal *term, int x, int y)
+{
+    term->winpixsize_x = x;
+    term->winpixsize_y = y;
 }

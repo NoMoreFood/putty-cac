@@ -51,7 +51,7 @@ Once you've got a console window to type into, you can just type <code>pscp</cod
 </p>
 <pre><code>C:\&gt;pscp
 PuTTY Secure Copy client
-Release 0.74
+Release 0.75
 Usage: pscp [options] [user@]host:source target
        pscp [options] source [source...] [user@]host:target
        pscp [options] -ls [user@]host:filespec
@@ -67,12 +67,14 @@ Options:
   -l user   connect with specified username
   -pw passw login with specified password
   -1 -2     force use of particular SSH protocol version
+  -ssh -ssh-connection
+            force use of particular SSH protocol variant
   -4 -6     force use of IPv4 or IPv6
   -C        enable compression
   -i key    private key file for user authentication
   -noagent  disable use of Pageant
   -agent    enable use of Pageant
-  -hostkey aa:bb:cc:...
+  -hostkey keyid
             manually specify a host key (may be repeated)
   -batch    disable all interactive prompts
   -no-sanitise-stderr  don't strip control chars from standard error
@@ -84,6 +86,9 @@ Options:
   -sshlog file
   -sshrawlog file
             log protocol details to a file
+  -logoverwrite
+  -logappend
+            control what happens when a log file already exists
 </code></pre>
 <p>
 (PSCP's interface is much like the Unix <code>scp</code> command, if you're familiar with that.)
@@ -161,7 +166,7 @@ As with the <code>source</code> parameter, if the target is on a remote server a
 </p>
 <h3><a name="pscp-usage-options"></a><a name="S5.2.2"></a>5.2.2 Options</h3>
 <p>
-PSCP accepts all the general command line options supported by the PuTTY tools, except the ones which make no sense in a file transfer utility. See <a href="Chapter3.html#using-general-opts">section 3.8.3</a> for a description of these options. (The ones not supported by PSCP are clearly marked.)
+PSCP accepts all the general command line options supported by the PuTTY tools, except the ones which make no sense in a file transfer utility. See <a href="Chapter3.html#using-general-opts">section 3.11.3</a> for a description of these options. (The ones not supported by PSCP are clearly marked.)
 </p>
 <p>
 PSCP also supports some of its own options. The following sections describe PSCP's specific command-line options.
@@ -202,7 +207,7 @@ If you use the <code>-batch</code> option, PSCP will never give an interactive p
 <p>
 This may help PSCP's behaviour when it is used in automated scripts: using <code>-batch</code>, if something goes wrong at connection time, the batch job will fail rather than hang.
 </p>
-<h4><a name="pscp-usage-options-backend"></a><a name="S5.2.2.6"></a>5.2.2.6 <a name="i28"></a><code>-sftp</code>, <a name="i29"></a><code>-scp</code> force use of particular protocol</h4>
+<h4><a name="pscp-usage-options-backend"></a><a name="S5.2.2.6"></a>5.2.2.6 <a name="i28"></a><code>-sftp</code>, <a name="i29"></a><code>-scp</code> force use of particular file transfer protocol</h4>
 <p>
 As mentioned in <a href="#pscp-usage-basics">section 5.2.1</a>, there are two different file transfer protocols in use with SSH. Despite its name, PSCP (like many other ostensible <code>scp</code> clients) can use either of these protocols.
 </p>
@@ -240,14 +245,14 @@ Like PuTTY, PSCP can authenticate using a public key instead of a password. Ther
 Firstly, PSCP can use PuTTY saved sessions in place of hostnames (see <a href="#pscp-usage-basics-host">section 5.2.1.2</a>). So you would do this:
 </p>
 <ul><li>
-Run PuTTY, and create a PuTTY saved session (see <a href="Chapter4.html#config-saving">section 4.1.2</a>) which specifies your private key file (see <a href="Chapter4.html#config-ssh-privkey">section 4.23.8</a>). You will probably also want to specify a username to log in as (see <a href="Chapter4.html#config-username">section 4.15.1</a>).
+Run PuTTY, and create a PuTTY saved session (see <a href="Chapter4.html#config-saving">section 4.1.2</a>) which specifies your private key file (see <a href="Chapter4.html#config-ssh-privkey">section 4.21.8</a>). You will probably also want to specify a username to log in as (see <a href="Chapter4.html#config-username">section 4.15.1</a>).
 </li>
 <li>
 In PSCP, you can now use the name of the session instead of a hostname: type <code>pscp sessionname:file localfile</code>, where <code>sessionname</code> is replaced by the name of your saved session.
 </li>
 </ul>
 <p>
-Secondly, you can supply the name of a private key file on the command line, with the <code>-i</code> option. See <a href="Chapter3.html#using-cmdline-identity">section 3.8.3.18</a> for more information.
+Secondly, you can supply the name of a private key file on the command line, with the <code>-i</code> option. See <a href="Chapter3.html#using-cmdline-identity">section 3.11.3.18</a> for more information.
 </p>
 <p>
 Thirdly, PSCP will attempt to authenticate using Pageant if Pageant is running (see <a href="Chapter9.html#pageant">chapter 9</a>). So you would do this:
@@ -264,5 +269,5 @@ For more general information on public-key authentication, see <a href="Chapter8
 </p>
 
 <hr><p>If you want to provide feedback on this manual or on the PuTTY tools themselves, see the <a href="https://www.chiark.greenend.org.uk/~sgtatham/putty/feedback.html">Feedback page</a>.</p><address>
-[PuTTY release 0.74]</address></body>
+[PuTTY release 0.75]</address></body>
 </html>

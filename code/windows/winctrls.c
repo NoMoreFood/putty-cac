@@ -222,13 +222,15 @@ static void radioline_common(struct ctlpos *cp, char *text, int id,
     int i;
     int j;
 
+    r.left = GAPBETWEEN;
+    r.top = cp->ypos;
     if (text) {
-        r.left = GAPBETWEEN;
-        r.top = cp->ypos;
         r.right = cp->width;
         r.bottom = STATICHEIGHT;
         cp->ypos += r.bottom + GAPWITHIN;
         doctl(cp, r, "STATIC", WS_CHILD | WS_VISIBLE, 0, text, id);
+    } else {
+        r.right = r.bottom = 0;
     }
 
     group = WS_GROUP;
@@ -925,20 +927,18 @@ void prefslist(struct prefslist *hdl, struct ctlpos *cp, int lines,
         wid = xpos - left;
 
         switch (i) {
-          case 1:
+          case 1: {
             /* The drag list box. */
             r.left = left; r.right = wid;
             r.top = cp->ypos; r.bottom = listheight;
-            {
-                HWND ctl;
-                ctl = doctl(cp, r, "LISTBOX",
-                            WS_CHILD | WS_VISIBLE | WS_TABSTOP |
-                            WS_VSCROLL | LBS_HASSTRINGS | LBS_USETABSTOPS,
-                            WS_EX_CLIENTEDGE,
-                            "", listid);
-                p_MakeDragList(ctl);
-            }
+            HWND ctl = doctl(cp, r, "LISTBOX",
+                             WS_CHILD | WS_VISIBLE | WS_TABSTOP |
+                             WS_VSCROLL | LBS_HASSTRINGS | LBS_USETABSTOPS,
+                             WS_EX_CLIENTEDGE,
+                             "", listid);
+            p_MakeDragList(ctl);
             break;
+          }
 
           case 2:
             /* The "Up" and "Down" buttons. */
@@ -1325,6 +1325,28 @@ struct winctrl *winctrl_findbyindex(struct winctrls *wc, int index)
     return index234(wc->byid, index);
 }
 
+static void move_windows(HWND hwnd, int base_id, int num_ids, LONG dy)
+{
+    if (!dy)
+        return;
+    for (int i = 0; i < num_ids; i++) {
+        HWND win = GetDlgItem(hwnd, base_id + i);
+
+        RECT rect;
+        if (!GetWindowRect(win, &rect))
+            continue;
+
+        POINT p;
+        p.x = rect.left;
+        p.y = rect.top + dy;
+        if (!ScreenToClient(hwnd, &p))
+            continue;
+
+        SetWindowPos(win, NULL, p.x, p.y, 0, 0,
+                     SWP_NOACTIVATE | SWP_NOSIZE | SWP_NOZORDER);
+    }
+}
+
 void winctrl_layout(struct dlgparam *dp, struct winctrls *wc,
                     struct ctlpos *cp, struct controlset *s, int *id)
 {
@@ -1340,7 +1362,7 @@ void winctrl_layout(struct dlgparam *dp, struct winctrls *wc,
     char shortcuts[MAX_SHORTCUTS_PER_CTRL];
     int nshortcuts;
     char *escaped;
-    int i, actual_base_id, base_id, num_ids;
+    int i, actual_base_id, base_id, num_ids, align_id_relative;
     void *data;
 
     base_id = *id;
@@ -1349,7 +1371,7 @@ void winctrl_layout(struct dlgparam *dp, struct winctrls *wc,
     if (s->boxname && *s->boxname) {
         struct winctrl *c = snew(struct winctrl);
         c->ctrl = NULL;
-        c->base_id = base_id;
+        c->base_id = c->align_id = base_id;
         c->num_ids = 1;
         c->data = NULL;
         memset(c->shortcuts, NO_SHORTCUT, lenof(c->shortcuts));
@@ -1362,7 +1384,7 @@ void winctrl_layout(struct dlgparam *dp, struct winctrls *wc,
     if (!s->boxname && s->boxtitle) {
         struct winctrl *c = snew(struct winctrl);
         c->ctrl = NULL;
-        c->base_id = base_id;
+        c->base_id = c->align_id = base_id;
         c->num_ids = 1;
         c->data = dupstr(s->boxtitle);
         memset(c->shortcuts, NO_SHORTCUT, lenof(c->shortcuts));
@@ -1491,24 +1513,28 @@ void winctrl_layout(struct dlgparam *dp, struct winctrls *wc,
         /* Almost all controls start at base_id. */
         actual_base_id = base_id;
 
+        /* For vertical alignment purposes, the most relevant control
+         * in a group is usually the last one. But that can be
+         * overridden occasionally. */
+        align_id_relative = -1;
+
         /*
          * Now we're ready to actually create the control, by
          * switching on its type.
          */
         switch (ctrl->generic.type) {
-          case CTRL_TEXT:
-            {
-                char *wrapped, *escaped;
-                int lines;
-                num_ids = 1;
-                wrapped = staticwrap(&pos, cp->hwnd,
-                                     ctrl->generic.label, &lines);
-                escaped = shortcut_escape(wrapped, NO_SHORTCUT);
-                statictext(&pos, escaped, lines, base_id);
-                sfree(escaped);
-                sfree(wrapped);
-            }
+          case CTRL_TEXT: {
+            char *wrapped, *escaped;
+            int lines;
+            num_ids = 1;
+            wrapped = staticwrap(&pos, cp->hwnd,
+                                 ctrl->generic.label, &lines);
+            escaped = shortcut_escape(wrapped, NO_SHORTCUT);
+            statictext(&pos, escaped, lines, base_id);
+            sfree(escaped);
+            sfree(wrapped);
             break;
+          }
           case CTRL_EDITBOX:
             num_ids = 2;               /* static, edit */
             escaped = shortcut_escape(ctrl->editbox.label,
@@ -1533,42 +1559,41 @@ void winctrl_layout(struct dlgparam *dp, struct winctrls *wc,
             }
             sfree(escaped);
             break;
-          case CTRL_RADIO:
+          case CTRL_RADIO: {
             num_ids = ctrl->radio.nbuttons + 1;   /* label as well */
-            {
-                struct radio *buttons;
-                int i;
+            struct radio *buttons;
+            int i;
 
-                escaped = shortcut_escape(ctrl->radio.label,
-                                          ctrl->radio.shortcut);
-                shortcuts[nshortcuts++] = ctrl->radio.shortcut;
+            escaped = shortcut_escape(ctrl->radio.label,
+                                      ctrl->radio.shortcut);
+            shortcuts[nshortcuts++] = ctrl->radio.shortcut;
 
-                buttons = snewn(ctrl->radio.nbuttons, struct radio);
+            buttons = snewn(ctrl->radio.nbuttons, struct radio);
 
-                for (i = 0; i < ctrl->radio.nbuttons; i++) {
-                    buttons[i].text =
-                        shortcut_escape(ctrl->radio.buttons[i],
-                                        (char)(ctrl->radio.shortcuts ?
-                                               ctrl->radio.shortcuts[i] :
-                                               NO_SHORTCUT));
-                    buttons[i].id = base_id + 1 + i;
-                    if (ctrl->radio.shortcuts) {
-                        assert(nshortcuts < MAX_SHORTCUTS_PER_CTRL);
-                        shortcuts[nshortcuts++] = ctrl->radio.shortcuts[i];
-                    }
-                }
-
-                radioline_common(&pos, escaped, base_id,
-                                 ctrl->radio.ncolumns,
-                                 buttons, ctrl->radio.nbuttons);
-
-                for (i = 0; i < ctrl->radio.nbuttons; i++) {
-                    sfree(buttons[i].text);
-                }
-                sfree(buttons);
-                sfree(escaped);
+            for (i = 0; i < ctrl->radio.nbuttons; i++) {
+              buttons[i].text =
+                  shortcut_escape(ctrl->radio.buttons[i],
+                                  (char)(ctrl->radio.shortcuts ?
+                                         ctrl->radio.shortcuts[i] :
+                                         NO_SHORTCUT));
+              buttons[i].id = base_id + 1 + i;
+              if (ctrl->radio.shortcuts) {
+                assert(nshortcuts < MAX_SHORTCUTS_PER_CTRL);
+                shortcuts[nshortcuts++] = ctrl->radio.shortcuts[i];
+              }
             }
+
+            radioline_common(&pos, escaped, base_id,
+                             ctrl->radio.ncolumns,
+                             buttons, ctrl->radio.nbuttons);
+
+            for (i = 0; i < ctrl->radio.nbuttons; i++) {
+              sfree(buttons[i].text);
+            }
+            sfree(buttons);
+            sfree(escaped);
             break;
+          }
           case CTRL_CHECKBOX:
             num_ids = 1;
             escaped = shortcut_escape(ctrl->checkbox.label,
@@ -1661,6 +1686,10 @@ void winctrl_layout(struct dlgparam *dp, struct winctrls *wc,
             unreachable("bad control type in winctrl_layout");
         }
 
+        /* Translate the original align_id_relative of -1 into n-1 */
+        if (align_id_relative < 0)
+            align_id_relative += num_ids;
+
         /*
          * Create a `struct winctrl' for this control, and advance
          * the dialog ID counter, if it's actually been created
@@ -1671,6 +1700,7 @@ void winctrl_layout(struct dlgparam *dp, struct winctrls *wc,
 
             c->ctrl = ctrl;
             c->base_id = actual_base_id;
+            c->align_id = c->base_id + align_id_relative;
             c->num_ids = num_ids;
             c->data = data;
             memcpy(c->shortcuts, shortcuts, sizeof(shortcuts));
@@ -1678,6 +1708,31 @@ void winctrl_layout(struct dlgparam *dp, struct winctrls *wc,
             winctrl_add_shortcuts(dp, c);
             if (actual_base_id == base_id)
                 base_id += num_ids;
+
+            if (ctrl->generic.align_next_to) {
+                /*
+                 * Implement align_next_to by looking at the y extents
+                 * of the two controls now that both are created, and
+                 * moving one or the other downwards so that they're
+                 * centred on a common horizontal line.
+                 */
+                struct winctrl *c2 = winctrl_findbyctrl(
+                    wc, ctrl->generic.align_next_to);
+                HWND win1 = GetDlgItem(pos.hwnd, c->align_id);
+                HWND win2 = GetDlgItem(pos.hwnd, c2->align_id);
+                RECT rect1, rect2;
+                if (win1 && win2 &&
+                    GetWindowRect(win1, &rect1) &&
+                    GetWindowRect(win2, &rect2)) {
+                    LONG top = (rect1.top < rect2.top ? rect1.top : rect2.top);
+                    LONG bottom = (rect1.bottom > rect2.bottom ?
+                                   rect1.bottom : rect2.bottom);
+                    move_windows(pos.hwnd, c->base_id, c->num_ids,
+                                 (top + bottom - rect1.top - rect1.bottom)/2);
+                    move_windows(pos.hwnd, c2->base_id, c2->num_ids,
+                                 (top + bottom - rect2.top - rect2.bottom)/2);
+                }
+            }
         } else {
             sfree(data);
         }

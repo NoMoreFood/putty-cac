@@ -155,14 +155,15 @@
     <ClCompile Include="..\..\..\miscucs.c" />
     <ClCompile Include="..\..\..\nocproxy.c" />
     <ClCompile Include="..\..\..\nogss.c" />
+    <ClCompile Include="..\..\..\norand.c" />
     <ClCompile Include="..\..\..\pinger.c" />
     <ClCompile Include="..\..\..\proxy.c" />
     <ClCompile Include="..\..\..\raw.c" />
     <ClCompile Include="..\..\..\rlogin.c" />
-    <ClCompile Include="..\..\..\sercfg.c" />
     <ClCompile Include="..\..\..\sessprep.c" />
     <ClCompile Include="..\..\..\settings.c" />
     <ClCompile Include="..\..\..\stripctrl.c" />
+    <ClCompile Include="..\..\..\supdup.c" />
     <ClCompile Include="..\..\..\telnet.c" />
     <ClCompile Include="..\..\..\terminal.c" />
     <ClCompile Include="..\..\..\timing.c" />
@@ -186,6 +187,7 @@
     <ClCompile Include="..\..\winprint.c" />
     <ClCompile Include="..\..\winproxy.c" />
     <ClCompile Include="..\..\winsecur.c" />
+    <ClCompile Include="..\..\winselgui.c" />
     <ClCompile Include="..\..\winser.c" />
     <ClCompile Include="..\..\winstore.c" />
     <ClCompile Include="..\..\wintime.c" />
@@ -220,6 +222,7 @@
     <ClInclude Include="..\..\rcstuff.h" />
     <ClInclude Include="..\..\win_res.h" />
     <ClInclude Include="..\..\winhelp.h" />
+    <ClInclude Include="..\..\winseat.h" />
     <ClInclude Include="..\..\winsecur.h" />
     <ClInclude Include="..\..\winstuff.h" />
   </ItemGroup>

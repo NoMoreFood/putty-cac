@@ -49,7 +49,8 @@
 /*
  * Exports from gtkfont.c.
  */
-struct UnifontVtable;                  /* contents internal to gtkfont.c */
+typedef struct UnifontVtable UnifontVtable; /* contents internal to
+                                             * gtkfont.c */
 typedef struct unifont {
     const struct UnifontVtable *vt;
     /*
@@ -66,7 +67,7 @@ typedef struct unifont {
     /*
      * Font dimensions needed by clients.
      */
-    int width, height, ascent, descent;
+    int width, height, ascent, descent, strikethrough_y;
 
     /*
      * Indicates whether this font is capable of handling all glyphs

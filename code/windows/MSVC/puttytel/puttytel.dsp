@@ -162,6 +162,10 @@ SOURCE=..\..\..\nogss.c
 # End Source File
 # Begin Source File
 
+SOURCE=..\..\..\norand.c
+# End Source File
+# Begin Source File
+
 SOURCE=..\..\..\pinger.c
 # End Source File
 # Begin Source File
@@ -178,10 +182,6 @@ SOURCE=..\..\..\rlogin.c
 # End Source File
 # Begin Source File
 
-SOURCE=..\..\..\sercfg.c
-# End Source File
-# Begin Source File
-
 SOURCE=..\..\..\sessprep.c
 # End Source File
 # Begin Source File
@@ -191,6 +191,10 @@ SOURCE=..\..\..\settings.c
 # Begin Source File
 
 SOURCE=..\..\..\stripctrl.c
+# End Source File
+# Begin Source File
+
+SOURCE=..\..\..\supdup.c
 # End Source File
 # Begin Source File
 
@@ -283,6 +287,10 @@ SOURCE=..\..\..\windows\winproxy.c
 # Begin Source File
 
 SOURCE=..\..\..\windows\winsecur.c
+# End Source File
+# Begin Source File
+
+SOURCE=..\..\..\windows\winselgui.c
 # End Source File
 # Begin Source File
 
@@ -415,6 +423,10 @@ SOURCE=..\..\..\windows\win_res.h
 # Begin Source File
 
 SOURCE=..\..\..\windows\winhelp.h
+# End Source File
+# Begin Source File
+
+SOURCE=..\..\..\windows\winseat.h
 # End Source File
 # Begin Source File
 

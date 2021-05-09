@@ -12,7 +12,7 @@ CppCompiler=-W -D__GNUWIN32__ -DWIN32 -DNDEBUG -D_WINDOWS -DNO_MULTIMON -D_MBCS_
 Includes=..\..\..\.;..\..\..\charset;..\..\..\windows;..\..\..\unix
 Linker=-ladvapi32 -lcomctl32 -lcomdlg32 -lgdi32 -limm32 -lshell32 -luser32 -lwinmm -lwinspool_@@_
 Libs=
-UnitCount=47
+UnitCount=61
 Folders="Header Files","Resource Files","Source Files"
 ObjFiles=
 PrivateResource=testcrypt_private.rc
@@ -63,7 +63,7 @@ OverrideBuildCmd=0
 BuildCmd=
 
 [Unit4]
-FileName=..\..\..\mpint.c
+FileName=..\..\..\millerrabin.c
 Folder=Source Files
 Compile=1
 CompileCpp=0
@@ -73,7 +73,7 @@ OverrideBuildCmd=0
 BuildCmd=
 
 [Unit5]
-FileName=..\..\..\sshaes.c
+FileName=..\..\..\mpint.c
 Folder=Source Files
 Compile=1
 CompileCpp=0
@@ -83,7 +83,7 @@ OverrideBuildCmd=0
 BuildCmd=
 
 [Unit6]
-FileName=..\..\..\ssharcf.c
+FileName=..\..\..\mpunsafe.c
 Folder=Source Files
 Compile=1
 CompileCpp=0
@@ -93,7 +93,7 @@ OverrideBuildCmd=0
 BuildCmd=
 
 [Unit7]
-FileName=..\..\..\sshauxcrypt.c
+FileName=..\..\..\pockle.c
 Folder=Source Files
 Compile=1
 CompileCpp=0
@@ -103,7 +103,7 @@ OverrideBuildCmd=0
 BuildCmd=
 
 [Unit8]
-FileName=..\..\..\sshblowf.c
+FileName=..\..\..\primecandidate.c
 Folder=Source Files
 Compile=1
 CompileCpp=0
@@ -113,7 +113,7 @@ OverrideBuildCmd=0
 BuildCmd=
 
 [Unit9]
-FileName=..\..\..\sshccp.c
+FileName=..\..\..\smallprimes.c
 Folder=Source Files
 Compile=1
 CompileCpp=0
@@ -123,7 +123,7 @@ OverrideBuildCmd=0
 BuildCmd=
 
 [Unit10]
-FileName=..\..\..\sshcrc.c
+FileName=..\..\..\sshaes.c
 Folder=Source Files
 Compile=1
 CompileCpp=0
@@ -133,7 +133,7 @@ OverrideBuildCmd=0
 BuildCmd=
 
 [Unit11]
-FileName=..\..\..\sshcrcda.c
+FileName=..\..\..\ssharcf.c
 Folder=Source Files
 Compile=1
 CompileCpp=0
@@ -143,7 +143,7 @@ OverrideBuildCmd=0
 BuildCmd=
 
 [Unit12]
-FileName=..\..\..\sshdes.c
+FileName=..\..\..\sshargon2.c
 Folder=Source Files
 Compile=1
 CompileCpp=0
@@ -153,7 +153,7 @@ OverrideBuildCmd=0
 BuildCmd=
 
 [Unit13]
-FileName=..\..\..\sshdh.c
+FileName=..\..\..\sshauxcrypt.c
 Folder=Source Files
 Compile=1
 CompileCpp=0
@@ -163,7 +163,7 @@ OverrideBuildCmd=0
 BuildCmd=
 
 [Unit14]
-FileName=..\..\..\sshdss.c
+FileName=..\..\..\sshblake2.c
 Folder=Source Files
 Compile=1
 CompileCpp=0
@@ -173,7 +173,7 @@ OverrideBuildCmd=0
 BuildCmd=
 
 [Unit15]
-FileName=..\..\..\sshecc.c
+FileName=..\..\..\sshblowf.c
 Folder=Source Files
 Compile=1
 CompileCpp=0
@@ -183,7 +183,7 @@ OverrideBuildCmd=0
 BuildCmd=
 
 [Unit16]
-FileName=..\..\..\sshhmac.c
+FileName=..\..\..\sshccp.c
 Folder=Source Files
 Compile=1
 CompileCpp=0
@@ -193,7 +193,7 @@ OverrideBuildCmd=0
 BuildCmd=
 
 [Unit17]
-FileName=..\..\..\sshmd5.c
+FileName=..\..\..\sshcrc.c
 Folder=Source Files
 Compile=1
 CompileCpp=0
@@ -203,7 +203,7 @@ OverrideBuildCmd=0
 BuildCmd=
 
 [Unit18]
-FileName=..\..\..\sshprime.c
+FileName=..\..\..\sshcrcda.c
 Folder=Source Files
 Compile=1
 CompileCpp=0
@@ -213,7 +213,7 @@ OverrideBuildCmd=0
 BuildCmd=
 
 [Unit19]
-FileName=..\..\..\sshprng.c
+FileName=..\..\..\sshdes.c
 Folder=Source Files
 Compile=1
 CompileCpp=0
@@ -223,7 +223,7 @@ OverrideBuildCmd=0
 BuildCmd=
 
 [Unit20]
-FileName=..\..\..\sshrsa.c
+FileName=..\..\..\sshdh.c
 Folder=Source Files
 Compile=1
 CompileCpp=0
@@ -233,7 +233,7 @@ OverrideBuildCmd=0
 BuildCmd=
 
 [Unit21]
-FileName=..\..\..\sshsh256.c
+FileName=..\..\..\sshdss.c
 Folder=Source Files
 Compile=1
 CompileCpp=0
@@ -243,7 +243,7 @@ OverrideBuildCmd=0
 BuildCmd=
 
 [Unit22]
-FileName=..\..\..\sshsh512.c
+FileName=..\..\..\sshdssg.c
 Folder=Source Files
 Compile=1
 CompileCpp=0
@@ -253,7 +253,7 @@ OverrideBuildCmd=0
 BuildCmd=
 
 [Unit23]
-FileName=..\..\..\sshsha.c
+FileName=..\..\..\sshecc.c
 Folder=Source Files
 Compile=1
 CompileCpp=0
@@ -263,7 +263,7 @@ OverrideBuildCmd=0
 BuildCmd=
 
 [Unit24]
-FileName=..\..\..\testcrypt.c
+FileName=..\..\..\sshecdsag.c
 Folder=Source Files
 Compile=1
 CompileCpp=0
@@ -273,7 +273,7 @@ OverrideBuildCmd=0
 BuildCmd=
 
 [Unit25]
-FileName=..\..\..\tree234.c
+FileName=..\..\..\sshhmac.c
 Folder=Source Files
 Compile=1
 CompileCpp=0
@@ -283,7 +283,7 @@ OverrideBuildCmd=0
 BuildCmd=
 
 [Unit26]
-FileName=..\..\..\utils.c
+FileName=..\..\..\sshmd5.c
 Folder=Source Files
 Compile=1
 CompileCpp=0
@@ -293,7 +293,7 @@ OverrideBuildCmd=0
 BuildCmd=
 
 [Unit27]
-FileName=..\..\..\windows\winmiscs.c
+FileName=..\..\..\sshprime.c
 Folder=Source Files
 Compile=1
 CompileCpp=0
@@ -303,6 +303,126 @@ OverrideBuildCmd=0
 BuildCmd=
 
 [Unit28]
+FileName=..\..\..\sshprng.c
+Folder=Source Files
+Compile=1
+CompileCpp=0
+Link=1
+Priority=1000
+OverrideBuildCmd=0
+BuildCmd=
+
+[Unit29]
+FileName=..\..\..\sshpubk.c
+Folder=Source Files
+Compile=1
+CompileCpp=0
+Link=1
+Priority=1000
+OverrideBuildCmd=0
+BuildCmd=
+
+[Unit30]
+FileName=..\..\..\sshrsa.c
+Folder=Source Files
+Compile=1
+CompileCpp=0
+Link=1
+Priority=1000
+OverrideBuildCmd=0
+BuildCmd=
+
+[Unit31]
+FileName=..\..\..\sshrsag.c
+Folder=Source Files
+Compile=1
+CompileCpp=0
+Link=1
+Priority=1000
+OverrideBuildCmd=0
+BuildCmd=
+
+[Unit32]
+FileName=..\..\..\sshsh256.c
+Folder=Source Files
+Compile=1
+CompileCpp=0
+Link=1
+Priority=1000
+OverrideBuildCmd=0
+BuildCmd=
+
+[Unit33]
+FileName=..\..\..\sshsh512.c
+Folder=Source Files
+Compile=1
+CompileCpp=0
+Link=1
+Priority=1000
+OverrideBuildCmd=0
+BuildCmd=
+
+[Unit34]
+FileName=..\..\..\sshsha.c
+Folder=Source Files
+Compile=1
+CompileCpp=0
+Link=1
+Priority=1000
+OverrideBuildCmd=0
+BuildCmd=
+
+[Unit35]
+FileName=..\..\..\sshsha3.c
+Folder=Source Files
+Compile=1
+CompileCpp=0
+Link=1
+Priority=1000
+OverrideBuildCmd=0
+BuildCmd=
+
+[Unit36]
+FileName=..\..\..\testcrypt.c
+Folder=Source Files
+Compile=1
+CompileCpp=0
+Link=1
+Priority=1000
+OverrideBuildCmd=0
+BuildCmd=
+
+[Unit37]
+FileName=..\..\..\tree234.c
+Folder=Source Files
+Compile=1
+CompileCpp=0
+Link=1
+Priority=1000
+OverrideBuildCmd=0
+BuildCmd=
+
+[Unit38]
+FileName=..\..\..\utils.c
+Folder=Source Files
+Compile=1
+CompileCpp=0
+Link=1
+Priority=1000
+OverrideBuildCmd=0
+BuildCmd=
+
+[Unit39]
+FileName=..\..\..\windows\winmiscs.c
+Folder=Source Files
+Compile=1
+CompileCpp=0
+Link=1
+Priority=1000
+OverrideBuildCmd=0
+BuildCmd=
+
+[Unit40]
 FileName=..\..\..\charset\charset.h
 Folder=Header Files
 Compile=1
@@ -312,7 +432,7 @@ Priority=1000
 OverrideBuildCmd=0
 BuildCmd=
 
-[Unit29]
+[Unit41]
 FileName=..\..\..\defs.h
 Folder=Header Files
 Compile=1
@@ -322,7 +442,7 @@ Priority=1000
 OverrideBuildCmd=0
 BuildCmd=
 
-[Unit30]
+[Unit42]
 FileName=..\..\..\ecc.h
 Folder=Header Files
 Compile=1
@@ -332,7 +452,7 @@ Priority=1000
 OverrideBuildCmd=0
 BuildCmd=
 
-[Unit31]
+[Unit43]
 FileName=..\..\..\marshal.h
 Folder=Header Files
 Compile=1
@@ -342,7 +462,7 @@ Priority=1000
 OverrideBuildCmd=0
 BuildCmd=
 
-[Unit32]
+[Unit44]
 FileName=..\..\..\misc.h
 Folder=Header Files
 Compile=1
@@ -352,7 +472,7 @@ Priority=1000
 OverrideBuildCmd=0
 BuildCmd=
 
-[Unit33]
+[Unit45]
 FileName=..\..\..\mpint.h
 Folder=Header Files
 Compile=1
@@ -362,7 +482,7 @@ Priority=1000
 OverrideBuildCmd=0
 BuildCmd=
 
-[Unit34]
+[Unit46]
 FileName=..\..\..\mpint_i.h
 Folder=Header Files
 Compile=1
@@ -372,7 +492,17 @@ Priority=1000
 OverrideBuildCmd=0
 BuildCmd=
 
-[Unit35]
+[Unit47]
+FileName=..\..\..\mpunsafe.h
+Folder=Header Files
+Compile=1
+CompileCpp=1
+Link=1
+Priority=1000
+OverrideBuildCmd=0
+BuildCmd=
+
+[Unit48]
 FileName=..\..\..\network.h
 Folder=Header Files
 Compile=1
@@ -382,7 +512,7 @@ Priority=1000
 OverrideBuildCmd=0
 BuildCmd=
 
-[Unit36]
+[Unit49]
 FileName=..\..\..\putty.h
 Folder=Header Files
 Compile=1
@@ -392,7 +522,7 @@ Priority=1000
 OverrideBuildCmd=0
 BuildCmd=
 
-[Unit37]
+[Unit50]
 FileName=..\..\..\puttymem.h
 Folder=Header Files
 Compile=1
@@ -402,7 +532,7 @@ Priority=1000
 OverrideBuildCmd=0
 BuildCmd=
 
-[Unit38]
+[Unit51]
 FileName=..\..\..\puttyps.h
 Folder=Header Files
 Compile=1
@@ -412,7 +542,7 @@ Priority=1000
 OverrideBuildCmd=0
 BuildCmd=
 
-[Unit39]
+[Unit52]
 FileName=..\..\..\ssh.h
 Folder=Header Files
 Compile=1
@@ -422,7 +552,7 @@ Priority=1000
 OverrideBuildCmd=0
 BuildCmd=
 
-[Unit40]
+[Unit53]
 FileName=..\..\..\sshblowf.h
 Folder=Header Files
 Compile=1
@@ -432,7 +562,17 @@ Priority=1000
 OverrideBuildCmd=0
 BuildCmd=
 
-[Unit41]
+[Unit54]
+FileName=..\..\..\sshkeygen.h
+Folder=Header Files
+Compile=1
+CompileCpp=1
+Link=1
+Priority=1000
+OverrideBuildCmd=0
+BuildCmd=
+
+[Unit55]
 FileName=..\..\..\sshsignals.h
 Folder=Header Files
 Compile=1
@@ -442,7 +582,7 @@ Priority=1000
 OverrideBuildCmd=0
 BuildCmd=
 
-[Unit42]
+[Unit56]
 FileName=..\..\..\sshttymodes.h
 Folder=Header Files
 Compile=1
@@ -452,7 +592,7 @@ Priority=1000
 OverrideBuildCmd=0
 BuildCmd=
 
-[Unit43]
+[Unit57]
 FileName=..\..\..\testcrypt.h
 Folder=Header Files
 Compile=1
@@ -462,7 +602,7 @@ Priority=1000
 OverrideBuildCmd=0
 BuildCmd=
 
-[Unit44]
+[Unit58]
 FileName=..\..\..\tree234.h
 Folder=Header Files
 Compile=1
@@ -472,7 +612,7 @@ Priority=1000
 OverrideBuildCmd=0
 BuildCmd=
 
-[Unit45]
+[Unit59]
 FileName=..\..\..\unix\unix.h
 Folder=Header Files
 Compile=1
@@ -482,7 +622,7 @@ Priority=1000
 OverrideBuildCmd=0
 BuildCmd=
 
-[Unit46]
+[Unit60]
 FileName=..\..\..\windows\winhelp.h
 Folder=Header Files
 Compile=1
@@ -492,7 +632,7 @@ Priority=1000
 OverrideBuildCmd=0
 BuildCmd=
 
-[Unit47]
+[Unit61]
 FileName=..\..\..\windows\winstuff.h
 Folder=Header Files
 Compile=1

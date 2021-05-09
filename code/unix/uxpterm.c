@@ -14,6 +14,8 @@ const bool dup_check_launchable = false; /* no need to check host name
                                           * in conf */
 const bool use_pty_argv = true;
 
+const unsigned cmdline_tooltype = TOOLTYPE_NONNETWORK;
+
 /* gtkwin.c will call this, and in pterm it's not needed */
 void noise_ultralight(NoiseSourceId id, unsigned long data) { }
 
@@ -39,15 +41,9 @@ void cleanup_exit(int code)
     exit(code);
 }
 
-char *make_default_wintitle(char *hostname)
-{
-    return dupstr("pterm");
-}
-
 void setup(bool single)
 {
-    cmdline_tooltype = TOOLTYPE_NONNETWORK;
-    default_protocol = -1;
+    settings_set_default_protocol(-1);
 
     if (single)
         pty_pre_init();

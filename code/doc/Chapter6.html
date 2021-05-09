@@ -89,7 +89,7 @@ psftp&gt;
 At this point you can type <code>open server.example.com</code> or <code>open fred@server.example.com</code> to start a session.
 </p>
 <p>
-PSFTP accepts all the general command line options supported by the PuTTY tools, except the ones which make no sense in a file transfer utility. See <a href="Chapter3.html#using-general-opts">section 3.8.3</a> for a description of these options. (The ones not supported by PSFTP are clearly marked.)
+PSFTP accepts all the general command line options supported by the PuTTY tools, except the ones which make no sense in a file transfer utility. See <a href="Chapter3.html#using-general-opts">section 3.11.3</a> for a description of these options. (The ones not supported by PSFTP are clearly marked.)
 </p>
 <p>
 PSFTP also supports some of its own options. The following sections describe PSFTP's specific command-line options.
@@ -511,14 +511,14 @@ Like PuTTY, PSFTP can authenticate using a public key instead of a password. The
 Firstly, PSFTP can use PuTTY saved sessions in place of hostnames. So you might do this:
 </p>
 <ul><li>
-Run PuTTY, and create a PuTTY saved session (see <a href="Chapter4.html#config-saving">section 4.1.2</a>) which specifies your private key file (see <a href="Chapter4.html#config-ssh-privkey">section 4.23.8</a>). You will probably also want to specify a username to log in as (see <a href="Chapter4.html#config-username">section 4.15.1</a>).
+Run PuTTY, and create a PuTTY saved session (see <a href="Chapter4.html#config-saving">section 4.1.2</a>) which specifies your private key file (see <a href="Chapter4.html#config-ssh-privkey">section 4.21.8</a>). You will probably also want to specify a username to log in as (see <a href="Chapter4.html#config-username">section 4.15.1</a>).
 </li>
 <li>
 In PSFTP, you can now use the name of the session instead of a hostname: type <code>psftp sessionname</code>, where <code>sessionname</code> is replaced by the name of your saved session.
 </li>
 </ul>
 <p>
-Secondly, you can supply the name of a private key file on the command line, with the <code>-i</code> option. See <a href="Chapter3.html#using-cmdline-identity">section 3.8.3.18</a> for more information.
+Secondly, you can supply the name of a private key file on the command line, with the <code>-i</code> option. See <a href="Chapter3.html#using-cmdline-identity">section 3.11.3.18</a> for more information.
 </p>
 <p>
 Thirdly, PSFTP will attempt to authenticate using Pageant if Pageant is running (see <a href="Chapter9.html#pageant">chapter 9</a>). So you would do this:
@@ -535,5 +535,5 @@ For more general information on public-key authentication, see <a href="Chapter8
 </p>
 
 <hr><p>If you want to provide feedback on this manual or on the PuTTY tools themselves, see the <a href="https://www.chiark.greenend.org.uk/~sgtatham/putty/feedback.html">Feedback page</a>.</p><address>
-[PuTTY release 0.74]</address></body>
+[PuTTY release 0.75]</address></body>
 </html>

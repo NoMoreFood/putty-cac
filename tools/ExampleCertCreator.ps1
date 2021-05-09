@@ -11,7 +11,7 @@ $KeyLengths = (1024,2048,4096)
 ForEach ($KeyLength in $KeyLengths)
 {
     $Certificates += New-SelfSignedCertificate -KeyUsageProperty Sign -KeyUsage DigitalSignature `
-        -CertStoreLocation 'Cert:\CurrentUser\My' -Provider $KeyProvider -KeySpec Signature `
+        -CertStoreLocation 'Cert:\CurrentUser\My' -Provider $KeyProvider `
         -KeyLength $KeyLength -KeyAlgorithm RSA -HashAlgorith SHA256 `
         -FriendlyName "Soft RSA $KeyLength" -Subject "CN=Soft RSA $KeyLength"
 }   
@@ -20,7 +20,7 @@ $AlgTypes = @('ECDSA_nistP256','ECDSA_nistP384','ECDSA_nistP521')
 ForEach ($AlgType in $AlgTypes) 
 {
     $Certificates += New-SelfSignedCertificate -KeyUsageProperty Sign -KeyUsage DigitalSignature `
-        -CertStoreLocation 'Cert:\CurrentUser\My' -Provider $KeyProvider -KeySpec Signature `
+        -CertStoreLocation 'Cert:\CurrentUser\My' -Provider $KeyProvider `
         -KeyAlgorithm $AlgType -CurveExport CurveName -HashAlgorithm SHA256 `
         -FriendlyName "Soft $AlgType" -Subject "CN=Soft $AlgType"
 }
