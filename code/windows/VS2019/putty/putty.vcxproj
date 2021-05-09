@@ -468,8 +468,5 @@
     <ClInclude Include="..\..\winsecur.h" />
     <ClInclude Include="..\..\winstuff.h" />
   </ItemGroup>
-  <ItemGroup>
-    <None Include="ClassDiagram.cd" />
-  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
 </Project>

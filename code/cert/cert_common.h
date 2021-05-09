@@ -21,6 +21,7 @@
 // functions used only by the capi and pkcs addon modules
 EXTERN void cert_reverse_array(LPBYTE pb, DWORD cb);
 EXTERN BOOL cert_load_cert(LPCSTR szCert, PCERT_CONTEXT * ppCertContext, HCERTSTORE * phCertStore);
+EXTERN BOOL cert_check_valid(PCCERT_CONTEXT pCertContext);
 EXTERN LPSTR cert_get_cert_hash(LPCSTR szIden, PCCERT_CONTEXT pCertContext, LPCSTR szHint);
 EXTERN PVOID cert_pin(LPSTR szCert, BOOL bUnicode, LPVOID szPin, HWND hWnd);
 EXTERN BOOL cert_save_cert_list_enabled(DWORD bEnable);
@@ -28,6 +29,7 @@ EXTERN BOOL cert_cache_enabled(DWORD bEnable);
 EXTERN BOOL cert_auth_prompting(DWORD bEnable);
 EXTERN BOOL cert_smartcard_certs_only(DWORD bEnable);
 EXTERN BOOL cert_ignore_expired_certs(DWORD bEnable);
+EXTERN BOOL cert_trusted_certs_only(DWORD bEnable);
 
 // functions used by putty code 
 EXTERN LPSTR cert_key_string(LPCSTR szCert);
