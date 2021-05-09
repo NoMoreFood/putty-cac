@@ -92,6 +92,7 @@ static int initial_menuitems_count;
 #define IDM_CERTAUTH 0x0150
 #define IDM_SCONLY   0x0160
 #define IDM_NOEXPR   0x0170
+#define IDM_TRUSTED  0x0180
 #endif // PUTTY_CAC
 
 /*
@@ -1423,6 +1424,14 @@ static LRESULT CALLBACK TrayWndProc(HWND hwnd, UINT message,
 		  cert_smartcard_certs_only(SmartCardLogonCertsOnly);
 		  RegSetKeyValue(HKEY_CURRENT_USER, PUTTY_REG_POS, "SmartCardLogonCertsOnly", REG_DWORD, &SmartCardLogonCertsOnly, sizeof(DWORD));
 	  } break;
+      case IDM_TRUSTED: {
+          DWORD iItem = CheckMenuItem(systray_menu, IDM_TRUSTED, MF_CHECKED);
+          DWORD iNewState = (iItem == MF_CHECKED) ? MF_UNCHECKED : MF_CHECKED;
+          CheckMenuItem(systray_menu, IDM_TRUSTED, iNewState);
+          DWORD TrustedCertsOnly = (iNewState == MF_CHECKED);
+          cert_trusted_certs_only(TrustedCertsOnly);
+          RegSetKeyValue(HKEY_CURRENT_USER, PUTTY_REG_POS, "TrustedCertsOnly", REG_DWORD, &TrustedCertsOnly, sizeof(DWORD));
+      } break;
 	  case IDM_NOEXPR: {
 		  DWORD iItem = CheckMenuItem(systray_menu, IDM_NOEXPR, MF_CHECKED);
 		  DWORD iNewState = (iItem == MF_CHECKED) ? MF_UNCHECKED : MF_CHECKED;
@@ -1762,6 +1771,14 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 		RegSetKeyValue(HKEY_CURRENT_USER, PUTTY_REG_POS, "SmartCardLogonCertsOnly", REG_DWORD, &SmartCardLogonCertsOnly, sizeof(DWORD));
 		break;
 	}
+    else if (!strcmp(argv[i], "-trustedcertsonly") || !strcmp(argv[i], "-trustedcertsonlyoff")) {
+        /*
+         * Allow trusted certs filter setting via command line
+         */
+        DWORD TrustedCertsOnly = (!strcmp(argv[i], "-trustedcertsonly")) ? 1 : 0;
+        RegSetKeyValue(HKEY_CURRENT_USER, PUTTY_REG_POS, "TrustedCertsOnly", REG_DWORD, &TrustedCertsOnly, sizeof(DWORD));
+        break;
+    }
 	else if (!strcmp(argv[i], "-ignoreexpiredcerts") || !strcmp(argv[i], "-ignoreexpiredcertsoff")) {
 		/*
 		* Allow ignore expired certificates setting via command line
@@ -1888,6 +1905,13 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 		RRF_RT_REG_DWORD, NULL, &SmartCardLogonCertsOnly, &SmartCardLogonCertsOnlySize);
 	cert_smartcard_certs_only(SmartCardLogonCertsOnly);
 
+    /* Get Smart Card Certs Only Settings */
+    DWORD TrustedCertsOnly = 0;
+    DWORD TrustedCertsOnlySize = sizeof(TrustedCertsOnly);
+    RegGetValue(HKEY_CURRENT_USER, PUTTY_REG_POS, "TrustedCertsOnly",
+        RRF_RT_REG_DWORD, NULL, &TrustedCertsOnly, &TrustedCertsOnlySize);
+    cert_trusted_certs_only(TrustedCertsOnly);
+
 	/* Get Autoload Certificate Settings */
 	DWORD AutoloadCerts = 0;
 	DWORD AutoloadCertsSize = sizeof(AutoloadCerts);
@@ -1961,6 +1985,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 #ifdef PUTTY_CAC
     AppendMenu(systray_menu, MF_ENABLED, IDM_VIEWKEYS, "&View Keys && Certs");
 	AppendMenu(systray_menu, MF_ENABLED, IDM_ADDKEY, "Add PuTTY &Key");
+    AppendMenu(systray_menu, MF_ENABLED, IDM_ADDKEY_ENCRYPTED, "Add PuTTY Key (Encrypted)");
 	AppendMenu(systray_menu, MF_ENABLED, IDM_ADDCAPI, "Add &CAPI Cert");
 	AppendMenu(systray_menu, MF_ENABLED, IDM_ADDPKCS, "Add &PKCS Cert");
 	AppendMenu(systray_menu, MF_SEPARATOR, 0, 0);
@@ -1975,15 +2000,17 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 	AppendMenu(systray_menu, MF_SEPARATOR, 0, 0);
 	AppendMenu(systray_menu, MF_ENABLED | ((SmartCardLogonCertsOnly)
 		? MF_CHECKED : MF_UNCHECKED), IDM_SCONLY, "Filter: Smart Card Logon Certs");
+    AppendMenu(systray_menu, MF_ENABLED | ((TrustedCertsOnly)
+        ? MF_CHECKED : MF_UNCHECKED), IDM_TRUSTED, "Filter: Trusted Certs");
 	AppendMenu(systray_menu, MF_ENABLED | ((IgnoredExpiredCerts)
 		? MF_CHECKED : MF_UNCHECKED), IDM_NOEXPR, "Filter: No Expired Certs");
 #else 
     AppendMenu(systray_menu, MF_ENABLED, IDM_VIEWKEYS,
            "&View Keys");
     AppendMenu(systray_menu, MF_ENABLED, IDM_ADDKEY, "Add &Key");
-#endif // PUTTY_CAC
     AppendMenu(systray_menu, MF_ENABLED, IDM_ADDKEY_ENCRYPTED,
-               "Add key (encrypted)");
+        "Add key (encrypted)");
+#endif // PUTTY_CAC
     AppendMenu(systray_menu, MF_SEPARATOR, 0, 0);
     AppendMenu(systray_menu, MF_ENABLED, IDM_REMOVE_ALL,
                "Remove All Keys");
