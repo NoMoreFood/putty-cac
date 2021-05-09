@@ -49,44 +49,34 @@ LPSTR cert_get_cert_hash(LPCSTR szIden, PCCERT_CONTEXT pCertContext, LPCSTR szHi
 
 LPSTR cert_prompt(LPCSTR szIden, HWND hWnd, BOOL bAutoSelect)
 {
-	HCERTSTORE hStore = NULL;
+	HCERTSTORE hCertStore = NULL;
 	LPCSTR szHint = NULL;
 
 	if (cert_is_capipath(szIden))
 	{
-		hStore = cert_capi_get_cert_store(&szHint, hWnd);
+		hCertStore = cert_capi_get_cert_store(&szHint, hWnd);
 	}
 
 	if (cert_is_pkcspath(szIden))
 	{
-		hStore = cert_pkcs_get_cert_store(&szHint, hWnd);
+		hCertStore = cert_pkcs_get_cert_store(&szHint, hWnd);
 	}
 
 	// return if store could not be loaded
-	if (hStore == NULL) return NULL;
+	if (hCertStore == NULL) return NULL;
 
 	// create a memory store so we can proactively filter certificates
 	HCERTSTORE hMemoryStore = CertOpenStore(CERT_STORE_PROV_MEMORY,
 		X509_ASN_ENCODING | PKCS_7_ASN_ENCODING,
 		0, CERT_STORE_CREATE_NEW_FLAG, NULL);
 
-	// setup a structure to search for only client auth eligible cert
-	CTL_USAGE tItem;
-	CHAR* sClientAuthUsage[] = { szOID_PKIX_KP_CLIENT_AUTH };
-	CHAR* sSmartCardLogonUsage[] = { szOID_KP_SMARTCARD_LOGON };
-	tItem.cUsageIdentifier = 1;
-	tItem.rgpszUsageIdentifier = cert_smartcard_certs_only((DWORD)-1) ? sSmartCardLogonUsage : sClientAuthUsage;
-	PCCERT_CONTEXT pCertContext = NULL;
-
 	// enumerate all certs
+	PCCERT_CONTEXT pCertContext = NULL;
 	int iCertCount = 0;
-	while ((pCertContext = CertFindCertificateInStore(hStore, X509_ASN_ENCODING | PKCS_7_ASN_ENCODING,
-		cert_smartcard_certs_only((DWORD)-1) ? CERT_FIND_EXT_ONLY_ENHKEY_USAGE_FLAG : CERT_FIND_VALID_ENHKEY_USAGE_FLAG,
-		CERT_FIND_ENHKEY_USAGE, &tItem, pCertContext)) != NULL)
+	while ((pCertContext = CertEnumCertificatesInStore(hCertStore, pCertContext)) != NULL)
 	{
-		// verify time validity if requested
-		DWORD iFlags = CERT_STORE_TIME_VALIDITY_FLAG;
-		if (cert_ignore_expired_certs((DWORD)-1) && CertVerifySubjectCertificateContext(pCertContext, NULL, &iFlags) == TRUE && iFlags != 0) continue;
+		// ignore invalid cert sbased on settings
+		if (!cert_check_valid(pCertContext)) continue;
 
 		CertAddCertificateContextToStore(hMemoryStore, pCertContext, CERT_STORE_ADD_ALWAYS, NULL);
 		iCertCount++;
@@ -445,30 +435,96 @@ VOID cert_display_cert(LPCSTR szCert, HWND hWnd)
 	CertCloseStore(hCertStore, 0);
 }
 
+BOOL cert_check_valid(PCCERT_CONTEXT pCertContext)
+{
+	// minimally very digital signature key usage
+	BYTE tUsageInfo[2] = { 0, 0 };
+	DWORD iUsageInfo = 2;
+	if (CertGetIntendedKeyUsage(X509_ASN_ENCODING | PKCS_7_ASN_ENCODING, pCertContext->pCertInfo, tUsageInfo, sizeof(tUsageInfo)))
+	{
+		if ((tUsageInfo[0] & CERT_DIGITAL_SIGNATURE_KEY_USAGE) == 0)
+		{
+			return FALSE;
+		}
+	}
+
+	// if certificate has eku, then it should be client auth or smartcard logon
+	BOOL bFoundSmartCardLogon = FALSE;
+	BOOL bFoundClientAuth = FALSE;
+	PCERT_EXTENSION pEnhancedKeyUsage = CertFindExtension(szOID_ENHANCED_KEY_USAGE, 
+		pCertContext->pCertInfo->cExtension, pCertContext->pCertInfo->rgExtension);
+	if (pEnhancedKeyUsage != NULL)
+	{
+		// fetch list of usages
+		PCERT_ENHKEY_USAGE pUsage;
+		DWORD iUsageSize = sizeof(iUsageSize);
+		if (CryptDecodeObjectEx(X509_ASN_ENCODING | PKCS_7_ASN_ENCODING, X509_ENHANCED_KEY_USAGE, pEnhancedKeyUsage->Value.pbData,
+			pEnhancedKeyUsage->Value.cbData, CRYPT_DECODE_ALLOC_FLAG, NULL, &pUsage, &iUsageSize) == FALSE)
+		{
+			return FALSE;
+		}
+
+		// loop through usages, looking for match
+		for (DWORD iUsage = 0; iUsage < pUsage->cUsageIdentifier; iUsage++)
+		{
+			bFoundClientAuth |= strcmp(pUsage->rgpszUsageIdentifier[iUsage], szOID_PKIX_KP_CLIENT_AUTH) == 0;
+			bFoundSmartCardLogon |= strcmp(pUsage->rgpszUsageIdentifier[iUsage], szOID_KP_SMARTCARD_LOGON) == 0;
+		}
+
+		// return false if no match found
+		LocalFree(pUsage);
+		if (!bFoundClientAuth && !bFoundSmartCardLogon) return FALSE;
+	}
+
+	// verify only smartcard card eku if requested
+	if (cert_smartcard_certs_only((DWORD)-1))
+	{
+		if (!bFoundSmartCardLogon) return FALSE;
+	}
+
+	// verify time validity if requested
+	DWORD iFlags = CERT_STORE_TIME_VALIDITY_FLAG;
+	if (cert_ignore_expired_certs((DWORD)-1))
+	{
+		if (CertVerifySubjectCertificateContext(pCertContext, NULL, &iFlags) == TRUE && iFlags != 0)
+			return FALSE;
+	}
+
+	// build and validate certificate chain
+	if (cert_trusted_certs_only((DWORD)-1))
+	{
+		// attempt to chain the chain
+		CERT_CHAIN_PARA tChainParams;
+		ZeroMemory(&tChainParams, sizeof(tChainParams));
+		tChainParams.cbSize = sizeof(tChainParams);
+		PCCERT_CHAIN_CONTEXT pChainContext = NULL;
+		BOOL bChainResult = CertGetCertificateChain(NULL, pCertContext, NULL, NULL, &tChainParams, 
+			CERT_CHAIN_REVOCATION_CHECK_CHAIN_EXCLUDE_ROOT, NULL, &pChainContext);
+		if (bChainResult == false) return FALSE;
+
+		// concider trusted if the only error was account offline crls
+		BOOL bTrusted = (pChainContext->TrustStatus.dwErrorStatus
+			& ~(CERT_TRUST_IS_OFFLINE_REVOCATION | CERT_TRUST_REVOCATION_STATUS_UNKNOWN)) == 0;
+		CertFreeCertificateChain(pChainContext);
+		if (!bTrusted) return FALSE;
+	}
+
+	return TRUE;
+}
+
 int cert_all_certs(LPSTR ** pszCert)
 {
 	// get a handle to the cert store
 	LPCSTR szHint = NULL;
 	HCERTSTORE hCertStore = cert_capi_get_cert_store(&szHint, NULL);
 
-	// enumerate all certs
-	CTL_USAGE tItem;
-	CHAR * sClientAuthUsage[] = { szOID_PKIX_KP_CLIENT_AUTH };
-	CHAR * sSmartCardLogonUsage[] = { szOID_KP_SMARTCARD_LOGON };
-	tItem.cUsageIdentifier = 1;
-	tItem.rgpszUsageIdentifier = cert_smartcard_certs_only((DWORD)-1) ? sSmartCardLogonUsage : sClientAuthUsage;
-	PCCERT_CONTEXT pCertContext = NULL;
-
 	// find certificates matching our criteria
 	size_t iCertNum = 0;
-	*pszCert = NULL;
-	while ((pCertContext = CertFindCertificateInStore(hCertStore, X509_ASN_ENCODING | PKCS_7_ASN_ENCODING,
-		cert_smartcard_certs_only((DWORD)-1) ? CERT_FIND_EXT_ONLY_ENHKEY_USAGE_FLAG : CERT_FIND_VALID_ENHKEY_USAGE_FLAG, 
-		CERT_FIND_ENHKEY_USAGE, &tItem, pCertContext)) != NULL)
+	PCCERT_CONTEXT pCertContext = NULL;
+	while ((pCertContext = CertEnumCertificatesInStore(hCertStore, pCertContext)) != NULL)
 	{
-		// verify time validity if requested
-		DWORD iFlags = CERT_STORE_TIME_VALIDITY_FLAG;
-		if (cert_ignore_expired_certs((DWORD)-1) && CertVerifySubjectCertificateContext(pCertContext, NULL, &iFlags) == TRUE && iFlags != 0) continue;
+		// ignore invalid cert sbased on settings
+		if (!cert_check_valid(pCertContext)) continue;
 
 		// count cert and [re]allocate the return string array
 		*pszCert = snrealloc(*pszCert, iCertNum + 1, sizeof(LPSTR));
@@ -684,6 +740,13 @@ PVOID cert_pin(LPSTR szCert, BOOL bUnicode, LPVOID szPin, HWND hWnd)
 
 	SecureZeroMemory(szPassword, sizeof(szPassword));
 	return szReturn;
+}
+
+EXTERN BOOL cert_trusted_certs_only(DWORD bEnable)
+{
+	static BOOL bTrustedCertsOnly = FALSE;
+	if (bEnable != -1) bTrustedCertsOnly = bEnable;
+	return bTrustedCertsOnly;
 }
 
 EXTERN BOOL cert_save_cert_list_enabled(DWORD bEnable)
