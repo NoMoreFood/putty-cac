@@ -98,11 +98,23 @@ SOURCE=..\..\..\aqsync.c
 # End Source File
 # Begin Source File
 
+SOURCE=..\..\..\be_misc.c
+# End Source File
+# Begin Source File
+
+SOURCE=..\..\..\callback.c
+# End Source File
+# Begin Source File
+
 SOURCE=..\..\..\conf.c
 # End Source File
 # Begin Source File
 
 SOURCE=..\..\..\ecc.c
+# End Source File
+# Begin Source File
+
+SOURCE=..\..\..\errsock.c
 # End Source File
 # Begin Source File
 
@@ -130,7 +142,15 @@ SOURCE=..\..\..\sshaes.c
 # End Source File
 # Begin Source File
 
+SOURCE=..\..\..\sshargon2.c
+# End Source File
+# Begin Source File
+
 SOURCE=..\..\..\sshauxcrypt.c
+# End Source File
+# Begin Source File
+
+SOURCE=..\..\..\sshblake2.c
 # End Source File
 # Begin Source File
 
@@ -174,6 +194,10 @@ SOURCE=..\..\..\sshsha.c
 # End Source File
 # Begin Source File
 
+SOURCE=..\..\..\sshsha3.c
+# End Source File
+# Begin Source File
+
 SOURCE=..\..\..\stripctrl.c
 # End Source File
 # Begin Source File
@@ -194,7 +218,19 @@ SOURCE=..\..\..\wcwidth.c
 # End Source File
 # Begin Source File
 
+SOURCE=..\..\..\windows\wincapi.c
+# End Source File
+# Begin Source File
+
+SOURCE=..\..\..\windows\winhandl.c
+# End Source File
+# Begin Source File
+
 SOURCE=..\..\..\windows\winhelp.c
+# End Source File
+# Begin Source File
+
+SOURCE=..\..\..\windows\winhsock.c
 # End Source File
 # Begin Source File
 
@@ -203,6 +239,18 @@ SOURCE=..\..\..\windows\winmisc.c
 # Begin Source File
 
 SOURCE=..\..\..\windows\winmiscs.c
+# End Source File
+# Begin Source File
+
+SOURCE=..\..\..\windows\winnet.c
+# End Source File
+# Begin Source File
+
+SOURCE=..\..\..\windows\winnpc.c
+# End Source File
+# Begin Source File
+
+SOURCE=..\..\..\windows\winnps.c
 # End Source File
 # Begin Source File
 
@@ -215,6 +263,10 @@ SOURCE=..\..\..\windows\winpgntc.c
 # Begin Source File
 
 SOURCE=..\..\..\windows\winsecur.c
+# End Source File
+# Begin Source File
+
+SOURCE=..\..\..\windows\winselgui.c
 # End Source File
 # Begin Source File
 
@@ -270,6 +322,10 @@ SOURCE=..\..\..\pageant.h
 # End Source File
 # Begin Source File
 
+SOURCE=..\..\..\proxy.h
+# End Source File
+# Begin Source File
+
 SOURCE=..\..\..\putty.h
 # End Source File
 # Begin Source File
@@ -314,11 +370,19 @@ SOURCE=..\..\..\version.h
 # End Source File
 # Begin Source File
 
+SOURCE=..\..\..\windows\pageant-rc.h
+# End Source File
+# Begin Source File
+
 SOURCE=..\..\..\windows\rcstuff.h
 # End Source File
 # Begin Source File
 
 SOURCE=..\..\..\windows\win_res.h
+# End Source File
+# Begin Source File
+
+SOURCE=..\..\..\windows\wincapi.h
 # End Source File
 # Begin Source File
 

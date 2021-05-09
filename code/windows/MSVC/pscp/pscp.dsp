@@ -123,11 +123,19 @@ SOURCE=..\..\..\callback.c
 # End Source File
 # Begin Source File
 
+SOURCE=..\..\..\clicons.c
+# End Source File
+# Begin Source File
+
 SOURCE=..\..\..\cmdline.c
 # End Source File
 # Begin Source File
 
 SOURCE=..\..\..\conf.c
+# End Source File
+# Begin Source File
+
+SOURCE=..\..\..\console.c
 # End Source File
 # Begin Source File
 
@@ -292,7 +300,15 @@ SOURCE=..\..\..\ssharcf.c
 # End Source File
 # Begin Source File
 
+SOURCE=..\..\..\sshargon2.c
+# End Source File
+# Begin Source File
+
 SOURCE=..\..\..\sshauxcrypt.c
+# End Source File
+# Begin Source File
+
+SOURCE=..\..\..\sshblake2.c
 # End Source File
 # Begin Source File
 
@@ -376,7 +392,15 @@ SOURCE=..\..\..\sshsha.c
 # End Source File
 # Begin Source File
 
+SOURCE=..\..\..\sshsha3.c
+# End Source File
+# Begin Source File
+
 SOURCE=..\..\..\sshshare.c
+# End Source File
+# Begin Source File
+
+SOURCE=..\..\..\sshutils.c
 # End Source File
 # Begin Source File
 
@@ -417,6 +441,10 @@ SOURCE=..\..\..\wildcard.c
 # Begin Source File
 
 SOURCE=..\..\..\windows\wincapi.c
+# End Source File
+# Begin Source File
+
+SOURCE=..\..\..\windows\wincliloop.c
 # End Source File
 # Begin Source File
 
@@ -484,6 +512,10 @@ SOURCE=..\..\..\windows\winsecur.c
 # End Source File
 # Begin Source File
 
+SOURCE=..\..\..\windows\winselcli.c
+# End Source File
+# Begin Source File
+
 SOURCE=..\..\..\windows\winsftp.c
 # End Source File
 # Begin Source File
@@ -513,6 +545,10 @@ SOURCE=..\..\..\x11fwd.c
 # Begin Source File
 
 SOURCE=..\..\..\charset\charset.h
+# End Source File
+# Begin Source File
+
+SOURCE=..\..\..\console.h
 # End Source File
 # Begin Source File
 

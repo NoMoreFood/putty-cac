@@ -40,12 +40,6 @@ EXTERN int cert_all_certs(LPSTR ** pszCert);
 EXTERN void cert_convert_legacy(LPSTR szCert);
 EXTERN LPBYTE cert_get_hash(LPCSTR szAlgo, LPCBYTE pDataToHash, DWORD iDataToHashSize, DWORD * iHashedDataSize, BOOL bPrependDigest);
 
-// used in pageant for dialog controls
-#define IDC_PAGEANT_ADD_PKCS 104
-#define IDC_PAGEANT_ADD_CAPI 105
-#define IDC_PAGEANT_CLIP_KEY 106
-#define IDC_PAGEANT_SAVE_CERT 107
-
 #define SHA1_BINARY_SIZE (160 / 8)
 #define SHA1_HEX_SIZE (SHA1_BINARY_SIZE * 2)
 

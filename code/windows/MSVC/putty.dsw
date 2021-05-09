@@ -7,6 +7,7 @@ Project: "pageant"=".\pageant\pageant.dsp" - Package Owner=<4>
 Project: "plink"=".\plink\plink.dsp" - Package Owner=<4>
 Project: "pscp"=".\pscp\pscp.dsp" - Package Owner=<4>
 Project: "psftp"=".\psftp\psftp.dsp" - Package Owner=<4>
+Project: "psocks"=".\psocks\psocks.dsp" - Package Owner=<4>
 Project: "putty"=".\putty\putty.dsp" - Package Owner=<4>
 Project: "puttygen"=".\puttygen\puttygen.dsp" - Package Owner=<4>
 Project: "puttytel"=".\puttytel\puttytel.dsp" - Package Owner=<4>

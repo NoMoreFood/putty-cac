@@ -53,6 +53,10 @@ Set remote password to \fIpassword\fP. \fICAUTION:\fP this will likely make the 
 Force use of SSH protocol version 1.
 .IP "\fB-2\fP"
 Force use of SSH protocol version 2.
+.IP "\fB-ssh-connection\fP"
+Force use of the `bare \fBssh-connection\fP' protocol. This is only likely to be useful when connecting to a \fIpsusan(1)\fP server, most likely with an absolute path to a Unix-domain socket in place of \fIhost\fP.
+.IP "\fB-ssh\fP"
+Force use of the SSH protocol. (This is usually not needed; it's only likely to be useful if you need to override some other configuration of the `bare \fBssh-connection\fP' protocol.)
 .IP "\fB-4\fP, \fB-6\fP"
 Force use of IPv4 or IPv6 for network connections.
 .IP "\fB-C\fP"
@@ -68,7 +72,7 @@ Don't try to use an authentication agent.
 .IP "\fB\-agent\fP"
 Allow use of an authentication agent. (This option is only necessary to override a setting in a saved session.)
 .IP "\fB\-hostkey\fP \fIkey\fP"
-Specify an acceptable host public key. This option may be specified multiple times; each key can be either a fingerprint (\fB99:aa:bb:...\fP) or a base64-encoded blob in OpenSSH\*(Aqs one-line format.
+Specify an acceptable host public key. This option may be specified multiple times; each key can be either a fingerprint (\fBSHA256:AbCdE...\fP, \fB99:aa:bb:...\fP, etc) or a base64-encoded blob in OpenSSH\*(Aqs one-line format.
 .RS
 .PP
 Specifying this option overrides automated host key management; \fIonly\fP the key(s) specified on the command-line will be accepted (unless a saved session also overrides host keys, in which case those will be added to), and the host key cache will not be written. 
@@ -81,6 +85,10 @@ These options make \fBpsftp\fP log protocol details to a file. (Some of these ma
 .PP
 \fB\-sshlog\fP logs decoded SSH packets and other events (those that \fB\-v\fP would print). \fB\-sshrawlog\fP additionally logs the raw encrypted packet data. 
 .RE
+.IP "\fB\-logoverwrite\fP"
+If PSFTP is configured to write to a log file that already exists, discard the existing file.
+.IP "\fB\-logappend\fP"
+If PSFTP is configured to write to a log file that already exists, append new log data to the existing file.
 .SH "COMMANDS"
 .PP
 For a list of commands available inside \fBpsftp\fP, type \fBhelp\fP at the \fBpsftp>\fP prompt.

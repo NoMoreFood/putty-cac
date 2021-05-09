@@ -93,6 +93,13 @@ static NORETURN PRINTF_LIKE(1, 2) void fatal_error(const char *p, ...)
 }
 
 void out_of_memory(void) { fatal_error("out of memory"); }
+FILE *f_open(const Filename *filename, char const *mode, bool is_private)
+{ unreachable("this is a stub needed to link, and should never be called"); }
+void old_keyfile_warning(void)
+{ unreachable("this is a stub needed to link, and should never be called"); }
+/* For platforms where getticks is defined within this code base */
+unsigned long (getticks)(void)
+{ unreachable("this is a stub needed to link, and should never be called"); }
 
 /*
  * A simple deterministic PRNG, without any of the Fortuna
@@ -104,6 +111,7 @@ static uint64_t random_counter = 0;
 static const char *random_seedstr = NULL;
 static uint8_t random_buf[MAX_HASH_LEN];
 static size_t random_buf_limit = 0;
+static ssh_hash *random_hash;
 
 static void random_seed(const char *seedstr)
 {
@@ -118,12 +126,12 @@ void random_read(void *vbuf, size_t size)
     uint8_t *buf = (uint8_t *)vbuf;
     while (size-- > 0) {
         if (random_buf_limit == 0) {
-            ssh_hash *h = ssh_hash_new(&ssh_sha256);
-            put_asciz(h, random_seedstr);
-            put_uint64(h, random_counter);
+            ssh_hash_reset(random_hash);
+            put_asciz(random_hash, random_seedstr);
+            put_uint64(random_hash, random_counter);
             random_counter++;
-            random_buf_limit = ssh_hash_alg(h)->hlen;
-            ssh_hash_final(h, random_buf);
+            random_buf_limit = ssh_hash_alg(random_hash)->hlen;
+            ssh_hash_digest(random_hash, random_buf);
         }
         *buf++ = random_buf[random_buf_limit--];
     }
@@ -267,6 +275,12 @@ VOLATILE_WRAPPED_DEFN(static, size_t, looplimit, (size_t x))
     X(Y, ssh_sha256_sw)                         \
     X(Y, ssh_sha384)                            \
     X(Y, ssh_sha512)                            \
+    X(Y, ssh_sha3_224)                          \
+    X(Y, ssh_sha3_256)                          \
+    X(Y, ssh_sha3_384)                          \
+    X(Y, ssh_sha3_512)                          \
+    X(Y, ssh_shake256_114bytes)                 \
+    X(Y, ssh_blake2b)                           \
     /* end of list */
 
 #define HASH_TESTLIST(X, name) X(hash_ ## name)
@@ -289,6 +303,7 @@ VOLATILE_WRAPPED_DEFN(static, size_t, looplimit, (size_t x))
     X(mp_mul)                                   \
     X(mp_rshift_safe)                           \
     X(mp_divmod)                                \
+    X(mp_nthroot)                               \
     X(mp_modadd)                                \
     X(mp_modsub)                                \
     X(mp_modmul)                                \
@@ -315,6 +330,7 @@ VOLATILE_WRAPPED_DEFN(static, size_t, looplimit, (size_t x))
     CIPHERS(CIPHER_TESTLIST, X)                 \
     MACS(MAC_TESTLIST, X)                       \
     HASHES(HASH_TESTLIST, X)                    \
+    X(argon2)                                   \
     /* end of list */
 
 static void test_mp_get_nbits(void)
@@ -570,6 +586,23 @@ static void test_mp_divmod(void)
     mp_free(d);
     mp_free(q);
     mp_free(r);
+}
+
+static void test_mp_nthroot(void)
+{
+    mp_int *x = mp_new(256), *remainder = mp_new(256);
+
+    for (size_t i = 0; i < looplimit(32); i++) {
+        uint8_t sizes[1];
+        random_read(sizes, 1);
+        mp_random_bits_into(x, sizes[0]);
+        log_start();
+        mp_free(mp_nthroot(x, 3, remainder));
+        log_end();
+    }
+
+    mp_free(x);
+    mp_free(remainder);
 }
 
 static void test_mp_modarith(
@@ -1320,12 +1353,6 @@ static void test_mac(const ssh2_macalg *malg)
     size_t maclen = malg->len;
     uint8_t *data = snewn(datalen + maclen, uint8_t);
 
-    /* Preliminarily key the MAC, to avoid the divergence of control
-     * flow in which hmac_key() avoids some free()s the first time
-     * through */
-    random_read(mkey, malg->keylen);
-    ssh2_mac_setkey(m, make_ptrlen(mkey, malg->keylen));
-
     for (size_t i = 0; i < looplimit(16); i++) {
         random_read(mkey, malg->keylen);
         random_read(data, datalen);
@@ -1386,11 +1413,46 @@ struct test {
     void (*testfn)(void);
 };
 
+static void test_argon2(void)
+{
+    /*
+     * We can only expect the Argon2i variant to pass this stringent
+     * test for no data-dependency, because the other two variants of
+     * Argon2 have _deliberate_ data-dependency.
+     */
+    size_t inlen = 48+16+24+8;
+    uint8_t *indata = snewn(inlen, uint8_t);
+    ptrlen password = make_ptrlen(indata, 48);
+    ptrlen salt = make_ptrlen(indata+48, 16);
+    ptrlen secret = make_ptrlen(indata+48+16, 24);
+    ptrlen assoc = make_ptrlen(indata+48+16+24, 8);
+
+    strbuf *outdata = strbuf_new();
+    strbuf_append(outdata, 256);
+
+    for (size_t i = 0; i < looplimit(16); i++) {
+        strbuf_clear(outdata);
+        random_read(indata, inlen);
+
+        log_start();
+        argon2(Argon2i, 32, 2, 2, 144, password, salt, secret, assoc, outdata);
+        log_end();
+    }
+
+    sfree(indata);
+    strbuf_free(outdata);
+}
+
 static const struct test tests[] = {
 #define STRUCT_TEST(X) { #X, test_##X },
 TESTLIST(STRUCT_TEST)
 #undef STRUCT_TEST
 };
+
+void dputs(const char *buf)
+{
+    fputs(buf, stderr);
+}
 
 int main(int argc, char **argv)
 {
@@ -1401,6 +1463,7 @@ int main(int argc, char **argv)
     bool test_names_given = false;
 
     memset(tests_to_run, 1, sizeof(tests_to_run));
+    random_hash = ssh_hash_new(&ssh_sha256);
 
     while (--argc > 0) {
         char *p = *++argv;
@@ -1569,6 +1632,8 @@ int main(int argc, char **argv)
             }
         }
     }
+
+    ssh_hash_free(random_hash);
 
     if (npass == nrun) {
         printf("All tests passed\n");

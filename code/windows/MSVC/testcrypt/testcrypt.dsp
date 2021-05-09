@@ -106,7 +106,27 @@ SOURCE=..\..\..\memory.c
 # End Source File
 # Begin Source File
 
+SOURCE=..\..\..\millerrabin.c
+# End Source File
+# Begin Source File
+
 SOURCE=..\..\..\mpint.c
+# End Source File
+# Begin Source File
+
+SOURCE=..\..\..\mpunsafe.c
+# End Source File
+# Begin Source File
+
+SOURCE=..\..\..\pockle.c
+# End Source File
+# Begin Source File
+
+SOURCE=..\..\..\primecandidate.c
+# End Source File
+# Begin Source File
+
+SOURCE=..\..\..\smallprimes.c
 # End Source File
 # Begin Source File
 
@@ -118,7 +138,15 @@ SOURCE=..\..\..\ssharcf.c
 # End Source File
 # Begin Source File
 
+SOURCE=..\..\..\sshargon2.c
+# End Source File
+# Begin Source File
+
 SOURCE=..\..\..\sshauxcrypt.c
+# End Source File
+# Begin Source File
+
+SOURCE=..\..\..\sshblake2.c
 # End Source File
 # Begin Source File
 
@@ -150,7 +178,15 @@ SOURCE=..\..\..\sshdss.c
 # End Source File
 # Begin Source File
 
+SOURCE=..\..\..\sshdssg.c
+# End Source File
+# Begin Source File
+
 SOURCE=..\..\..\sshecc.c
+# End Source File
+# Begin Source File
+
+SOURCE=..\..\..\sshecdsag.c
 # End Source File
 # Begin Source File
 
@@ -170,7 +206,15 @@ SOURCE=..\..\..\sshprng.c
 # End Source File
 # Begin Source File
 
+SOURCE=..\..\..\sshpubk.c
+# End Source File
+# Begin Source File
+
 SOURCE=..\..\..\sshrsa.c
+# End Source File
+# Begin Source File
+
+SOURCE=..\..\..\sshrsag.c
 # End Source File
 # Begin Source File
 
@@ -183,6 +227,10 @@ SOURCE=..\..\..\sshsh512.c
 # Begin Source File
 
 SOURCE=..\..\..\sshsha.c
+# End Source File
+# Begin Source File
+
+SOURCE=..\..\..\sshsha3.c
 # End Source File
 # Begin Source File
 
@@ -234,6 +282,10 @@ SOURCE=..\..\..\mpint_i.h
 # End Source File
 # Begin Source File
 
+SOURCE=..\..\..\mpunsafe.h
+# End Source File
+# Begin Source File
+
 SOURCE=..\..\..\network.h
 # End Source File
 # Begin Source File
@@ -255,6 +307,10 @@ SOURCE=..\..\..\ssh.h
 # Begin Source File
 
 SOURCE=..\..\..\sshblowf.h
+# End Source File
+# Begin Source File
+
+SOURCE=..\..\..\sshkeygen.h
 # End Source File
 # Begin Source File
 

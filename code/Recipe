@@ -97,11 +97,6 @@
 #      Disables PuTTY's use of SecureZeroMemory(), which is missing
 #      from some environments' header files.
 #
-#  - XFLAGS=/DTELNET_DEFAULT
-#      Causes PuTTY to default to the Telnet protocol (in the absence
-#      of Default Settings and so on to the contrary). Normally PuTTY
-#      will default to SSH.
-#
 #  - XFLAGS=/DDEBUG
 #      Causes PuTTY to enable internal debugging.
 #
@@ -192,10 +187,10 @@ install-strip:
 # List the man pages for the automake makefile.
 !begin am
 if HAVE_GTK
-man1_MANS = doc/plink.1 doc/pscp.1 doc/psftp.1 doc/puttygen.1 \
+man1_MANS = doc/plink.1 doc/pscp.1 doc/psftp.1 doc/puttygen.1 doc/psusan.1 \
 	    doc/pageant.1 doc/pterm.1 doc/putty.1 doc/puttytel.1
 else
-man1_MANS = doc/plink.1 doc/pscp.1 doc/psftp.1 doc/puttygen.1
+man1_MANS = doc/plink.1 doc/pscp.1 doc/psftp.1 doc/puttygen.1 doc/psusan.1
 endif
 !end
 
@@ -244,32 +239,32 @@ TERMINAL = terminal stripctrl wcwidth logging tree234 minibidi
 
 # GUI front end and terminal emulator (putty, puttytel).
 GUITERM  = TERMINAL window windlg winctrls sizetip winprint winutils
-	 + wincfg sercfg winhelp winjump sessprep
+	 + wincfg winhelp winjump sessprep winselgui
 
 # Same thing on Unix.
-UXTERM   = TERMINAL uxcfg sercfg uxucs uxprint timing callback miscucs
+UXTERM   = TERMINAL uxcfg uxucs uxprint timing callback miscucs
 GTKTERM  = UXTERM gtkwin gtkcfg gtkdlg gtkfont gtkcols gtkmisc xkeysym
 	 + x11misc gtkcomm sessprep
 GTKMAIN  = gtkmain cmdline
 
 # Non-SSH back ends (putty, puttytel, plink).
-NONSSH   = telnet raw rlogin ldisc pinger
+NONSSH   = telnet raw rlogin supdup ldisc pinger
 
 # SSH back end (putty, plink, pscp, psftp).
 ARITH    = mpint ecc
-SSHCRYPTO = ARITH sshmd5 sshsha sshsh256 sshsh512
+SSHCRYPTO = ARITH sshmd5 sshsha sshsh256 sshsh512 sshsha3 sshblake2 sshargon2
 	 + sshrsa sshdss sshecc
          + sshdes sshblowf sshaes sshccp ssharcf
          + sshdh sshcrc sshcrcda sshauxcrypt
          + sshhmac
-SSHCOMMON = sshcommon sshprng sshrand SSHCRYPTO
+SSHCOMMON = sshcommon sshutils sshprng sshrand SSHCRYPTO
          + sshverstring
          + sshpubk sshzlib
          + sshmac marshal nullplug
          + sshgssc pgssapi wildcard ssh1censor ssh2censor ssh2bpp
 	 + ssh2transport ssh2transhk ssh2connection portfwd x11fwd
-         + ssh1connection ssh1bpp
-SSH      = SSHCOMMON ssh ssh2bpp-bare
+         + ssh1connection ssh1bpp ssh2bpp-bare
+SSH      = SSHCOMMON ssh
          + ssh1login ssh2userauth
          + pinger
          + sshshare aqsync agentf
@@ -280,6 +275,9 @@ UXSSH    = SSH uxnoise uxagentc uxgss uxshare
 
 # SFTP implementation (pscp, psftp).
 SFTP     = psftpcommon sftp sftpcommon logging cmdline
+
+# Components of the prime-generation system.
+SSHPRIME = sshprime smallprimes primecandidate millerrabin pockle mpunsafe
 
 # Miscellaneous objects appearing in all the utilities, or all the
 # network ones, or the Unix or Windows subsets of those in turn.
@@ -294,7 +292,7 @@ UXMISC   = MISCNET UXMISCCOMMON uxproxy uxutils
 
 # SSH server.
 SSHSERVER = SSHCOMMON sshserver settings be_none logging ssh2kex-server
-         + ssh2userauth-server sshrsag sshprime ssh2connection-server
+         + ssh2userauth-server sshrsag SSHPRIME ssh2connection-server
          + sesschan sftpcommon sftpserver proxy cproxy ssh1login-server
          + ssh1connection-server scpserver
 
@@ -312,15 +310,18 @@ LIBS     = advapi32.lib user32.lib gdi32.lib comdlg32.lib
 # Network backend sets. This also brings in the relevant attachment
 # to proxy.c depending on whether we're crypto-avoidant or not.
 BE_ALL   = be_all cproxy
-BE_NOSSH = be_nossh nocproxy
+BE_NOSSH = be_nossh norand nocproxy
 BE_SSH   = be_ssh cproxy
 BE_NONE  = be_none nocproxy
 # More backend sets, with the additional Windows serial-port module.
 W_BE_ALL = be_all_s winser cproxy
-W_BE_NOSSH = be_nos_s winser nocproxy
+W_BE_NOSSH = be_nos_s norand winser nocproxy
 # And with the Unix serial-port module.
 U_BE_ALL = be_all_s uxser cproxy
-U_BE_NOSSH = be_nos_s uxser nocproxy
+U_BE_NOSSH = be_nos_s norand uxser nocproxy
+
+# Auxiliary crypto modules used by key generators.
+KEYGEN   = sshrsag sshdssg sshecdsag
 
 # ------------------------------------------------------------
 # Definitions of actual programs. The program name, followed by a
@@ -330,23 +331,28 @@ U_BE_NOSSH = be_nos_s uxser nocproxy
 
 putty    : [G] GUITERM NONSSH WINSSH W_BE_ALL WINMISC winx11 putty.res LIBS
 puttytel : [G] GUITERM NONSSH W_BE_NOSSH WINMISC puttytel.res nogss LIBS
-plink    : [C] winplink wincons NONSSH WINSSH W_BE_ALL logging WINMISC
-         + winx11 plink.res winnojmp sessprep noterm winnohlp LIBS
+plink    : [C] winplink wincons console NONSSH WINSSH W_BE_ALL logging WINMISC
+         + winx11 plink.res winnojmp sessprep noterm winnohlp winselcli
+         + clicons wincliloop console LIBS
 pscp     : [C] pscp winsftp wincons WINSSH BE_SSH SFTP wildcard WINMISC
-         + pscp.res winnojmp winnohlp LIBS
+         + pscp.res winnojmp winnohlp winselcli clicons wincliloop
+         + console LIBS
 psftp    : [C] psftp winsftp wincons WINSSH BE_SSH SFTP wildcard WINMISC
-         + psftp.res winnojmp winnohlp LIBS
+         + psftp.res winnojmp winnohlp winselcli clicons wincliloop
+         + console LIBS
 
 pageant  : [G] winpgnt pageant sshrsa sshpubk sshdes ARITH sshmd5 version
 	 + tree234 MISC sshaes sshsha winsecur winpgntc aqsync sshdss sshsh256
 	 + sshsh512 winutils sshecc winmisc winmiscs winhelp conf pageant.res
-	 + sshauxcrypt sshhmac LIBS
+	 + sshauxcrypt sshhmac wincapi winnps winnpc winhsock errsock winnet
+	 + winhandl callback be_misc winselgui winhandl sshsha3 sshblake2
+         + sshargon2 LIBS
 
-puttygen : [G] winpgen sshrsag sshdssg sshprime sshdes ARITH sshmd5 version
+puttygen : [G] winpgen KEYGEN SSHPRIME sshdes ARITH sshmd5 version
          + sshrand winnoise sshsha winstore MISC winctrls sshrsa sshdss winmisc
          + sshpubk sshaes sshsh256 sshsh512 IMPORT winutils puttygen.res
          + tree234 notiming winhelp winnojmp CONF LIBS wintime sshecc sshprng
-         + sshecdsag sshauxcrypt sshhmac winsecur winmiscs
+         + sshauxcrypt sshhmac winsecur winmiscs sshsha3 sshblake2 sshargon2
 
 pterm    : [X] GTKTERM uxmisc misc ldisc settings uxpty uxsel BE_NONE uxstore
          + uxsignal CHARSET cmdline uxpterm version time xpmpterm xpmptcfg
@@ -359,24 +365,27 @@ puttytel : [X] GTKTERM uxmisc misc ldisc settings uxsel U_BE_NOSSH
 	 + nogss utils memory GTKMAIN
 
 plink    : [U] uxplink uxcons NONSSH UXSSH U_BE_ALL logging UXMISC uxsignal
-         + ux_x11 noterm uxnogtk sessprep cmdline
+         + ux_x11 noterm uxnogtk sessprep cmdline clicons uxcliloop console
 
-PUTTYGEN_UNIX = sshrsag sshdssg sshprime sshdes ARITH sshmd5 version sshprng
+PUTTYGEN_UNIX = KEYGEN SSHPRIME sshdes ARITH sshmd5 version sshprng
          + sshrand uxnoise sshsha MISC sshrsa sshdss uxcons uxstore uxmisc
          + sshpubk sshaes sshsh256 sshsh512 IMPORT puttygen.res time tree234
-         + uxgen notiming CONF sshecc sshecdsag uxnogtk sshauxcrypt sshhmac
-         + uxpoll uxutils
+         + uxgen notiming CONF sshecc sshsha3 uxnogtk sshauxcrypt sshhmac
+         + uxpoll uxutils sshblake2 sshargon2 console
 puttygen : [U] cmdgen PUTTYGEN_UNIX
 cgtest   : [UT] cgtest PUTTYGEN_UNIX
 
 pscp     : [U] pscp uxsftp uxcons UXSSH BE_SSH SFTP wildcard UXMISC uxnogtk
+         + clicons uxcliloop console
 psftp    : [U] psftp uxsftp uxcons UXSSH BE_SSH SFTP wildcard UXMISC uxnogtk
+         + clicons uxcliloop console
 
 pageant  : [X] uxpgnt uxagentc aqsync pageant sshrsa sshpubk sshdes ARITH
 	 + sshmd5 version tree234 misc sshaes sshsha sshdss sshsh256 sshsh512
 	 + sshecc CONF uxsignal nocproxy nogss be_none x11fwd ux_x11 uxcons
          + gtkask gtkmisc nullplug logging UXMISC uxagentsock utils memory
-	 + sshauxcrypt sshhmac sshprng uxnoise
+	 + sshauxcrypt sshhmac sshprng uxnoise uxcliloop sshsha3 sshblake2
+         + sshargon2 console
 
 ptermapp : [XT] GTKTERM uxmisc misc ldisc settings uxpty uxsel BE_NONE uxstore
          + uxsignal CHARSET uxpterm version time xpmpterm xpmptcfg
@@ -388,16 +397,25 @@ osxlaunch : [UT] osxlaunch
 
 fuzzterm : [UT] UXTERM CHARSET MISC version uxmisc uxucs fuzzterm time settings
 	 + uxstore be_none uxnogtk memory
-testcrypt : [UT] testcrypt SSHCRYPTO sshprng sshprime marshal utils
-          + memory tree234 uxutils
-testcrypt : [C] testcrypt SSHCRYPTO sshprng sshprime marshal utils
-          + memory tree234 winmiscs
+testcrypt : [UT] testcrypt SSHCRYPTO sshprng SSHPRIME sshpubk marshal utils
+          + memory tree234 uxutils KEYGEN
+testcrypt : [C] testcrypt SSHCRYPTO sshprng SSHPRIME sshpubk marshal utils
+          + memory tree234 winmiscs KEYGEN
 testsc    : [UT] testsc SSHCRYPTO marshal utils memory tree234 wildcard
-          + sshmac uxutils
+          + sshmac uxutils sshpubk
 testzlib : [UT] testzlib sshzlib utils marshal memory
 
 uppity   : [UT] uxserver SSHSERVER UXMISC uxsignal uxnoise uxgss uxnogtk
-         + uxpty uxsftpserver ux_x11 uxagentsock procnet
+         + uxpty uxsftpserver ux_x11 uxagentsock procnet uxcliloop
+psusan   : [U] uxpsusan SSHSERVER UXMISC uxsignal uxnoise nogss uxnogtk
+         + uxpty uxsftpserver ux_x11 uxagentsock procnet uxcliloop
+
+PSOCKS   = psocks portfwd conf sshutils logging proxy nocproxy timing callback
+         + time tree234 version errsock be_misc norand MISC
+psocks   : [C] PSOCKS winsocks wincons winproxy winnet winmisc winselcli
+         + winhsock winhandl winmiscs winnohlp wincliloop console LIBS
+psocks   : [UT] PSOCKS uxsocks uxcons uxproxy uxnet uxmisc uxpoll uxsel uxnogtk
+         + uxpeer uxfdsock uxcliloop uxsignal console
 
 # ----------------------------------------------------------------------
 # On Windows, provide a means of removing local test binaries that we
@@ -405,9 +423,9 @@ uppity   : [UT] uxserver SSHSERVER UXMISC uxsignal uxnoise uxgss uxnogtk
 # in the first place, so that we find out about build breakage early.)
 !begin vc
 cleantestprogs:
-	-del $(BUILDDIR)testcrypt.exe
+	-del $(BUILDDIR)testcrypt.exe $(BUILDDIR)psocks.exe
 !end
 !begin clangcl
 cleantestprogs:
-	-rm -f $(BUILDDIR)testcrypt.exe
+	-rm -f $(BUILDDIR)testcrypt.exe $(BUILDDIR)psocks.exe
 !end

@@ -21,17 +21,31 @@
       <Filter>Source Files</Filter>
     </ClCompile>    <ClCompile Include="..\..\..\memory.c">
       <Filter>Source Files</Filter>
+    </ClCompile>    <ClCompile Include="..\..\..\millerrabin.c">
+      <Filter>Source Files</Filter>
     </ClCompile>    <ClCompile Include="..\..\..\misc.c">
       <Filter>Source Files</Filter>
     </ClCompile>    <ClCompile Include="..\..\..\mpint.c">
       <Filter>Source Files</Filter>
+    </ClCompile>    <ClCompile Include="..\..\..\mpunsafe.c">
+      <Filter>Source Files</Filter>
     </ClCompile>    <ClCompile Include="..\..\..\notiming.c">
       <Filter>Source Files</Filter>
+    </ClCompile>    <ClCompile Include="..\..\..\pockle.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>    <ClCompile Include="..\..\..\primecandidate.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>    <ClCompile Include="..\..\..\smallprimes.c">
+      <Filter>Source Files</Filter>
     </ClCompile>    <ClCompile Include="..\..\..\sshaes.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>    <ClCompile Include="..\..\..\sshargon2.c">
       <Filter>Source Files</Filter>
     </ClCompile>    <ClCompile Include="..\..\..\sshauxcrypt.c">
       <Filter>Source Files</Filter>
     </ClCompile>    <ClCompile Include="..\..\..\sshbcrypt.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>    <ClCompile Include="..\..\..\sshblake2.c">
       <Filter>Source Files</Filter>
     </ClCompile>    <ClCompile Include="..\..\..\sshblowf.c">
       <Filter>Source Files</Filter>
@@ -66,6 +80,8 @@
     </ClCompile>    <ClCompile Include="..\..\..\sshsh512.c">
       <Filter>Source Files</Filter>
     </ClCompile>    <ClCompile Include="..\..\..\sshsha.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>    <ClCompile Include="..\..\..\sshsha3.c">
       <Filter>Source Files</Filter>
     </ClCompile>    <ClCompile Include="..\..\..\stripctrl.c">
       <Filter>Source Files</Filter>
@@ -121,6 +137,8 @@
       <Filter>Header Files</Filter>
     </ClInclude>    <ClInclude Include="..\..\..\mpint_i.h">
       <Filter>Header Files</Filter>
+    </ClInclude>    <ClInclude Include="..\..\..\mpunsafe.h">
+      <Filter>Header Files</Filter>
     </ClInclude>    <ClInclude Include="..\..\..\network.h">
       <Filter>Header Files</Filter>
     </ClInclude>    <ClInclude Include="..\..\..\putty.h">
@@ -132,6 +150,8 @@
     </ClInclude>    <ClInclude Include="..\..\..\ssh.h">
       <Filter>Header Files</Filter>
     </ClInclude>    <ClInclude Include="..\..\..\sshblowf.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>    <ClInclude Include="..\..\..\sshkeygen.h">
       <Filter>Header Files</Filter>
     </ClInclude>    <ClInclude Include="..\..\..\sshsignals.h">
       <Filter>Header Files</Filter>
@@ -146,6 +166,8 @@
     </ClInclude>    <ClInclude Include="..\..\..\unix\unix.h">
       <Filter>Header Files</Filter>
     </ClInclude>    <ClInclude Include="..\..\..\version.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>    <ClInclude Include="..\..\puttygen-rc.h">
       <Filter>Header Files</Filter>
     </ClInclude>    <ClInclude Include="..\..\rcstuff.h">
       <Filter>Header Files</Filter>

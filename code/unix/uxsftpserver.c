@@ -20,6 +20,7 @@
 
 #include "putty.h"
 #include "ssh.h"
+#include "sshserver.h"
 #include "sftp.h"
 #include "tree234.h"
 
@@ -65,7 +66,7 @@ static SftpServer *uss_new(const SftpServerVtable *vt)
     uss->dirhandles = newtree234(uss_dirhandle_cmp);
     uss->srv.vt = vt;
 
-    random_read(uss->handlekey, sizeof(uss->handlekey));
+    make_unix_sftp_filehandle_key(uss->handlekey, sizeof(uss->handlekey));
 
     return &uss->srv;
 }
@@ -681,22 +682,22 @@ static void uss_readdir(SftpServer *srv, SftpReplyBuilder *reply,
     }
 }
 
-const struct SftpServerVtable unix_live_sftpserver_vt = {
-    uss_new,
-    uss_free,
-    uss_realpath,
-    uss_open,
-    uss_opendir,
-    uss_close,
-    uss_mkdir,
-    uss_rmdir,
-    uss_remove,
-    uss_rename,
-    uss_stat,
-    uss_fstat,
-    uss_setstat,
-    uss_fsetstat,
-    uss_read,
-    uss_write,
-    uss_readdir,
+const SftpServerVtable unix_live_sftpserver_vt = {
+    .new = uss_new,
+    .free = uss_free,
+    .realpath = uss_realpath,
+    .open = uss_open,
+    .opendir = uss_opendir,
+    .close = uss_close,
+    .mkdir = uss_mkdir,
+    .rmdir = uss_rmdir,
+    .remove = uss_remove,
+    .rename = uss_rename,
+    .stat = uss_stat,
+    .fstat = uss_fstat,
+    .setstat = uss_setstat,
+    .fsetstat = uss_fsetstat,
+    .read = uss_read,
+    .write = uss_write,
+    .readdir = uss_readdir,
 };

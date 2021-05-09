@@ -1219,16 +1219,18 @@ Backend *pty_backend_create(
                     execl(shell, shell, "-c", cmd, (void *)NULL);
             }
         } else {
-            char *shell = getenv("SHELL");
+            const char *shell = getenv("SHELL");
+            if (!shell)
+                shell = "/bin/sh";
             char *shellname;
             if (conf_get_bool(conf, CONF_login_shell)) {
-                char *p = strrchr(shell, '/');
+                const char *p = strrchr(shell, '/');
                 shellname = snewn(2+strlen(shell), char);
                 p = p ? p+1 : shell;
                 sprintf(shellname, "-%s", p);
             } else
-                shellname = shell;
-            execl(getenv("SHELL"), shellname, (void *)NULL);
+                shellname = (char *)shell;
+            execl(shell, shellname, (void *)NULL);
         }
 
         /*
@@ -1271,10 +1273,10 @@ Backend *pty_backend_create(
  * it gets the argv array from the global variable pty_argv, expecting
  * that it will have been invoked by pterm.
  */
-static const char *pty_init(Seat *seat, Backend **backend_handle,
-                            LogContext *logctx, Conf *conf,
-                            const char *host, int port,
-                            char **realhost, bool nodelay, bool keepalive)
+static char *pty_init(const BackendVtable *vt, Seat *seat,
+                      Backend **backend_handle, LogContext *logctx,
+                      Conf *conf, const char *host, int port,
+                      char **realhost, bool nodelay, bool keepalive)
 {
     const char *cmd = NULL;
     struct ssh_ttymodes modes;
@@ -1284,7 +1286,8 @@ static const char *pty_init(Seat *seat, Backend **backend_handle,
     if (pty_argv && pty_argv[0] && !pty_argv[1])
         cmd = pty_argv[0];
 
-    *backend_handle= pty_backend_create(
+    assert(vt == &pty_backend);
+    *backend_handle = pty_backend_create(
         seat, logctx, conf, pty_argv, cmd, modes, false, NULL, NULL);
     *realhost = dupstr("");
     return NULL;
@@ -1565,52 +1568,16 @@ ptrlen pty_backend_exit_signame(Backend *be, char **aux_msg)
     if (sig < 0)
         return PTRLEN_LITERAL("");
 
-#define TRANSLATE_SIGNAL(s) do                          \
-    {                                                   \
+    #define SIGNAL_SUB(s) {                             \
         if (sig == SIG ## s)                            \
             return PTRLEN_LITERAL(#s);                  \
-    } while (0)
-
-#ifdef SIGABRT
-    TRANSLATE_SIGNAL(ABRT);
-#endif
-#ifdef SIGALRM
-    TRANSLATE_SIGNAL(ALRM);
-#endif
-#ifdef SIGFPE
-    TRANSLATE_SIGNAL(FPE);
-#endif
-#ifdef SIGHUP
-    TRANSLATE_SIGNAL(HUP);
-#endif
-#ifdef SIGILL
-    TRANSLATE_SIGNAL(ILL);
-#endif
-#ifdef SIGINT
-    TRANSLATE_SIGNAL(INT);
-#endif
-#ifdef SIGKILL
-    TRANSLATE_SIGNAL(KILL);
-#endif
-#ifdef SIGPIPE
-    TRANSLATE_SIGNAL(PIPE);
-#endif
-#ifdef SIGQUIT
-    TRANSLATE_SIGNAL(QUIT);
-#endif
-#ifdef SIGSEGV
-    TRANSLATE_SIGNAL(SEGV);
-#endif
-#ifdef SIGTERM
-    TRANSLATE_SIGNAL(TERM);
-#endif
-#ifdef SIGUSR1
-    TRANSLATE_SIGNAL(USR1);
-#endif
-#ifdef SIGUSR2
-    TRANSLATE_SIGNAL(USR2);
-#endif
-#undef TRANSLATE_SIGNAL
+    }
+    #define SIGNAL_MAIN(s, desc) SIGNAL_SUB(s)
+    #define SIGNALS_LOCAL_ONLY
+    #include "sshsignals.h"
+    #undef SIGNAL_MAIN
+    #undef SIGNAL_SUB
+    #undef SIGNALS_LOCAL_ONLY
 
     *aux_msg = dupprintf("untranslatable signal number %d: %s",
                          sig, strsignal(sig));
@@ -1623,24 +1590,23 @@ static int pty_cfg_info(Backend *be)
     return 0;
 }
 
-const struct BackendVtable pty_backend = {
-    pty_init,
-    pty_free,
-    pty_reconfig,
-    pty_send,
-    pty_sendbuffer,
-    pty_size,
-    pty_special,
-    pty_get_specials,
-    pty_connected,
-    pty_exitcode,
-    pty_sendok,
-    pty_ldisc,
-    pty_provide_ldisc,
-    pty_unthrottle,
-    pty_cfg_info,
-    NULL /* test_for_upstream */,
-    "pty",
-    -1,
-    0
+const BackendVtable pty_backend = {
+    .init = pty_init,
+    .free = pty_free,
+    .reconfig = pty_reconfig,
+    .send = pty_send,
+    .sendbuffer = pty_sendbuffer,
+    .size = pty_size,
+    .special = pty_special,
+    .get_specials = pty_get_specials,
+    .connected = pty_connected,
+    .exitcode = pty_exitcode,
+    .sendok = pty_sendok,
+    .ldisc_option_state = pty_ldisc,
+    .provide_ldisc = pty_provide_ldisc,
+    .unthrottle = pty_unthrottle,
+    .cfg_info = pty_cfg_info,
+    .id = "pty",
+    .displayname = "pty",
+    .protocol = -1,
 };

@@ -3,7 +3,7 @@
 .TH "putty" "1" "2004\(hy03\(hy24" "PuTTY\ tool\ suite" "PuTTY\ tool\ suite"
 .SH "NAME"
 .PP
-\fBputty\fP - GUI SSH, Telnet and Rlogin client for X
+\fBputty\fP - GUI SSH, Telnet, Rlogin, and SUPDUP client for X
 .SH "SYNOPSIS"
 .PP
 .nf
@@ -11,7 +11,7 @@
 .fi
 .SH "DESCRIPTION"
 .PP
-\fBputty\fP is a graphical SSH, Telnet and Rlogin client for X. It is a direct port of the Windows SSH client of the same name.
+\fBputty\fP is a graphical SSH, Telnet, Rlogin, and SUPDUP client for X. It is a direct port of the Windows SSH client of the same name.
 .SH "OPTIONS"
 .PP
 The command-line options supported by \fBputty\fP are:
@@ -57,6 +57,10 @@ For SSH connections, these options make \fBputty\fP log protocol details to a fi
 .PP
 \fB\-sshlog\fP logs decoded SSH packets and other events (those that \fB\-v\fP would print). \fB\-sshrawlog\fP additionally logs the raw encrypted packet data. 
 .RE
+.IP "\fB\-logoverwrite\fP"
+If \fBputty\fP is configured to write to a log file that already exists, discard the existing file.
+.IP "\fB\-logappend\fP"
+If \fBputty\fP is configured to write to a log file that already exists, append new log data to the existing file.
 .IP "\fB\-cs\fP \fIcharset\fP"
 This option specifies the character set in which \fBputty\fP should assume the session is operating. This character set will be used to interpret all the data received from the session, and all input you type or paste into \fBputty\fP will be converted into this character set before being sent to the session.
 .RS
@@ -75,7 +79,7 @@ Display a message summarizing the available options.
 Display the fingerprints of the PuTTY PGP Master Keys, to aid in verifying new files released by the PuTTY team.
 .IP "\fB\-load\fP \fIsession\fP"
 Load a saved session by name. This allows you to run a saved session straight from the command line without having to go through the configuration box first.
-.IP "\fB\-ssh\fP, \fB\-telnet\fP, \fB\-rlogin\fP, \fB\-raw\fP, \fB\-serial\fP"
+.IP "\fB\-ssh\fP, \fB\-telnet\fP, \fB\-rlogin\fP, \fB\-supdup\fP, \fB\-raw\fP, \fB-ssh-connection\fP, \fB\-serial\fP"
 Select the protocol \fBputty\fP will use to make the connection.
 .IP "\fB\-proxycmd\fP \fIcommand\fP"
 Instead of making a TCP connection, use \fIcommand\fP as a proxy; network traffic will be redirected to the standard input and output of \fIcommand\fP. \fIcommand\fP must be a single word, so is likely to need quoting by the shell.
@@ -120,7 +124,7 @@ Don't try to use an authentication agent for local authentication. (This doesn't
 .IP "\fB\-agent\fP"
 Allow use of an authentication agent. (This option is only necessary to override a setting in a saved session.)
 .IP "\fB\-hostkey\fP \fIkey\fP"
-Specify an acceptable host public key. This option may be specified multiple times; each key can be either a fingerprint (\fB99:aa:bb:...\fP) or a base64-encoded blob in OpenSSH\*(Aqs one-line format.
+Specify an acceptable host public key. This option may be specified multiple times; each key can be either a fingerprint (\fBSHA256:AbCdE...\fP, \fB99:aa:bb:...\fP, etc) or a base64-encoded blob in OpenSSH\*(Aqs one-line format.
 .RS
 .PP
 Specifying this option overrides automated host key management; \fIonly\fP the key(s) specified on the command-line will be accepted (unless a saved session also overrides host keys, in which case those will be added to), and the host key cache will not be written. 

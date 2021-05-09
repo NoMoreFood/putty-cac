@@ -13,6 +13,7 @@
 #define MAY_REFER_TO_GTK_IN_HEADERS
 
 #include "putty.h"
+#include "ssh.h"
 #include "storage.h"
 
 #include "gtkcompat.h"
@@ -55,11 +56,6 @@ void initial_config_box(Conf *conf, post_dialog_fn_t after, void *afterctx)
 const bool use_event_log = true, new_session = true, saved_sessions = true;
 const bool dup_check_launchable = true;
 
-char *make_default_wintitle(char *hostname)
-{
-    return dupcat(hostname, " - ", appname);
-}
-
 /*
  * X11-forwarding-related things suitable for Gtk app.
  */
@@ -76,18 +72,21 @@ char *platform_get_x_display(void) {
 const bool share_can_be_downstream = true;
 const bool share_can_be_upstream = true;
 
+const unsigned cmdline_tooltype =
+    TOOLTYPE_HOST_ARG |
+    TOOLTYPE_PORT_ARG |
+    TOOLTYPE_NO_VERBOSE_OPTION;
+
 void setup(bool single)
 {
     sk_init();
-    flags = FLAG_VERBOSE | FLAG_INTERACTIVE;
-    cmdline_tooltype |= TOOLTYPE_HOST_ARG | TOOLTYPE_PORT_ARG;
-    default_protocol = be_default_protocol;
+    settings_set_default_protocol(be_default_protocol);
     /* Find the appropriate default port. */
     {
         const struct BackendVtable *vt =
-            backend_vt_from_proto(default_protocol);
-        default_port = 0; /* illegal */
+            backend_vt_from_proto(be_default_protocol);
+        settings_set_default_port(0); /* illegal */
         if (vt)
-            default_port = vt->default_port;
+            settings_set_default_port(vt->default_port);
     }
 }

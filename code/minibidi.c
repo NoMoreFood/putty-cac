@@ -102,7 +102,7 @@ typedef struct {
 #define SHAPE_FIRST 0x621
 #define SHAPE_LAST (SHAPE_FIRST + lenof(shapetypes) - 1)
 
-const shape_node shapetypes[] = {
+static const shape_node shapetypes[] = {
     /* index, Typ, Iso, Ligature Index*/
     /* 621 */ {SU, 0xFE80},
     /* 622 */ {SR, 0xFE81},
@@ -1281,20 +1281,19 @@ int do_bidi(bidi_char *line, int count)
             bover = true;
             break;
 
-          case PDF:
-            {
-                int prevlevel = getPreviousLevel(levels, i);
+          case PDF: {
+            int prevlevel = getPreviousLevel(levels, i);
 
-                if (prevlevel == -1) {
-                    currentEmbedding = paragraphLevel;
-                    currentOverride = ON;
-                } else {
-                    currentOverride = currentEmbedding & OMASK;
-                    currentEmbedding = currentEmbedding & ~OMASK;
-                }
+            if (prevlevel == -1) {
+              currentEmbedding = paragraphLevel;
+              currentOverride = ON;
+            } else {
+              currentOverride = currentEmbedding & OMASK;
+              currentEmbedding = currentEmbedding & ~OMASK;
             }
             levels[i] = currentEmbedding;
             break;
+          }
 
             /* Whitespace is treated as neutral for now */
           case WS:
