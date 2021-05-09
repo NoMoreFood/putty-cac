@@ -27,14 +27,11 @@
 #include "x11misc.h"
 #endif
 
-#ifdef TESTMODE
-#define PUTTY_DO_GLOBALS               /* actually _define_ globals */
-#endif
-
 #include "storage.h"
 #include "dialog.h"
 #include "tree234.h"
 #include "licence.h"
+#include "ssh.h"
 
 #if GTK_CHECK_VERSION(2,0,0)
 /* Decide which of GtkFileChooserDialog and GtkFileSelection to use */
@@ -978,14 +975,11 @@ void dlg_set_focus(union control *ctrl, dlgparam *dp)
          * Radio buttons: we find the currently selected button and
          * focus it.
          */
-        {
-            int i;
-            for (i = 0; i < ctrl->radio.nbuttons; i++)
-                if (gtk_toggle_button_get_active
-                    (GTK_TOGGLE_BUTTON(uc->buttons[i]))) {
-                    gtk_widget_grab_focus(uc->buttons[i]);
-                }
-        }
+        for (int i = 0; i < ctrl->radio.nbuttons; i++)
+            if (gtk_toggle_button_get_active
+                (GTK_TOGGLE_BUTTON(uc->buttons[i]))) {
+              gtk_widget_grab_focus(uc->buttons[i]);
+            }
         break;
       case CTRL_LISTBOX:
 #if !GTK_CHECK_VERSION(2,4,0)
@@ -1889,21 +1883,19 @@ GtkWidget *layout_ctrls(
         GtkWidget *w = NULL;
 
         switch (ctrl->generic.type) {
-          case CTRL_COLUMNS:
-            {
-                static const int simplecols[1] = { 100 };
-                columns_set_cols(cols, ctrl->columns.ncols,
-                                 (ctrl->columns.percentages ?
-                                  ctrl->columns.percentages : simplecols));
-            }
+          case CTRL_COLUMNS: {
+            static const int simplecols[1] = { 100 };
+            columns_set_cols(cols, ctrl->columns.ncols,
+                             (ctrl->columns.percentages ?
+                              ctrl->columns.percentages : simplecols));
             continue;                  /* no actual control created */
-          case CTRL_TABDELAY:
-            {
-                struct uctrl *uc = dlg_find_byctrl(dp, ctrl->tabdelay.ctrl);
-                if (uc)
-                    columns_taborder_last(cols, uc->toplevel);
-            }
+          }
+          case CTRL_TABDELAY: {
+            struct uctrl *uc = dlg_find_byctrl(dp, ctrl->tabdelay.ctrl);
+            if (uc)
+                columns_taborder_last(cols, uc->toplevel);
             continue;                  /* no actual control created */
+          }
         }
 
         uc = snew(struct uctrl);
@@ -1951,223 +1943,220 @@ GtkWidget *layout_ctrls(
                          ctrl->checkbox.shortcut, SHORTCUT_UCTRL, uc);
             left = true;
             break;
-          case CTRL_RADIO:
+          case CTRL_RADIO: {
             /*
              * Radio buttons get to go inside their own Columns, no
              * matter what.
              */
-            {
-                gint i, *percentages;
-                GSList *group;
+            gint i, *percentages;
+            GSList *group;
 
-                w = columns_new(0);
-                if (ctrl->generic.label) {
-                    GtkWidget *label = gtk_label_new(ctrl->generic.label);
-                    columns_add(COLUMNS(w), label, 0, 1);
-                    columns_force_left_align(COLUMNS(w), label);
-                    gtk_widget_show(label);
-                    shortcut_add(scs, label, ctrl->radio.shortcut,
-                                 SHORTCUT_UCTRL, uc);
-                    uc->label = label;
-                }
-                percentages = g_new(gint, ctrl->radio.ncolumns);
-                for (i = 0; i < ctrl->radio.ncolumns; i++) {
-                    percentages[i] =
-                        ((100 * (i+1) / ctrl->radio.ncolumns) -
-                         100 * i / ctrl->radio.ncolumns);
-                }
-                columns_set_cols(COLUMNS(w), ctrl->radio.ncolumns,
-                                 percentages);
-                g_free(percentages);
-                group = NULL;
+            w = columns_new(0);
+            if (ctrl->generic.label) {
+              GtkWidget *label = gtk_label_new(ctrl->generic.label);
+              columns_add(COLUMNS(w), label, 0, 1);
+              columns_force_left_align(COLUMNS(w), label);
+              gtk_widget_show(label);
+              shortcut_add(scs, label, ctrl->radio.shortcut,
+                           SHORTCUT_UCTRL, uc);
+              uc->label = label;
+            }
+            percentages = g_new(gint, ctrl->radio.ncolumns);
+            for (i = 0; i < ctrl->radio.ncolumns; i++) {
+              percentages[i] =
+                  ((100 * (i+1) / ctrl->radio.ncolumns) -
+                   100 * i / ctrl->radio.ncolumns);
+            }
+            columns_set_cols(COLUMNS(w), ctrl->radio.ncolumns,
+                             percentages);
+            g_free(percentages);
+            group = NULL;
 
-                uc->nbuttons = ctrl->radio.nbuttons;
-                uc->buttons = snewn(uc->nbuttons, GtkWidget *);
+            uc->nbuttons = ctrl->radio.nbuttons;
+            uc->buttons = snewn(uc->nbuttons, GtkWidget *);
 
-                for (i = 0; i < ctrl->radio.nbuttons; i++) {
-                    GtkWidget *b;
-                    gint colstart;
+            for (i = 0; i < ctrl->radio.nbuttons; i++) {
+              GtkWidget *b;
+              gint colstart;
 
-                    b = (gtk_radio_button_new_with_label
-                         (group, ctrl->radio.buttons[i]));
-                    uc->buttons[i] = b;
-                    group = gtk_radio_button_get_group(GTK_RADIO_BUTTON(b));
-                    colstart = i % ctrl->radio.ncolumns;
-                    columns_add(COLUMNS(w), b, colstart,
-                                (i == ctrl->radio.nbuttons-1 ?
-                                 ctrl->radio.ncolumns - colstart : 1));
-                    columns_force_left_align(COLUMNS(w), b);
-                    gtk_widget_show(b);
-                    g_signal_connect(G_OBJECT(b), "toggled",
-                                     G_CALLBACK(button_toggled), dp);
-                    g_signal_connect(G_OBJECT(b), "focus_in_event",
-                                     G_CALLBACK(widget_focus), dp);
-                    if (ctrl->radio.shortcuts) {
-                        shortcut_add(scs, gtk_bin_get_child(GTK_BIN(b)),
-                                     ctrl->radio.shortcuts[i],
-                                     SHORTCUT_UCTRL, uc);
-                    }
-                }
+              b = (gtk_radio_button_new_with_label
+                   (group, ctrl->radio.buttons[i]));
+              uc->buttons[i] = b;
+              group = gtk_radio_button_get_group(GTK_RADIO_BUTTON(b));
+              colstart = i % ctrl->radio.ncolumns;
+              columns_add(COLUMNS(w), b, colstart,
+                          (i == ctrl->radio.nbuttons-1 ?
+                           ctrl->radio.ncolumns - colstart : 1));
+              columns_force_left_align(COLUMNS(w), b);
+              gtk_widget_show(b);
+              g_signal_connect(G_OBJECT(b), "toggled",
+                               G_CALLBACK(button_toggled), dp);
+              g_signal_connect(G_OBJECT(b), "focus_in_event",
+                               G_CALLBACK(widget_focus), dp);
+              if (ctrl->radio.shortcuts) {
+                shortcut_add(scs, gtk_bin_get_child(GTK_BIN(b)),
+                             ctrl->radio.shortcuts[i],
+                             SHORTCUT_UCTRL, uc);
+              }
             }
             break;
-          case CTRL_EDITBOX:
-            {
-                GtkWidget *signalobject;
+          }
+          case CTRL_EDITBOX: {
+            GtkWidget *signalobject;
 
-                if (ctrl->editbox.has_list) {
+            if (ctrl->editbox.has_list) {
 #if !GTK_CHECK_VERSION(2,4,0)
-                    /*
-                     * GTK 1 combo box.
-                     */
-                    w = gtk_combo_new();
-                    gtk_combo_set_value_in_list(GTK_COMBO(w), false, true);
-                    uc->entry = GTK_COMBO(w)->entry;
-                    uc->list = GTK_COMBO(w)->list;
-                    signalobject = uc->entry;
+              /*
+               * GTK 1 combo box.
+               */
+              w = gtk_combo_new();
+              gtk_combo_set_value_in_list(GTK_COMBO(w), false, true);
+              uc->entry = GTK_COMBO(w)->entry;
+              uc->list = GTK_COMBO(w)->list;
+              signalobject = uc->entry;
 #else
-                    /*
-                     * GTK 2 combo box.
-                     */
-                    uc->listmodel = gtk_list_store_new(2, G_TYPE_INT,
-                                                       G_TYPE_STRING);
-                    w = gtk_combo_box_new_with_model_and_entry
-                        (GTK_TREE_MODEL(uc->listmodel));
-                    g_object_set(G_OBJECT(w), "entry-text-column", 1,
-                                 (const char *)NULL);
-                    /* We cannot support password combo boxes. */
-                    assert(!ctrl->editbox.password);
-                    uc->combo = w;
-                    signalobject = uc->combo;
+              /*
+               * GTK 2 combo box.
+               */
+              uc->listmodel = gtk_list_store_new(2, G_TYPE_INT,
+                                                 G_TYPE_STRING);
+              w = gtk_combo_box_new_with_model_and_entry
+                  (GTK_TREE_MODEL(uc->listmodel));
+              g_object_set(G_OBJECT(w), "entry-text-column", 1,
+                           (const char *)NULL);
+              /* We cannot support password combo boxes. */
+              assert(!ctrl->editbox.password);
+              uc->combo = w;
+              signalobject = uc->combo;
 #endif
-                } else {
-                    w = gtk_entry_new();
-                    if (ctrl->editbox.password)
-                        gtk_entry_set_visibility(GTK_ENTRY(w), false);
-                    uc->entry = w;
-                    signalobject = w;
-                }
-                uc->entrysig =
-                    g_signal_connect(G_OBJECT(signalobject), "changed",
-                                     G_CALLBACK(editbox_changed), dp);
-                g_signal_connect(G_OBJECT(signalobject), "key_press_event",
-                                 G_CALLBACK(editbox_key), dp);
-                g_signal_connect(G_OBJECT(signalobject), "focus_in_event",
-                                 G_CALLBACK(widget_focus), dp);
-                g_signal_connect(G_OBJECT(signalobject), "focus_out_event",
-                                 G_CALLBACK(editbox_lostfocus), dp);
-                g_signal_connect(G_OBJECT(signalobject), "focus_out_event",
-                                 G_CALLBACK(editbox_lostfocus), dp);
+            } else {
+              w = gtk_entry_new();
+              if (ctrl->editbox.password)
+                  gtk_entry_set_visibility(GTK_ENTRY(w), false);
+              uc->entry = w;
+              signalobject = w;
+            }
+            uc->entrysig =
+                g_signal_connect(G_OBJECT(signalobject), "changed",
+                                 G_CALLBACK(editbox_changed), dp);
+            g_signal_connect(G_OBJECT(signalobject), "key_press_event",
+                             G_CALLBACK(editbox_key), dp);
+            g_signal_connect(G_OBJECT(signalobject), "focus_in_event",
+                             G_CALLBACK(widget_focus), dp);
+            g_signal_connect(G_OBJECT(signalobject), "focus_out_event",
+                             G_CALLBACK(editbox_lostfocus), dp);
+            g_signal_connect(G_OBJECT(signalobject), "focus_out_event",
+                             G_CALLBACK(editbox_lostfocus), dp);
 
 #if !GTK_CHECK_VERSION(3,0,0)
-                /*
-                 * Edit boxes, for some strange reason, have a minimum
-                 * width of 150 in GTK 1.2. We don't want this - we'd
-                 * rather the edit boxes acquired their natural width
-                 * from the column layout of the rest of the box.
-                 */
-                {
-                    GtkRequisition req;
-                    gtk_widget_size_request(w, &req);
-                    gtk_widget_set_size_request(w, 10, req.height);
-                }
-#else
-                /*
-                 * In GTK 3, this is still true, but there's a special
-                 * method for GtkEntry in particular to fix it.
-                 */
-                if (GTK_IS_ENTRY(w))
-                    gtk_entry_set_width_chars(GTK_ENTRY(w), 1);
-#endif
-
-                if (ctrl->generic.label) {
-                    GtkWidget *label, *container;
-
-                    label = gtk_label_new(ctrl->generic.label);
-
-                    shortcut_add(scs, label, ctrl->editbox.shortcut,
-                                 SHORTCUT_FOCUS, uc->entry);
-
-                    container = columns_new(4);
-                    if (ctrl->editbox.percentwidth == 100) {
-                        columns_add(COLUMNS(container), label, 0, 1);
-                        columns_force_left_align(COLUMNS(container), label);
-                        columns_add(COLUMNS(container), w, 0, 1);
-                    } else {
-                        gint percentages[2];
-                        percentages[1] = ctrl->editbox.percentwidth;
-                        percentages[0] = 100 - ctrl->editbox.percentwidth;
-                        columns_set_cols(COLUMNS(container), 2, percentages);
-                        columns_add(COLUMNS(container), label, 0, 1);
-                        columns_force_left_align(COLUMNS(container), label);
-                        columns_add(COLUMNS(container), w, 1, 1);
-                        columns_force_same_height(COLUMNS(container),
-                                                  label, w);
-                    }
-                    gtk_widget_show(label);
-                    gtk_widget_show(w);
-
-                    w = container;
-                    uc->label = label;
-                }
-            }
-            break;
-          case CTRL_FILESELECT:
-          case CTRL_FONTSELECT:
+            /*
+             * Edit boxes, for some strange reason, have a minimum
+             * width of 150 in GTK 1.2. We don't want this - we'd
+             * rather the edit boxes acquired their natural width
+             * from the column layout of the rest of the box.
+             */
             {
-                GtkWidget *ww;
-                const char *browsebtn =
-                    (ctrl->generic.type == CTRL_FILESELECT ?
-                     "Browse..." : "Change...");
-
-                gint percentages[] = { 75, 25 };
-                w = columns_new(4);
-                columns_set_cols(COLUMNS(w), 2, percentages);
-
-                if (ctrl->generic.label) {
-                    ww = gtk_label_new(ctrl->generic.label);
-                    columns_add(COLUMNS(w), ww, 0, 2);
-                    columns_force_left_align(COLUMNS(w), ww);
-                    gtk_widget_show(ww);
-                    shortcut_add(scs, ww,
-                                 (ctrl->generic.type == CTRL_FILESELECT ?
-                                  ctrl->fileselect.shortcut :
-                                  ctrl->fontselect.shortcut),
-                                 SHORTCUT_UCTRL, uc);
-                    uc->label = ww;
-                }
-
-                uc->entry = ww = gtk_entry_new();
-#if !GTK_CHECK_VERSION(3,0,0)
-                {
-                    GtkRequisition req;
-                    gtk_widget_size_request(ww, &req);
-                    gtk_widget_set_size_request(ww, 10, req.height);
-                }
+              GtkRequisition req;
+              gtk_widget_size_request(w, &req);
+              gtk_widget_set_size_request(w, 10, req.height);
+            }
 #else
-                gtk_entry_set_width_chars(GTK_ENTRY(ww), 1);
+            /*
+             * In GTK 3, this is still true, but there's a special
+             * method for GtkEntry in particular to fix it.
+             */
+            if (GTK_IS_ENTRY(w))
+                gtk_entry_set_width_chars(GTK_ENTRY(w), 1);
 #endif
-                columns_add(COLUMNS(w), ww, 0, 1);
-                gtk_widget_show(ww);
 
-                uc->button = ww = gtk_button_new_with_label(browsebtn);
-                columns_add(COLUMNS(w), ww, 1, 1);
-                gtk_widget_show(ww);
+            if (ctrl->generic.label) {
+              GtkWidget *label, *container;
 
-                columns_force_same_height(COLUMNS(w), uc->entry, uc->button);
+              label = gtk_label_new(ctrl->generic.label);
 
-                g_signal_connect(G_OBJECT(uc->entry), "key_press_event",
-                                 G_CALLBACK(editbox_key), dp);
-                uc->entrysig =
-                    g_signal_connect(G_OBJECT(uc->entry), "changed",
-                                     G_CALLBACK(editbox_changed), dp);
-                g_signal_connect(G_OBJECT(uc->entry), "focus_in_event",
-                                 G_CALLBACK(widget_focus), dp);
-                g_signal_connect(G_OBJECT(uc->button), "focus_in_event",
-                                 G_CALLBACK(widget_focus), dp);
-                g_signal_connect(G_OBJECT(ww), "clicked",
-                                 G_CALLBACK(filefont_clicked), dp);
+              shortcut_add(scs, label, ctrl->editbox.shortcut,
+                           SHORTCUT_FOCUS, uc->entry);
+
+              container = columns_new(4);
+              if (ctrl->editbox.percentwidth == 100) {
+                columns_add(COLUMNS(container), label, 0, 1);
+                columns_force_left_align(COLUMNS(container), label);
+                columns_add(COLUMNS(container), w, 0, 1);
+              } else {
+                gint percentages[2];
+                percentages[1] = ctrl->editbox.percentwidth;
+                percentages[0] = 100 - ctrl->editbox.percentwidth;
+                columns_set_cols(COLUMNS(container), 2, percentages);
+                columns_add(COLUMNS(container), label, 0, 1);
+                columns_force_left_align(COLUMNS(container), label);
+                columns_add(COLUMNS(container), w, 1, 1);
+                columns_force_same_height(COLUMNS(container),
+                                          label, w);
+              }
+              gtk_widget_show(label);
+              gtk_widget_show(w);
+
+              w = container;
+              uc->label = label;
             }
             break;
+          }
+          case CTRL_FILESELECT:
+          case CTRL_FONTSELECT: {
+            GtkWidget *ww;
+            const char *browsebtn =
+                (ctrl->generic.type == CTRL_FILESELECT ?
+                 "Browse..." : "Change...");
+
+            gint percentages[] = { 75, 25 };
+            w = columns_new(4);
+            columns_set_cols(COLUMNS(w), 2, percentages);
+
+            if (ctrl->generic.label) {
+              ww = gtk_label_new(ctrl->generic.label);
+              columns_add(COLUMNS(w), ww, 0, 2);
+              columns_force_left_align(COLUMNS(w), ww);
+              gtk_widget_show(ww);
+              shortcut_add(scs, ww,
+                           (ctrl->generic.type == CTRL_FILESELECT ?
+                            ctrl->fileselect.shortcut :
+                            ctrl->fontselect.shortcut),
+                           SHORTCUT_UCTRL, uc);
+              uc->label = ww;
+            }
+
+            uc->entry = ww = gtk_entry_new();
+#if !GTK_CHECK_VERSION(3,0,0)
+            {
+              GtkRequisition req;
+              gtk_widget_size_request(ww, &req);
+              gtk_widget_set_size_request(ww, 10, req.height);
+            }
+#else
+            gtk_entry_set_width_chars(GTK_ENTRY(ww), 1);
+#endif
+            columns_add(COLUMNS(w), ww, 0, 1);
+            gtk_widget_show(ww);
+
+            uc->button = ww = gtk_button_new_with_label(browsebtn);
+            columns_add(COLUMNS(w), ww, 1, 1);
+            gtk_widget_show(ww);
+
+            columns_force_same_height(COLUMNS(w), uc->entry, uc->button);
+
+            g_signal_connect(G_OBJECT(uc->entry), "key_press_event",
+                             G_CALLBACK(editbox_key), dp);
+            uc->entrysig =
+                g_signal_connect(G_OBJECT(uc->entry), "changed",
+                                 G_CALLBACK(editbox_changed), dp);
+            g_signal_connect(G_OBJECT(uc->entry), "focus_in_event",
+                             G_CALLBACK(widget_focus), dp);
+            g_signal_connect(G_OBJECT(uc->button), "focus_in_event",
+                             G_CALLBACK(widget_focus), dp);
+            g_signal_connect(G_OBJECT(ww), "clicked",
+                             G_CALLBACK(filefont_clicked), dp);
+            break;
+          }
           case CTRL_LISTBOX:
 
 #if GTK_CHECK_VERSION(2,0,0)
@@ -2502,6 +2491,28 @@ GtkWidget *layout_ctrls(
                     COLUMN_SPAN(ctrl->generic.column));
         if (left)
             columns_force_left_align(cols, w);
+        if (ctrl->generic.align_next_to) {
+            /*
+             * Implement align_next_to by simply forcing the two
+             * controls to have the same height of size allocation. At
+             * least for the controls we're currently doing this with,
+             * the GTK layout system will automatically vertically
+             * centre each control within its allocation, which will
+             * get the two controls aligned alongside each other
+             * reasonably well.
+             */
+            struct uctrl *uc2 = dlg_find_byctrl(
+                dp, ctrl->generic.align_next_to);
+            assert(uc2);
+            columns_force_same_height(cols, w, uc2->toplevel);
+
+#if GTK_CHECK_VERSION(3, 10, 0)
+            /* Slightly nicer to align baselines than just vertically
+             * centring, where the option is available */
+            gtk_widget_set_valign(w, GTK_ALIGN_BASELINE);
+            gtk_widget_set_valign(uc2->toplevel, GTK_ALIGN_BASELINE);
+#endif
+        }
         gtk_widget_show(w);
 
         uc->toplevel = w;
@@ -3279,24 +3290,25 @@ static void messagebox_handler(union control *ctrl, dlgparam *dp,
         dlg_end(dp, ctrl->generic.context.i);
 }
 
-const struct message_box_button button_array_yn[] = {
+static const struct message_box_button button_array_yn[] = {
     {"Yes", 'y', +1, 1},
     {"No", 'n', -1, 0},
 };
 const struct message_box_buttons buttons_yn = {
     button_array_yn, lenof(button_array_yn),
 };
-const struct message_box_button button_array_ok[] = {
+static const struct message_box_button button_array_ok[] = {
     {"OK", 'o', 1, 1},
 };
 const struct message_box_buttons buttons_ok = {
     button_array_ok, lenof(button_array_ok),
 };
 
-GtkWidget *create_message_box(
+static GtkWidget *create_message_box_general(
     GtkWidget *parentwin, const char *title, const char *msg, int minwid,
     bool selectable, const struct message_box_buttons *buttons,
-    post_dialog_fn_t after, void *afterctx)
+    post_dialog_fn_t after, void *afterctx,
+    GtkWidget *(*action_postproc)(GtkWidget *, void *), void *postproc_ctx)
 {
     GtkWidget *window, *w0, *w1;
     struct controlset *s0, *s1;
@@ -3366,6 +3378,8 @@ GtkWidget *create_message_box(
     window = our_dialog_new();
     gtk_window_set_title(GTK_WINDOW(window), title);
     w0 = layout_ctrls(dp, NULL, &scs, s0, GTK_WINDOW(window));
+    if (action_postproc)
+        w0 = action_postproc(w0, postproc_ctx);
     our_dialog_set_action_area(GTK_WINDOW(window), w0);
     gtk_widget_show(w0);
     w1 = layout_ctrls(dp, NULL, &scs, s1, GTK_WINDOW(window));
@@ -3424,20 +3438,34 @@ GtkWidget *create_message_box(
     return window;
 }
 
-struct verify_ssh_host_key_result_ctx {
+GtkWidget *create_message_box(
+    GtkWidget *parentwin, const char *title, const char *msg, int minwid,
+    bool selectable, const struct message_box_buttons *buttons,
+    post_dialog_fn_t after, void *afterctx)
+{
+    return create_message_box_general(
+        parentwin, title, msg, minwid, selectable, buttons, after, afterctx,
+        NULL /* action_postproc */, NULL /* postproc_ctx */);
+}
+
+struct verify_ssh_host_key_dialog_ctx {
     char *host;
     int port;
     char *keytype;
     char *keystr;
+    char *more_info;
     void (*callback)(void *callback_ctx, int result);
     void *callback_ctx;
     Seat *seat;
+
+    GtkWidget *main_dialog;
+    GtkWidget *more_info_dialog;
 };
 
 static void verify_ssh_host_key_result_callback(void *vctx, int result)
 {
-    struct verify_ssh_host_key_result_ctx *ctx =
-        (struct verify_ssh_host_key_result_ctx *)vctx;
+    struct verify_ssh_host_key_dialog_ctx *ctx =
+        (struct verify_ssh_host_key_dialog_ctx *)vctx;
 
     if (result >= 0) {
         int logical_result;
@@ -3466,15 +3494,54 @@ static void verify_ssh_host_key_result_callback(void *vctx, int result)
      */
     unregister_dialog(ctx->seat, DIALOG_SLOT_NETWORK_PROMPT);
 
+    if (ctx->more_info_dialog)
+        gtk_widget_destroy(ctx->more_info_dialog);
+
     sfree(ctx->host);
     sfree(ctx->keytype);
     sfree(ctx->keystr);
+    sfree(ctx->more_info);
     sfree(ctx);
 }
 
+static GtkWidget *add_more_info_button(GtkWidget *w, void *vctx)
+{
+    GtkWidget *box = gtk_hbox_new(false, 10);
+    gtk_widget_show(box);
+    gtk_box_pack_end(GTK_BOX(box), w, false, true, 0);
+    GtkWidget *button = gtk_button_new_with_label("More info...");
+    gtk_widget_show(button);
+    gtk_box_pack_start(GTK_BOX(box), button, false, true, 0);
+    *(GtkWidget **)vctx = button;
+    return box;
+}
+
+static void more_info_closed(void *vctx, int result)
+{
+    struct verify_ssh_host_key_dialog_ctx *ctx =
+        (struct verify_ssh_host_key_dialog_ctx *)vctx;
+
+    ctx->more_info_dialog = NULL;
+}
+
+static void more_info_button_clicked(GtkButton *button, gpointer vctx)
+{
+    struct verify_ssh_host_key_dialog_ctx *ctx =
+        (struct verify_ssh_host_key_dialog_ctx *)vctx;
+
+    if (ctx->more_info_dialog)
+        return;
+
+    ctx->more_info_dialog = create_message_box(
+        ctx->main_dialog, "Host key information", ctx->more_info,
+        string_width("SHA256 fingerprint: ecdsa-sha2-nistp521 521 "
+                     "abcdefghkmnopqrsuvwxyzABCDEFGHJKLMNOPQRSTUW"), true,
+        &buttons_ok, more_info_closed, ctx);
+}
+
 int gtk_seat_verify_ssh_host_key(
-    Seat *seat, const char *host, int port,
-    const char *keytype, char *keystr, char *fingerprint,
+    Seat *seat, const char *host, int port, const char *keytype,
+    char *keystr, const char *keydisp, char **fingerprints,
     void (*callback)(void *ctx, int result), void *ctx)
 {
     static const char absenttxt[] =
@@ -3514,7 +3581,7 @@ int gtk_seat_verify_ssh_host_key(
 
     char *text;
     int ret;
-    struct verify_ssh_host_key_result_ctx *result_ctx;
+    struct verify_ssh_host_key_dialog_ctx *result_ctx;
     GtkWidget *mainwin, *msgbox;
 
     /*
@@ -3525,9 +3592,13 @@ int gtk_seat_verify_ssh_host_key(
     if (ret == 0)                      /* success - key matched OK */
         return 1;
 
-    text = dupprintf((ret == 2 ? wrongtxt : absenttxt), keytype, fingerprint);
+    FingerprintType fptype_default =
+        ssh2_pick_default_fingerprint(fingerprints);
 
-    result_ctx = snew(struct verify_ssh_host_key_result_ctx);
+    text = dupprintf((ret == 2 ? wrongtxt : absenttxt), keytype,
+                     fingerprints[fptype_default]);
+
+    result_ctx = snew(struct verify_ssh_host_key_dialog_ctx);
     result_ctx->callback = callback;
     result_ctx->callback_ctx = ctx;
     result_ctx->host = dupstr(host);
@@ -3537,9 +3608,40 @@ int gtk_seat_verify_ssh_host_key(
     result_ctx->seat = seat;
 
     mainwin = GTK_WIDGET(gtk_seat_get_window(seat));
-    msgbox = create_message_box(
-        mainwin, "PuTTY Security Alert", text, string_width(fingerprint), true,
-        &buttons_hostkey, verify_ssh_host_key_result_callback, result_ctx);
+    GtkWidget *more_info_button = NULL;
+    msgbox = create_message_box_general(
+        mainwin, "PuTTY Security Alert", text,
+        string_width(fingerprints[fptype_default]), true,
+        &buttons_hostkey, verify_ssh_host_key_result_callback, result_ctx,
+        add_more_info_button, &more_info_button);
+
+    result_ctx->main_dialog = msgbox;
+    result_ctx->more_info_dialog = NULL;
+
+    strbuf *sb = strbuf_new();
+    if (fingerprints[SSH_FPTYPE_SHA256])
+        strbuf_catf(sb, "SHA256 fingerprint: %s\n",
+                    fingerprints[SSH_FPTYPE_SHA256]);
+    if (fingerprints[SSH_FPTYPE_MD5])
+        strbuf_catf(sb, "MD5 fingerprint: %s\n",
+                    fingerprints[SSH_FPTYPE_MD5]);
+    strbuf_catf(sb, "Full text of host's public key:");
+    /* We have to manually wrap the public key, or else the GtkLabel
+     * will resize itself to accommodate the longest word, which will
+     * lead to a hilariously wide message box. */
+    for (const char *p = keydisp, *q = p + strlen(p); p < q ;) {
+        size_t linelen = q-p;
+        if (linelen > 72)
+            linelen = 72;
+        put_byte(sb, '\n');
+        put_data(sb, p, linelen);
+        p += linelen;
+    }
+    result_ctx->more_info = strbuf_to_str(sb);
+
+    g_signal_connect(G_OBJECT(more_info_button), "clicked",
+                     G_CALLBACK(more_info_button_clicked), result_ctx);
+
     register_dialog(seat, DIALOG_SLOT_NETWORK_PROMPT, msgbox);
 
     sfree(text);
@@ -3675,6 +3777,11 @@ void nonfatal(const char *p, ...)
 
 static GtkWidget *aboutbox = NULL;
 
+static void about_window_destroyed(GtkWidget *widget, gpointer data)
+{
+    aboutbox = NULL;
+}
+
 static void about_close_clicked(GtkButton *button, gpointer data)
 {
     gtk_widget_destroy(aboutbox);
@@ -3719,6 +3826,9 @@ void about_box(void *window)
     title = dupcat("About ", appname);
     gtk_window_set_title(GTK_WINDOW(aboutbox), title);
     sfree(title);
+
+    g_signal_connect(G_OBJECT(aboutbox), "destroy",
+                     G_CALLBACK(about_window_destroyed), NULL);
 
     w = gtk_button_new_with_label("Close");
     gtk_widget_set_can_default(w, true);

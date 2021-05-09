@@ -32,10 +32,10 @@
 
 #include "putty.h"
 
-static const char *null_init(Seat *, Backend **, LogContext *, Conf *,
-                             const char *, int, char **, int, int);
-static const char *loop_init(Seat *, Backend **, LogContext *, Conf *,
-                             const char *, int, char **, int, int);
+static char *null_init(const BackendVtable *, Seat *, Backend **, LogContext *,
+                       Conf *, const char *, int, char **, bool, bool);
+static char *loop_init(const BackendVtable *, Seat *, Backend **, LogContext *,
+                       Conf *, const char *, int, char **, bool, bool);
 static void null_free(Backend *);
 static void loop_free(Backend *);
 static void null_reconfig(Backend *, Conf *);
@@ -53,18 +53,48 @@ static void null_provide_ldisc(Backend *, Ldisc *);
 static void null_unthrottle(Backend *, size_t);
 static int null_cfg_info(Backend *);
 
-const struct BackendVtable null_backend = {
-    null_init, null_free, null_reconfig, null_send, null_sendbuffer, null_size,
-    null_special, null_get_specials, null_connected, null_exitcode, null_sendok,
-    null_ldisc, null_provide_ldisc, null_unthrottle,
-    null_cfg_info, NULL /* test_for_upstream */, "null", -1, 0
+const BackendVtable null_backend = {
+    .init = null_init,
+    .free = null_free,
+    .reconfig = null_reconfig,
+    .send = null_send,
+    .sendbuffer = null_sendbuffer,
+    .size = null_size,
+    .special = null_special,
+    .get_specials = null_get_specials,
+    .connected = null_connected,
+    .exitcode = null_exitcode,
+    .sendok = null_sendok,
+    .ldisc_option_state = null_ldisc,
+    .provide_ldisc = null_provide_ldisc,
+    .unthrottle = null_unthrottle,
+    .cfg_info = null_cfg_info,
+    .id = "null",
+    .displayname = "null",
+    .protocol = -1,
+    .default_port = 0,
 };
 
-const struct BackendVtable loop_backend = {
-    loop_init, loop_free, null_reconfig, loop_send, null_sendbuffer, null_size,
-    null_special, null_get_specials, null_connected, null_exitcode, null_sendok,
-    null_ldisc, null_provide_ldisc, null_unthrottle,
-    null_cfg_info, NULL /* test_for_upstream */, "loop", -1, 0
+const BackendVtable loop_backend = {
+    .init = loop_init,
+    .free = loop_free,
+    .reconfig = null_reconfig,
+    .send = loop_send,
+    .sendbuffer = null_sendbuffer,
+    .size = null_size,
+    .special = null_special,
+    .get_specials = null_get_specials,
+    .connected = null_connected,
+    .exitcode = null_exitcode,
+    .sendok = null_sendok,
+    .ldisc_option_state = null_ldisc,
+    .provide_ldisc = null_provide_ldisc,
+    .unthrottle = null_unthrottle,
+    .cfg_info = null_cfg_info,
+    .id = "loop",
+    .displayname = "loop",
+    .protocol = -1,
+    .default_port = 0,
 };
 
 struct loop_state {
@@ -72,10 +102,10 @@ struct loop_state {
     Backend backend;
 };
 
-static const char *null_init(Seat *seat, Backend **backend_handle,
-                               LogContext *logctx, Conf *conf,
-                               const char *host, int port, char **realhost,
-                               int nodelay, int keepalive) {
+static char *null_init(const BackendVtable *vt, Seat *seat,
+                       Backend **backend_handle, LogContext *logctx,
+                       Conf *conf, const char *host, int port,
+                       char **realhost, bool nodelay, bool keepalive) {
     /* No local authentication phase in this protocol */
     seat_set_trust_status(seat, false);
 
@@ -83,10 +113,10 @@ static const char *null_init(Seat *seat, Backend **backend_handle,
     return NULL;
 }
 
-static const char *loop_init(Seat *seat, Backend **backend_handle,
-                             LogContext *logctx, Conf *conf,
-                             const char *host, int port, char **realhost,
-                             int nodelay, int keepalive) {
+static char *loop_init(const BackendVtable *vt, Seat *seat,
+                       Backend **backend_handle, LogContext *logctx,
+                       Conf *conf, const char *host, int port,
+                       char **realhost, bool nodelay, bool keepalive) {
     struct loop_state *st = snew(struct loop_state);
 
     /* No local authentication phase in this protocol */

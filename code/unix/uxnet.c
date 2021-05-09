@@ -186,6 +186,11 @@ void sk_cleanup(void)
 
 SockAddr *sk_namelookup(const char *host, char **canonicalname, int address_family)
 {
+    if (host[0] == '/') {
+        *canonicalname = dupstr(host);
+        return unix_sock_addr(host);
+    }
+
     SockAddr *ret = snew(SockAddr);
 #ifndef NO_IPV6
     struct addrinfo hints;
@@ -500,15 +505,15 @@ static void sk_net_set_frozen(Socket *s, bool is_frozen);
 static SocketPeerInfo *sk_net_peer_info(Socket *s);
 static const char *sk_net_socket_error(Socket *s);
 
-static struct SocketVtable NetSocket_sockvt = {
-    sk_net_plug,
-    sk_net_close,
-    sk_net_write,
-    sk_net_write_oob,
-    sk_net_write_eof,
-    sk_net_set_frozen,
-    sk_net_socket_error,
-    sk_net_peer_info,
+static const SocketVtable NetSocket_sockvt = {
+    .plug = sk_net_plug,
+    .close = sk_net_close,
+    .write = sk_net_write,
+    .write_oob = sk_net_write_oob,
+    .write_eof = sk_net_write_eof,
+    .set_frozen = sk_net_set_frozen,
+    .socket_error = sk_net_socket_error,
+    .peer_info = sk_net_peer_info,
 };
 
 static Socket *sk_net_accept(accept_ctx_t ctx, Plug *plug)
@@ -575,7 +580,8 @@ static int try_connect(NetSocket *sock)
     {
         SockAddr thisaddr = sk_extractaddr_tmp(
             sock->addr, &sock->step);
-        plug_log(sock->plug, 0, &thisaddr, sock->port, NULL, 0);
+        plug_log(sock->plug, PLUGLOG_CONNECT_TRYING,
+                 &thisaddr, sock->port, NULL, 0);
     }
 
     /*
@@ -603,7 +609,7 @@ static int try_connect(NetSocket *sock)
         }
     }
 
-    if (sock->nodelay) {
+    if (sock->nodelay && family != AF_UNIX) {
         int b = 1;
         if (setsockopt(s, IPPROTO_TCP, TCP_NODELAY,
                        (void *) &b, sizeof(b)) < 0) {
@@ -705,7 +711,6 @@ static int try_connect(NetSocket *sock)
         break;
 #endif
       case AF_UNIX:
-        assert(sock->port == 0);       /* to catch confused people */
         assert(strlen(sock->addr->hostname) < sizeof u.su.sun_path);
         u.su.sun_family = AF_UNIX;
         strcpy(u.su.sun_path, sock->addr->hostname);
@@ -732,6 +737,10 @@ static int try_connect(NetSocket *sock)
          */
         sock->connected = true;
         sock->writable = true;
+
+        SockAddr thisaddr = sk_extractaddr_tmp(sock->addr, &sock->step);
+        plug_log(sock->plug, PLUGLOG_CONNECT_SUCCESS,
+                 &thisaddr, sock->port, NULL, 0);
     }
 
     uxsel_tell(sock);
@@ -746,7 +755,8 @@ static int try_connect(NetSocket *sock)
     if (err) {
         SockAddr thisaddr = sk_extractaddr_tmp(
             sock->addr, &sock->step);
-        plug_log(sock->plug, 1, &thisaddr, sock->port, strerror(err), err);
+        plug_log(sock->plug, PLUGLOG_CONNECT_FAILED,
+                 &thisaddr, sock->port, strerror(err), err);
     }
     return err;
 }
@@ -1421,7 +1431,8 @@ static void net_select_result(int fd, int event)
                     assert(s->addr);
 
                     thisaddr = sk_extractaddr_tmp(s->addr, &s->step);
-                    plug_log(s->plug, 1, &thisaddr, s->port, errmsg, err);
+                    plug_log(s->plug, PLUGLOG_CONNECT_FAILED,
+                             &thisaddr, s->port, errmsg, err);
 
                     while (err && s->addr && sk_nextaddr(s->addr, &s->step)) {
                         err = try_connect(s);
@@ -1432,6 +1443,13 @@ static void net_select_result(int fd, int event)
                     }
                     if (!s->connected)
                         return;      /* another async attempt in progress */
+                } else {
+                    /*
+                     * The connection attempt succeeded.
+                     */
+                    SockAddr thisaddr = sk_extractaddr_tmp(s->addr, &s->step);
+                    plug_log(s->plug, PLUGLOG_CONNECT_SUCCESS,
+                             &thisaddr, s->port, NULL, 0);
                 }
             }
 

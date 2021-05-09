@@ -16,9 +16,15 @@
   <ItemGroup>
     <ClCompile Include="..\..\..\aqsync.c">
       <Filter>Source Files</Filter>
+    </ClCompile>    <ClCompile Include="..\..\..\be_misc.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>    <ClCompile Include="..\..\..\callback.c">
+      <Filter>Source Files</Filter>
     </ClCompile>    <ClCompile Include="..\..\..\conf.c">
       <Filter>Source Files</Filter>
     </ClCompile>    <ClCompile Include="..\..\..\ecc.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>    <ClCompile Include="..\..\..\errsock.c">
       <Filter>Source Files</Filter>
     </ClCompile>    <ClCompile Include="..\..\..\marshal.c">
       <Filter>Source Files</Filter>
@@ -32,7 +38,11 @@
       <Filter>Source Files</Filter>
     </ClCompile>    <ClCompile Include="..\..\..\sshaes.c">
       <Filter>Source Files</Filter>
+    </ClCompile>    <ClCompile Include="..\..\..\sshargon2.c">
+      <Filter>Source Files</Filter>
     </ClCompile>    <ClCompile Include="..\..\..\sshauxcrypt.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>    <ClCompile Include="..\..\..\sshblake2.c">
       <Filter>Source Files</Filter>
     </ClCompile>    <ClCompile Include="..\..\..\sshdes.c">
       <Filter>Source Files</Filter>
@@ -54,6 +64,8 @@
       <Filter>Source Files</Filter>
     </ClCompile>    <ClCompile Include="..\..\..\sshsha.c">
       <Filter>Source Files</Filter>
+    </ClCompile>    <ClCompile Include="..\..\..\sshsha3.c">
+      <Filter>Source Files</Filter>
     </ClCompile>    <ClCompile Include="..\..\..\stripctrl.c">
       <Filter>Source Files</Filter>
     </ClCompile>    <ClCompile Include="..\..\..\tree234.c">
@@ -64,17 +76,31 @@
       <Filter>Source Files</Filter>
     </ClCompile>    <ClCompile Include="..\..\..\wcwidth.c">
       <Filter>Source Files</Filter>
+    </ClCompile>    <ClCompile Include="..\..\wincapi.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>    <ClCompile Include="..\..\winhandl.c">
+      <Filter>Source Files</Filter>
     </ClCompile>    <ClCompile Include="..\..\winhelp.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>    <ClCompile Include="..\..\winhsock.c">
       <Filter>Source Files</Filter>
     </ClCompile>    <ClCompile Include="..\..\winmisc.c">
       <Filter>Source Files</Filter>
     </ClCompile>    <ClCompile Include="..\..\winmiscs.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>    <ClCompile Include="..\..\winnet.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>    <ClCompile Include="..\..\winnpc.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>    <ClCompile Include="..\..\winnps.c">
       <Filter>Source Files</Filter>
     </ClCompile>    <ClCompile Include="..\..\winpgnt.c">
       <Filter>Source Files</Filter>
     </ClCompile>    <ClCompile Include="..\..\winpgntc.c">
       <Filter>Source Files</Filter>
     </ClCompile>    <ClCompile Include="..\..\winsecur.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>    <ClCompile Include="..\..\winselgui.c">
       <Filter>Source Files</Filter>
     </ClCompile>    <ClCompile Include="..\..\winutils.c">
       <Filter>Source Files</Filter>
@@ -102,6 +128,8 @@
       <Filter>Header Files</Filter>
     </ClInclude>    <ClInclude Include="..\..\..\pageant.h">
       <Filter>Header Files</Filter>
+    </ClInclude>    <ClInclude Include="..\..\..\proxy.h">
+      <Filter>Header Files</Filter>
     </ClInclude>    <ClInclude Include="..\..\..\putty.h">
       <Filter>Header Files</Filter>
     </ClInclude>    <ClInclude Include="..\..\..\puttymem.h">
@@ -124,9 +152,13 @@
       <Filter>Header Files</Filter>
     </ClInclude>    <ClInclude Include="..\..\..\version.h">
       <Filter>Header Files</Filter>
+    </ClInclude>    <ClInclude Include="..\..\pageant-rc.h">
+      <Filter>Header Files</Filter>
     </ClInclude>    <ClInclude Include="..\..\rcstuff.h">
       <Filter>Header Files</Filter>
     </ClInclude>    <ClInclude Include="..\..\win_res.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>    <ClInclude Include="..\..\wincapi.h">
       <Filter>Header Files</Filter>
     </ClInclude>    <ClInclude Include="..\..\winhelp.h">
       <Filter>Header Files</Filter>

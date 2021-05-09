@@ -9,20 +9,21 @@
 #include <assert.h>
 #include <tchar.h>
 
-#define PUTTY_DO_GLOBALS
-
 #include "putty.h"
 #include "ssh.h"
 #include "misc.h"
 #include "tree234.h"
 #include "winsecur.h"
+#include "wincapi.h"
 #include "pageant.h"
 #include "licence.h"
+#include "pageant-rc.h"
 
 #include <shellapi.h>
 
 #ifdef PUTTY_CAC
 #include "cert_common.h"
+ssh2_userkey* pageant_nth_ssh2_key(int i);
 #endif // PUTTY_CAC
 
 #ifndef NO_SECURITY
@@ -33,41 +34,28 @@
 #endif
 #endif
 
-#define IDI_MAINICON 200
-#define IDI_TRAYICON 201
-
 #define WM_SYSTRAY   (WM_APP + 6)
 #define WM_SYSTRAY2  (WM_APP + 7)
 
 #define AGENT_COPYDATA_ID 0x804e50ba   /* random goop */
 
-/* From MSDN: In the WM_SYSCOMMAND message, the four low-order bits of
- * wParam are used by Windows, and should be masked off, so we shouldn't
- * attempt to store information in them. Hence all these identifiers have
- * the low 4 bits clear. Also, identifiers should < 0xF000. */
-
-#define IDM_CLOSE    0x0010
-#define IDM_VIEWKEYS 0x0020
-#define IDM_ADDKEY   0x0030
-#define IDM_HELP     0x0040
-#define IDM_ABOUT    0x0050
-#ifdef PUTTY_CAC
-#define IDM_ADDCAPI  0x0070
-#define IDM_ADDPKCS  0x0080
-#define IDM_AUTOCERT 0x0090
-#define IDM_SAVELIST 0x00A0
-#define IDM_PINCACHE 0x00B0
-#define IDM_CERTAUTH 0x00C0
-#define IDM_SCONLY   0x00D0
-#define IDM_NOEXPR   0x00E0
-#endif // PUTTY_CAC
-
 #define APPNAME "Pageant"
 
+/* Titles and class names for invisible windows. IPCWINTITLE and
+ * IPCCLASSNAME are critical to backwards compatibility: WM_COPYDATA
+ * based Pageant clients will call FindWindow with those parameters
+ * and expect to find the Pageant IPC receiver. */
+#define TRAYWINTITLE  "Pageant"
+#define TRAYCLASSNAME "PageantSysTray"
+#define IPCWINTITLE   "Pageant"
+#define IPCCLASSNAME  "Pageant"
+
+static HWND traywindow;
 static HWND keylist;
 static HWND aboutbox;
 static HMENU systray_menu, session_menu;
 static bool already_running;
+static FingerprintType fptype = SSH_FPTYPE_DEFAULT;
 
 static char *putty_path;
 static bool restrict_putty_acl = false;
@@ -75,12 +63,36 @@ static bool restrict_putty_acl = false;
 /* CWD for "add key" file requester. */
 static filereq *keypath = NULL;
 
-#define IDM_PUTTY         0x0060
-#define IDM_SESSIONS_BASE 0x1000
-#define IDM_SESSIONS_MAX  0x2000
+/* From MSDN: In the WM_SYSCOMMAND message, the four low-order bits of
+ * wParam are used by Windows, and should be masked off, so we shouldn't
+ * attempt to store information in them. Hence all these identifiers have
+ * the low 4 bits clear. Also, identifiers should < 0xF000. */
+
+#define IDM_CLOSE              0x0010
+#define IDM_VIEWKEYS           0x0020
+#define IDM_ADDKEY             0x0030
+#define IDM_ADDKEY_ENCRYPTED   0x0040
+#define IDM_REMOVE_ALL         0x0050
+#define IDM_REENCRYPT_ALL      0x0060
+#define IDM_HELP               0x0070
+#define IDM_ABOUT              0x0080
+#define IDM_PUTTY              0x0090
+#define IDM_SESSIONS_BASE      0x1000
+#define IDM_SESSIONS_MAX       0x2000
 #define PUTTY_REGKEY      "Software\\SimonTatham\\PuTTY\\Sessions"
 #define PUTTY_DEFAULT     "Default%20Settings"
 static int initial_menuitems_count;
+
+#ifdef PUTTY_CAC
+#define IDM_ADDCAPI  0x0100
+#define IDM_ADDPKCS  0x0110
+#define IDM_AUTOCERT 0x0120
+#define IDM_SAVELIST 0x0130
+#define IDM_PINCACHE 0x0140
+#define IDM_CERTAUTH 0x0150
+#define IDM_SCONLY   0x0160
+#define IDM_NOEXPR   0x0170
+#endif // PUTTY_CAC
 
 /*
  * Print a modal (Really Bad) message box and perform a fatal exit.
@@ -93,7 +105,7 @@ void modalfatalbox(const char *fmt, ...)
     va_start(ap, fmt);
     buf = dupvprintf(fmt, ap);
     va_end(ap);
-    MessageBox(hwnd, buf, "Pageant Fatal Error",
+    MessageBox(traywindow, buf, "Pageant Fatal Error",
                MB_SYSTEMMODAL | MB_ICONERROR | MB_OK);
     sfree(buf);
     exit(1);
@@ -102,8 +114,11 @@ void modalfatalbox(const char *fmt, ...)
 static bool has_security;
 
 struct PassphraseProcStruct {
-    char **passphrase;
-    char *comment;
+    bool modal;
+    const char *help_topic;
+    PageantClientDialogId *dlgid;
+    char *passphrase;
+    const char *comment;
 };
 
 /*
@@ -114,7 +129,7 @@ static INT_PTR CALLBACK LicenceProc(HWND hwnd, UINT msg,
 {
     switch (msg) {
       case WM_INITDIALOG:
-        SetDlgItemText(hwnd, 1000, LICENCE_TEXT("\r\n\r\n"));
+        SetDlgItemText(hwnd, IDC_LICENCE_TEXTBOX, LICENCE_TEXT("\r\n\r\n"));
         return 1;
       case WM_COMMAND:
         switch (LOWORD(wParam)) {
@@ -138,18 +153,18 @@ static INT_PTR CALLBACK AboutProc(HWND hwnd, UINT msg,
                               WPARAM wParam, LPARAM lParam)
 {
     switch (msg) {
-      case WM_INITDIALOG:
-        {
-            char *buildinfo_text = buildinfo("\r\n");
-            char *text = dupprintf
-                ("Pageant\r\n\r\n%s\r\n\r\n%s\r\n\r\n%s",
-                 ver, buildinfo_text,
-                 "\251 " SHORT_COPYRIGHT_DETAILS ". All rights reserved.");
-            sfree(buildinfo_text);
-            SetDlgItemText(hwnd, 1000, text);
-            sfree(text);
-        }
+      case WM_INITDIALOG: {
+        char *buildinfo_text = buildinfo("\r\n");
+        char *text = dupprintf
+            ("Pageant\r\n\r\n%s\r\n\r\n%s\r\n\r\n%s",
+             ver, buildinfo_text,
+             "\251 " SHORT_COPYRIGHT_DETAILS ". All rights reserved.");
+        sfree(buildinfo_text);
+        SetDlgItemText(hwnd, IDC_ABOUT_TEXTBOX, text);
+        MakeDlgItemBorderless(hwnd, IDC_ABOUT_TEXTBOX);
+        sfree(text);
         return 1;
+      }
       case WM_COMMAND:
         switch (LOWORD(wParam)) {
           case IDOK:
@@ -157,13 +172,13 @@ static INT_PTR CALLBACK AboutProc(HWND hwnd, UINT msg,
             aboutbox = NULL;
             DestroyWindow(hwnd);
             return 0;
-          case 101:
+          case IDC_ABOUT_LICENCE:
             EnableWindow(hwnd, 0);
-            DialogBox(hinst, MAKEINTRESOURCE(214), hwnd, LicenceProc);
+            DialogBox(hinst, MAKEINTRESOURCE(IDD_LICENCE), hwnd, LicenceProc);
             EnableWindow(hwnd, 1);
             SetActiveWindow(hwnd);
             return 0;
-          case 102:
+          case IDC_ABOUT_WEBSITE:
             /* Load web browser */
             ShellExecute(hwnd, "open",
                          "https://www.chiark.greenend.org.uk/~sgtatham/putty/",
@@ -179,7 +194,42 @@ static INT_PTR CALLBACK AboutProc(HWND hwnd, UINT msg,
     return 0;
 }
 
-static HWND passphrase_box;
+static HWND modal_passphrase_hwnd = NULL;
+static HWND nonmodal_passphrase_hwnd = NULL;
+
+static void end_passphrase_dialog(HWND hwnd, INT_PTR result)
+{
+    struct PassphraseProcStruct *p = (struct PassphraseProcStruct *)
+        GetWindowLongPtr(hwnd, GWLP_USERDATA);
+
+    if (p->modal) {
+        EndDialog(hwnd, result);
+    } else {
+        /*
+         * Destroy this passphrase dialog box before passing the
+         * results back to pageant.c, to avoid re-entrancy issues.
+         *
+         * If we successfully got a passphrase from the user, but it
+         * was _wrong_, then pageant_passphrase_request_success will
+         * respond by calling back - synchronously - to our
+         * ask_passphrase() implementation, which will expect the
+         * previous value of nonmodal_passphrase_hwnd to have already
+         * been cleaned up.
+         */
+        SetWindowLongPtr(hwnd, GWLP_USERDATA, (LONG_PTR) NULL);
+        DestroyWindow(hwnd);
+        nonmodal_passphrase_hwnd = NULL;
+
+        if (result)
+            pageant_passphrase_request_success(
+                p->dlgid, ptrlen_from_asciz(p->passphrase));
+        else
+            pageant_passphrase_request_refused(p->dlgid);
+
+        burnstr(p->passphrase);
+        sfree(p);
+    }
+}
 
 /*
  * Dialog-box function for the passphrase box.
@@ -187,59 +237,77 @@ static HWND passphrase_box;
 static INT_PTR CALLBACK PassphraseProc(HWND hwnd, UINT msg,
                                    WPARAM wParam, LPARAM lParam)
 {
-    static char **passphrase = NULL;
     struct PassphraseProcStruct *p;
 
+    if (msg == WM_INITDIALOG) {
+        p = (struct PassphraseProcStruct *) lParam;
+        SetWindowLongPtr(hwnd, GWLP_USERDATA, (LONG_PTR) p);
+    } else {
+        p = (struct PassphraseProcStruct *)
+            GetWindowLongPtr(hwnd, GWLP_USERDATA);
+    }
+
     switch (msg) {
-      case WM_INITDIALOG:
-        passphrase_box = hwnd;
+      case WM_INITDIALOG: {
+        if (p->modal)
+            modal_passphrase_hwnd = hwnd;
+
         /*
          * Centre the window.
          */
-        {                              /* centre the window */
-            RECT rs, rd;
-            HWND hw;
+        RECT rs, rd;
+        HWND hw;
 
-            hw = GetDesktopWindow();
-            if (GetWindowRect(hw, &rs) && GetWindowRect(hwnd, &rd))
-                MoveWindow(hwnd,
-                           (rs.right + rs.left + rd.left - rd.right) / 2,
-                           (rs.bottom + rs.top + rd.top - rd.bottom) / 2,
-                           rd.right - rd.left, rd.bottom - rd.top, true);
-        }
+        hw = GetDesktopWindow();
+        if (GetWindowRect(hw, &rs) && GetWindowRect(hwnd, &rd))
+            MoveWindow(hwnd,
+                       (rs.right + rs.left + rd.left - rd.right) / 2,
+                       (rs.bottom + rs.top + rd.top - rd.bottom) / 2,
+                       rd.right - rd.left, rd.bottom - rd.top, true);
 
         SetForegroundWindow(hwnd);
         SetWindowPos(hwnd, HWND_TOP, 0, 0, 0, 0,
                      SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
-        p = (struct PassphraseProcStruct *) lParam;
-        passphrase = p->passphrase;
+        if (!p->modal)
+            SetActiveWindow(hwnd); /* this won't have happened automatically */
         if (p->comment)
-            SetDlgItemText(hwnd, 101, p->comment);
-        burnstr(*passphrase);
-        *passphrase = dupstr("");
-        SetDlgItemText(hwnd, 102, *passphrase);
+            SetDlgItemText(hwnd, IDC_PASSPHRASE_FINGERPRINT, p->comment);
+        burnstr(p->passphrase);
+        p->passphrase = dupstr("");
+        SetDlgItemText(hwnd, IDC_PASSPHRASE_EDITBOX, p->passphrase);
+        if (!p->help_topic || !has_help()) {
+            HWND item = GetDlgItem(hwnd, IDHELP);
+            if (item)
+                DestroyWindow(item);
+        }
         return 0;
+      }
       case WM_COMMAND:
         switch (LOWORD(wParam)) {
           case IDOK:
-            if (*passphrase)
-                EndDialog(hwnd, 1);
+            if (p->passphrase)
+                end_passphrase_dialog(hwnd, 1);
             else
                 MessageBeep(0);
             return 0;
           case IDCANCEL:
-            EndDialog(hwnd, 0);
+            end_passphrase_dialog(hwnd, 0);
             return 0;
-          case 102:                    /* edit box */
-            if ((HIWORD(wParam) == EN_CHANGE) && passphrase) {
-                burnstr(*passphrase);
-                *passphrase = GetDlgItemText_alloc(hwnd, 102);
+          case IDHELP:
+            if (p->help_topic)
+                launch_help(hwnd, p->help_topic);
+            return 0;
+          case IDC_PASSPHRASE_EDITBOX:
+            if ((HIWORD(wParam) == EN_CHANGE) && p->passphrase) {
+                burnstr(p->passphrase);
+                p->passphrase = GetDlgItemText_alloc(
+                    hwnd, IDC_PASSPHRASE_EDITBOX);
             }
             return 0;
         }
         return 0;
       case WM_CLOSE:
-        EndDialog(hwnd, 0);
+        end_passphrase_dialog(hwnd, 0);
         return 0;
     }
     return 0;
@@ -265,160 +333,154 @@ void old_keyfile_warning(void)
     MessageBox(NULL, message, mbtitle, MB_OK);
 }
 
+struct keylist_update_ctx {
+    bool enable_remove_controls;
+    bool enable_reencrypt_controls;
+};
+
+static void keylist_update_callback(
+    void *vctx, char **fingerprints, const char *comment, uint32_t ext_flags,
+    struct pageant_pubkey *key)
+{
+    struct keylist_update_ctx *ctx = (struct keylist_update_ctx *)vctx;
+    FingerprintType this_type = ssh2_pick_fingerprint(fingerprints, fptype);
+    const char *fingerprint = fingerprints[this_type];
+    strbuf *listentry = strbuf_new();
+
+    /* There is at least one key, so the controls for removing keys
+     * should be enabled */
+    ctx->enable_remove_controls = true;
+
+    switch (key->ssh_version) {
+      case 1: {
+        strbuf_catf(listentry, "ssh1\t%s\t%s", fingerprint, comment);
+
+        /*
+         * Replace the space in the fingerprint (between bit count and
+         * hash) with a tab, for nice alignment in the box.
+         */
+        char *p = strchr(listentry->s, ' ');
+        if (p)
+            *p = '\t';
+        break;
+      }
+
+      case 2: {
+        /*
+         * For nice alignment in the list box, we would ideally want
+         * every entry to align to the tab stop settings, and have a
+         * column for algorithm name, one for bit count, one for hex
+         * fingerprint, and one for key comment.
+         *
+         * Unfortunately, some of the algorithm names are so long that
+         * they overflow into the bit-count field. Fortunately, at the
+         * moment, those are _precisely_ the algorithm names that
+         * don't need a bit count displayed anyway (because for
+         * NIST-style ECDSA the bit count is mentioned in the
+         * algorithm name, and for ssh-ed25519 there is only one
+         * possible value anyway). So we fudge this by simply omitting
+         * the bit count field in that situation.
+         *
+         * This is fragile not only in the face of further key types
+         * that don't follow this pattern, but also in the face of
+         * font metrics changes - the Windows semantics for list box
+         * tab stops is that \t aligns to the next one you haven't
+         * already exceeded, so I have to guess when the key type will
+         * overflow past the bit-count tab stop and leave out a tab
+         * character. Urgh.
+         */
+        BinarySource src[1];
+        BinarySource_BARE_INIT_PL(src, ptrlen_from_strbuf(key->blob));
+        ptrlen algname = get_string(src);
+        const ssh_keyalg *alg = find_pubkey_alg_len(algname);
+
+        bool include_bit_count = (alg == &ssh_dss || alg == &ssh_rsa);
+
+        int wordnumber = 0;
+        for (const char *p = fingerprint; *p; p++) {
+            char c = *p;
+            if (c == ' ') {
+                if (wordnumber < 2)
+                    c = '\t';
+                wordnumber++;
+            }
+            if (include_bit_count || wordnumber != 1)
+                put_byte(listentry, c);
+        }
+
+        strbuf_catf(listentry, "\t%s", comment);
+        break;
+      }
+    }
+
+    if (ext_flags & LIST_EXTENDED_FLAG_HAS_NO_CLEARTEXT_KEY) {
+        strbuf_catf(listentry, "\t(encrypted)");
+    } else if (ext_flags & LIST_EXTENDED_FLAG_HAS_ENCRYPTED_KEY_FILE) {
+        strbuf_catf(listentry, "\t(re-encryptable)");
+
+        /* At least one key can be re-encrypted */
+        ctx->enable_reencrypt_controls = true;
+    }
+
+#ifdef PUTTY_CAC		
+    if (cert_is_certpath(key->comment))
+    {
+        // reformat the list entry to be more readable by trimming off 
+        // everything after the CAPI or PKCS comment identifier
+        if (strrchr(listentry->s, '=') != NULL) *strrchr(listentry->s, '=') = '\0';
+        if (strrchr(listentry->s, ':') != NULL) *strrchr(listentry->s, ':') = '\0';
+        LPSTR subjectname = cert_subject_string(key->comment);
+        LPSTR listentryname = dupcat(listentry->s, "\t", subjectname);
+        sfree(subjectname);
+        SendDlgItemMessage(keylist, IDC_KEYLIST_LISTBOX,
+            LB_ADDSTRING, 0, (LPARAM)listentryname);
+        sfree(listentryname);
+    } else
+#endif // PUTTY_CAC
+
+    SendDlgItemMessage(keylist, IDC_KEYLIST_LISTBOX,
+                       LB_ADDSTRING, 0, (LPARAM)listentry->s);
+    strbuf_free(listentry);
+}
+
 /*
  * Update the visible key list.
  */
 void keylist_update(void)
 {
-    RSAKey *rkey;
-    ssh2_userkey *skey;
-    int i;
-
     if (keylist) {
-        SendDlgItemMessage(keylist, 100, LB_RESETCONTENT, 0, 0);
-        for (i = 0; NULL != (rkey = pageant_nth_ssh1_key(i)); i++) {
-            char *listentry, *fp, *p;
+        SendDlgItemMessage(keylist, IDC_KEYLIST_LISTBOX,
+                           LB_RESETCONTENT, 0, 0);
 
-            fp = rsa_ssh1_fingerprint(rkey);
-            listentry = dupprintf("ssh1\t%s", fp);
-            sfree(fp);
+        char *errmsg;
+        struct keylist_update_ctx ctx[1];
+        ctx->enable_remove_controls = false;
+        ctx->enable_reencrypt_controls = false;
+        int status = pageant_enum_keys(keylist_update_callback, ctx, &errmsg);
+        assert(status == PAGEANT_ACTION_OK);
+        assert(!errmsg);
 
-            /*
-             * Replace two spaces in the fingerprint with tabs, for
-             * nice alignment in the box.
-             */
-            p = strchr(listentry, ' ');
-            if (p)
-                *p = '\t';
-            p = strchr(listentry, ' ');
-            if (p)
-                *p = '\t';
-            SendDlgItemMessage(keylist, 100, LB_ADDSTRING,
-                               0, (LPARAM) listentry);
-            sfree(listentry);
-        }
-        for (i = 0; NULL != (skey = pageant_nth_ssh2_key(i)); i++) {
-            char *listentry, *p;
-            int pos;
+        SendDlgItemMessage(keylist, IDC_KEYLIST_LISTBOX,
+                           LB_SETCURSEL, (WPARAM) - 1, 0);
 
-            /*
-             * For nice alignment in the list box, we would ideally
-             * want every entry to align to the tab stop settings, and
-             * have a column for algorithm name, one for bit count,
-             * one for hex fingerprint, and one for key comment.
-             *
-             * Unfortunately, some of the algorithm names are so long
-             * that they overflow into the bit-count field.
-             * Fortunately, at the moment, those are _precisely_ the
-             * algorithm names that don't need a bit count displayed
-             * anyway (because for NIST-style ECDSA the bit count is
-             * mentioned in the algorithm name, and for ssh-ed25519
-             * there is only one possible value anyway). So we fudge
-             * this by simply omitting the bit count field in that
-             * situation.
-             *
-             * This is fragile not only in the face of further key
-             * types that don't follow this pattern, but also in the
-             * face of font metrics changes - the Windows semantics
-             * for list box tab stops is that \t aligns to the next
-             * one you haven't already exceeded, so I have to guess
-             * when the key type will overflow past the bit-count tab
-             * stop and leave out a tab character. Urgh.
-             */
-
-            p = ssh2_fingerprint(skey->key);
-            listentry = dupprintf("%s\t%s", p, skey->comment);
-            sfree(p);
-
-#ifdef PUTTY_CAC		
-		if (cert_is_certpath(skey->comment))
-		{
-			// reformat the list entry to be more readable by trimming off 
-			// everything after the CAPI or PKCS comment identifier
-			if (strrchr(listentry, '=') != NULL) *strrchr(listentry, '=') = '\0';
-			if (strrchr(listentry, ':') != NULL) *strrchr(listentry, ':') = '\0';
-			LPSTR subjectname = cert_subject_string(skey->comment);
-			LPSTR listentryname = dupcat(listentry, "\t", subjectname);
-			sfree(subjectname);
-			sfree(listentry);
-			listentry = listentryname;
-		}
-#endif // PUTTY_CAC
-            pos = 0;
-            while (1) {
-                pos += strcspn(listentry + pos, " :");
-                if (listentry[pos] == ':' || !listentry[pos])
-                    break;
-                listentry[pos++] = '\t';
-            }
-            if (ssh_key_alg(skey->key) != &ssh_dss &&
-                ssh_key_alg(skey->key) != &ssh_rsa) {
-                /*
-                 * Remove the bit-count field, which is between the
-                 * first and second \t.
-                 */
-                int outpos;
-                pos = 0;
-                while (listentry[pos] && listentry[pos] != '\t')
-                    pos++;
-                outpos = pos;
-                pos++;
-                while (listentry[pos] && listentry[pos] != '\t')
-                    pos++;
-                while (1) {
-                    if ((listentry[outpos] = listentry[pos]) == '\0')
-                        break;
-                    outpos++;
-                    pos++;
-                }
-            }
-
-            SendDlgItemMessage(keylist, 100, LB_ADDSTRING, 0,
-                               (LPARAM) listentry);
-            sfree(listentry);
-        }
-        SendDlgItemMessage(keylist, 100, LB_SETCURSEL, (WPARAM) - 1, 0);
+        EnableWindow(GetDlgItem(keylist, IDC_KEYLIST_REMOVE),
+                     ctx->enable_remove_controls);
+        EnableWindow(GetDlgItem(keylist, IDC_KEYLIST_REENCRYPT),
+                     ctx->enable_reencrypt_controls);
     }
-
-#ifdef PUTTY_CAC
-	if (cert_save_cert_list_enabled(-1))
-	{
-		/* initialize a double-null terminated string */
-		char* slist = snewn(2, char);
-		int slistsize = 0;
-		memset(slist, 0, 2);
-		ssh2_userkey* ckey = NULL;
-		for (int ikey = 0; (ckey = pageant_nth_ssh2_key(ikey)) != NULL; ikey++)
-		{
-			/* only process cert keys*/
-			if (!cert_is_certpath(ckey->comment)) continue;
-
-			/* append the null seperated, double-null terminated string */
-			slist = srealloc(slist, slistsize + strlen(ckey->comment) + 2);
-			strcpy(&slist[slistsize], ckey->comment);
-			slist[slistsize + strlen(ckey->comment) + 1] = '\0';
-			slistsize += strlen(ckey->comment) + 1;
-		}
-
-		/* commit full list to registry */
-		RegSetKeyValue(HKEY_CURRENT_USER, PUTTY_REG_POS, "SaveCertList",
-			REG_MULTI_SZ, slist, slistsize + 1);
-	}
-#endif /* PUTTY_CAC */
 }
 
-static void win_add_keyfile(Filename *filename)
+static void win_add_keyfile(Filename *filename, bool encrypted)
 {
     char *err;
     int ret;
-    char *passphrase = NULL;
 
     /*
      * Try loading the key without a passphrase. (Or rather, without a
      * _new_ passphrase; pageant_add_keyfile will take care of trying
      * all the passphrases we've already stored.)
      */
-    ret = pageant_add_keyfile(filename, NULL, &err);
+    ret = pageant_add_keyfile(filename, NULL, &err, encrypted);
     if (ret == PAGEANT_ACTION_OK) {
         goto done;
     } else if (ret == PAGEANT_ACTION_FAILURE) {
@@ -432,40 +494,39 @@ static void win_add_keyfile(Filename *filename)
     while (1) {
         INT_PTR dlgret;
         struct PassphraseProcStruct pps;
-
-        pps.passphrase = &passphrase;
+        pps.modal = true;
+        pps.help_topic = NULL;         /* this dialog has no help button */
+        pps.dlgid = NULL;
+        pps.passphrase = NULL;
         pps.comment = err;
-        dlgret = DialogBoxParam(hinst, MAKEINTRESOURCE(210),
-                                NULL, PassphraseProc, (LPARAM) &pps);
-        passphrase_box = NULL;
+        dlgret = DialogBoxParam(
+            hinst, MAKEINTRESOURCE(IDD_LOAD_PASSPHRASE),
+            NULL, PassphraseProc, (LPARAM) &pps);
+        modal_passphrase_hwnd = NULL;
 
-        if (!dlgret)
+        if (!dlgret) {
+            burnstr(pps.passphrase);
             goto done;                 /* operation cancelled */
+        }
 
         sfree(err);
 
-        assert(passphrase != NULL);
+        assert(pps.passphrase != NULL);
 
-        ret = pageant_add_keyfile(filename, passphrase, &err);
+        ret = pageant_add_keyfile(filename, pps.passphrase, &err, false);
+        burnstr(pps.passphrase);
+
         if (ret == PAGEANT_ACTION_OK) {
             goto done;
         } else if (ret == PAGEANT_ACTION_FAILURE) {
             goto error;
         }
-
-        smemclr(passphrase, strlen(passphrase));
-        sfree(passphrase);
-        passphrase = NULL;
     }
 
   error:
-    message_box(err, APPNAME, MB_OK | MB_ICONERROR,
+    message_box(traywindow, err, APPNAME, MB_OK | MB_ICONERROR,
                 HELPCTXID(errors_cantloadkey));
   done:
-    if (passphrase) {
-        smemclr(passphrase, strlen(passphrase));
-        sfree(passphrase);
-    }
     sfree(err);
     return;
 }
@@ -473,14 +534,14 @@ static void win_add_keyfile(Filename *filename)
 /*
  * Prompt for a key file to add, and add it.
  */
-static void prompt_add_keyfile(void)
+static void prompt_add_keyfile(bool encrypted)
 {
     OPENFILENAME of;
     char *filelist = snewn(8192, char);
 
     if (!keypath) keypath = filereq_new();
     memset(&of, 0, sizeof(of));
-    of.hwndOwner = hwnd;
+    of.hwndOwner = traywindow;
     of.lpstrFilter = FILTER_KEY_FILES;
     of.lpstrCustomFilter = NULL;
     of.nFilterIndex = 1;
@@ -494,7 +555,7 @@ static void prompt_add_keyfile(void)
         if(strlen(filelist) > of.nFileOffset) {
             /* Only one filename returned? */
             Filename *fn = filename_from_str(filelist);
-            win_add_keyfile(fn);
+            win_add_keyfile(fn, encrypted);
             filename_free(fn);
         } else {
             /* we are returned a bunch of strings, end to
@@ -507,7 +568,7 @@ static void prompt_add_keyfile(void)
             while (*filewalker != '\0') {
                 char *filename = dupcat(dir, "\\", filewalker);
                 Filename *fn = filename_from_str(filename);
-                win_add_keyfile(fn);
+                win_add_keyfile(fn, encrypted);
                 filename_free(fn);
                 sfree(filename);
                 filewalker += strlen(filewalker) + 1;
@@ -526,57 +587,72 @@ static void prompt_add_keyfile(void)
 static INT_PTR CALLBACK KeyListProc(HWND hwnd, UINT msg,
                                 WPARAM wParam, LPARAM lParam)
 {
-    RSAKey *rkey;
-    ssh2_userkey *skey;
+    static const struct {
+        const char *name;
+        FingerprintType value;
+    } fptypes[] = {
+        {"SHA256", SSH_FPTYPE_SHA256},
+        {"MD5", SSH_FPTYPE_MD5},
+    };
 
     switch (msg) {
-      case WM_INITDIALOG:
+      case WM_INITDIALOG: {
         /*
          * Centre the window.
          */
-        {                              /* centre the window */
-            RECT rs, rd;
-            HWND hw;
+        RECT rs, rd;
+        HWND hw;
 
-            hw = GetDesktopWindow();
-            if (GetWindowRect(hw, &rs) && GetWindowRect(hwnd, &rd))
-                MoveWindow(hwnd,
-                           (rs.right + rs.left + rd.left - rd.right) / 2,
-                           (rs.bottom + rs.top + rd.top - rd.bottom) / 2,
-                           rd.right - rd.left, rd.bottom - rd.top, true);
-        }
+        hw = GetDesktopWindow();
+        if (GetWindowRect(hw, &rs) && GetWindowRect(hwnd, &rd))
+            MoveWindow(hwnd,
+                       (rs.right + rs.left + rd.left - rd.right) / 2,
+                       (rs.bottom + rs.top + rd.top - rd.bottom) / 2,
+                       rd.right - rd.left, rd.bottom - rd.top, true);
 
         if (has_help())
             SetWindowLongPtr(hwnd, GWL_EXSTYLE,
                              GetWindowLongPtr(hwnd, GWL_EXSTYLE) |
                              WS_EX_CONTEXTHELP);
         else {
-            HWND item = GetDlgItem(hwnd, 103);   /* the Help button */
-            if (item)
-                DestroyWindow(item);
+          HWND item = GetDlgItem(hwnd, IDC_KEYLIST_HELP);
+          if (item)
+              DestroyWindow(item);
         }
 
         keylist = hwnd;
         {
-            static int tabs[] = { 35, 75, 250 };
-            SendDlgItemMessage(hwnd, 100, LB_SETTABSTOPS,
-                               sizeof(tabs) / sizeof(*tabs),
-                               (LPARAM) tabs);
+          static int tabs[] = { 35, 75, 300 };
+          SendDlgItemMessage(hwnd, IDC_KEYLIST_LISTBOX, LB_SETTABSTOPS,
+                             sizeof(tabs) / sizeof(*tabs),
+                             (LPARAM) tabs);
         }
-        keylist_update();
 
+        int selection = 0;
+        for (size_t i = 0; i < lenof(fptypes); i++) {
+            SendDlgItemMessage(hwnd, IDC_KEYLIST_FPTYPE, CB_ADDSTRING,
+                               0, (LPARAM)fptypes[i].name);
+            if (fptype == fptypes[i].value)
+                selection = (int)i;
+        }
+        SendDlgItemMessage(hwnd, IDC_KEYLIST_FPTYPE,
+                           CB_SETCURSEL, 0, selection);
+
+        keylist_update();
 #ifdef PUTTY_CAC
-	SendMessage(GetDlgItem(hwnd,100), LB_SETHORIZONTALEXTENT, 1000, 0);
-	return 0;
+        SendMessage(GetDlgItem(hwnd, IDC_KEYLIST_LISTBOX), LB_SETHORIZONTALEXTENT, 1200, 0);
+#endif // PUTTY_CAC
+        return 0;
+      }
+#ifdef PUTTY_CAC
 	case WM_VKEYTOITEM:
 	{
 		/* if ctrl-c is pressed then press the copy button */
 		if (GetKeyState(VK_CONTROL) >= 0) return -1;
-		if (LOWORD(wParam) == 'C') SendMessage(hwnd, WM_COMMAND, IDC_PAGEANT_CLIP_KEY, (LPARAM) NULL);
+		if (LOWORD(wParam) == 'C') SendMessage(hwnd, WM_COMMAND, IDC_KEYLIST_CLIP_KEY, (LPARAM) NULL);
 		return -2;
 	}
 #endif // PUTTY_CAC
-        return 0;
       case WM_COMMAND:
         switch (LOWORD(wParam)) {
           case IDOK:
@@ -585,44 +661,44 @@ static INT_PTR CALLBACK KeyListProc(HWND hwnd, UINT msg,
             DestroyWindow(hwnd);
             return 0;
 #ifdef PUTTY_CAC
-		  case 100:		       /* key list */
+		  case IDC_KEYLIST_LISTBOX: /* key list */
 		  {
 			  if (HIWORD(wParam) == LBN_DBLCLK) 
 			  {
-				  int numSelected = SendDlgItemMessage(hwnd, 100, LB_GETSELCOUNT, 0, 0);
+				  int numSelected = SendDlgItemMessage(hwnd, IDC_KEYLIST_LISTBOX, LB_GETSELCOUNT, 0, 0);
 				  if (numSelected == 0) return 0;
 
 				  int * selectedArray = snewn(numSelected, int);
-			  	  SendDlgItemMessage(hwnd, 100, LB_GETSELITEMS, numSelected, (WPARAM)selectedArray);
-				  struct ssh2_userkey * key = (pageant_nth_ssh2_key(selectedArray[0]));
+			  	  SendDlgItemMessage(hwnd, IDC_KEYLIST_LISTBOX, LB_GETSELITEMS, numSelected, (WPARAM)selectedArray);
+				  ssh2_userkey * key = (pageant_nth_ssh2_key(selectedArray[0]));
 				  cert_display_cert(key->comment, hwnd);
 				  sfree(selectedArray);
 			  }
 		  }
 		  return 0;
-		  case IDC_PAGEANT_ADD_PKCS: /* add pkcs key */
-		  case IDC_PAGEANT_ADD_CAPI: /* add capi key */
+		  case IDC_KEYLIST_ADD_PKCS: /* add pkcs key */
+		  case IDC_KEYLIST_ADD_CAPI: /* add capi key */
 		  {
-			  char * szCert = cert_prompt((LOWORD(wParam) == IDC_PAGEANT_ADD_CAPI) ?
+			  char * szCert = cert_prompt((LOWORD(wParam) == IDC_KEYLIST_ADD_CAPI) ?
 				  (IDEN_CAPI) : (IDEN_PKCS), hwnd, FALSE);
 			  if (szCert == NULL) return 0;
 			  Filename *fn = filename_from_str(szCert);
 			  char *err = NULL;
-			  pageant_add_keyfile(fn, NULL, &err);
+			  pageant_add_keyfile(fn, NULL, &err, false);
 			  keylist_update();
 			  filename_free(fn);
 			  free(szCert);
 			  sfree(err);
 		}
 		return 0;
-		case IDC_PAGEANT_CLIP_KEY: /* copy key to clipboard */
+		case IDC_KEYLIST_CLIP_KEY: /* copy key to clipboard */
 		{
-			int numSelected = SendDlgItemMessage(hwnd, 100, LB_GETSELCOUNT, 0, 0);
+			int numSelected = SendDlgItemMessage(hwnd, IDC_KEYLIST_LISTBOX, LB_GETSELCOUNT, 0, 0);
 			if (numSelected == 0) return 0;
 
 			/* fetch all items selected in the list */
 			int * selectedArray = snewn(numSelected, int);
-			SendDlgItemMessage(hwnd, 100, LB_GETSELITEMS, numSelected, (WPARAM)selectedArray);
+			SendDlgItemMessage(hwnd, IDC_KEYLIST_LISTBOX, LB_GETSELITEMS, numSelected, (WPARAM)selectedArray);
 
 			/* enumerate each selected item */
 			LPSTR szKeyString = dupstr("");
@@ -650,33 +726,38 @@ static INT_PTR CALLBACK KeyListProc(HWND hwnd, UINT msg,
 			if (hGlob != NULL)
 			{
 				/* open clipboard and copy key in */
-				if (OpenClipboard(hwnd) != 0 && EmptyClipboard() != 0)
-				{
-					/* copy the key string into a global for loading onto the clipboard */
-					char * szClipData = (char *)GlobalLock(hGlob);
-					strcpy(szClipData, szKeyString);
-					GlobalUnlock(hGlob);
-					SetClipboardData(CF_TEXT, szClipData);
-					CloseClipboard();
-				}
+                if (OpenClipboard(hwnd) != 0 && EmptyClipboard() != 0)
+                {
+                    /* copy the key string into a global for loading onto the clipboard */
+                    char* szClipData = (char*)GlobalLock(hGlob);
+                    if (szClipData != NULL)
+                    {
+                        strcpy(szClipData, szKeyString);
+                        GlobalUnlock(hGlob);
+                        SetClipboardData(CF_TEXT, szClipData);
+                    }
+                    CloseClipboard();
+                }
 			}
 
 			sfree(szKeyString);
 		  }
 		  return 0;
 #endif // PUTTY_CAC
-          case 101:                    /* add key */
+          case IDC_KEYLIST_ADDKEY:
+          case IDC_KEYLIST_ADDKEY_ENC:
             if (HIWORD(wParam) == BN_CLICKED ||
                 HIWORD(wParam) == BN_DOUBLECLICKED) {
-                if (passphrase_box) {
+                if (modal_passphrase_hwnd) {
                     MessageBeep(MB_ICONERROR);
-                    SetForegroundWindow(passphrase_box);
+                    SetForegroundWindow(modal_passphrase_hwnd);
                     break;
                 }
-                prompt_add_keyfile();
+                prompt_add_keyfile(LOWORD(wParam) == IDC_KEYLIST_ADDKEY_ENC);
             }
             return 0;
-          case 102:                    /* remove key */
+          case IDC_KEYLIST_REMOVE:
+          case IDC_KEYLIST_REENCRYPT:
             if (HIWORD(wParam) == BN_CLICKED ||
                 HIWORD(wParam) == BN_DOUBLECLICKED) {
                 int i;
@@ -687,8 +768,8 @@ static INT_PTR CALLBACK KeyListProc(HWND hwnd, UINT msg,
                 int itemNum;
 
                 /* get the number of items selected in the list */
-                int numSelected =
-                        SendDlgItemMessage(hwnd, 100, LB_GETSELCOUNT, 0, 0);
+                int numSelected = SendDlgItemMessage(
+                    hwnd, IDC_KEYLIST_LISTBOX, LB_GETSELCOUNT, 0, 0);
 
                 /* none selected? that was silly */
                 if (numSelected == 0) {
@@ -698,8 +779,8 @@ static INT_PTR CALLBACK KeyListProc(HWND hwnd, UINT msg,
 
                 /* get item indices in an array */
                 selectedArray = snewn(numSelected, int);
-                SendDlgItemMessage(hwnd, 100, LB_GETSELITEMS,
-                                numSelected, (WPARAM)selectedArray);
+                SendDlgItemMessage(hwnd, IDC_KEYLIST_LISTBOX, LB_GETSELITEMS,
+                                   numSelected, (WPARAM)selectedArray);
 
                 itemNum = numSelected - 1;
                 rCount = pageant_count_ssh1_keys();
@@ -711,24 +792,30 @@ static INT_PTR CALLBACK KeyListProc(HWND hwnd, UINT msg,
                  * things hence altering the offset of subsequent items
                  */
                 for (i = sCount - 1; (itemNum >= 0) && (i >= 0); i--) {
-                    skey = pageant_nth_ssh2_key(i);
-
                     if (selectedArray[itemNum] == rCount + i) {
-                        pageant_delete_ssh2_key(skey);
-                        ssh_key_free(skey->key);
-                        sfree(skey);
+                        switch (LOWORD(wParam)) {
+                          case IDC_KEYLIST_REMOVE:
+                            pageant_delete_nth_ssh2_key(i);
+                            break;
+                          case IDC_KEYLIST_REENCRYPT:
+                            pageant_reencrypt_nth_ssh2_key(i);
+                            break;
+                        }
                         itemNum--;
                     }
                 }
 
                 /* do the same for the rsa keys */
                 for (i = rCount - 1; (itemNum >= 0) && (i >= 0); i--) {
-                    rkey = pageant_nth_ssh1_key(i);
-
                     if(selectedArray[itemNum] == i) {
-                        pageant_delete_ssh1_key(rkey);
-                        freersakey(rkey);
-                        sfree(rkey);
+                        switch (LOWORD(wParam)) {
+                          case IDC_KEYLIST_REMOVE:
+                            pageant_delete_nth_ssh1_key(i);
+                            break;
+                          case IDC_KEYLIST_REENCRYPT:
+                            /* SSH-1 keys can't be re-encrypted */
+                            break;
+                        }
                         itemNum--;
                     }
                 }
@@ -737,30 +824,45 @@ static INT_PTR CALLBACK KeyListProc(HWND hwnd, UINT msg,
                 keylist_update();
             }
             return 0;
-          case 103:                    /* help */
+          case IDC_KEYLIST_HELP:
             if (HIWORD(wParam) == BN_CLICKED ||
                 HIWORD(wParam) == BN_DOUBLECLICKED) {
                 launch_help(hwnd, WINHELP_CTX_pageant_general);
             }
             return 0;
+          case IDC_KEYLIST_FPTYPE:
+            if (HIWORD(wParam) == CBN_SELCHANGE) {
+                int selection = SendDlgItemMessage(
+                    hwnd, IDC_KEYLIST_FPTYPE, CB_GETCURSEL, 0, 0);
+                if (selection >= 0 && (size_t)selection < lenof(fptypes)) {
+                    fptype = fptypes[selection].value;
+                    keylist_update();
+                }
+            }
+            return 0;
         }
         return 0;
-      case WM_HELP:
-        {
-            int id = ((LPHELPINFO)lParam)->iCtrlId;
-            const char *topic = NULL;
-            switch (id) {
-              case 100: topic = WINHELP_CTX_pageant_keylist; break;
-              case 101: topic = WINHELP_CTX_pageant_addkey; break;
-              case 102: topic = WINHELP_CTX_pageant_remkey; break;
-            }
-            if (topic) {
-                launch_help(hwnd, topic);
-            } else {
-                MessageBeep(0);
-            }
+      case WM_HELP: {
+        int id = ((LPHELPINFO)lParam)->iCtrlId;
+        const char *topic = NULL;
+        switch (id) {
+          case IDC_KEYLIST_LISTBOX:
+          case IDC_KEYLIST_FPTYPE:
+          case IDC_KEYLIST_FPTYPE_STATIC:
+            topic = WINHELP_CTX_pageant_keylist; break;
+          case IDC_KEYLIST_ADDKEY: topic = WINHELP_CTX_pageant_addkey; break;
+          case IDC_KEYLIST_REMOVE: topic = WINHELP_CTX_pageant_remkey; break;
+          case IDC_KEYLIST_ADDKEY_ENC:
+          case IDC_KEYLIST_REENCRYPT:
+            topic = WINHELP_CTX_pageant_deferred; break;
+        }
+        if (topic) {
+          launch_help(hwnd, topic);
+        } else {
+          MessageBeep(0);
         }
         break;
+      }
       case WM_CLOSE:
         keylist = NULL;
         DestroyWindow(hwnd);
@@ -900,24 +1002,105 @@ PSID get_default_sid(void)
 }
 #endif
 
-struct PageantReply {
-    char *buf;
-    size_t size, len;
-    bool overflowed;
-    BinarySink_IMPLEMENTATION;
-};
+struct WmCopydataTransaction {
+    char *length, *body;
+    size_t bodysize, bodylen;
+    HANDLE ev_msg_ready, ev_reply_ready;
+} wmct;
 
-static void pageant_reply_BinarySink_write(
-    BinarySink *bs, const void *data, size_t len)
+static struct PageantClient wmcpc;
+
+static void wm_copydata_got_msg(void *vctx)
 {
-    struct PageantReply *rep = BinarySink_DOWNCAST(bs, struct PageantReply);
-    if (!rep->overflowed && len <= rep->size - rep->len) {
-        memcpy(rep->buf + rep->len, data, len);
-        rep->len += len;
-    } else {
-        rep->overflowed = true;
-    }
+    pageant_handle_msg(&wmcpc, NULL, make_ptrlen(wmct.body, wmct.bodylen));
 }
+
+static void wm_copydata_got_response(
+    PageantClient *pc, PageantClientRequestId *reqid, ptrlen response)
+{
+    if (response.len > wmct.bodysize) {
+        /* Output would overflow message buffer. Replace with a
+         * failure message. */
+        static const unsigned char failure[] = { SSH_AGENT_FAILURE };
+        response = make_ptrlen(failure, lenof(failure));
+        assert(response.len <= wmct.bodysize);
+    }
+
+    PUT_32BIT_MSB_FIRST(wmct.length, response.len);
+    memcpy(wmct.body, response.ptr, response.len);
+
+    SetEvent(wmct.ev_reply_ready);
+}
+
+static bool ask_passphrase_common(PageantClientDialogId *dlgid,
+                                  const char *comment)
+{
+    /* Pageant core should be serialising requests, so we never expect
+     * a passphrase prompt to exist already at this point */
+    assert(!nonmodal_passphrase_hwnd);
+
+    struct PassphraseProcStruct *pps = snew(struct PassphraseProcStruct);
+    pps->modal = false;
+    pps->help_topic = WINHELP_CTX_pageant_deferred;
+    pps->dlgid = dlgid;
+    pps->passphrase = NULL;
+    pps->comment = comment;
+
+    nonmodal_passphrase_hwnd = CreateDialogParam(
+        hinst, MAKEINTRESOURCE(IDD_ONDEMAND_PASSPHRASE),
+        NULL, PassphraseProc, (LPARAM)pps);
+
+    /*
+     * Try to put this passphrase prompt into the foreground.
+     *
+     * This will probably not succeed in giving it the actual keyboard
+     * focus, because Windows is quite opposed to applications being
+     * able to suddenly steal the focus on their own initiative.
+     *
+     * That makes sense in a lot of situations, as a defensive
+     * measure. If you were about to type a password or other secret
+     * data into the window you already had focused, and some
+     * malicious app stole the focus, it might manage to trick you
+     * into typing your secrets into _it_ instead.
+     *
+     * In this case it's possible to regard the same defensive measure
+     * as counterproductive, because the effect if we _do_ steal focus
+     * is that you type something into our passphrase prompt that
+     * isn't the passphrase, and we fail to decrypt the key, and no
+     * harm is done. Whereas the effect of the user wrongly _assuming_
+     * the new passphrase prompt has the focus is much worse: now you
+     * type your highly secret passphrase into some other window you
+     * didn't mean to trust with that information - such as the
+     * agent-forwarded PuTTY in which you just ran an ssh command,
+     * which the _whole point_ was to avoid telling your passphrase to!
+     *
+     * On the other hand, I'm sure _every_ application author can come
+     * up with an argument for why they think _they_ should be allowed
+     * to steal the focus. Probably most of them include the claim
+     * that no harm is done if their application receives data
+     * intended for something else, and of course that's not always
+     * true!
+     *
+     * In any case, I don't know of anything I can do about it, or
+     * anything I _should_ do about it if I could. If anyone thinks
+     * they can improve on all this, patches are welcome.
+     */
+    SetForegroundWindow(nonmodal_passphrase_hwnd);
+
+    return true;
+}
+
+static bool wm_copydata_ask_passphrase(
+    PageantClient *pc, PageantClientDialogId *dlgid, const char *comment)
+{
+    return ask_passphrase_common(dlgid, comment);
+}
+
+static const PageantClientVtable wmcpc_vtable = {
+    .log = NULL, /* no logging in this client */
+    .got_response = wm_copydata_got_response,
+    .ask_passphrase = wm_copydata_ask_passphrase,
+};
 
 static char *answer_filemapping_message(const char *mapname)
 {
@@ -926,7 +1109,6 @@ static char *answer_filemapping_message(const char *mapname)
     char *err = NULL;
     size_t mapsize;
     unsigned msglen;
-    struct PageantReply reply;
 
 #ifndef NO_SECURITY
     PSID mapsid = NULL;
@@ -935,7 +1117,7 @@ static char *answer_filemapping_message(const char *mapname)
     PSECURITY_DESCRIPTOR psd = NULL;
 #endif
 
-    reply.buf = NULL;
+    wmct.length = wmct.body = NULL;
 
 #ifdef DEBUG_IPC
     debug("mapname = \"%s\"\n", mapname);
@@ -1038,41 +1220,30 @@ static char *answer_filemapping_message(const char *mapname)
         goto cleanup;
     }
 
-    msglen = GET_32BIT_MSB_FIRST((unsigned char *)mapaddr);
+    wmct.length = (char *)mapaddr;
+    msglen = GET_32BIT_MSB_FIRST(wmct.length);
 
 #ifdef DEBUG_IPC
     debug("msg length=%08x, msg type=%02x\n",
           msglen, (unsigned)((unsigned char *) mapaddr)[4]);
 #endif
 
-    reply.buf = (char *)mapaddr + 4;
-    reply.size = mapsize - 4;
-    reply.len = 0;
-    reply.overflowed = false;
-    BinarySink_INIT(&reply, pageant_reply_BinarySink_write);
+    wmct.body = wmct.length + 4;
+    wmct.bodysize = mapsize - 4;
 
-    if (msglen > mapsize - 4) {
-        pageant_failure_msg(BinarySink_UPCAST(&reply),
-                            "incoming length field too large", NULL, NULL);
+    if (msglen > wmct.bodysize) {
+        /* Incoming length field is too large. Emit a failure response
+         * without even trying to handle the request.
+         *
+         * (We know this must fit, because we checked mapsize >= 5
+         * above.) */
+        PUT_32BIT_MSB_FIRST(wmct.length, 1);
+        *wmct.body = SSH_AGENT_FAILURE;
     } else {
-        pageant_handle_msg(BinarySink_UPCAST(&reply),
-                           (unsigned char *)mapaddr + 4, msglen, NULL, NULL);
-        if (reply.overflowed) {
-            reply.len = 0;
-            reply.overflowed = false;
-            pageant_failure_msg(BinarySink_UPCAST(&reply),
-                                "output would overflow message buffer",
-                                NULL, NULL);
-        }
+        wmct.bodylen = msglen;
+        SetEvent(wmct.ev_msg_ready);
+        WaitForSingleObject(wmct.ev_reply_ready, INFINITE);
     }
-
-    if (reply.overflowed) {
-        err = dupstr("even failure message overflows buffer");
-        goto cleanup;
-    }
-
-    /* Write in the initial length field, and we're done. */
-    PUT_32BIT_MSB_FIRST(((unsigned char *)mapaddr), reply.len);
 
   cleanup:
     /* expectedsid has the lifetime of the program, so we don't free it */
@@ -1086,8 +1257,18 @@ static char *answer_filemapping_message(const char *mapname)
     return err;
 }
 
-static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
-                                WPARAM wParam, LPARAM lParam)
+static void create_keylist_window(void)
+{
+    if (keylist)
+        return;
+
+    keylist = CreateDialog(hinst, MAKEINTRESOURCE(IDD_KEYLIST),
+                           NULL, KeyListProc);
+    ShowWindow(keylist, SW_SHOWNORMAL);
+}
+
+static LRESULT CALLBACK TrayWndProc(HWND hwnd, UINT message,
+                                    WPARAM wParam, LPARAM lParam)
 {
     static bool menuinprogress;
     static UINT msgTaskbarCreated = 0;
@@ -1131,33 +1312,29 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
         }
         break;
       case WM_COMMAND:
-      case WM_SYSCOMMAND:
-        switch (wParam & ~0xF) {       /* low 4 bits reserved to Windows */
-          case IDM_PUTTY:
-            {
-                TCHAR cmdline[10];
-                cmdline[0] = '\0';
-                if (restrict_putty_acl)
-                    strcat(cmdline, "&R");
+      case WM_SYSCOMMAND: {
+        unsigned command = wParam & ~0xF; /* low 4 bits reserved to Windows */
+        switch (command) {
+          case IDM_PUTTY: {
+            TCHAR cmdline[10];
+            cmdline[0] = '\0';
+            if (restrict_putty_acl)
+                strcat(cmdline, "&R");
 
-                if((INT_PTR)ShellExecute(hwnd, NULL, putty_path, cmdline,
-                                         _T(""), SW_SHOW) <= 32) {
-                    MessageBox(NULL, "Unable to execute PuTTY!",
-                               "Error", MB_OK | MB_ICONERROR);
-                }
+            if((INT_PTR)ShellExecute(hwnd, NULL, putty_path, cmdline,
+                                     _T(""), SW_SHOW) <= 32) {
+              MessageBox(NULL, "Unable to execute PuTTY!",
+                         "Error", MB_OK | MB_ICONERROR);
             }
             break;
+          }
           case IDM_CLOSE:
-            if (passphrase_box)
-                SendMessage(passphrase_box, WM_CLOSE, 0, 0);
+            if (modal_passphrase_hwnd)
+                SendMessage(modal_passphrase_hwnd, WM_CLOSE, 0, 0);
             SendMessage(hwnd, WM_CLOSE, 0, 0);
             break;
           case IDM_VIEWKEYS:
-            if (!keylist) {
-                keylist = CreateDialog(hinst, MAKEINTRESOURCE(211),
-                                       NULL, KeyListProc);
-                ShowWindow(keylist, SW_SHOWNORMAL);
-            }
+            create_keylist_window();
             /*
              * Sometimes the window comes up minimised / hidden for
              * no obvious reason. Prevent this. This also brings it
@@ -1170,33 +1347,28 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
                          SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
             break;
           case IDM_ADDKEY:
-            if (passphrase_box) {
+          case IDM_ADDKEY_ENCRYPTED:
+            if (modal_passphrase_hwnd) {
                 MessageBeep(MB_ICONERROR);
-                SetForegroundWindow(passphrase_box);
+                SetForegroundWindow(modal_passphrase_hwnd);
                 break;
             }
-            prompt_add_keyfile();
+            prompt_add_keyfile(command == IDM_ADDKEY_ENCRYPTED);
             break;
 #ifdef PUTTY_CAC
 	  case IDM_ADDCAPI:
-	  case IDM_ADDPKCS:
-		if (passphrase_box) 
-		{
-			MessageBeep(MB_ICONERROR);
-			SetForegroundWindow(passphrase_box);
-			break;
-		}
-		char * szCert = cert_prompt(((wParam & ~0xF) == IDM_ADDCAPI) ?
-			(IDEN_CAPI) : (IDEN_PKCS), hwnd, FALSE);
-		if (szCert == NULL) break;
-		Filename *fn = filename_from_str(szCert);
-		char *err = NULL;
-		pageant_add_keyfile(fn, NULL, &err);
-		keylist_update();
-		filename_free(fn);
-		free(szCert);
-		sfree(err);
-		break;
+      case IDM_ADDPKCS: {
+          char* szCert = cert_prompt(((wParam & ~0xF) == IDM_ADDCAPI) ?
+              (IDEN_CAPI) : (IDEN_PKCS), hwnd, FALSE);
+          if (szCert == NULL) break;
+          Filename* fn = filename_from_str(szCert);
+          char* err = NULL;
+          pageant_add_keyfile(fn, NULL, &err, false);
+          keylist_update();
+          filename_free(fn);
+          free(szCert);
+          sfree(err);
+      } break;
 	  case IDM_AUTOCERT: {
 		  DWORD iItem = CheckMenuItem(systray_menu, IDM_AUTOCERT, MF_CHECKED);
 		  DWORD iNewState = (iItem == MF_CHECKED) ? MF_UNCHECKED : MF_CHECKED;
@@ -1209,7 +1381,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 			  {
 				  LPSTR szErr;
 				  Filename * oFile = filename_from_str(pszCert[iCert]);
-				  pageant_add_keyfile(oFile, NULL, &szErr);
+				  pageant_add_keyfile(oFile, NULL, &szErr, false);
 				  filename_free(oFile);
 				  sfree(pszCert[iCert]);
 			  }
@@ -1260,9 +1432,17 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 		  RegSetKeyValue(HKEY_CURRENT_USER, PUTTY_REG_POS, "IgnoreExpiredCerts", REG_DWORD, &IgnoreExpiredCerts, sizeof(DWORD));
 	  } break;
 #endif // PUTTY_CAC
+          case IDM_REMOVE_ALL:
+            pageant_delete_all();
+            keylist_update();
+            break;
+          case IDM_REENCRYPT_ALL:
+            pageant_reencrypt_all();
+            keylist_update();
+            break;
           case IDM_ABOUT:
             if (!aboutbox) {
-                aboutbox = CreateDialog(hinst, MAKEINTRESOURCE(213),
+                aboutbox = CreateDialog(hinst, MAKEINTRESOURCE(IDD_ABOUT),
                                         NULL, AboutProc);
                 ShowWindow(aboutbox, SW_SHOWNORMAL);
                 /*
@@ -1277,61 +1457,88 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
           case IDM_HELP:
             launch_help(hwnd, WINHELP_CTX_pageant_general);
             break;
-          default:
-            {
-                if(wParam >= IDM_SESSIONS_BASE && wParam <= IDM_SESSIONS_MAX) {
-                    MENUITEMINFO mii;
-                    TCHAR buf[MAX_PATH + 1];
-                    TCHAR param[MAX_PATH + 1];
-                    memset(&mii, 0, sizeof(mii));
-                    mii.cbSize = sizeof(mii);
-                    mii.fMask = MIIM_TYPE;
-                    mii.cch = MAX_PATH;
-                    mii.dwTypeData = buf;
-                    GetMenuItemInfo(session_menu, wParam, false, &mii);
-                    param[0] = '\0';
-                    if (restrict_putty_acl)
-                        strcat(param, "&R");
-                    strcat(param, "@");
-                    strcat(param, mii.dwTypeData);
-                    if((INT_PTR)ShellExecute(hwnd, NULL, putty_path, param,
-                                         _T(""), SW_SHOW) <= 32) {
-                        MessageBox(NULL, "Unable to execute PuTTY!", "Error",
-                                   MB_OK | MB_ICONERROR);
-                    }
-                }
+          default: {
+            if(wParam >= IDM_SESSIONS_BASE && wParam <= IDM_SESSIONS_MAX) {
+              MENUITEMINFO mii;
+              TCHAR buf[MAX_PATH + 1];
+              TCHAR param[MAX_PATH + 1];
+              memset(&mii, 0, sizeof(mii));
+              mii.cbSize = sizeof(mii);
+              mii.fMask = MIIM_TYPE;
+              mii.cch = MAX_PATH;
+              mii.dwTypeData = buf;
+              GetMenuItemInfo(session_menu, wParam, false, &mii);
+              param[0] = '\0';
+              if (restrict_putty_acl)
+                  strcat(param, "&R");
+              strcat(param, "@");
+              strcat(param, mii.dwTypeData);
+              if((INT_PTR)ShellExecute(hwnd, NULL, putty_path, param,
+                                       _T(""), SW_SHOW) <= 32) {
+                MessageBox(NULL, "Unable to execute PuTTY!", "Error",
+                           MB_OK | MB_ICONERROR);
+              }
             }
             break;
+          }
         }
         break;
+      }
       case WM_DESTROY:
         quit_help(hwnd);
         PostQuitMessage(0);
         return 0;
-      case WM_COPYDATA:
-        {
-            COPYDATASTRUCT *cds;
-            char *mapname, *err;
-
-            cds = (COPYDATASTRUCT *) lParam;
-            if (cds->dwData != AGENT_COPYDATA_ID)
-                return 0;              /* not our message, mate */
-            mapname = (char *) cds->lpData;
-            if (mapname[cds->cbData - 1] != '\0')
-                return 0;              /* failure to be ASCIZ! */
-            err = answer_filemapping_message(mapname);
-            if (err) {
-#ifdef DEBUG_IPC
-                debug("IPC failed: %s\n", err);
-#endif
-                sfree(err);
-                return 0;
-            }
-            return 1;
-        }
     }
 
     return DefWindowProc(hwnd, message, wParam, lParam);
+}
+
+static LRESULT CALLBACK wm_copydata_WndProc(HWND hwnd, UINT message,
+                                            WPARAM wParam, LPARAM lParam)
+{
+    switch (message) {
+      case WM_COPYDATA: {
+        COPYDATASTRUCT *cds;
+        char *mapname, *err;
+
+        cds = (COPYDATASTRUCT *) lParam;
+        if (cds->dwData != AGENT_COPYDATA_ID)
+            return 0;              /* not our message, mate */
+        mapname = (char *) cds->lpData;
+        if (mapname[cds->cbData - 1] != '\0')
+            return 0;              /* failure to be ASCIZ! */
+        err = answer_filemapping_message(mapname);
+        if (err) {
+#ifdef DEBUG_IPC
+          debug("IPC failed: %s\n", err);
+#endif
+          sfree(err);
+          return 0;
+        }
+        return 1;
+      }
+    }
+
+    return DefWindowProc(hwnd, message, wParam, lParam);
+}
+
+static DWORD WINAPI wm_copydata_threadfunc(void *param)
+{
+    HINSTANCE inst = *(HINSTANCE *)param;
+
+    HWND ipchwnd = CreateWindow(IPCCLASSNAME, IPCWINTITLE,
+                                WS_OVERLAPPEDWINDOW | WS_VSCROLL,
+                                CW_USEDEFAULT, CW_USEDEFAULT,
+                                100, 100, NULL, NULL, inst, NULL);
+    ShowWindow(ipchwnd, SW_HIDE);
+
+    MSG msg;
+    while (GetMessage(&msg, NULL, 0, 0) == 1) {
+        TranslateMessage(&msg);
+        DispatchMessage(&msg);
+    }
+
+    return 0;
 }
 
 /*
@@ -1349,10 +1556,14 @@ void spawn_cmd(const char *cmdline, const char *args, int show)
     }
 }
 
-void agent_schedule_callback(void (*callback)(void *, void *, int),
-                             void *callback_ctx, void *data, int len)
+void logevent(LogContext *logctx, const char *event)
 {
-    unreachable("all Pageant's own agent requests should be synchronous");
+    unreachable("Pageant can't create a LogContext, so this can't be called");
+}
+
+void noise_ultralight(NoiseSourceId id, unsigned long data)
+{
+    /* Pageant doesn't use random numbers, so we ignore this */
 }
 
 void cleanup_exit(int code)
@@ -1361,21 +1572,37 @@ void cleanup_exit(int code)
     exit(code);
 }
 
-int flags = FLAG_SYNCAGENT;
+static bool winpgnt_listener_ask_passphrase(
+    PageantListenerClient *plc, PageantClientDialogId *dlgid,
+    const char *comment)
+{
+    return ask_passphrase_common(dlgid, comment);
+}
+
+struct winpgnt_client {
+    PageantListenerClient plc;
+};
+static const PageantListenerClientVtable winpgnt_vtable = {
+    .log = NULL, /* no logging */
+    .ask_passphrase = winpgnt_listener_ask_passphrase,
+};
+
+static struct winpgnt_client wpc[1];
+
+HINSTANCE hinst;
 
 int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 {
-    WNDCLASS wndclass;
     MSG msg;
     const char *command = NULL;
     bool added_keys = false;
+    bool show_keylist_on_startup = false;
     int argc, i;
     char **argv, **argstart;
 
     dll_hijacking_protection();
 
     hinst = inst;
-    hwnd = NULL;
 
     /*
      * Determine whether we're an NT system (should have security
@@ -1447,28 +1674,52 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
      * Process the command line and add keys as listed on it.
      */
     split_into_argv(cmdline, &argc, &argv, &argstart);
+    bool doing_opts = true;
+    bool add_keys_encrypted = false;
     for (i = 0; i < argc; i++) {
-        if (!strcmp(argv[i], "-pgpfp")) {
-            pgp_fingerprints();
-            return 1;
-        } else if (!strcmp(argv[i], "-restrict-acl") ||
-                   !strcmp(argv[i], "-restrict_acl") ||
-                   !strcmp(argv[i], "-restrictacl")) {
-            restrict_process_acl();
-        } else if (!strcmp(argv[i], "-restrict-putty-acl") ||
-                   !strcmp(argv[i], "-restrict_putty_acl")) {
-            restrict_putty_acl = true;
-        } else if (!strcmp(argv[i], "-c")) {
-            /*
-             * If we see `-c', then the rest of the
-             * command line should be treated as a
-             * command to be spawned.
-             */
-            if (i < argc-1)
-                command = argstart[i+1];
-            else
-                command = "";
-            break;
+        char *p = argv[i];
+        if (*p == '-' && doing_opts) {
+            if (!strcmp(p, "-pgpfp")) {
+                pgp_fingerprints_msgbox(NULL);
+                return 1;
+            } else if (!strcmp(p, "-restrict-acl") ||
+                       !strcmp(p, "-restrict_acl") ||
+                       !strcmp(p, "-restrictacl")) {
+                restrict_process_acl();
+            } else if (!strcmp(p, "-restrict-putty-acl") ||
+                       !strcmp(p, "-restrict_putty_acl")) {
+                restrict_putty_acl = true;
+            } else if (!strcmp(p, "--no-decrypt") ||
+                       !strcmp(p, "-no-decrypt") ||
+                       !strcmp(p, "--no_decrypt") ||
+                       !strcmp(p, "-no_decrypt") ||
+                       !strcmp(p, "--nodecrypt") ||
+                       !strcmp(p, "-nodecrypt") ||
+                       !strcmp(p, "--encrypted") ||
+                       !strcmp(p, "-encrypted")) {
+                add_keys_encrypted = true;
+            } else if (!strcmp(p, "-keylist") || !strcmp(p, "--keylist")) {
+                show_keylist_on_startup = true;
+            } else if (!strcmp(p, "-c")) {
+                /*
+                 * If we see `-c', then the rest of the
+                 * command line should be treated as a
+                 * command to be spawned.
+                 */
+                if (i < argc-1)
+                    command = argstart[i+1];
+                else
+                    command = "";
+                break;
+            } else if (!strcmp(p, "--")) {
+                doing_opts = false;
+            } else {
+                char *msg = dupprintf("unrecognised command-line option\n"
+                                      "'%s'", p);
+                MessageBox(NULL, msg, "Pageant command-line syntax error",
+                           MB_ICONERROR | MB_OK);
+                exit(1);
+            }
 #ifdef PUTTY_CAC
 	}
 	else if (!strcmp(argv[i], "-autoload") || !strcmp(argv[i], "-autoloadoff")) {
@@ -1520,8 +1771,8 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 		break;
 #endif // PUTTY_CAC
         } else {
-            Filename *fn = filename_from_str(argv[i]);
-            win_add_keyfile(fn);
+            Filename *fn = filename_from_str(p);
+            win_add_keyfile(fn, add_keys_encrypted);
             filename_free(fn);
             added_keys = true;
         }
@@ -1559,30 +1810,68 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
         return 0;
     }
 
+#if !defined NO_SECURITY
+
+    /*
+     * Set up a named-pipe listener.
+     */
+    {
+        Plug *pl_plug;
+        wpc->plc.vt = &winpgnt_vtable;
+        wpc->plc.suppress_logging = true;
+        struct pageant_listen_state *pl =
+            pageant_listener_new(&pl_plug, &wpc->plc);
+        char *pipename = agent_named_pipe_name();
+        Socket *sock = new_named_pipe_listener(pipename, pl_plug);
+        if (sk_socket_error(sock)) {
+            char *err = dupprintf("Unable to open named pipe at %s "
+                                  "for SSH agent:\n%s", pipename,
+                                  sk_socket_error(sock));
+            MessageBox(NULL, err, "Pageant Error", MB_ICONERROR | MB_OK);
+            return 1;
+        }
+        pageant_listener_got_socket(pl, sock);
+        sfree(pipename);
+    }
+
+#endif /* !defined NO_SECURITY */
+
+    /*
+     * Set up window classes for two hidden windows: one that receives
+     * all the messages to do with our presence in the system tray,
+     * and one that receives the WM_COPYDATA message used by the
+     * old-style Pageant IPC system.
+     */
+
     if (!prev) {
-        wndclass.style = 0;
-        wndclass.lpfnWndProc = WndProc;
-        wndclass.cbClsExtra = 0;
-        wndclass.cbWndExtra = 0;
+        WNDCLASS wndclass;
+
+        memset(&wndclass, 0, sizeof(wndclass));
+        wndclass.lpfnWndProc = TrayWndProc;
         wndclass.hInstance = inst;
         wndclass.hIcon = LoadIcon(inst, MAKEINTRESOURCE(IDI_MAINICON));
-        wndclass.hCursor = LoadCursor(NULL, IDC_IBEAM);
-        wndclass.hbrBackground = GetStockObject(BLACK_BRUSH);
-        wndclass.lpszMenuName = NULL;
-        wndclass.lpszClassName = APPNAME;
+        wndclass.lpszClassName = TRAYCLASSNAME;
+
+        RegisterClass(&wndclass);
+
+        memset(&wndclass, 0, sizeof(wndclass));
+        wndclass.lpfnWndProc = wm_copydata_WndProc;
+        wndclass.hInstance = inst;
+        wndclass.lpszClassName = IPCCLASSNAME;
 
         RegisterClass(&wndclass);
     }
 
     keylist = NULL;
 
-    hwnd = CreateWindow(APPNAME, APPNAME,
-                        WS_OVERLAPPEDWINDOW | WS_VSCROLL,
-                        CW_USEDEFAULT, CW_USEDEFAULT,
-                        100, 100, NULL, NULL, inst, NULL);
+    traywindow = CreateWindow(TRAYCLASSNAME, TRAYWINTITLE,
+                              WS_OVERLAPPEDWINDOW | WS_VSCROLL,
+                              CW_USEDEFAULT, CW_USEDEFAULT,
+                              100, 100, NULL, NULL, inst, NULL);
+    winselgui_set_hwnd(traywindow);
 
     /* Set up a system tray icon */
-    AddTrayIcon(hwnd);
+    AddTrayIcon(traywindow);
 
 #ifdef PUTTY_CAC
 	/* Get Ignore Expired Certificates Setting */
@@ -1612,7 +1901,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 		{
 			LPSTR szErr;
 			Filename * oFile = filename_from_str(pszCert[iCert]);
-			pageant_add_keyfile(oFile, NULL, &szErr);
+			pageant_add_keyfile(oFile, NULL, &szErr, false);
 			filename_free(oFile);
 			sfree(pszCert[iCert]);
 		}
@@ -1637,7 +1926,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 			{
 				char* szErr = NULL;
 				Filename* oFile = filename_from_str(szKeyPart);
-				pageant_add_keyfile(oFile, NULL, &szErr);
+				pageant_add_keyfile(oFile, NULL, &szErr, false);
 				filename_free(oFile);
 				sfree(szErr);
 			}
@@ -1693,6 +1982,13 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
            "&View Keys");
     AppendMenu(systray_menu, MF_ENABLED, IDM_ADDKEY, "Add &Key");
 #endif // PUTTY_CAC
+    AppendMenu(systray_menu, MF_ENABLED, IDM_ADDKEY_ENCRYPTED,
+               "Add key (encrypted)");
+    AppendMenu(systray_menu, MF_SEPARATOR, 0, 0);
+    AppendMenu(systray_menu, MF_ENABLED, IDM_REMOVE_ALL,
+               "Remove All Keys");
+    AppendMenu(systray_menu, MF_ENABLED, IDM_REENCRYPT_ALL,
+               "Re-encrypt All Keys");
     AppendMenu(systray_menu, MF_SEPARATOR, 0, 0);
     if (has_help())
         AppendMenu(systray_menu, MF_ENABLED, IDM_HELP, "&Help");
@@ -1704,25 +2000,65 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
     /* Set the default menu item. */
     SetMenuDefaultItem(systray_menu, IDM_VIEWKEYS, false);
 
-    ShowWindow(hwnd, SW_HIDE);
+    ShowWindow(traywindow, SW_HIDE);
+
+    wmcpc.vt = &wmcpc_vtable;
+    wmcpc.suppress_logging = true;
+    pageant_register_client(&wmcpc);
+    DWORD wm_copydata_threadid;
+    wmct.ev_msg_ready = CreateEvent(NULL, false, false, NULL);
+    wmct.ev_reply_ready = CreateEvent(NULL, false, false, NULL);
+    CreateThread(NULL, 0, wm_copydata_threadfunc,
+                 &inst, 0, &wm_copydata_threadid);
+    handle_add_foreign_event(wmct.ev_msg_ready, wm_copydata_got_msg, NULL);
+
+    if (show_keylist_on_startup)
+        create_keylist_window();
 
     /*
      * Main message loop.
      */
-    while (GetMessage(&msg, NULL, 0, 0) == 1) {
-        if (!(IsWindow(keylist) && IsDialogMessage(keylist, &msg)) &&
-            !(IsWindow(aboutbox) && IsDialogMessage(aboutbox, &msg))) {
+    while (true) {
+        HANDLE *handles;
+        int nhandles, n;
+
+        handles = handle_get_events(&nhandles);
+
+        n = MsgWaitForMultipleObjects(nhandles, handles, false,
+                                      INFINITE, QS_ALLINPUT);
+
+        if ((unsigned)(n - WAIT_OBJECT_0) < (unsigned)nhandles) {
+            handle_got_event(handles[n - WAIT_OBJECT_0]);
+            sfree(handles);
+        } else
+            sfree(handles);
+
+        while (PeekMessageW(&msg, NULL, 0, 0, PM_REMOVE)) {
+            if (msg.message == WM_QUIT)
+                goto finished;         /* two-level break */
+
+            if (IsWindow(keylist) && IsDialogMessage(keylist, &msg))
+                continue;
+            if (IsWindow(aboutbox) && IsDialogMessage(aboutbox, &msg))
+                continue;
+            if (IsWindow(nonmodal_passphrase_hwnd) &&
+                IsDialogMessage(nonmodal_passphrase_hwnd, &msg))
+                continue;
+
             TranslateMessage(&msg);
             DispatchMessage(&msg);
         }
+
+        run_toplevel_callbacks();
     }
+  finished:
 
     /* Clean up the system tray icon */
     {
         NOTIFYICONDATA tnid;
 
         tnid.cbSize = sizeof(NOTIFYICONDATA);
-        tnid.hWnd = hwnd;
+        tnid.hWnd = traywindow;
         tnid.uID = 1;
 
         Shell_NotifyIcon(NIM_DELETE, &tnid);

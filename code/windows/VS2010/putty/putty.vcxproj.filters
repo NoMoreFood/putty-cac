@@ -70,8 +70,6 @@
       <Filter>Source Files</Filter>
     </ClCompile>    <ClCompile Include="..\..\..\rlogin.c">
       <Filter>Source Files</Filter>
-    </ClCompile>    <ClCompile Include="..\..\..\sercfg.c">
-      <Filter>Source Files</Filter>
     </ClCompile>    <ClCompile Include="..\..\..\sessprep.c">
       <Filter>Source Files</Filter>
     </ClCompile>    <ClCompile Include="..\..\..\settings.c">
@@ -110,7 +108,11 @@
       <Filter>Source Files</Filter>
     </ClCompile>    <ClCompile Include="..\..\..\ssharcf.c">
       <Filter>Source Files</Filter>
+    </ClCompile>    <ClCompile Include="..\..\..\sshargon2.c">
+      <Filter>Source Files</Filter>
     </ClCompile>    <ClCompile Include="..\..\..\sshauxcrypt.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>    <ClCompile Include="..\..\..\sshblake2.c">
       <Filter>Source Files</Filter>
     </ClCompile>    <ClCompile Include="..\..\..\sshblowf.c">
       <Filter>Source Files</Filter>
@@ -152,13 +154,19 @@
       <Filter>Source Files</Filter>
     </ClCompile>    <ClCompile Include="..\..\..\sshsha.c">
       <Filter>Source Files</Filter>
+    </ClCompile>    <ClCompile Include="..\..\..\sshsha3.c">
+      <Filter>Source Files</Filter>
     </ClCompile>    <ClCompile Include="..\..\..\sshshare.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>    <ClCompile Include="..\..\..\sshutils.c">
       <Filter>Source Files</Filter>
     </ClCompile>    <ClCompile Include="..\..\..\sshverstring.c">
       <Filter>Source Files</Filter>
     </ClCompile>    <ClCompile Include="..\..\..\sshzlib.c">
       <Filter>Source Files</Filter>
     </ClCompile>    <ClCompile Include="..\..\..\stripctrl.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>    <ClCompile Include="..\..\..\supdup.c">
       <Filter>Source Files</Filter>
     </ClCompile>    <ClCompile Include="..\..\..\telnet.c">
       <Filter>Source Files</Filter>
@@ -219,6 +227,8 @@
     </ClCompile>    <ClCompile Include="..\..\winproxy.c">
       <Filter>Source Files</Filter>
     </ClCompile>    <ClCompile Include="..\..\winsecur.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>    <ClCompile Include="..\..\winselgui.c">
       <Filter>Source Files</Filter>
     </ClCompile>    <ClCompile Include="..\..\winser.c">
       <Filter>Source Files</Filter>
@@ -321,6 +331,8 @@
     </ClInclude>    <ClInclude Include="..\..\wincapi.h">
       <Filter>Header Files</Filter>
     </ClInclude>    <ClInclude Include="..\..\winhelp.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>    <ClInclude Include="..\..\winseat.h">
       <Filter>Header Files</Filter>
     </ClInclude>    <ClInclude Include="..\..\winsecur.h">
       <Filter>Header Files</Filter>

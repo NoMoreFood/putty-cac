@@ -2,7 +2,6 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-#define PUTTY_DO_GLOBALS
 #include "putty.h"
 #include "dialog.h"
 #include "terminal.h"
@@ -89,48 +88,36 @@ static void fuzz_request_resize(TermWin *tw, int w, int h) {}
 static void fuzz_set_title(TermWin *tw, const char *title) {}
 static void fuzz_set_icon_title(TermWin *tw, const char *icontitle) {}
 static void fuzz_set_minimised(TermWin *tw, bool minimised) {}
-static bool fuzz_is_minimised(TermWin *tw) { return false; }
 static void fuzz_set_maximised(TermWin *tw, bool maximised) {}
 static void fuzz_move(TermWin *tw, int x, int y) {}
 static void fuzz_set_zorder(TermWin *tw, bool top) {}
-static bool fuzz_palette_get(TermWin *tw, int n, int *r, int *g, int *b)
-{ return false; }
-static void fuzz_palette_set(TermWin *tw, int n, int r, int g, int b) {}
-static void fuzz_palette_reset(TermWin *tw) {}
-static void fuzz_get_pos(TermWin *tw, int *x, int *y) { *x = *y = 0; }
-static void fuzz_get_pixels(TermWin *tw, int *x, int *y) { *x = *y = 0; }
-static const char *fuzz_get_title(TermWin *tw, bool icon) { return "moo"; }
-static bool fuzz_is_utf8(TermWin *tw) { return true; }
+static void fuzz_palette_set(TermWin *tw, unsigned start, unsigned ncolours,
+                             const rgb *colours) {}
+static void fuzz_palette_get_overrides(TermWin *tw) {}
 
 static const TermWinVtable fuzz_termwin_vt = {
-    fuzz_setup_draw_ctx,
-    fuzz_draw_text,
-    fuzz_draw_cursor,
-    fuzz_draw_trust_sigil,
-    fuzz_char_width,
-    fuzz_free_draw_ctx,
-    fuzz_set_cursor_pos,
-    fuzz_set_raw_mouse_mode,
-    fuzz_set_scrollbar,
-    fuzz_bell,
-    fuzz_clip_write,
-    fuzz_clip_request_paste,
-    fuzz_refresh,
-    fuzz_request_resize,
-    fuzz_set_title,
-    fuzz_set_icon_title,
-    fuzz_set_minimised,
-    fuzz_is_minimised,
-    fuzz_set_maximised,
-    fuzz_move,
-    fuzz_set_zorder,
-    fuzz_palette_get,
-    fuzz_palette_set,
-    fuzz_palette_reset,
-    fuzz_get_pos,
-    fuzz_get_pixels,
-    fuzz_get_title,
-    fuzz_is_utf8,
+    .setup_draw_ctx = fuzz_setup_draw_ctx,
+    .draw_text = fuzz_draw_text,
+    .draw_cursor = fuzz_draw_cursor,
+    .draw_trust_sigil = fuzz_draw_trust_sigil,
+    .char_width = fuzz_char_width,
+    .free_draw_ctx = fuzz_free_draw_ctx,
+    .set_cursor_pos = fuzz_set_cursor_pos,
+    .set_raw_mouse_mode = fuzz_set_raw_mouse_mode,
+    .set_scrollbar = fuzz_set_scrollbar,
+    .bell = fuzz_bell,
+    .clip_write = fuzz_clip_write,
+    .clip_request_paste = fuzz_clip_request_paste,
+    .refresh = fuzz_refresh,
+    .request_resize = fuzz_request_resize,
+    .set_title = fuzz_set_title,
+    .set_icon_title = fuzz_set_icon_title,
+    .set_minimised = fuzz_set_minimised,
+    .set_maximised = fuzz_set_maximised,
+    .move = fuzz_move,
+    .set_zorder = fuzz_set_zorder,
+    .palette_set = fuzz_palette_set,
+    .palette_get_overrides = fuzz_palette_get_overrides,
 };
 
 void ldisc_send(Ldisc *ldisc, const void *buf, int len, bool interactive) {}

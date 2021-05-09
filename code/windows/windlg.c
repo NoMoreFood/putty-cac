@@ -12,6 +12,7 @@
 #include "putty.h"
 #include "ssh.h"
 #include "win_res.h"
+#include "winseat.h"
 #include "storage.h"
 #include "dialog.h"
 #include "licence.h"
@@ -78,23 +79,24 @@ static char *getevent(int i)
     return NULL;
 }
 
+static HWND logbox;
+HWND event_log_window(void) { return logbox; }
+
 static INT_PTR CALLBACK LogProc(HWND hwnd, UINT msg,
                                 WPARAM wParam, LPARAM lParam)
 {
     int i;
 
     switch (msg) {
-      case WM_INITDIALOG:
-        {
-            char *str = dupprintf("%s Event Log", appname);
-            SetWindowText(hwnd, str);
-            sfree(str);
-        }
-        {
-            static int tabs[4] = { 78, 108 };
-            SendDlgItemMessage(hwnd, IDN_LIST, LB_SETTABSTOPS, 2,
-                               (LPARAM) tabs);
-        }
+      case WM_INITDIALOG: {
+        char *str = dupprintf("%s Event Log", appname);
+        SetWindowText(hwnd, str);
+        sfree(str);
+
+        static int tabs[4] = { 78, 108 };
+        SendDlgItemMessage(hwnd, IDN_LIST, LB_SETTABSTOPS, 2,
+                           (LPARAM) tabs);
+
         for (i = 0; i < ninitial; i++)
             SendDlgItemMessage(hwnd, IDN_LIST, LB_ADDSTRING,
                                0, (LPARAM) events_initial[i]);
@@ -102,6 +104,7 @@ static INT_PTR CALLBACK LogProc(HWND hwnd, UINT msg,
             SendDlgItemMessage(hwnd, IDN_LIST, LB_ADDSTRING,
                                0, (LPARAM) events_circular[(circular_first + i) % LOGEVENT_CIRCULAR_MAX]);
         return 1;
+      }
       case WM_COMMAND:
         switch (LOWORD(wParam)) {
           case IDOK:
@@ -180,14 +183,13 @@ static INT_PTR CALLBACK LicenceProc(HWND hwnd, UINT msg,
                                     WPARAM wParam, LPARAM lParam)
 {
     switch (msg) {
-      case WM_INITDIALOG:
-        {
-            char *str = dupprintf("%s Licence", appname);
-            SetWindowText(hwnd, str);
-            sfree(str);
-            SetDlgItemText(hwnd, IDA_TEXT, LICENCE_TEXT("\r\n\r\n"));
-        }
+      case WM_INITDIALOG: {
+        char *str = dupprintf("%s Licence", appname);
+        SetWindowText(hwnd, str);
+        sfree(str);
+        SetDlgItemText(hwnd, IDA_TEXT, LICENCE_TEXT("\r\n\r\n"));
         return 1;
+      }
       case WM_COMMAND:
         switch (LOWORD(wParam)) {
           case IDOK:
@@ -209,21 +211,21 @@ static INT_PTR CALLBACK AboutProc(HWND hwnd, UINT msg,
     char *str;
 
     switch (msg) {
-      case WM_INITDIALOG:
+      case WM_INITDIALOG: {
         str = dupprintf("About %s", appname);
         SetWindowText(hwnd, str);
         sfree(str);
-        {
-            char *buildinfo_text = buildinfo("\r\n");
-            char *text = dupprintf
-                ("%s\r\n\r\n%s\r\n\r\n%s\r\n\r\n%s",
-                 appname, ver, buildinfo_text,
-                 "\251 " SHORT_COPYRIGHT_DETAILS ". All rights reserved.");
-            sfree(buildinfo_text);
-            SetDlgItemText(hwnd, IDA_TEXT, text);
-            sfree(text);
-        }
+        char *buildinfo_text = buildinfo("\r\n");
+        char *text = dupprintf
+            ("%s\r\n\r\n%s\r\n\r\n%s\r\n\r\n%s",
+             appname, ver, buildinfo_text,
+             "\251 " SHORT_COPYRIGHT_DETAILS ". All rights reserved.");
+        sfree(buildinfo_text);
+        SetDlgItemText(hwnd, IDA_TEXT, text);
+        MakeDlgItemBorderless(hwnd, IDA_TEXT);
+        sfree(text);
         return 1;
+      }
       case WM_COMMAND:
         switch (LOWORD(wParam)) {
           case IDOK:
@@ -691,7 +693,7 @@ void defuse_showwindow(void)
     }
 }
 
-bool do_config(void)
+bool do_config(Conf *conf)
 {
     bool ret;
 
@@ -721,7 +723,7 @@ bool do_config(void)
     return ret;
 }
 
-bool do_reconfig(HWND hwnd, int protcfginfo)
+bool do_reconfig(HWND hwnd, Conf *conf, int protcfginfo)
 {
     Conf *backup_conf;
     bool ret;
@@ -797,10 +799,12 @@ static void win_gui_eventlog(LogPolicy *lp, const char *string)
 
 static void win_gui_logging_error(LogPolicy *lp, const char *event)
 {
+    WinGuiSeat *wgs = container_of(lp, WinGuiSeat, logpolicy);
+
     /* Send 'can't open log file' errors to the terminal window.
      * (Marked as stderr, although terminal.c won't care.) */
-    seat_stderr_pl(win_seat, ptrlen_from_asciz(event));
-    seat_stderr_pl(win_seat, PTRLEN_LITERAL("\r\n"));
+    seat_stderr_pl(&wgs->seat, ptrlen_from_asciz(event));
+    seat_stderr_pl(&wgs->seat, PTRLEN_LITERAL("\r\n"));
 }
 
 void showeventlog(HWND hwnd)
@@ -818,44 +822,161 @@ void showabout(HWND hwnd)
     DialogBox(hinst, MAKEINTRESOURCE(IDD_ABOUTBOX), hwnd, AboutProc);
 }
 
+struct hostkey_dialog_ctx {
+    const char *const *keywords;
+    const char *const *values;
+    FingerprintType fptype_default;
+    char **fingerprints;
+    const char *keydisp;
+    LPCTSTR iconid;
+    const char *helpctx;
+};
+
+static INT_PTR CALLBACK HostKeyMoreInfoProc(HWND hwnd, UINT msg,
+                                            WPARAM wParam, LPARAM lParam)
+{
+    switch (msg) {
+      case WM_INITDIALOG: {
+        const struct hostkey_dialog_ctx *ctx =
+            (const struct hostkey_dialog_ctx *)lParam;
+        SetWindowLongPtr(hwnd, GWLP_USERDATA, (INT_PTR)ctx);
+
+        if (ctx->fingerprints[SSH_FPTYPE_SHA256])
+            SetDlgItemText(hwnd, IDC_HKI_SHA256,
+                           ctx->fingerprints[SSH_FPTYPE_SHA256]);
+        if (ctx->fingerprints[SSH_FPTYPE_MD5])
+            SetDlgItemText(hwnd, IDC_HKI_MD5,
+                           ctx->fingerprints[SSH_FPTYPE_MD5]);
+
+        SetDlgItemText(hwnd, IDA_TEXT, ctx->keydisp);
+
+        return 1;
+      }
+      case WM_COMMAND:
+        switch (LOWORD(wParam)) {
+          case IDOK:
+            EndDialog(hwnd, 0);
+            return 0;
+        }
+        return 0;
+      case WM_CLOSE:
+        EndDialog(hwnd, 0);
+        return 0;
+    }
+    return 0;
+}
+
+static INT_PTR CALLBACK HostKeyDialogProc(HWND hwnd, UINT msg,
+                                          WPARAM wParam, LPARAM lParam)
+{
+    switch (msg) {
+      case WM_INITDIALOG: {
+        strbuf *sb = strbuf_new();
+        const struct hostkey_dialog_ctx *ctx =
+            (const struct hostkey_dialog_ctx *)lParam;
+        SetWindowLongPtr(hwnd, GWLP_USERDATA, (INT_PTR)ctx);
+        for (int id = 100;; id++) {
+            char buf[256];
+
+            if (!GetDlgItemText(hwnd, id, buf, (int)lenof(buf)))
+                break;
+
+            strbuf_clear(sb);
+            for (const char *p = buf; *p ;) {
+                if (*p == '{') {
+                    for (size_t i = 0; ctx->keywords[i]; i++) {
+                        if (strstartswith(p, ctx->keywords[i])) {
+                            p += strlen(ctx->keywords[i]);
+                            put_datapl(sb, ptrlen_from_asciz(ctx->values[i]));
+                            goto matched;
+                        }
+                    }
+                } else {
+                    put_byte(sb, *p++);
+                }
+              matched:;
+            }
+
+            SetDlgItemText(hwnd, id, sb->s);
+        }
+        strbuf_free(sb);
+
+        SetDlgItemText(hwnd, IDC_HK_FINGERPRINT,
+                       ctx->fingerprints[ctx->fptype_default]);
+        MakeDlgItemBorderless(hwnd, IDC_HK_FINGERPRINT);
+
+        HANDLE icon = LoadImage(
+            NULL, ctx->iconid, IMAGE_ICON,
+            GetSystemMetrics(SM_CXICON), GetSystemMetrics(SM_CYICON),
+            LR_SHARED);
+        SendDlgItemMessage(hwnd, IDC_HK_ICON, STM_SETICON, (WPARAM)icon, 0);
+
+        if (!has_help()) {
+            HWND item = GetDlgItem(hwnd, IDHELP);
+            if (item)
+                DestroyWindow(item);
+        }
+
+        return 1;
+      }
+      case WM_CTLCOLORSTATIC: {
+        HDC hdc = (HDC)wParam;
+        HWND control = (HWND)lParam;
+
+        if (GetWindowLongPtr(control, GWLP_ID) == IDC_HK_TITLE) {
+            SetBkMode(hdc, TRANSPARENT);
+            HFONT prev_font = (HFONT)SelectObject(
+                hdc, (HFONT)GetStockObject(SYSTEM_FONT));
+            LOGFONT lf;
+            if (GetObject(prev_font, sizeof(lf), &lf)) { 
+                lf.lfWeight = FW_BOLD;
+                lf.lfHeight = lf.lfHeight * 3 / 2;
+                HFONT bold_font = CreateFontIndirect(&lf);
+                if (bold_font)
+                    SelectObject(hdc, bold_font);
+            }
+            return (INT_PTR)GetSysColorBrush(COLOR_BTNFACE);
+        }
+        return 0;
+      }
+      case WM_COMMAND:
+        switch (LOWORD(wParam)) {
+          case IDC_HK_ACCEPT:
+          case IDC_HK_ONCE:
+          case IDCANCEL:
+            EndDialog(hwnd, LOWORD(wParam));
+            return 0;
+          case IDHELP: {
+            const struct hostkey_dialog_ctx *ctx =
+                (const struct hostkey_dialog_ctx *)
+                GetWindowLongPtr(hwnd, GWLP_USERDATA);
+            launch_help(hwnd, ctx->helpctx);
+            return 0;
+          }
+          case IDC_HK_MOREINFO: {
+            const struct hostkey_dialog_ctx *ctx =
+                (const struct hostkey_dialog_ctx *)
+                GetWindowLongPtr(hwnd, GWLP_USERDATA);
+            DialogBoxParam(hinst, MAKEINTRESOURCE(IDD_HK_MOREINFO),
+                           hwnd, HostKeyMoreInfoProc, (LPARAM)ctx);
+          }
+        }
+        return 0;
+      case WM_CLOSE:
+        EndDialog(hwnd, IDCANCEL);
+        return 0;
+    }
+    return 0;
+}
+
 int win_seat_verify_ssh_host_key(
-    Seat *seat, const char *host, int port,
-    const char *keytype, char *keystr, char *fingerprint,
+    Seat *seat, const char *host, int port, const char *keytype,
+    char *keystr, const char *keydisp, char **fingerprints,
     void (*callback)(void *ctx, int result), void *ctx)
 {
     int ret;
 
-    static const char absentmsg[] =
-        "The server's host key is not cached in the registry. You\n"
-        "have no guarantee that the server is the computer you\n"
-        "think it is.\n"
-        "The server's %s key fingerprint is:\n"
-        "%s\n"
-        "If you trust this host, hit Yes to add the key to\n"
-        "%s's cache and carry on connecting.\n"
-        "If you want to carry on connecting just once, without\n"
-        "adding the key to the cache, hit No.\n"
-        "If you do not trust this host, hit Cancel to abandon the\n"
-        "connection.\n";
-
-    static const char wrongmsg[] =
-        "WARNING - POTENTIAL SECURITY BREACH!\n"
-        "\n"
-        "The server's host key does not match the one %s has\n"
-        "cached in the registry. This means that either the\n"
-        "server administrator has changed the host key, or you\n"
-        "have actually connected to another computer pretending\n"
-        "to be the server.\n"
-        "The new %s key fingerprint is:\n"
-        "%s\n"
-        "If you were expecting this change and trust the new key,\n"
-        "hit Yes to update %s's cache and continue connecting.\n"
-        "If you want to carry on connecting but without updating\n"
-        "the cache, hit No.\n"
-        "If you want to abandon the connection completely, hit\n"
-        "Cancel. Hitting Cancel is the ONLY guaranteed safe\n" "choice.\n";
-
-    static const char mbtitle[] = "%s Security Alert";
+    WinGuiSeat *wgs = container_of(seat, WinGuiSeat, seat);
 
     /*
      * Verify the key against the registry.
@@ -864,36 +985,32 @@ int win_seat_verify_ssh_host_key(
 
     if (ret == 0)                      /* success - key matched OK */
         return 1;
-    else if (ret == 2) {               /* key was different */
-        int mbret;
-        char *text = dupprintf(wrongmsg, appname, keytype, fingerprint,
-                               appname);
-        char *caption = dupprintf(mbtitle, appname);
-        mbret = message_box(text, caption,
-                            MB_ICONWARNING | MB_YESNOCANCEL | MB_DEFBUTTON3,
-                            HELPCTXID(errors_hostkey_changed));
-        assert(mbret==IDYES || mbret==IDNO || mbret==IDCANCEL);
-        sfree(text);
-        sfree(caption);
-        if (mbret == IDYES) {
+    else {
+        static const char *const keywords[] =
+            { "{KEYTYPE}", "{APPNAME}", NULL };
+
+        const char *values[2];
+        values[0] = keytype;
+        values[1] = appname;
+
+        struct hostkey_dialog_ctx ctx[1];
+        ctx->keywords = keywords;
+        ctx->values = values;
+        ctx->fingerprints = fingerprints;
+        ctx->fptype_default = ssh2_pick_default_fingerprint(fingerprints);
+        ctx->keydisp = keydisp;
+        ctx->iconid = (ret == 2 ? IDI_WARNING : IDI_QUESTION);
+        ctx->helpctx = (ret == 2 ? WINHELP_CTX_errors_hostkey_changed :
+                        WINHELP_CTX_errors_hostkey_absent);
+        int dlgid = (ret == 2 ? IDD_HK_WRONG : IDD_HK_ABSENT);
+        int mbret = DialogBoxParam(
+            hinst, MAKEINTRESOURCE(dlgid), wgs->term_hwnd,
+            HostKeyDialogProc, (LPARAM)ctx);
+        assert(mbret==IDC_HK_ACCEPT || mbret==IDC_HK_ONCE || mbret==IDCANCEL);
+        if (mbret == IDC_HK_ACCEPT) {
             store_host_key(host, port, keytype, keystr);
             return 1;
-        } else if (mbret == IDNO)
-            return 1;
-    } else if (ret == 1) {             /* key was absent */
-        int mbret;
-        char *text = dupprintf(absentmsg, keytype, fingerprint, appname);
-        char *caption = dupprintf(mbtitle, appname);
-        mbret = message_box(text, caption,
-                            MB_ICONWARNING | MB_YESNOCANCEL | MB_DEFBUTTON3,
-                            HELPCTXID(errors_hostkey_absent));
-        assert(mbret==IDYES || mbret==IDNO || mbret==IDCANCEL);
-        sfree(text);
-        sfree(caption);
-        if (mbret == IDYES) {
-            store_host_key(host, port, keytype, keystr);
-            return 1;
-        } else if (mbret == IDNO)
+        } else if (mbret == IDC_HK_ONCE)
             return 1;
     }
     return 0;   /* abandon the connection */
@@ -995,12 +1112,12 @@ static int win_gui_askappend(LogPolicy *lp, Filename *filename,
         return 0;
 }
 
-static const LogPolicyVtable default_logpolicy_vt = {
-    win_gui_eventlog,
-    win_gui_askappend,
-    win_gui_logging_error,
+const LogPolicyVtable win_gui_logpolicy_vt = {
+    .eventlog = win_gui_eventlog,
+    .askappend = win_gui_askappend,
+    .logging_error = win_gui_logging_error,
+    .verbose = null_lp_verbose_yes,
 };
-LogPolicy default_logpolicy[1] = {{ &default_logpolicy_vt }};
 
 /*
  * Warn about the obsolescent key file format.

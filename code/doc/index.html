@@ -17,14 +17,14 @@ PuTTY is a free (MIT-licensed) Windows Telnet and SSH client. This manual docume
 <em>Note to Unix users:</em> this manual currently primarily documents the Windows versions of the PuTTY utilities. Some options are therefore mentioned that are absent from the <a name="i0"></a>Unix version; the Unix version has features not described here; and the <a name="i1"></a><code>pterm</code> and command-line <code>puttygen</code> and <code>pageant</code> utilities are not described at all. The only Unix-specific documentation that currently exists is the <a name="i2"></a>man pages.
 </p>
 <p>
-This manual is copyright 1997-2020 Simon Tatham. All rights reserved. You may distribute this documentation under the MIT licence. See <a href="AppendixC.html#licence">appendix C</a> for the licence text in full.
+This manual is copyright 1997-2021 Simon Tatham. All rights reserved. You may distribute this documentation under the MIT licence. See <a href="AppendixD.html#licence">appendix D</a> for the licence text in full.
 </p>
 
 <ul>
 <li><a href="Chapter1.html#intro">Chapter 1: Introduction to PuTTY</a>
 <ul>
-<li><a href="Chapter1.html#you-what">1.1 What are SSH, Telnet and Rlogin?</a></li>
-<li><a href="Chapter1.html#which-one">1.2 How do SSH, Telnet and Rlogin differ?</a></li>
+<li><a href="Chapter1.html#you-what">1.1 What are SSH, Telnet, Rlogin, and SUPDUP?</a></li>
+<li><a href="Chapter1.html#which-one">1.2 How do SSH, Telnet, Rlogin, and SUPDUP differ?</a></li>
 </ul></li>
 <li><a href="Chapter2.html#gs">Chapter 2: Getting started with PuTTY</a>
 <ul>
@@ -41,9 +41,12 @@ This manual is copyright 1997-2020 Simon Tatham. All rights reserved. You may di
 <li><a href="Chapter3.html#using-translation">3.3 Altering your character set configuration</a></li>
 <li><a href="Chapter3.html#using-x-forwarding">3.4 Using X11 forwarding in SSH</a></li>
 <li><a href="Chapter3.html#using-port-forwarding">3.5 Using port forwarding in SSH</a></li>
-<li><a href="Chapter3.html#using-rawprot">3.6 Making raw TCP connections</a></li>
-<li><a href="Chapter3.html#using-serial">3.7 Connecting to a local serial line</a></li>
-<li><a href="Chapter3.html#using-cmdline">3.8 The PuTTY command line</a></li>
+<li><a href="Chapter3.html#using-serial">3.6 Connecting to a local serial line</a></li>
+<li><a href="Chapter3.html#using-rawprot">3.7 Making raw TCP connections</a></li>
+<li><a href="Chapter3.html#using-telnet">3.8 Connecting using the Telnet protocol</a></li>
+<li><a href="Chapter3.html#using-rlogin">3.9 Connecting using the Rlogin protocol</a></li>
+<li><a href="Chapter3.html#using-supdup">3.10 Connecting using the SUPDUP protocol</a></li>
+<li><a href="Chapter3.html#using-cmdline">3.11 The PuTTY command line</a></li>
 </ul></li>
 <li><a href="Chapter4.html#config">Chapter 4: Configuring PuTTY</a>
 <ul>
@@ -63,20 +66,22 @@ This manual is copyright 1997-2020 Simon Tatham. All rights reserved. You may di
 <li><a href="Chapter4.html#config-connection">4.14 The Connection panel</a></li>
 <li><a href="Chapter4.html#config-data">4.15 The Data panel</a></li>
 <li><a href="Chapter4.html#config-proxy">4.16 The Proxy panel</a></li>
-<li><a href="Chapter4.html#config-telnet">4.17 The Telnet panel</a></li>
-<li><a href="Chapter4.html#config-rlogin">4.18 The Rlogin panel</a></li>
-<li><a href="Chapter4.html#config-ssh">4.19 The SSH panel</a></li>
-<li><a href="Chapter4.html#config-ssh-kex">4.20 The Kex panel</a></li>
-<li><a href="Chapter4.html#config-ssh-hostkey">4.21 The Host Keys panel</a></li>
-<li><a href="Chapter4.html#config-ssh-encryption">4.22 The Cipher panel</a></li>
-<li><a href="Chapter4.html#config-ssh-auth">4.23 The Auth panel</a></li>
-<li><a href="Chapter4.html#config-ssh-auth-gssapi">4.24 The GSSAPI panel</a></li>
-<li><a href="Chapter4.html#config-ssh-tty">4.25 The TTY panel</a></li>
-<li><a href="Chapter4.html#config-ssh-x11">4.26 The X11 panel</a></li>
-<li><a href="Chapter4.html#config-ssh-portfwd">4.27 The Tunnels panel</a></li>
-<li><a href="Chapter4.html#config-ssh-bugs">4.28 The Bugs and More Bugs panels</a></li>
-<li><a href="Chapter4.html#config-serial">4.29 The Serial panel</a></li>
-<li><a href="Chapter4.html#config-file">4.30 Storing configuration in a file</a></li>
+<li><a href="Chapter4.html#config-ssh">4.17 The SSH panel</a></li>
+<li><a href="Chapter4.html#config-ssh-kex">4.18 The Kex panel</a></li>
+<li><a href="Chapter4.html#config-ssh-hostkey">4.19 The Host Keys panel</a></li>
+<li><a href="Chapter4.html#config-ssh-encryption">4.20 The Cipher panel</a></li>
+<li><a href="Chapter4.html#config-ssh-auth">4.21 The Auth panel</a></li>
+<li><a href="Chapter4.html#config-ssh-auth-gssapi">4.22 The GSSAPI panel</a></li>
+<li><a href="Chapter4.html#config-ssh-tty">4.23 The TTY panel</a></li>
+<li><a href="Chapter4.html#config-ssh-x11">4.24 The X11 panel</a></li>
+<li><a href="Chapter4.html#config-ssh-portfwd">4.25 The Tunnels panel</a></li>
+<li><a href="Chapter4.html#config-ssh-bugs">4.26 The Bugs and More Bugs panels</a></li>
+<li><a href="Chapter4.html#config-psusan">4.27 The &#8216;Bare <code>ssh-connection</code>&#8217; protocol</a></li>
+<li><a href="Chapter4.html#config-serial">4.28 The Serial panel</a></li>
+<li><a href="Chapter4.html#config-telnet">4.29 The Telnet panel</a></li>
+<li><a href="Chapter4.html#config-rlogin">4.30 The Rlogin panel</a></li>
+<li><a href="Chapter4.html#config-supdup">4.31 The SUPDUP panel</a></li>
+<li><a href="Chapter4.html#config-file">4.32 Storing configuration in a file</a></li>
 </ul></li>
 <li><a href="Chapter5.html#pscp">Chapter 5: Using PSCP to transfer files securely</a>
 <ul>
@@ -109,7 +114,8 @@ This manual is copyright 1997-2020 Simon Tatham. All rights reserved. You may di
 <li><a href="Chapter9.html#pageant-mainwin">9.2 The Pageant main window</a></li>
 <li><a href="Chapter9.html#pageant-cmdline">9.3 The Pageant command line</a></li>
 <li><a href="Chapter9.html#pageant-forward">9.4 Using agent forwarding</a></li>
-<li><a href="Chapter9.html#pageant-security">9.5 Security considerations</a></li>
+<li><a href="Chapter9.html#pageant-deferred-decryption">9.5 Loading keys without decrypting them</a></li>
+<li><a href="Chapter9.html#pageant-security">9.6 Security considerations</a></li>
 </ul></li>
 <li><a href="Chapter10.html#errors">Chapter 10: Common error messages</a>
 <ul>
@@ -160,39 +166,49 @@ This manual is copyright 1997-2020 Simon Tatham. All rights reserved. You may di
 <li><a href="AppendixB.html#feedback-compliments">B.10 Praise and compliments</a></li>
 <li><a href="AppendixB.html#feedback-address">B.11 E-mail address</a></li>
 </ul></li>
-<li><a href="AppendixC.html#licence">Appendix C: PuTTY Licence</a></li>
-<li><a href="AppendixD.html#udp">Appendix D: PuTTY hacking guide</a>
+<li><a href="AppendixC.html#ppk">Appendix C: PPK file format</a>
 <ul>
-<li><a href="AppendixD.html#udp-portability">D.1 Cross-OS portability</a></li>
-<li><a href="AppendixD.html#udp-multi-backend">D.2 Multiple backends treated equally</a></li>
-<li><a href="AppendixD.html#udp-globals">D.3 Multiple sessions per process on some platforms</a></li>
-<li><a href="AppendixD.html#udp-pure-c">D.4 C, not C++</a></li>
-<li><a href="AppendixD.html#udp-security">D.5 Security-conscious coding</a></li>
-<li><a href="AppendixD.html#udp-multi-compiler">D.6 Independence of specific compiler</a></li>
-<li><a href="AppendixD.html#udp-small">D.7 Small code size</a></li>
-<li><a href="AppendixD.html#udp-single-threaded">D.8 Single-threaded code</a></li>
-<li><a href="AppendixD.html#udp-keystrokes">D.9 Keystrokes sent to the server wherever possible</a></li>
-<li><a href="AppendixD.html#udp-640x480">D.10 640&#215;480 friendliness in configuration panels</a></li>
-<li><a href="AppendixD.html#udp-makefiles-auto">D.11 Automatically generated <code>Makefile</code>s</a></li>
-<li><a href="AppendixD.html#udp-ssh-coroutines">D.12 Coroutines in the SSH code</a></li>
-<li><a href="AppendixD.html#udp-compile-once">D.13 Single compilation of each source file</a></li>
-<li><a href="AppendixD.html#udp-perfection">D.14 Do as we say, not as we do</a></li>
+<li><a href="AppendixC.html#ppk-overview">C.1 Overview</a></li>
+<li><a href="AppendixC.html#ppk-outer">C.2 Outer layer</a></li>
+<li><a href="AppendixC.html#ppk-privkeys">C.3 Private key encodings</a></li>
+<li><a href="AppendixC.html#ppk-keys">C.4 Key derivation</a></li>
+<li><a href="AppendixC.html#ppk-old">C.5 Older versions of the PPK format</a></li>
 </ul></li>
-<li><a href="AppendixE.html#pgpkeys">Appendix E: PuTTY download keys and signatures</a>
+<li><a href="AppendixD.html#licence">Appendix D: PuTTY Licence</a></li>
+<li><a href="AppendixE.html#udp">Appendix E: PuTTY hacking guide</a>
 <ul>
-<li><a href="AppendixE.html#pgpkeys-pubkey">E.1 Public keys</a></li>
-<li><a href="AppendixE.html#pgpkeys-security">E.2 Security details</a></li>
-<li><a href="AppendixE.html#pgpkeys-rollover">E.3 Key rollover</a></li>
+<li><a href="AppendixE.html#udp-portability">E.1 Cross-OS portability</a></li>
+<li><a href="AppendixE.html#udp-multi-backend">E.2 Multiple backends treated equally</a></li>
+<li><a href="AppendixE.html#udp-globals">E.3 Multiple sessions per process on some platforms</a></li>
+<li><a href="AppendixE.html#udp-pure-c">E.4 C, not C++</a></li>
+<li><a href="AppendixE.html#udp-security">E.5 Security-conscious coding</a></li>
+<li><a href="AppendixE.html#udp-multi-compiler">E.6 Independence of specific compiler</a></li>
+<li><a href="AppendixE.html#udp-small">E.7 Small code size</a></li>
+<li><a href="AppendixE.html#udp-single-threaded">E.8 Single-threaded code</a></li>
+<li><a href="AppendixE.html#udp-keystrokes">E.9 Keystrokes sent to the server wherever possible</a></li>
+<li><a href="AppendixE.html#udp-640x480">E.10 640&#215;480 friendliness in configuration panels</a></li>
+<li><a href="AppendixE.html#udp-makefiles-auto">E.11 Automatically generated <code>Makefile</code>s</a></li>
+<li><a href="AppendixE.html#udp-ssh-coroutines">E.12 Coroutines in the SSH code</a></li>
+<li><a href="AppendixE.html#udp-traits">E.13 Explicit vtable structures to implement traits</a></li>
+<li><a href="AppendixE.html#udp-compile-once">E.14 Single compilation of each source file</a></li>
+<li><a href="AppendixE.html#udp-perfection">E.15 Do as we say, not as we do</a></li>
 </ul></li>
-<li><a href="AppendixF.html#sshnames">Appendix F: SSH-2 names specified for PuTTY</a>
+<li><a href="AppendixF.html#pgpkeys">Appendix F: PuTTY download keys and signatures</a>
 <ul>
-<li><a href="AppendixF.html#sshnames-channel">F.1 Connection protocol channel request names</a></li>
-<li><a href="AppendixF.html#sshnames-kex">F.2 Key exchange method names</a></li>
-<li><a href="AppendixF.html#sshnames-encrypt">F.3 Encryption algorithm names</a></li>
+<li><a href="AppendixF.html#pgpkeys-pubkey">F.1 Public keys</a></li>
+<li><a href="AppendixF.html#pgpkeys-security">F.2 Security details</a></li>
+<li><a href="AppendixF.html#pgpkeys-rollover">F.3 Key rollover</a></li>
+</ul></li>
+<li><a href="AppendixG.html#sshnames">Appendix G: SSH-2 names specified for PuTTY</a>
+<ul>
+<li><a href="AppendixG.html#sshnames-channel">G.1 Connection protocol channel request names</a></li>
+<li><a href="AppendixG.html#sshnames-kex">G.2 Key exchange method names</a></li>
+<li><a href="AppendixG.html#sshnames-encrypt">G.3 Encryption algorithm names</a></li>
+<li><a href="AppendixG.html#sshnames-agent">G.4 Agent extension request names</a></li>
 </ul></li>
 <li><a href="IndexPage.html#Index">Index</a></li>
 </ul>
 
 <hr><p>If you want to provide feedback on this manual or on the PuTTY tools themselves, see the <a href="https://www.chiark.greenend.org.uk/~sgtatham/putty/feedback.html">Feedback page</a>.</p><address>
-[PuTTY release 0.74]</address></body>
+[PuTTY release 0.75]</address></body>
 </html>
