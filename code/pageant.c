@@ -936,9 +936,11 @@ static PageantAsyncOp *pageant_make_op(
                 if (key->key) ssh_key_free(key->key);
 				sfree(key);
 				key = cert_load_key(pSearch, NULL);
+                BinarySource_REWIND_TO(msg, (pSearch - msg->data - 4));
 			}
 		}
-#else
+		if (key->key == NULL)
+#endif // PUTTY_CAC
         key->key = ssh_key_new_priv_openssh(alg, msg);
 
         if (!key->key) {
@@ -952,8 +954,6 @@ static PageantAsyncOp *pageant_make_op(
             fail("unable to decode request");
             goto add2_cleanup;
         }
-
-#endif // PUTTY_CAC
 
         if (!pc->suppress_logging) {
             char *fingerprint = ssh2_fingerprint(key->key, SSH_FPTYPE_DEFAULT);
