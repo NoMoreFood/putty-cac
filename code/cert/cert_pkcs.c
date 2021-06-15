@@ -140,8 +140,8 @@ BYTE * cert_pkcs_sign(struct ssh2_userkey * userkey, LPCBYTE pDataToSign, int iD
 	// check for error
 	if (hSession == 0 || hPublicKey == 0)
 	{
-		// when public key don’t exist(after import p12 in SafeNet 5100),
-		// we try to locate key id by certificate’s id
+		// when public key entry does not exist,
+		// we try to locate key id by certificateâ€™s id
 		CK_BBOOL bFalse = CK_FALSE;
 		CK_BBOOL bTrue = CK_TRUE;
 		CK_OBJECT_CLASS iObjectType = CKO_CERTIFICATE;
@@ -153,8 +153,11 @@ BYTE * cert_pkcs_sign(struct ssh2_userkey * userkey, LPCBYTE pDataToSign, int iD
 		pkcs_lookup_token_cert(userkey->comment, &hSession, &hPublicKey,
 			aFindCriteria, _countof(aFindCriteria), FALSE);
 		if (hSession == 0 || hPublicKey == 0)
+		{
 			// error
+			pFunctionList->C_CloseSession(hSession);
 			return NULL;
+		}
 	} 
 	// fetch the id of the public key so we can find 
 	// the corresponding private key id
@@ -663,8 +666,7 @@ void pkcs_lookup_token_cert(LPCSTR szCert, CK_SESSION_HANDLE_PTR phSession, CK_O
 		}
 
 		// cleanup
-		*phSession = hSession;
-		//pFunctionList->C_CloseSession(pSlotList[iSlot]);
+		pFunctionList->C_CloseSession(pSlotList[iSlot]);
 	}
 }
 
