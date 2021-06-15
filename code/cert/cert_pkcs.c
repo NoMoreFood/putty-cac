@@ -140,10 +140,25 @@ BYTE * cert_pkcs_sign(struct ssh2_userkey * userkey, LPCBYTE pDataToSign, int iD
 	// check for error
 	if (hSession == 0 || hPublicKey == 0)
 	{
-		// error
-		return NULL;
-	}
-
+		// when public key entry does not exist,
+		// we try to locate key id by certificate’s id
+		CK_BBOOL bFalse = CK_FALSE;
+		CK_BBOOL bTrue = CK_TRUE;
+		CK_OBJECT_CLASS iObjectType = CKO_CERTIFICATE;
+		CK_ATTRIBUTE aFindCriteria[] = {
+			{ CKA_CLASS,    &iObjectType, sizeof(CK_OBJECT_CLASS) },
+			{ CKA_TOKEN,    &bTrue,       sizeof(CK_BBOOL) },
+			{ CKA_PRIVATE,  &bFalse,      sizeof(CK_BBOOL) }
+		};
+		pkcs_lookup_token_cert(userkey->comment, &hSession, &hPublicKey,
+			aFindCriteria, _countof(aFindCriteria), FALSE);
+		if (hSession == 0 || hPublicKey == 0)
+		{
+			// error
+			pFunctionList->C_CloseSession(hSession);
+			return NULL;
+		}
+	} 
 	// fetch the id of the public key so we can find 
 	// the corresponding private key id
 	CK_ULONG iSize = 0;
