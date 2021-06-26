@@ -23,7 +23,8 @@
 
 #ifdef PUTTY_CAC
 #include "cert_common.h"
-ssh2_userkey* pageant_nth_ssh2_key(int i);
+char* pageant_nth_ssh2_comment(int i);
+char* pageant_nth_ssh2_string(int i);
 #endif // PUTTY_CAC
 
 #ifndef NO_SECURITY
@@ -671,8 +672,8 @@ static INT_PTR CALLBACK KeyListProc(HWND hwnd, UINT msg,
 
 				  int * selectedArray = snewn(numSelected, int);
 			  	  SendDlgItemMessage(hwnd, IDC_KEYLIST_LISTBOX, LB_GETSELITEMS, numSelected, (WPARAM)selectedArray);
-				  ssh2_userkey * key = (pageant_nth_ssh2_key(selectedArray[0]));
-				  cert_display_cert(key->comment, hwnd);
+				  char * comment = (pageant_nth_ssh2_comment(selectedArray[0]));
+				  cert_display_cert(comment, hwnd);
 				  sfree(selectedArray);
 			  }
 		  }
@@ -706,9 +707,10 @@ static INT_PTR CALLBACK KeyListProc(HWND hwnd, UINT msg,
 			for (int iSelected = 0; iSelected < numSelected; iSelected++)
 			{
 				/* get the ssh keystring from the key */
-				struct ssh2_userkey * key = (pageant_nth_ssh2_key(selectedArray[iSelected]));
-				LPSTR szKeyStringAddon = (cert_is_certpath(key->comment)) ? 
-					cert_key_string(key->comment) : ssh2_pubkey_openssh_str(key);
+				char * comment = pageant_nth_ssh2_comment(selectedArray[iSelected]);
+				LPSTR szKeyStringAddon = (comment && cert_is_certpath(comment)) ?
+					cert_key_string(comment) : pageant_nth_ssh2_string(selectedArray[iSelected]);
+
 				if (szKeyStringAddon == NULL) continue;
 
 				/* add to cumulative key string */
@@ -1709,6 +1711,64 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
                 add_keys_encrypted = true;
             } else if (!strcmp(p, "-keylist") || !strcmp(p, "--keylist")) {
                 show_keylist_on_startup = true;
+#ifdef PUTTY_CAC
+            }
+            else if (!strcmp(argv[i], "-autoload") || !strcmp(argv[i], "-autoloadoff")) {
+                /*
+                 * Allow setting the autoload setting via command line
+                 */
+                DWORD AutoloadOn = (!strcmp(argv[i], "-autoload")) ? 1 : 0;
+                RegSetKeyValue(HKEY_CURRENT_USER, PUTTY_REG_POS, "AutoloadCerts", REG_DWORD, &AutoloadOn, sizeof(DWORD));
+            }
+            else if (!strcmp(argv[i], "-savecertlist") || !strcmp(argv[i], "-savecertlistoff")) {
+                /*
+                 * Allow setting the save list setting via command line
+                 */
+                DWORD SaveCertListOn = (!strcmp(argv[i], "-savecertlist")) ? 1 : 0;
+                RegSetKeyValue(HKEY_CURRENT_USER, PUTTY_REG_POS, "SaveCertListEnabled", REG_DWORD, &SaveCertListOn, sizeof(DWORD));
+            }
+            else if (!strcmp(argv[i], "-forcepincache") || !strcmp(argv[i], "-forcepincacheoff")) {
+                /*
+                 * Allow setting the pin cache setting via command line
+                 */
+                DWORD ForcePinCaching = (!strcmp(argv[i], "-forcepincache")) ? 1 : 0;
+                RegSetKeyValue(HKEY_CURRENT_USER, PUTTY_REG_POS, "ForcePinCaching", REG_DWORD, &ForcePinCaching, sizeof(DWORD));
+            }
+            else if (!strcmp(argv[i], "-certauthprompting") || !strcmp(argv[i], "-certauthpromptingoff")) {
+                /*
+                 * Allow setting the cert auth prompting setting via command line
+                 */
+                DWORD CertAuthPrompting = (!strcmp(argv[i], "-certauthprompting")) ? 1 : 0;
+                RegSetKeyValue(HKEY_CURRENT_USER, PUTTY_REG_POS, "CertAuthPrompting", REG_DWORD, &CertAuthPrompting, sizeof(DWORD));
+            }
+            else if (!strcmp(argv[i], "-smartcardlogoncertsonly") || !strcmp(argv[i], "-smartcardlogoncertsonlyoff")) {
+                /*
+                 * Allow smart card only certificate filter setting via command line
+                 */
+                DWORD SmartCardLogonCertsOnly = (!strcmp(argv[i], "-smartcardlogoncertsonly")) ? 1 : 0;
+                RegSetKeyValue(HKEY_CURRENT_USER, PUTTY_REG_POS, "SmartCardLogonCertsOnly", REG_DWORD, &SmartCardLogonCertsOnly, sizeof(DWORD));
+            }
+            else if (!strcmp(argv[i], "-trustedcertsonly") || !strcmp(argv[i], "-trustedcertsonlyoff")) {
+                /*
+                 * Allow trusted certs filter setting via command line
+                 */
+                DWORD TrustedCertsOnly = (!strcmp(argv[i], "-trustedcertsonly")) ? 1 : 0;
+                RegSetKeyValue(HKEY_CURRENT_USER, PUTTY_REG_POS, "TrustedCertsOnly", REG_DWORD, &TrustedCertsOnly, sizeof(DWORD));
+            }
+            else if (!strcmp(argv[i], "-ignoreexpiredcerts") || !strcmp(argv[i], "-ignoreexpiredcertsoff")) {
+                /*
+                * Allow ignore expired certificates setting via command line
+                */
+                DWORD IgnoreExpiredCerts = (!strcmp(argv[i], "-ignoreexpiredcerts")) ? 1 : 0;
+                RegSetKeyValue(HKEY_CURRENT_USER, PUTTY_REG_POS, "IgnoreExpiredCerts", REG_DWORD, &IgnoreExpiredCerts, sizeof(DWORD));
+            }
+            else if (!strcmp(argv[i], "-allowanycert") || !strcmp(argv[i], "-allowanycertoff")) {
+                /*
+                * Allow any cert setting via command line
+                */
+                DWORD AllowAnyCert = (!strcmp(argv[i], "-allowanycert")) ? 1 : 0;
+                RegSetKeyValue(HKEY_CURRENT_USER, PUTTY_REG_POS, "AllowAnyCert", REG_DWORD, &AllowAnyCert, sizeof(DWORD));
+#endif // PUTTY_CAC
             } else if (!strcmp(p, "-c")) {
                 /*
                  * If we see `-c', then the rest of the
@@ -1729,64 +1789,6 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
                            MB_ICONERROR | MB_OK);
                 exit(1);
             }
-#ifdef PUTTY_CAC
-	}
-	else if (!strcmp(argv[i], "-autoload") || !strcmp(argv[i], "-autoloadoff")) {
-		/*
-		 * Allow setting the autoload setting via command line
-		 */
-		DWORD AutoloadOn = (!strcmp(argv[i], "-autoload")) ? 1 : 0;
-		RegSetKeyValue(HKEY_CURRENT_USER, PUTTY_REG_POS, "AutoloadCerts", REG_DWORD, &AutoloadOn, sizeof(DWORD));
-		break;
-	} 
-	else if (!strcmp(argv[i], "-savecertlist") || !strcmp(argv[i], "-savecertlistoff")) {
-		/*
-		 * Allow setting the save list setting via command line
-		 */
-		DWORD SaveCertListOn = (!strcmp(argv[i], "-savecertlist")) ? 1 : 0;
-		RegSetKeyValue(HKEY_CURRENT_USER, PUTTY_REG_POS, "SaveCertListEnabled", REG_DWORD, &SaveCertListOn, sizeof(DWORD));
-		break;
-	}
-	else if (!strcmp(argv[i], "-forcepincache") || !strcmp(argv[i], "-forcepincacheoff")) {
-		/*
-		 * Allow setting the pin cache setting via command line
-		 */
-		DWORD ForcePinCaching = (!strcmp(argv[i], "-forcepincache")) ? 1 : 0;
-		RegSetKeyValue(HKEY_CURRENT_USER, PUTTY_REG_POS, "ForcePinCaching", REG_DWORD, &ForcePinCaching, sizeof(DWORD));
-		break;
-	}
-	else if (!strcmp(argv[i], "-certauthprompting") || !strcmp(argv[i], "-certauthpromptingoff")) {
-		/*
-		 * Allow setting the cert auth prompting setting via command line
-		 */
-		DWORD CertAuthPrompting = (!strcmp(argv[i], "-certauthprompting")) ? 1 : 0;
-		RegSetKeyValue(HKEY_CURRENT_USER, PUTTY_REG_POS, "CertAuthPrompting", REG_DWORD, &CertAuthPrompting, sizeof(DWORD));
-		break;
-	}
-	else if (!strcmp(argv[i], "-smartcardlogoncertsonly") || !strcmp(argv[i], "-smartcardlogoncertsonlyoff")) {
-		/*
-		 * Allow smart card only certificate filter setting via command line
-		 */
-		DWORD SmartCardLogonCertsOnly = (!strcmp(argv[i], "-smartcardlogoncertsonly")) ? 1 : 0;
-		RegSetKeyValue(HKEY_CURRENT_USER, PUTTY_REG_POS, "SmartCardLogonCertsOnly", REG_DWORD, &SmartCardLogonCertsOnly, sizeof(DWORD));
-		break;
-	}
-    else if (!strcmp(argv[i], "-trustedcertsonly") || !strcmp(argv[i], "-trustedcertsonlyoff")) {
-        /*
-         * Allow trusted certs filter setting via command line
-         */
-        DWORD TrustedCertsOnly = (!strcmp(argv[i], "-trustedcertsonly")) ? 1 : 0;
-        RegSetKeyValue(HKEY_CURRENT_USER, PUTTY_REG_POS, "TrustedCertsOnly", REG_DWORD, &TrustedCertsOnly, sizeof(DWORD));
-        break;
-    }
-	else if (!strcmp(argv[i], "-ignoreexpiredcerts") || !strcmp(argv[i], "-ignoreexpiredcertsoff")) {
-		/*
-		* Allow ignore expired certificates setting via command line
-		*/
-		DWORD IgnoreExpiredCerts = (!strcmp(argv[i], "-ignoreexpiredcerts")) ? 1 : 0;
-		RegSetKeyValue(HKEY_CURRENT_USER, PUTTY_REG_POS, "IgnoreExpiredCerts", REG_DWORD, &IgnoreExpiredCerts, sizeof(DWORD));
-		break;
-#endif // PUTTY_CAC
         } else {
             Filename *fn = filename_from_str(p);
             win_add_keyfile(fn, add_keys_encrypted);
@@ -1897,6 +1899,13 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 	RegGetValue(HKEY_CURRENT_USER, PUTTY_REG_POS, "IgnoreExpiredCerts",
 		RRF_RT_REG_DWORD, NULL, &IgnoredExpiredCerts, &IgnoredExpiredCertsSize);
 	cert_ignore_expired_certs(IgnoredExpiredCerts);
+
+    /* Get Allow Any Cert Setting */
+    DWORD AllowAnyCert = 0;
+    DWORD AllowAnyCertSize = sizeof(AllowAnyCert);
+    RegGetValue(HKEY_CURRENT_USER, PUTTY_REG_POS, "AllowAnyCert",
+        RRF_RT_REG_DWORD, NULL, &AllowAnyCert, &AllowAnyCertSize);
+    cert_allow_any_cert(AllowAnyCert);
 
 	/* Get Smart Card Certs Only Settings */
 	DWORD SmartCardLogonCertsOnly = 0;

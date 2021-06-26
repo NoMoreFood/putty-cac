@@ -310,7 +310,13 @@ char *buildinfo(const char *newline)
 #elif _MSC_VER == 1200
     strbuf_catf(buf, " 6.0");
 #else
+#ifdef PUTTY_CAC
+#if _MSC_VER == 1929
+    strbuf_catf(buf, " 2019 (16.10)");
+#endif
+#else
     strbuf_catf(buf, ", unrecognised version");
+#endif // PUTTY_CAC
 #endif
     strbuf_catf(buf, ", _MSC_VER=%d", (int)_MSC_VER);
 #endif

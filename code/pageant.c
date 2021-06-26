@@ -2467,9 +2467,18 @@ void pageant_pubkey_free(struct pageant_pubkey *key)
 }
 
 #ifdef PUTTY_CAC
-ssh2_userkey* pageant_nth_ssh2_key(int i)
+// defined in sshpubk
+char* ssh2_pubkey_openssh_str_direct(const char* comment, const void* v_pub_blob, int pub_len);
+
+char* pageant_nth_ssh2_string(int i)
 {
     PageantKey* pkey = pageant_nth_key(2, i);
-    return pkey->skey;
+    return ssh2_pubkey_openssh_str_direct(pkey->comment, pkey->public_blob->s, pkey->public_blob->len);
+}
+
+char* pageant_nth_ssh2_comment(int i)
+{
+    PageantKey* pkey = pageant_nth_key(2, i);
+    return pkey->comment;
 }
 #endif // PUTTY_CAC
