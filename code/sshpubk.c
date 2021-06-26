@@ -1697,6 +1697,15 @@ static char *ssh2_pubkey_openssh_str_internal(const char *comment,
     return buffer;
 }
 
+#ifdef PUTTY_CAC
+char* ssh2_pubkey_openssh_str_direct(const char* comment,
+                                     const void* v_pub_blob,
+                                     int pub_len)
+{
+    return ssh2_pubkey_openssh_str_internal(comment, v_pub_blob, pub_len);
+}
+#endif
+
 char *ssh2_pubkey_openssh_str(ssh2_userkey *key)
 {
     strbuf *blob;
