@@ -30,6 +30,7 @@ EXTERN BOOL cert_auth_prompting(DWORD bEnable);
 EXTERN BOOL cert_smartcard_certs_only(DWORD bEnable);
 EXTERN BOOL cert_ignore_expired_certs(DWORD bEnable);
 EXTERN BOOL cert_trusted_certs_only(DWORD bEnable);
+EXTERN BOOL cert_allow_any_cert(DWORD bEnable);
 
 // functions used by putty code 
 EXTERN LPSTR cert_key_string(LPCSTR szCert);

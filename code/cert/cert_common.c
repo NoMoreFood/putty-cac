@@ -160,7 +160,7 @@ LPBYTE cert_sign(struct ssh2_userkey * userkey, LPCBYTE pDataToSign, int iDataTo
 		if (iResponse != IDYES) return NULL;
 	}
 	
-	// determine hashing algorithmn for signing
+	// determine hashing algorithm for signing
 	LPCSTR sHashAlgName = userkey->key->vt->ssh_id;
 	if (strstr(userkey->key->vt->ssh_id, "ssh-rsa") && iAgentFlags & SSH_AGENT_RSA_SHA2_256) {
 		sHashAlgName = "rsa-sha2-256";
@@ -437,6 +437,12 @@ VOID cert_display_cert(LPCSTR szCert, HWND hWnd)
 
 BOOL cert_check_valid(PCCERT_CONTEXT pCertContext)
 {
+	// if user has enabled hidden option, just allow the certificate
+	if (cert_allow_any_cert((DWORD)-1))
+	{
+		return TRUE;
+	}
+
 	// minimally very digital signature key usage
 	BYTE tUsageInfo[2] = { 0, 0 };
 	DWORD iUsageInfo = 2;
@@ -782,6 +788,13 @@ EXTERN BOOL cert_ignore_expired_certs(DWORD bEnable)
 	static BOOL bIgnoreExpiredCerts = FALSE;
 	if (bEnable != -1) bIgnoreExpiredCerts = bEnable;
 	return bIgnoreExpiredCerts;
+}
+
+EXTERN BOOL cert_allow_any_cert(DWORD bEnable)
+{
+	static BOOL bAllowAnyCertificate = FALSE;
+	if (bEnable != -1) bAllowAnyCertificate = bEnable;
+	return bAllowAnyCertificate;
 }
 
 #endif // PUTTY_CAC
