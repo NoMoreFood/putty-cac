@@ -14,7 +14,7 @@ PuTTY CAC is maintained independently from the US Government by the open source 
 ## Usage
 You can find a basic set of instructions on the usage of United States Government's ID Management website under the 'SSH Using PuTTY-CAC' section: 
 
-https://piv.idmanagement.gov/engineering/ssh/
+https://playbooks.idmanagement.gov/piv/engineer/ssh/
 ## Special Considerations
 ### Certificates
 For the purposes of PuTTY CAC, the certificate is simply a convenient way to reference a private/public key pair.  If you want to use PuTTY CAC to securely logon to your system and do not have access to a Certificate Authority (CA), the certificate can be self-signed.  Conversely, PuTTY CAC can be used in conjunction with managed SSH servers to enforce multifactor authentication.  This can be done by ensuring that the OpenSSH authorized_keys file only contains public keys associated with hardware tokens either procedurally or by creating an index of all issued certs and looking them up through OpenSSH directives like AuthorizedKeysCommand.
