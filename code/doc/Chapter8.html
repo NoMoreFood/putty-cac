@@ -222,7 +222,7 @@ Once you have generated a key, set a comment field and set a passphrase, you are
 Press the &#8216;Save private key&#8217; button. PuTTYgen will put up a dialog box asking you where to save the file. Select a directory, type in a file name, and press &#8216;Save&#8217;.
 </p>
 <p>
-This file is in PuTTY's native format (<code>*.<a name="i32"></a>PPK</code>); it is the one you will need to tell PuTTY to use for authentication (see <a href="Chapter4.html#config-ssh-privkey">section 4.21.8</a>) or tell Pageant to load (see <a href="Chapter9.html#pageant-mainwin-addkey">section 9.2.2</a>).
+This file is in PuTTY's native format (<code>*.<a name="i32"></a>PPK</code>); it is the one you will need to tell PuTTY to use for authentication (see <a href="Chapter4.html#config-ssh-privkey">section 4.21.9</a>) or tell Pageant to load (see <a href="Chapter9.html#pageant-mainwin-addkey">section 9.2.2</a>).
 </p>
 <p>
 (You can optionally change some details of the PPK format for your saved key files; see <a href="#puttygen-save-params">section 8.2.12</a>. But The defaults should be fine for most purposes.)
@@ -352,7 +352,7 @@ You may also need to ensure that your home directory, your <code>.ssh</code> dir
 Your server should now be configured to accept authentication using your private key. Now you need to configure PuTTY to <em>attempt</em> authentication using your private key. You can do this in any of three ways:
 </p>
 <ul><li>
-Select the private key in PuTTY's configuration. See <a href="Chapter4.html#config-ssh-privkey">section 4.21.8</a> for details.
+Select the private key in PuTTY's configuration. See <a href="Chapter4.html#config-ssh-privkey">section 4.21.9</a> for details.
 </li>
 <li>
 Specify the key file on the command line with the <code>-i</code> option. See <a href="Chapter3.html#using-cmdline-identity">section 3.11.3.18</a> for details.
@@ -363,5 +363,5 @@ Load the private key into Pageant (see <a href="Chapter9.html#pageant">chapter 9
 </ul>
 
 <hr><p>If you want to provide feedback on this manual or on the PuTTY tools themselves, see the <a href="https://www.chiark.greenend.org.uk/~sgtatham/putty/feedback.html">Feedback page</a>.</p><address>
-[PuTTY release 0.75]</address></body>
+[PuTTY release 0.76]</address></body>
 </html>

@@ -123,6 +123,8 @@ If you are using an authentication agent, you can also specify a \fIpublic\fP ke
 Don't try to use an authentication agent for local authentication. (This doesn't affect agent forwarding.)
 .IP "\fB\-agent\fP"
 Allow use of an authentication agent. (This option is only necessary to override a setting in a saved session.)
+.IP "\fB\-no\-trivial\-auth\fP"
+Disconnect from any SSH server which accepts authentication without ever having asked for any kind of password or signature or token. (You might want to enable this for a server you always expect to challenge you, for instance to ensure you don't accidentally type your key file's passphrase into a compromised server spoofing PuTTY's passphrase prompt.)
 .IP "\fB\-hostkey\fP \fIkey\fP"
 Specify an acceptable host public key. This option may be specified multiple times; each key can be either a fingerprint (\fBSHA256:AbCdE...\fP, \fB99:aa:bb:...\fP, etc) or a base64-encoded blob in OpenSSH\*(Aqs one-line format.
 .RS
