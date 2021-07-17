@@ -56,7 +56,7 @@ Once you've got a console window to type into, you can just type <code>plink</co
 </p>
 <pre><code>C:\&gt;plink
 Plink: command-line connection utility
-Release 0.75
+Release 0.76
 Usage: plink [options] [user@]host [command]
        ("host" can also be a PuTTY saved session name)
 Options:
@@ -92,6 +92,8 @@ The following options only apply to SSH connections:
   -i key    private key file for user authentication
   -noagent  disable use of Pageant
   -agent    enable use of Pageant
+  -no-trivial-auth
+            disconnect if SSH authentication succeeds trivially
   -noshare  disable use of connection sharing
   -share    enable use of connection sharing
   -hostkey keyid
@@ -167,7 +169,7 @@ Usually Plink is not invoked directly by a user, but run automatically by anothe
 Next, you are likely to need to avoid the various interactive prompts Plink can produce. You might be prompted to verify the host key of the server you're connecting to, to enter a user name, or to enter a password.
 </p>
 <p>
-To avoid being prompted for the server host key when using Plink for an automated connection, you can first make a <em>manual</em> connection (using either of PuTTY or Plink) to the same server, verify the host key (see <a href="Chapter2.html#gs-hostkey">section 2.2</a> for more information), and select &#8216;Accept&#8217; to add the host key to the Registry. After that, Plink commands connecting to that server should not give a host key prompt unless the host key changes. Alternatively, you can specify the appropriate host key(s) on Plink's command line every time you use it; see <a href="Chapter3.html#using-cmdline-hostkey">section 3.11.3.20</a>.
+To avoid being prompted for the server host key when using Plink for an automated connection, you can first make a <em>manual</em> connection (using either of PuTTY or Plink) to the same server, verify the host key (see <a href="Chapter2.html#gs-hostkey">section 2.2</a> for more information), and select &#8216;Accept&#8217; to add the host key to the Registry. After that, Plink commands connecting to that server should not give a host key prompt unless the host key changes. Alternatively, you can specify the appropriate host key(s) on Plink's command line every time you use it; see <a href="Chapter3.html#using-cmdline-hostkey">section 3.11.3.21</a>.
 </p>
 <p>
 To avoid being prompted for a user name, you can:
@@ -183,7 +185,7 @@ Set up a PuTTY saved session that describes the server you are connecting to, an
 To avoid being prompted for a password, you should almost certainly set up <a name="i9"></a>public-key authentication. (See <a href="Chapter8.html#pubkey">chapter 8</a> for a general introduction to public-key authentication.) Again, you can do this in two ways:
 </p>
 <ul><li>
-Set up a PuTTY saved session that describes the server you are connecting to, and that also specifies a private key file (see <a href="Chapter4.html#config-ssh-privkey">section 4.21.8</a>). For this to work without prompting, your private key will need to have no passphrase.
+Set up a PuTTY saved session that describes the server you are connecting to, and that also specifies a private key file (see <a href="Chapter4.html#config-ssh-privkey">section 4.21.9</a>). For this to work without prompting, your private key will need to have no passphrase.
 </li>
 <li>
 Store the private key in Pageant. See <a href="Chapter9.html#pageant">chapter 9</a> for further information.
@@ -380,5 +382,5 @@ Select the folder you want to check out to with the &#8216;Change Folder&#8217; 
 </p>
 
 <hr><p>If you want to provide feedback on this manual or on the PuTTY tools themselves, see the <a href="https://www.chiark.greenend.org.uk/~sgtatham/putty/feedback.html">Feedback page</a>.</p><address>
-[PuTTY release 0.75]</address></body>
+[PuTTY release 0.76]</address></body>
 </html>

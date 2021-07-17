@@ -1103,7 +1103,7 @@ Chapter 3: Using PuTTY
        See chapter 9 for general information on Pageant.
 
        These options are equivalent to the agent authentication checkbox in
-       the Auth panel of the PuTTY configuration box (see section 4.21.3).
+       the Auth panel of the PuTTY configuration box (see section 4.21.4).
 
 3.11.3.10 `-A' and `-a': control agent forwarding
 
@@ -1116,7 +1116,7 @@ Chapter 3: Using PuTTY
        details.
 
        These options are equivalent to the agent forwarding checkbox in the
-       Auth panel of the PuTTY configuration box (see section 4.21.6).
+       Auth panel of the PuTTY configuration box (see section 4.21.7).
 
        These options are not available in the file transfer tools PSCP and
        PSFTP.
@@ -1243,9 +1243,18 @@ Chapter 3: Using PuTTY
 
        This option is equivalent to the `Private key file for
        authentication' box in the Auth panel of the PuTTY configuration box
-       (see section 4.21.8).
+       (see section 4.21.9).
 
-3.11.3.19 `-loghost': specify a logical host name
+3.11.3.19 `-no-trivial-auth': disconnect if SSH authentication succeeds
+       trivially
+
+       This option causes PuTTY to abandon an SSH session if the server
+       accepts authentication without ever having asked for any kind of
+       password or signature or token.
+
+       See section 4.21.3 for why you might want this.
+
+3.11.3.20 `-loghost': specify a logical host name
 
        This option overrides PuTTY's normal SSH host key caching policy by
        telling it the name of the host you expect your connection to end up
@@ -1254,7 +1263,7 @@ Chapter 3: Using PuTTY
        by a colon and a port number. See section 4.14.5 for more detail on
        this.
 
-3.11.3.20 `-hostkey': manually specify an expected host key
+3.11.3.21 `-hostkey': manually specify an expected host key
 
        This option overrides PuTTY's normal SSH host key caching policy
        by telling it exactly what host key to expect, which can be
@@ -1266,14 +1275,14 @@ Chapter 3: Using PuTTY
        You can specify this option more than once if you want to configure
        more than one key to be accepted.
 
-3.11.3.21 `-pgpfp': display PGP key fingerprints
+3.11.3.22 `-pgpfp': display PGP key fingerprints
 
        This option causes the PuTTY tools not to run as normal, but instead
        to display the fingerprints of the PuTTY PGP Master Keys, in
        order to aid with verifying new versions. See appendix F for more
        information.
 
-3.11.3.22 `-sercfg': specify serial port configuration
+3.11.3.23 `-sercfg': specify serial port configuration
 
        This option specifies the configuration parameters for the serial
        port (baud rate, stop bits etc). Its argument is interpreted as
@@ -1295,7 +1304,7 @@ Chapter 3: Using PuTTY
        For example, `-sercfg 19200,8,n,1,N' denotes a baud rate of 19200, 8
        data bits, no parity, 1 stop bit and no flow control.
 
-3.11.3.23 `-sessionlog', `-sshlog', `-sshrawlog': enable session logging
+3.11.3.24 `-sessionlog', `-sshlog', `-sshrawlog': enable session logging
 
        These options cause the PuTTY network tools to write out a log
        file. Each of them expects a file name as an argument, e.g. `-
@@ -1311,7 +1320,7 @@ Chapter 3: Using PuTTY
 
        For more information on logging configuration, see section 4.2.
 
-3.11.3.24 `-logoverwrite', `-logappend': control behaviour with existing
+3.11.3.25 `-logoverwrite', `-logappend': control behaviour with existing
        log file
 
        If logging has been enabled (in the saved configuration, or by
@@ -1319,7 +1328,7 @@ Chapter 3: Using PuTTY
        exists, these options tell the PuTTY network tools what to do so
        that they don't have to ask the user. See section 4.2.2 for details.
 
-3.11.3.25 `-proxycmd': specify a local proxy command
+3.11.3.26 `-proxycmd': specify a local proxy command
 
        This option enables PuTTY's mode for running a command on the local
        machine and using it as a proxy for the network connection. It
@@ -1331,7 +1340,7 @@ Chapter 3: Using PuTTY
        backslashes must be doubled (if you want `\' in your command, you
        must put `\\' on the command line).
 
-3.11.3.26 `-restrict-acl': restrict the Windows process ACL
+3.11.3.27 `-restrict-acl': restrict the Windows process ACL
 
        This option (on Windows only) causes PuTTY (or another PuTTY tool)
        to try to lock down the operating system's access control on its own
@@ -3291,7 +3300,7 @@ Chapter 4: Configuring PuTTY
            option in Plink. See section 3.11.3.14 for more information.
 
            You can also enable this mode on the command line; see section
-           3.11.3.25.
+           3.11.3.26.
 
 4.16.2 Excluding parts of the network from proxying
 
@@ -3816,7 +3825,7 @@ Chapter 4: Configuring PuTTY
        is running in a Windows environment without access to the Registry.
        In that situation, you will probably want to use the -hostkey
        command-line option to configure the expected host key(s); see
-       section 3.11.3.20.
+       section 3.11.3.21.
 
        For situations where PuTTY's automated host key management simply
        picks the wrong host name to store a key under, you may want to
@@ -3950,7 +3959,49 @@ Chapter 4: Configuring PuTTY
        This option only affects SSH-2 connections. SSH-1 connections always
        require an authentication step.
 
-4.21.3 `Attempt authentication using Pageant'
+4.21.3 `Disconnect if authentication succeeds trivially'
+
+       This option causes PuTTY to abandon an SSH session and disconnect
+       from the server, if the server accepted authentication without ever
+       having asked for any kind of password or signature or token.
+
+       This might be used as a security measure. There are some forms
+       of attack against an SSH client user which work by terminating
+       the SSH authentication stage early, and then doing something in
+       the main part of the SSH session which _looks_ like part of the
+       authentication, but isn't really.
+
+       For example, instead of demanding a signature from your public key,
+       for which PuTTY would ask for your key's passphrase, a compromised
+       or malicious server might allow you to log in with no signature or
+       password at all, and then print a message that _imitates_ PuTTY's
+       request for your passphrase, in the hope that you would type it in.
+       (In fact, the passphrase for your public key should not be sent to
+       any server.)
+
+       PuTTY's main defence against attacks of this type is the `trust
+       sigil' system: messages in the PuTTY window that are truly
+       originated by PuTTY itself are shown next to a small copy of the
+       PuTTY icon, which the server cannot fake when it tries to imitate
+       the same message using terminal output.
+
+       However, if you think you might be at risk of this kind of thing
+       anyway (if you don't watch closely for the trust sigils, or if you
+       think you're at extra risk of one of your servers being malicious),
+       then you could enable this option as an extra defence. Then, if the
+       server tries any of these attacks involving letting you through the
+       authentication stage, PuTTY will disconnect from the server before
+       it can send a follow-up fake prompt or other type of attack.
+
+       On the other hand, some servers _legitimately_ let you through
+       the SSH authentication phase trivially, either because they are
+       genuinely public, or because the important authentication step
+       happens during the terminal session. (An example might be an SSH
+       server that connects you directly to the terminal login prompt of a
+       legacy mainframe.) So enabling this option might cause some kinds of
+       session to stop working. It's up to you.
+
+4.21.4 `Attempt authentication using Pageant'
 
        If this option is enabled, then PuTTY will look for Pageant (the
        SSH private-key storage agent) and attempt to authenticate with any
@@ -3966,7 +4017,7 @@ Chapter 4: Configuring PuTTY
 
        See chapter 9 for more information about Pageant in general.
 
-4.21.4 `Attempt TIS or CryptoCard authentication'
+4.21.5 `Attempt TIS or CryptoCard authentication'
 
        TIS and CryptoCard authentication are (despite their names) generic
        forms of simple challenge/response authentication available in SSH
@@ -3983,7 +4034,7 @@ Chapter 4: Configuring PuTTY
        administrator about precisely what form these challenges and
        responses take.
 
-4.21.5 `Attempt keyboard-interactive authentication'
+4.21.6 `Attempt keyboard-interactive authentication'
 
        The SSH-2 equivalent of TIS authentication is called `keyboard-
        interactive'. It is a flexible authentication method using an
@@ -3995,7 +4046,7 @@ Chapter 4: Configuring PuTTY
        PuTTY leaves this option enabled by default, but supplies a switch
        to turn it off in case you should have trouble with it.
 
-4.21.6 `Allow agent forwarding'
+4.21.7 `Allow agent forwarding'
 
        This option allows the SSH server to open forwarded connections back
        to your local copy of Pageant. If you are not running Pageant, this
@@ -4006,7 +4057,7 @@ Chapter 4: Configuring PuTTY
        risk involved with enabling this option; see section 9.6 for
        details.
 
-4.21.7 `Allow attempted changes of username in SSH-2'
+4.21.8 `Allow attempted changes of username in SSH-2'
 
        In the SSH-1 protocol, it is impossible to change username after
        failing to authenticate. So if you mis-type your username at the
@@ -4026,7 +4077,7 @@ Chapter 4: Configuring PuTTY
        your server can cope with it, you can enable the `Allow attempted
        changes of username' option to modify PuTTY's behaviour.
 
-4.21.8 `Private key file for authentication'
+4.21.9 `Private key file for authentication'
 
        This box is where you enter the name of your private key file if you
        are using public key authentication. See chapter 8 for information
@@ -5059,7 +5110,7 @@ Chapter 5: Using PSCP to transfer files securely
 
          C:\>pscp
          PuTTY Secure Copy client
-         Release 0.75
+         Release 0.76
          Usage: pscp [options] [user@]host:source target
                 pscp [options] source [source...] [user@]host:target
                 pscp [options] -ls [user@]host:filespec
@@ -5082,6 +5133,8 @@ Chapter 5: Using PSCP to transfer files securely
            -i key    private key file for user authentication
            -noagent  disable use of Pageant
            -agent    enable use of Pageant
+           -no-trivial-auth
+                     disconnect if SSH authentication succeeds trivially
            -hostkey keyid
                      manually specify a host key (may be repeated)
            -batch    disable all interactive prompts
@@ -5329,7 +5382,7 @@ Chapter 5: Using PSCP to transfer files securely
        (see section 5.2.1.2). So you would do this:
 
         -  Run PuTTY, and create a PuTTY saved session (see section 4.1.2)
-           which specifies your private key file (see section 4.21.8). You
+           which specifies your private key file (see section 4.21.9). You
            will probably also want to specify a username to log in as (see
            section 4.15.1).
 
@@ -5911,7 +5964,7 @@ Chapter 6: Using PSFTP to transfer files securely
        So you might do this:
 
         -  Run PuTTY, and create a PuTTY saved session (see section 4.1.2)
-           which specifies your private key file (see section 4.21.8). You
+           which specifies your private key file (see section 4.21.9). You
            will probably also want to specify a username to log in as (see
            section 4.15.1).
 
@@ -5979,7 +6032,7 @@ Chapter 7: Using the command-line connection tool Plink
 
          C:\>plink
          Plink: command-line connection utility
-         Release 0.75
+         Release 0.76
          Usage: plink [options] [user@]host [command]
                 ("host" can also be a PuTTY saved session name)
          Options:
@@ -6015,6 +6068,8 @@ Chapter 7: Using the command-line connection tool Plink
            -i key    private key file for user authentication
            -noagent  disable use of Pageant
            -agent    enable use of Pageant
+           -no-trivial-auth
+                     disconnect if SSH authentication succeeds trivially
            -noshare  disable use of connection sharing
            -share    enable use of connection sharing
            -hostkey keyid
@@ -6112,7 +6167,7 @@ Chapter 7: Using the command-line connection tool Plink
        connecting to that server should not give a host key prompt unless
        the host key changes. Alternatively, you can specify the appropriate
        host key(s) on Plink's command line every time you use it; see
-       section 3.11.3.20.
+       section 3.11.3.21.
 
        To avoid being prompted for a user name, you can:
 
@@ -6130,7 +6185,7 @@ Chapter 7: Using the command-line connection tool Plink
 
         -  Set up a PuTTY saved session that describes the server you
            are connecting to, and that also specifies a private key file
-           (see section 4.21.8). For this to work without prompting, your
+           (see section 4.21.9). For this to work without prompting, your
            private key will need to have no passphrase.
 
         -  Store the private key in Pageant. See chapter 9 for further
@@ -6679,7 +6734,7 @@ Chapter 8: Using public keys for SSH authentication
 
        This file is in PuTTY's native format (`*.PPK'); it is the one you
        will need to tell PuTTY to use for authentication (see section
-       4.21.8) or tell Pageant to load (see section 9.2.2).
+       4.21.9) or tell Pageant to load (see section 9.2.2).
 
        (You can optionally change some details of the PPK format for your
        saved key files; see section 8.2.12. But The defaults should be fine
@@ -6882,7 +6937,7 @@ Chapter 8: Using public keys for SSH authentication
        three ways:
 
         -  Select the private key in PuTTY's configuration. See section
-           4.21.8 for details.
+           4.21.9 for details.
 
         -  Specify the key file on the command line with the `-i' option.
            See section 3.11.3.18 for details.
@@ -6934,7 +6989,7 @@ Chapter 9: Using Pageant for authentication
        passphrase again.
 
        (PuTTY can be configured not to try to use Pageant, but it will
-       try by default. See section 4.21.3 and section 3.11.3.9 for more
+       try by default. See section 4.21.4 and section 3.11.3.9 for more
        information.)
 
        When you want to shut down Pageant, click the right button on the
@@ -7070,12 +7125,12 @@ Chapter 9: Using Pageant for authentication
 
        Pageant supports the same `-restrict-acl' option as the other PuTTY
        utilities to lock down the Pageant process's access control; see
-       section 3.11.3.26 for why you might want to do this.
+       section 3.11.3.27 for why you might want to do this.
 
        By default, if Pageant is started with `-restrict-acl', it won't
        pass this to any PuTTY sessions started from its System Tray
        submenu. Use `-restrict-putty-acl' to change this. (Again, see
-       section 3.11.3.26 for details.)
+       section 3.11.3.27 for details.)
 
    9.4 Using agent forwarding
 
@@ -7089,7 +7144,7 @@ Chapter 9: Using Pageant for authentication
 
        To enable agent forwarding, first start Pageant. Then set up a
        PuTTY SSH session in which `Allow agent forwarding' is enabled (see
-       section 4.21.6). Open the session as normal. (Alternatively, you
+       section 4.21.7). Open the session as normal. (Alternatively, you
        can use the `-A' command line option; see section 3.11.3.10 for
        details.)
 
@@ -7333,7 +7388,7 @@ Chapter 10: Common error messages
        number of keys loaded into it, since these servers count each offer
        of a public key as an authentication attempt. This can be worked
        around by specifying the key that's required for the authentication
-       in the PuTTY configuration (see section 4.21.8); PuTTY will ignore
+       in the PuTTY configuration (see section 4.21.9); PuTTY will ignore
        any other keys Pageant may have, but will ask Pageant to do the
        authentication, so that you don't have to type your passphrase.
 
@@ -7446,7 +7501,7 @@ Chapter 10: Common error messages
        This error indicates that PuTTY has run out of ways to authenticate
        you to an SSH server. This may be because PuTTY has TIS or keyboard-
        interactive authentication disabled, in which case see section
-       4.21.4 and section 4.21.5.
+       4.21.5 and section 4.21.6.
 
  10.12 `Incorrect MAC received on packet' or `Incorrect CRC received on
        packet'
@@ -11189,4 +11244,4 @@ Appendix G: SSH-2 names specified for PuTTY
                user will have to supply a passphrase before the key can be
                used).
 
-[PuTTY release 0.75]
+[PuTTY release 0.76]

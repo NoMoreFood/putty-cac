@@ -7,7 +7,7 @@
 # Version number is substituted by Buildscr for releases, snapshots
 # and custom builds out of svn; X.XX shows up in ad-hoc developer
 # builds, which shouldn't matter
-AC_INIT(putty, 0.75)
+AC_INIT(putty, 0.76)
 AC_CONFIG_FILES([Makefile])
 AC_CONFIG_HEADERS([uxconfig.h:uxconfig.in])
 AM_INIT_AUTOMAKE([-Wall foreign])

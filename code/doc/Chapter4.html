@@ -179,12 +179,13 @@
 <ul>
 <li><a href="#config-ssh-banner">4.21.1 &#8216;Display pre-authentication banner&#8217;</a></li>
 <li><a href="#config-ssh-noauth">4.21.2 &#8216;Bypass authentication entirely&#8217;</a></li>
-<li><a href="#config-ssh-tryagent">4.21.3 &#8216;Attempt authentication using Pageant&#8217;</a></li>
-<li><a href="#config-ssh-tis">4.21.4 &#8216;Attempt TIS or CryptoCard authentication&#8217;</a></li>
-<li><a href="#config-ssh-ki">4.21.5 &#8216;Attempt keyboard-interactive authentication&#8217;</a></li>
-<li><a href="#config-ssh-agentfwd">4.21.6 &#8216;Allow agent forwarding&#8217;</a></li>
-<li><a href="#config-ssh-changeuser">4.21.7 &#8216;Allow attempted changes of username in SSH-2&#8217;</a></li>
-<li><a href="#config-ssh-privkey">4.21.8 &#8216;Private key file for authentication&#8217;</a></li>
+<li><a href="#config-ssh-notrivialauth">4.21.3 &#8216;Disconnect if authentication succeeds trivially&#8217;</a></li>
+<li><a href="#config-ssh-tryagent">4.21.4 &#8216;Attempt authentication using Pageant&#8217;</a></li>
+<li><a href="#config-ssh-tis">4.21.5 &#8216;Attempt TIS or CryptoCard authentication&#8217;</a></li>
+<li><a href="#config-ssh-ki">4.21.6 &#8216;Attempt keyboard-interactive authentication&#8217;</a></li>
+<li><a href="#config-ssh-agentfwd">4.21.7 &#8216;Allow agent forwarding&#8217;</a></li>
+<li><a href="#config-ssh-changeuser">4.21.8 &#8216;Allow attempted changes of username in SSH-2&#8217;</a></li>
+<li><a href="#config-ssh-privkey">4.21.9 &#8216;Private key file for authentication&#8217;</a></li>
 </ul></li>
 <li><a href="#config-ssh-auth-gssapi">4.22 The GSSAPI panel</a>
 <ul>
@@ -1440,7 +1441,7 @@ This could be used, for instance, to talk to some kind of network proxy that PuT
 If you want your local proxy command to make a secondary SSH connection to a proxy host and then tunnel the primary connection over that, you might well want the <code>-nc</code> command-line option in Plink. See <a href="Chapter3.html#using-cmdline-ncmode">section 3.11.3.14</a> for more information.
 </p>
 <p>
-You can also enable this mode on the command line; see <a href="Chapter3.html#using-cmdline-proxycmd">section 3.11.3.25</a>. 
+You can also enable this mode on the command line; see <a href="Chapter3.html#using-cmdline-proxycmd">section 3.11.3.26</a>. 
 </p>
 
 </li>
@@ -1788,7 +1789,7 @@ In some situations, if PuTTY's automated host key management is not doing what y
 One reason why you might want to do this is because the host name PuTTY is connecting to is using round-robin DNS to return one of multiple actual servers, and they all have different host keys. In that situation, you might need to configure PuTTY to accept any of a list of host keys for the possible servers, while still rejecting any key not in that list.
 </p>
 <p>
-Another reason is if PuTTY's automated host key management is completely unavailable, e.g. because PuTTY (or Plink or PSFTP, etc) is running in a Windows environment without access to the Registry. In that situation, you will probably want to use the <code>-hostkey</code> command-line option to configure the expected host key(s); see <a href="Chapter3.html#using-cmdline-hostkey">section 3.11.3.20</a>.
+Another reason is if PuTTY's automated host key management is completely unavailable, e.g. because PuTTY (or Plink or PSFTP, etc) is running in a Windows environment without access to the Registry. In that situation, you will probably want to use the <code>-hostkey</code> command-line option to configure the expected host key(s); see <a href="Chapter3.html#using-cmdline-hostkey">section 3.11.3.21</a>.
 </p>
 <p>
 For situations where PuTTY's automated host key management simply picks the wrong host name to store a key under, you may want to consider setting a &#8216;logical host name&#8217; instead; see <a href="#config-loghost">section 4.14.5</a>.
@@ -1882,7 +1883,26 @@ This is not the option you want if you have a username and just want PuTTY to re
 <p>
 This option only affects SSH-2 connections. SSH-1 connections always require an authentication step.
 </p>
-<h3><a name="config-ssh-tryagent"></a><a name="S4.21.3"></a>4.21.3 &#8216;Attempt authentication using Pageant&#8217;</h3>
+<h3><a name="config-ssh-notrivialauth"></a><a name="S4.21.3"></a>4.21.3 &#8216;Disconnect if authentication succeeds trivially&#8217;</h3>
+<p>
+This option causes PuTTY to abandon an SSH session and disconnect from the server, if the server accepted authentication without ever having asked for any kind of password or signature or token.
+</p>
+<p>
+This might be used as a security measure. There are some forms of attack against an SSH client user which work by terminating the SSH authentication stage early, and then doing something in the main part of the SSH session which <em>looks</em> like part of the authentication, but isn't really.
+</p>
+<p>
+For example, instead of demanding a signature from your public key, for which PuTTY would ask for your key's passphrase, a compromised or malicious server might allow you to log in with no signature or password at all, and then print a message that <em>imitates</em> PuTTY's request for your passphrase, in the hope that you would type it in. (In fact, the passphrase for your public key should not be sent to any server.)
+</p>
+<p>
+PuTTY's main defence against attacks of this type is the &#8216;trust sigil&#8217; system: messages in the PuTTY window that are truly originated by PuTTY itself are shown next to a small copy of the PuTTY icon, which the server cannot fake when it tries to imitate the same message using terminal output.
+</p>
+<p>
+However, if you think you might be at risk of this kind of thing anyway (if you don't watch closely for the trust sigils, or if you think you're at extra risk of one of your servers being malicious), then you could enable this option as an extra defence. Then, if the server tries any of these attacks involving letting you through the authentication stage, PuTTY will disconnect from the server before it can send a follow-up fake prompt or other type of attack.
+</p>
+<p>
+On the other hand, some servers <em>legitimately</em> let you through the SSH authentication phase trivially, either because they are genuinely public, or because the important authentication step happens during the terminal session. (An example might be an SSH server that connects you directly to the terminal login prompt of a legacy mainframe.) So enabling this option might cause some kinds of session to stop working. It's up to you.
+</p>
+<h3><a name="config-ssh-tryagent"></a><a name="S4.21.4"></a>4.21.4 &#8216;Attempt authentication using Pageant&#8217;</h3>
 <p>
 If this option is enabled, then PuTTY will look for Pageant (the SSH private-key storage agent) and attempt to authenticate with any suitable public keys Pageant currently holds.
 </p>
@@ -1895,28 +1915,28 @@ This option can also be controlled using the <code>-noagent</code> command-line 
 <p>
 See <a href="Chapter9.html#pageant">chapter 9</a> for more information about Pageant in general.
 </p>
-<h3><a name="config-ssh-tis"></a><a name="S4.21.4"></a>4.21.4 &#8216;Attempt <a name="i340"></a>TIS or <a name="i341"></a>CryptoCard authentication&#8217;</h3>
+<h3><a name="config-ssh-tis"></a><a name="S4.21.5"></a>4.21.5 &#8216;Attempt <a name="i340"></a>TIS or <a name="i341"></a>CryptoCard authentication&#8217;</h3>
 <p>
 TIS and CryptoCard authentication are (despite their names) generic forms of simple <a name="i342"></a>challenge/response authentication available in SSH protocol version 1 only. You might use them if you were using <a name="i343"></a>S/Key <a name="i344"></a>one-time passwords, for example, or if you had a physical <a name="i345"></a>security token that generated responses to authentication challenges. They can even be used to prompt for simple passwords.
 </p>
 <p>
 With this switch enabled, PuTTY will attempt these forms of authentication if the server is willing to try them. You will be presented with a challenge string (which may be different every time) and must supply the correct response in order to log in. If your server supports this, you should talk to your system administrator about precisely what form these challenges and responses take.
 </p>
-<h3><a name="config-ssh-ki"></a><a name="S4.21.5"></a>4.21.5 &#8216;Attempt <a name="i346"></a>keyboard-interactive authentication&#8217;</h3>
+<h3><a name="config-ssh-ki"></a><a name="S4.21.6"></a>4.21.6 &#8216;Attempt <a name="i346"></a>keyboard-interactive authentication&#8217;</h3>
 <p>
 The SSH-2 equivalent of TIS authentication is called &#8216;keyboard-interactive&#8217;. It is a flexible authentication method using an arbitrary sequence of requests and responses; so it is not only useful for <a name="i347"></a>challenge/response mechanisms such as <a name="i348"></a>S/Key, but it can also be used for (for example) asking the user for a <a name="i349"></a>new password when the old one has expired.
 </p>
 <p>
 PuTTY leaves this option enabled by default, but supplies a switch to turn it off in case you should have trouble with it.
 </p>
-<h3><a name="config-ssh-agentfwd"></a><a name="S4.21.6"></a>4.21.6 &#8216;Allow <a name="i350"></a>agent forwarding&#8217;</h3>
+<h3><a name="config-ssh-agentfwd"></a><a name="S4.21.7"></a>4.21.7 &#8216;Allow <a name="i350"></a>agent forwarding&#8217;</h3>
 <p>
 This option allows the SSH server to open forwarded connections back to your local copy of <a name="i351"></a>Pageant. If you are not running Pageant, this option will do nothing.
 </p>
 <p>
 See <a href="Chapter9.html#pageant">chapter 9</a> for general information on Pageant, and <a href="Chapter9.html#pageant-forward">section 9.4</a> for information on agent forwarding. Note that there is a security risk involved with enabling this option; see <a href="Chapter9.html#pageant-security">section 9.6</a> for details.
 </p>
-<h3><a name="config-ssh-changeuser"></a><a name="S4.21.7"></a>4.21.7 &#8216;Allow attempted <a name="i352"></a>changes of username in SSH-2&#8217;</h3>
+<h3><a name="config-ssh-changeuser"></a><a name="S4.21.8"></a>4.21.8 &#8216;Allow attempted <a name="i352"></a>changes of username in SSH-2&#8217;</h3>
 <p>
 In the SSH-1 protocol, it is impossible to change username after failing to authenticate. So if you mis-type your username at the PuTTY &#8216;login as:&#8217; prompt, you will not be able to change it except by restarting PuTTY.
 </p>
@@ -1926,7 +1946,7 @@ The SSH-2 protocol <em>does</em> allow changes of username, in principle, but do
 <p>
 For this reason, PuTTY will by default not prompt you for your username more than once, in case the server complains. If you know your server can cope with it, you can enable the &#8216;Allow attempted changes of username&#8217; option to modify PuTTY's behaviour.
 </p>
-<h3><a name="config-ssh-privkey"></a><a name="S4.21.8"></a>4.21.8 &#8216;<a name="i354"></a>Private key file for authentication&#8217;</h3>
+<h3><a name="config-ssh-privkey"></a><a name="S4.21.9"></a>4.21.9 &#8216;<a name="i354"></a>Private key file for authentication&#8217;</h3>
 <p>
 This box is where you enter the name of your private key file if you are using <a name="i355"></a>public key authentication. See <a href="Chapter8.html#pubkey">chapter 8</a> for information about public key authentication in SSH.
 </p>
@@ -2548,5 +2568,5 @@ You should replace <code>a:\putty.rnd</code> with the location where you want to
 </p>
 
 <hr><p>If you want to provide feedback on this manual or on the PuTTY tools themselves, see the <a href="https://www.chiark.greenend.org.uk/~sgtatham/putty/feedback.html">Feedback page</a>.</p><address>
-[PuTTY release 0.75]</address></body>
+[PuTTY release 0.76]</address></body>
 </html>

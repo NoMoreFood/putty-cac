@@ -598,7 +598,7 @@ The <code>-agent</code> option turns on SSH authentication using Pageant, and <c
 See <a href="Chapter9.html#pageant">chapter 9</a> for general information on <a name="i169"></a>Pageant.
 </p>
 <p>
-These options are equivalent to the agent authentication checkbox in the Auth panel of the PuTTY configuration box (see <a href="Chapter4.html#config-ssh-tryagent">section 4.21.3</a>).
+These options are equivalent to the agent authentication checkbox in the Auth panel of the PuTTY configuration box (see <a href="Chapter4.html#config-ssh-tryagent">section 4.21.4</a>).
 </p>
 <h4><a name="using-cmdline-agent"></a><a name="S3.11.3.10"></a>3.11.3.10 <a name="i170"></a><code>-A</code> and <a name="i171"></a><code>-a</code>: control <a name="i172"></a>agent forwarding</h4>
 <p>
@@ -608,7 +608,7 @@ The <code>-A</code> option turns on SSH agent forwarding, and <code>-a</code> tu
 See <a href="Chapter9.html#pageant">chapter 9</a> for general information on <a name="i173"></a>Pageant, and <a href="Chapter9.html#pageant-forward">section 9.4</a> for information on agent forwarding. Note that there is a security risk involved with enabling this option; see <a href="Chapter9.html#pageant-security">section 9.6</a> for details.
 </p>
 <p>
-These options are equivalent to the agent forwarding checkbox in the Auth panel of the PuTTY configuration box (see <a href="Chapter4.html#config-ssh-agentfwd">section 4.21.6</a>).
+These options are equivalent to the agent forwarding checkbox in the Auth panel of the PuTTY configuration box (see <a href="Chapter4.html#config-ssh-agentfwd">section 4.21.7</a>).
 </p>
 <p>
 These options are not available in the file transfer tools PSCP and PSFTP.
@@ -699,24 +699,31 @@ If you are using Pageant, you can also specify a <em>public</em> key file (in RF
 For general information on <a name="i199"></a>public-key authentication, see <a href="Chapter8.html#pubkey">chapter 8</a>.
 </p>
 <p>
-This option is equivalent to the &#8216;Private key file for authentication&#8217; box in the Auth panel of the PuTTY configuration box (see <a href="Chapter4.html#config-ssh-privkey">section 4.21.8</a>).
+This option is equivalent to the &#8216;Private key file for authentication&#8217; box in the Auth panel of the PuTTY configuration box (see <a href="Chapter4.html#config-ssh-privkey">section 4.21.9</a>).
 </p>
-<h4><a name="using-cmdline-loghost"></a><a name="S3.11.3.19"></a>3.11.3.19 <a name="i200"></a><code>-loghost</code>: specify a <a name="i201"></a>logical host name</h4>
+<h4><a name="using-cmdline-no-trivial-auth"></a><a name="S3.11.3.19"></a>3.11.3.19 <a name="i200"></a><code>-no-trivial-auth</code>: disconnect if SSH authentication succeeds trivially</h4>
 <p>
-This option overrides PuTTY's normal SSH <a name="i202"></a>host key caching policy by telling it the name of the host you expect your connection to end up at (in cases where this differs from the location PuTTY thinks it's connecting to). It can be a plain host name, or a host name followed by a colon and a port number. See <a href="Chapter4.html#config-loghost">section 4.14.5</a> for more detail on this.
+This option causes PuTTY to abandon an SSH session if the server accepts authentication without ever having asked for any kind of password or signature or token.
 </p>
-<h4><a name="using-cmdline-hostkey"></a><a name="S3.11.3.20"></a>3.11.3.20 <a name="i203"></a><code>-hostkey</code>: <a name="i204"></a>manually specify an expected host key</h4>
 <p>
-This option overrides PuTTY's normal SSH <a name="i205"></a>host key caching policy by telling it exactly what host key to expect, which can be useful if the normal automatic host key store in the Registry is unavailable. The argument to this option should be either a host key fingerprint, or an SSH-2 public key blob. See <a href="Chapter4.html#config-ssh-kex-manual-hostkeys">section 4.19.3</a> for more information.
+See <a href="Chapter4.html#config-ssh-notrivialauth">section 4.21.3</a> for why you might want this.
+</p>
+<h4><a name="using-cmdline-loghost"></a><a name="S3.11.3.20"></a>3.11.3.20 <a name="i201"></a><code>-loghost</code>: specify a <a name="i202"></a>logical host name</h4>
+<p>
+This option overrides PuTTY's normal SSH <a name="i203"></a>host key caching policy by telling it the name of the host you expect your connection to end up at (in cases where this differs from the location PuTTY thinks it's connecting to). It can be a plain host name, or a host name followed by a colon and a port number. See <a href="Chapter4.html#config-loghost">section 4.14.5</a> for more detail on this.
+</p>
+<h4><a name="using-cmdline-hostkey"></a><a name="S3.11.3.21"></a>3.11.3.21 <a name="i204"></a><code>-hostkey</code>: <a name="i205"></a>manually specify an expected host key</h4>
+<p>
+This option overrides PuTTY's normal SSH <a name="i206"></a>host key caching policy by telling it exactly what host key to expect, which can be useful if the normal automatic host key store in the Registry is unavailable. The argument to this option should be either a host key fingerprint, or an SSH-2 public key blob. See <a href="Chapter4.html#config-ssh-kex-manual-hostkeys">section 4.19.3</a> for more information.
 </p>
 <p>
 You can specify this option more than once if you want to configure more than one key to be accepted.
 </p>
-<h4><a name="using-cmdline-pgpfp"></a><a name="S3.11.3.21"></a>3.11.3.21 <a name="i206"></a><code>-pgpfp</code>: display <a name="i207"></a>PGP key fingerprints</h4>
+<h4><a name="using-cmdline-pgpfp"></a><a name="S3.11.3.22"></a>3.11.3.22 <a name="i207"></a><code>-pgpfp</code>: display <a name="i208"></a>PGP key fingerprints</h4>
 <p>
-This option causes the PuTTY tools not to run as normal, but instead to display the fingerprints of the PuTTY PGP Master Keys, in order to aid with <a name="i208"></a>verifying new versions. See <a href="AppendixF.html#pgpkeys">appendix F</a> for more information.
+This option causes the PuTTY tools not to run as normal, but instead to display the fingerprints of the PuTTY PGP Master Keys, in order to aid with <a name="i209"></a>verifying new versions. See <a href="AppendixF.html#pgpkeys">appendix F</a> for more information.
 </p>
-<h4><a name="using-cmdline-sercfg"></a><a name="S3.11.3.22"></a>3.11.3.22 <a name="i209"></a><code>-sercfg</code>: specify serial port <a name="i210"></a>configuration</h4>
+<h4><a name="using-cmdline-sercfg"></a><a name="S3.11.3.23"></a>3.11.3.23 <a name="i210"></a><code>-sercfg</code>: specify serial port <a name="i211"></a>configuration</h4>
 <p>
 This option specifies the configuration parameters for the serial port (baud rate, stop bits etc). Its argument is interpreted as a comma-separated list of configuration options, which can be as follows:
 </p>
@@ -739,9 +746,9 @@ A single upper-case letter specifies the flow control: &#8216;<code>N</code>&#82
 <p>
 For example, &#8216;<code>-sercfg 19200,8,n,1,N</code>&#8217; denotes a baud rate of 19200, 8 data bits, no parity, 1 stop bit and no flow control.
 </p>
-<h4><a name="using-cmdline-sshlog"></a><a name="S3.11.3.23"></a>3.11.3.23 <a name="i211"></a><code>-sessionlog</code>, <a name="i212"></a><code>-sshlog</code>, <a name="i213"></a><code>-sshrawlog</code>: enable session logging</h4>
+<h4><a name="using-cmdline-sshlog"></a><a name="S3.11.3.24"></a>3.11.3.24 <a name="i212"></a><code>-sessionlog</code>, <a name="i213"></a><code>-sshlog</code>, <a name="i214"></a><code>-sshrawlog</code>: enable session logging</h4>
 <p>
-These options cause the PuTTY network tools to write out a <a name="i214"></a>log file. Each of them expects a file name as an argument, e.g. &#8216;<code>-sshlog putty.log</code>&#8217; causes an SSH packet log to be written to a file called &#8216;<code>putty.log</code>&#8217;. The three different options select different logging modes, all available from the GUI too:
+These options cause the PuTTY network tools to write out a <a name="i215"></a>log file. Each of them expects a file name as an argument, e.g. &#8216;<code>-sshlog putty.log</code>&#8217; causes an SSH packet log to be written to a file called &#8216;<code>putty.log</code>&#8217;. The three different options select different logging modes, all available from the GUI too:
 </p>
 <ul><li>
 <code>-sessionlog</code> selects &#8216;All session output&#8217; logging mode.
@@ -756,18 +763,18 @@ These options cause the PuTTY network tools to write out a <a name="i214"></a>lo
 <p>
 For more information on logging configuration, see <a href="Chapter4.html#config-logging">section 4.2</a>.
 </p>
-<h4><a name="using-cmdline-logfileexists"></a><a name="S3.11.3.24"></a>3.11.3.24 <a name="i215"></a><code>-logoverwrite</code>, <a name="i216"></a><code>-logappend</code>: control behaviour with existing log file</h4>
+<h4><a name="using-cmdline-logfileexists"></a><a name="S3.11.3.25"></a>3.11.3.25 <a name="i216"></a><code>-logoverwrite</code>, <a name="i217"></a><code>-logappend</code>: control behaviour with existing log file</h4>
 <p>
 If logging has been enabled (in the saved configuration, or by another command-line option), and the specified log file already exists, these options tell the PuTTY network tools what to do so that they don't have to ask the user. See <a href="Chapter4.html#config-logfileexists">section 4.2.2</a> for details.
 </p>
-<h4><a name="using-cmdline-proxycmd"></a><a name="S3.11.3.25"></a>3.11.3.25 <a name="i217"></a><code>-proxycmd</code>: specify a local proxy command</h4>
+<h4><a name="using-cmdline-proxycmd"></a><a name="S3.11.3.26"></a>3.11.3.26 <a name="i218"></a><code>-proxycmd</code>: specify a local proxy command</h4>
 <p>
-This option enables PuTTY's mode for running a <a name="i218"></a>command on the local machine and using it as a proxy for the network connection. It expects a shell command string as an argument.
+This option enables PuTTY's mode for running a <a name="i219"></a>command on the local machine and using it as a proxy for the network connection. It expects a shell command string as an argument.
 </p>
 <p>
 See <a href="Chapter4.html#config-proxy-type">section 4.16.1</a> for more information on this, and on other proxy settings. In particular, note that since the special sequences described there are understood in the argument string, literal backslashes must be doubled (if you want <code>\</code> in your command, you must put <code>\\</code> on the command line).
 </p>
-<h4><a name="using-cmdline-restrict-acl"></a><a name="S3.11.3.26"></a>3.11.3.26 <a name="i219"></a><code>-restrict-acl</code>: restrict the <a name="i220"></a>Windows process ACL</h4>
+<h4><a name="using-cmdline-restrict-acl"></a><a name="S3.11.3.27"></a>3.11.3.27 <a name="i220"></a><code>-restrict-acl</code>: restrict the <a name="i221"></a>Windows process ACL</h4>
 <p>
 This option (on Windows only) causes PuTTY (or another PuTTY tool) to try to lock down the operating system's access control on its own process. If this succeeds, it should present an extra obstacle to malware that has managed to run under the same user id as the PuTTY process, by preventing it from attaching to PuTTY using the same interfaces debuggers use and either reading sensitive information out of its memory or hijacking its network session.
 </p>
@@ -778,9 +785,9 @@ This option is not enabled by default, because this form of interaction between 
 A PuTTY process started with <code>-restrict-acl</code> will pass that on to any processes started with Duplicate Session, New Session etc. (However, if you're invoking PuTTY tools explicitly, for instance as a proxy command, you'll need to arrange to pass them the <code>-restrict-acl</code> option yourself, if that's what you want.)
 </p>
 <p>
-If Pageant is started with the <code>-restrict-acl</code> option, and you use it to launch a PuTTY session from its <a name="i221"></a>System Tray submenu, then Pageant will <em>not</em> default to starting the PuTTY subprocess with a restricted ACL. This is because PuTTY is more likely to suffer reduced functionality as a result of restricted ACLs (e.g. screen reader software will have a greater need to interact with it), whereas Pageant stores the more critical information (hence benefits more from the extra protection), so it's reasonable to want to run Pageant but not PuTTY with the ACL restrictions. You can force Pageant to start subsidiary PuTTY processes with a restricted ACL if you also pass the <a name="i222"></a><code>-restrict-putty-acl</code> option.
+If Pageant is started with the <code>-restrict-acl</code> option, and you use it to launch a PuTTY session from its <a name="i222"></a>System Tray submenu, then Pageant will <em>not</em> default to starting the PuTTY subprocess with a restricted ACL. This is because PuTTY is more likely to suffer reduced functionality as a result of restricted ACLs (e.g. screen reader software will have a greater need to interact with it), whereas Pageant stores the more critical information (hence benefits more from the extra protection), so it's reasonable to want to run Pageant but not PuTTY with the ACL restrictions. You can force Pageant to start subsidiary PuTTY processes with a restricted ACL if you also pass the <a name="i223"></a><code>-restrict-putty-acl</code> option.
 </p>
 
 <hr><p>If you want to provide feedback on this manual or on the PuTTY tools themselves, see the <a href="https://www.chiark.greenend.org.uk/~sgtatham/putty/feedback.html">Feedback page</a>.</p><address>
-[PuTTY release 0.75]</address></body>
+[PuTTY release 0.76]</address></body>
 </html>
