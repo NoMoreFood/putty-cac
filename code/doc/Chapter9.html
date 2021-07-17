@@ -62,7 +62,7 @@ Pageant will now load the private key. If the key is protected by a passphrase, 
 Now start PuTTY and open an SSH session to a site that accepts your key. PuTTY will notice that Pageant is running, retrieve the key automatically from Pageant, and use it to authenticate. You can now open as many PuTTY sessions as you like without having to type your passphrase again.
 </p>
 <p>
-(PuTTY can be configured not to try to use Pageant, but it will try by default. See <a href="Chapter4.html#config-ssh-tryagent">section 4.21.3</a> and <a href="Chapter3.html#using-cmdline-agentauth">section 3.11.3.9</a> for more information.)
+(PuTTY can be configured not to try to use Pageant, but it will try by default. See <a href="Chapter4.html#config-ssh-tryagent">section 4.21.4</a> and <a href="Chapter3.html#using-cmdline-agentauth">section 3.11.3.9</a> for more information.)
 </p>
 <p>
 When you want to shut down Pageant, click the right button on the Pageant icon in the System tray, and select &#8216;Exit&#8217; from the menu. Closing the Pageant main window does <em>not</em> shut down Pageant.
@@ -161,10 +161,10 @@ Start Pageant with the <a name="i12"></a><code>--keylist</code> option to show t
 </p>
 <h3><a name="pageant-cmdline-restrict-acl"></a><a name="S9.3.4"></a>9.3.4 Restricting the <a name="i13"></a>Windows process ACL</h3>
 <p>
-Pageant supports the same <a name="i14"></a><code>-restrict-acl</code> option as the other PuTTY utilities to lock down the Pageant process's access control; see <a href="Chapter3.html#using-cmdline-restrict-acl">section 3.11.3.26</a> for why you might want to do this.
+Pageant supports the same <a name="i14"></a><code>-restrict-acl</code> option as the other PuTTY utilities to lock down the Pageant process's access control; see <a href="Chapter3.html#using-cmdline-restrict-acl">section 3.11.3.27</a> for why you might want to do this.
 </p>
 <p>
-By default, if Pageant is started with <code>-restrict-acl</code>, it won't pass this to any PuTTY sessions started from its System Tray submenu. Use <code>-restrict-putty-acl</code> to change this. (Again, see <a href="Chapter3.html#using-cmdline-restrict-acl">section 3.11.3.26</a> for details.)
+By default, if Pageant is started with <code>-restrict-acl</code>, it won't pass this to any PuTTY sessions started from its System Tray submenu. Use <code>-restrict-putty-acl</code> to change this. (Again, see <a href="Chapter3.html#using-cmdline-restrict-acl">section 3.11.3.27</a> for details.)
 </p>
 <h2><a name="pageant-forward"></a><a name="S9.4"></a>9.4 Using <a name="i15"></a>agent forwarding</h2>
 <p>
@@ -174,7 +174,7 @@ Agent forwarding is a mechanism that allows applications on your SSH server mach
 Note that at present, whether agent forwarding in SSH-2 is available depends on your server. Pageant's protocol is compatible with the <a name="i16"></a>OpenSSH server, but the <a name="i17"></a><code>ssh.com</code> server uses a different agent protocol, which PuTTY does not yet support.
 </p>
 <p>
-To enable agent forwarding, first start Pageant. Then set up a PuTTY SSH session in which &#8216;Allow agent forwarding&#8217; is enabled (see <a href="Chapter4.html#config-ssh-agentfwd">section 4.21.6</a>). Open the session as normal. (Alternatively, you can use the <code>-A</code> command line option; see <a href="Chapter3.html#using-cmdline-agent">section 3.11.3.10</a> for details.)
+To enable agent forwarding, first start Pageant. Then set up a PuTTY SSH session in which &#8216;Allow agent forwarding&#8217; is enabled (see <a href="Chapter4.html#config-ssh-agentfwd">section 4.21.7</a>). Open the session as normal. (Alternatively, you can use the <code>-A</code> command line option; see <a href="Chapter3.html#using-cmdline-agent">section 3.11.3.10</a> for details.)
 </p>
 <p>
 If this has worked, your applications on the server should now have access to a Unix domain socket which the SSH server will forward back to PuTTY, and PuTTY will forward on to the agent. To check that this has actually happened, you can try this command on Unix server machines:
@@ -260,5 +260,5 @@ Therefore, if you don't trust the sysadmin of a server machine, you should <em>n
 </p>
 
 <hr><p>If you want to provide feedback on this manual or on the PuTTY tools themselves, see the <a href="https://www.chiark.greenend.org.uk/~sgtatham/putty/feedback.html">Feedback page</a>.</p><address>
-[PuTTY release 0.75]</address></body>
+[PuTTY release 0.76]</address></body>
 </html>

@@ -2018,7 +2018,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
            "&View Keys");
     AppendMenu(systray_menu, MF_ENABLED, IDM_ADDKEY, "Add &Key");
     AppendMenu(systray_menu, MF_ENABLED, IDM_ADDKEY_ENCRYPTED,
-        "Add key (encrypted)");
+               "Add key (encrypted)");
 #endif // PUTTY_CAC
     AppendMenu(systray_menu, MF_SEPARATOR, 0, 0);
     AppendMenu(systray_menu, MF_ENABLED, IDM_REMOVE_ALL,
@@ -2044,8 +2044,10 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
     DWORD wm_copydata_threadid;
     wmct.ev_msg_ready = CreateEvent(NULL, false, false, NULL);
     wmct.ev_reply_ready = CreateEvent(NULL, false, false, NULL);
-    CreateThread(NULL, 0, wm_copydata_threadfunc,
-                 &inst, 0, &wm_copydata_threadid);
+    HANDLE hThread = CreateThread(NULL, 0, wm_copydata_threadfunc,
+                                  &inst, 0, &wm_copydata_threadid);
+    if (hThread)
+        CloseHandle(hThread);          /* we don't need the thread handle */
     handle_add_foreign_event(wmct.ev_msg_ready, wm_copydata_got_msg, NULL);
 
     if (show_keylist_on_startup)
