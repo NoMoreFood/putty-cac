@@ -482,7 +482,7 @@ void keylist_update(void)
         for (int ikey = 0; (comment = pageant_nth_ssh2_comment(ikey)) != NULL; ikey++)
         {
             /* only process cert keys*/
-            if (!comment) continue;
+            if (!comment || !cert_is_certpath(comment)) continue;
 
             /* append the null separated, double-null terminated string */
             slist = srealloc(slist, slistsize + strlen(comment) + 2);
