@@ -311,7 +311,9 @@ char *buildinfo(const char *newline)
     strbuf_catf(buf, " 6.0");
 #else
 #ifdef PUTTY_CAC
-#if _MSC_VER == 1929
+#if _MSC_VER == 1929 && _MSC_FULL_VER >= 192930133
+    strbuf_catf(buf, " 2019 (16.11)");
+#elif _MSC_VER == 1929
     strbuf_catf(buf, " 2019 (16.10)");
 #endif
 #else

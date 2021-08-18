@@ -2479,6 +2479,7 @@ char* pageant_nth_ssh2_string(int i)
 char* pageant_nth_ssh2_comment(int i)
 {
     PageantKey* pkey = pageant_nth_key(2, i);
+    if (pkey == NULL) return NULL;
     return pkey->comment;
 }
 #endif // PUTTY_CAC

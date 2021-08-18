@@ -470,6 +470,32 @@ void keylist_update(void)
         EnableWindow(GetDlgItem(keylist, IDC_KEYLIST_REENCRYPT),
                      ctx->enable_reencrypt_controls);
     }
+
+#ifdef PUTTY_CAC
+    if (cert_save_cert_list_enabled(-1))
+    {
+        /* initialize a double-null terminated string */
+        char* slist = snewn(2, char);
+        int slistsize = 0;
+        memset(slist, 0, 2);
+        char* comment = NULL;
+        for (int ikey = 0; (comment = pageant_nth_ssh2_comment(ikey)) != NULL; ikey++)
+        {
+            /* only process cert keys*/
+            if (!comment) continue;
+
+            /* append the null separated, double-null terminated string */
+            slist = srealloc(slist, slistsize + strlen(comment) + 2);
+            strcpy(&slist[slistsize], comment);
+            slist[slistsize + strlen(comment) + 1] = '\0';
+            slistsize += strlen(comment) + 1;
+        }
+
+        /* commit full list to registry */
+        RegSetKeyValue(HKEY_CURRENT_USER, PUTTY_REG_POS, "SaveCertList",
+            REG_MULTI_SZ, slist, slistsize + 1);
+    }
+#endif /* PUTTY_CAC */
 }
 
 static void win_add_keyfile(Filename *filename, bool encrypted)
