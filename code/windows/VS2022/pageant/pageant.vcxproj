@@ -21,7 +21,7 @@
   <PropertyGroup Label="Globals">
     <SccProjectName />
     <SccLocalPath />
-    <ProjectGuid>{617b1bef-aa10-42b4-8f69-4c183bc1ec0f}</ProjectGuid>
+    <ProjectGuid>{27e8f930-2567-4fdc-82c1-0662af3cdf6d}</ProjectGuid>
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
@@ -29,19 +29,19 @@
     <ConfigurationType>Application</ConfigurationType>
     <UseOfMfc>false</UseOfMfc>
     <CharacterSet>MultiByte</CharacterSet>
-    <PlatformToolset>v142</PlatformToolset>
+    <PlatformToolset>v143</PlatformToolset>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseOfMfc>false</UseOfMfc>
     <CharacterSet>MultiByte</CharacterSet>
-    <PlatformToolset>v142</PlatformToolset>
+    <PlatformToolset>v143</PlatformToolset>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseOfMfc>false</UseOfMfc>
     <CharacterSet>MultiByte</CharacterSet>
-    <PlatformToolset>v142</PlatformToolset>
+    <PlatformToolset>v143</PlatformToolset>
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <SpectreMitigation>
     </SpectreMitigation>
@@ -50,7 +50,7 @@
     <ConfigurationType>Application</ConfigurationType>
     <UseOfMfc>false</UseOfMfc>
     <CharacterSet>MultiByte</CharacterSet>
-    <PlatformToolset>v142</PlatformToolset>
+    <PlatformToolset>v143</PlatformToolset>
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <SpectreMitigation>
     </SpectreMitigation>
@@ -119,7 +119,7 @@
     <Midl>
       <SuppressStartupBanner>true</SuppressStartupBanner>
       <PreprocessorDefinitions>NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <TypeLibraryName>.\Release\puttygen.tlb</TypeLibraryName>
+      <TypeLibraryName>.\Release\pageant.tlb</TypeLibraryName>
       <MkTypLibCompatible>true</MkTypLibCompatible>
       <TargetEnvironment>Win32</TargetEnvironment>
     </Midl>
@@ -130,7 +130,7 @@
     </ResourceCompile>
     <Bscmake>
       <SuppressStartupBanner>true</SuppressStartupBanner>
-      <OutputFile>.\Release\puttygen.bsc</OutputFile>
+      <OutputFile>.\Release\pageant.bsc</OutputFile>
     </Bscmake>
     <Link>
       <SuppressStartupBanner>true</SuppressStartupBanner>
@@ -143,6 +143,8 @@
       <OptimizeReferences>true</OptimizeReferences>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <LinkTimeCodeGeneration>UseLinkTimeCodeGeneration</LinkTimeCodeGeneration>
+      <AdditionalOptions>
+      </AdditionalOptions>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -169,7 +171,7 @@
     <Midl>
       <SuppressStartupBanner>true</SuppressStartupBanner>
       <PreprocessorDefinitions>NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <TypeLibraryName>.\Release\puttygen.tlb</TypeLibraryName>
+      <TypeLibraryName>.\Release\pageant.tlb</TypeLibraryName>
       <MkTypLibCompatible>true</MkTypLibCompatible>
     </Midl>
     <ResourceCompile>
@@ -179,7 +181,7 @@
     </ResourceCompile>
     <Bscmake>
       <SuppressStartupBanner>true</SuppressStartupBanner>
-      <OutputFile>.\Release\puttygen.bsc</OutputFile>
+      <OutputFile>.\Release\pageant.bsc</OutputFile>
     </Bscmake>
     <Link>
       <SuppressStartupBanner>true</SuppressStartupBanner>
@@ -215,7 +217,7 @@
     <Midl>
       <SuppressStartupBanner>true</SuppressStartupBanner>
       <PreprocessorDefinitions>_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <TypeLibraryName>.\Debug\puttygen.tlb</TypeLibraryName>
+      <TypeLibraryName>.\Debug\pageant.tlb</TypeLibraryName>
       <MkTypLibCompatible>true</MkTypLibCompatible>
       <TargetEnvironment>Win32</TargetEnvironment>
     </Midl>
@@ -226,7 +228,7 @@
     </ResourceCompile>
     <Bscmake>
       <SuppressStartupBanner>true</SuppressStartupBanner>
-      <OutputFile>.\Debug\puttygen.bsc</OutputFile>
+      <OutputFile>.\Debug\pageant.bsc</OutputFile>
     </Bscmake>
     <Link>
       <SuppressStartupBanner>true</SuppressStartupBanner>
@@ -261,7 +263,7 @@
     <Midl>
       <SuppressStartupBanner>true</SuppressStartupBanner>
       <PreprocessorDefinitions>_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <TypeLibraryName>.\Debug\puttygen.tlb</TypeLibraryName>
+      <TypeLibraryName>.\Debug\pageant.tlb</TypeLibraryName>
       <MkTypLibCompatible>true</MkTypLibCompatible>
     </Midl>
     <ResourceCompile>
@@ -271,7 +273,7 @@
     </ResourceCompile>
     <Bscmake>
       <SuppressStartupBanner>true</SuppressStartupBanner>
-      <OutputFile>.\Debug\puttygen.bsc</OutputFile>
+      <OutputFile>.\Debug\pageant.bsc</OutputFile>
     </Bscmake>
     <Link>
       <SuppressStartupBanner>true</SuppressStartupBanner>
@@ -281,15 +283,14 @@
       <AdditionalDependencies>advapi32.lib;comctl32.lib;comdlg32.lib;gdi32.lib;imm32.lib;ole32.lib;shell32.lib;user32.lib;winmm.lib;winspool.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <Profile>true</Profile>
     </Link>
-    <Manifest>
-      <OutputManifestFile>$(TargetPath).manifest</OutputManifestFile>
-    </Manifest>
+    <Manifest />
   </ItemDefinitionGroup>
   <ItemGroup>
-    <CustomBuild Include="..\..\puttygen.ico" />
+    <CustomBuild Include="..\..\pageant.ico" />
+    <CustomBuild Include="..\..\pageants.ico" />
   </ItemGroup>
   <ItemGroup>
-    <ResourceCompile Include="..\..\puttygen.rc">
+    <ResourceCompile Include="..\..\pageant.rc">
       <AdditionalIncludeDirectories Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">..\..;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <AdditionalIncludeDirectories Condition="'$(Configuration)|$(Platform)'=='Release|x64'">..\..;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <AdditionalIncludeDirectories Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">..\..;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
@@ -297,42 +298,31 @@
     </ResourceCompile>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="..\..\..\aqsync.c" />
+    <ClCompile Include="..\..\..\be_misc.c" />
     <ClCompile Include="..\..\..\callback.c" />
     <ClCompile Include="..\..\..\cert\cert_capi.c" />
     <ClCompile Include="..\..\..\cert\cert_common.c" />
     <ClCompile Include="..\..\..\cert\cert_pkcs.c" />
     <ClCompile Include="..\..\..\conf.c" />
     <ClCompile Include="..\..\..\ecc.c" />
-    <ClCompile Include="..\..\..\import.c" />
+    <ClCompile Include="..\..\..\errsock.c" />
     <ClCompile Include="..\..\..\marshal.c" />
     <ClCompile Include="..\..\..\memory.c" />
-    <ClCompile Include="..\..\..\millerrabin.c" />
     <ClCompile Include="..\..\..\misc.c" />
     <ClCompile Include="..\..\..\mpint.c" />
-    <ClCompile Include="..\..\..\mpunsafe.c" />
-    <ClCompile Include="..\..\..\notiming.c" />
-    <ClCompile Include="..\..\..\pockle.c" />
-    <ClCompile Include="..\..\..\primecandidate.c" />
-    <ClCompile Include="..\..\..\smallprimes.c" />
+    <ClCompile Include="..\..\..\pageant.c" />
     <ClCompile Include="..\..\..\sshaes.c" />
     <ClCompile Include="..\..\..\sshargon2.c" />
     <ClCompile Include="..\..\..\sshauxcrypt.c" />
-    <ClCompile Include="..\..\..\sshbcrypt.c" />
     <ClCompile Include="..\..\..\sshblake2.c" />
-    <ClCompile Include="..\..\..\sshblowf.c" />
     <ClCompile Include="..\..\..\sshdes.c" />
     <ClCompile Include="..\..\..\sshdss.c" />
-    <ClCompile Include="..\..\..\sshdssg.c" />
     <ClCompile Include="..\..\..\sshecc.c" />
-    <ClCompile Include="..\..\..\sshecdsag.c" />
     <ClCompile Include="..\..\..\sshhmac.c" />
     <ClCompile Include="..\..\..\sshmd5.c" />
-    <ClCompile Include="..\..\..\sshprime.c" />
-    <ClCompile Include="..\..\..\sshprng.c" />
     <ClCompile Include="..\..\..\sshpubk.c" />
-    <ClCompile Include="..\..\..\sshrand.c" />
     <ClCompile Include="..\..\..\sshrsa.c" />
-    <ClCompile Include="..\..\..\sshrsag.c" />
     <ClCompile Include="..\..\..\sshsh256.c" />
     <ClCompile Include="..\..\..\sshsh512.c" />
     <ClCompile Include="..\..\..\sshsha.c" />
@@ -342,22 +332,27 @@
     <ClCompile Include="..\..\..\utils.c" />
     <ClCompile Include="..\..\..\version.c" />
     <ClCompile Include="..\..\..\wcwidth.c" />
-    <ClCompile Include="..\..\winctrls.c" />
+    <ClCompile Include="..\..\wincapi.c" />
+    <ClCompile Include="..\..\winhandl.c" />
     <ClCompile Include="..\..\winhelp.c" />
+    <ClCompile Include="..\..\winhsock.c" />
     <ClCompile Include="..\..\winmisc.c" />
     <ClCompile Include="..\..\winmiscs.c" />
-    <ClCompile Include="..\..\winnoise.c" />
-    <ClCompile Include="..\..\winnojmp.c" />
-    <ClCompile Include="..\..\winpgen.c" />
+    <ClCompile Include="..\..\winnet.c" />
+    <ClCompile Include="..\..\winnpc.c" />
+    <ClCompile Include="..\..\winnps.c" />
+    <ClCompile Include="..\..\winpgnt.c" />
+    <ClCompile Include="..\..\winpgntc.c" />
     <ClCompile Include="..\..\winsecur.c" />
-    <ClCompile Include="..\..\winstore.c" />
-    <ClCompile Include="..\..\wintime.c" />
+    <ClCompile Include="..\..\winselgui.c" />
     <ClCompile Include="..\..\winutils.c" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="..\..\..\cert\cert_common.h" />
+    <ClCompile Include="..\..\..\cert\cert_pkcs.h" />
+    <ClCompile Include="..\..\..\cert\cert_capi.h" />
     <ClInclude Include="..\..\..\charset\charset.h" />
     <ClInclude Include="..\..\..\defs.h" />
-    <ClInclude Include="..\..\..\dialog.h" />
     <ClInclude Include="..\..\..\ecc.h" />
     <ClInclude Include="..\..\..\empty.h" />
     <ClInclude Include="..\..\..\licence.h" />
@@ -366,14 +361,14 @@
     <ClInclude Include="..\..\..\mpint.h" />
     <ClInclude Include="..\..\..\mpint_i.h" />
     <ClInclude Include="..\..\..\network.h" />
+    <ClInclude Include="..\..\..\pageant.h" />
     <ClInclude Include="..\..\..\putty.h" />
     <ClInclude Include="..\..\..\puttymem.h" />
     <ClInclude Include="..\..\..\puttyps.h" />
     <ClInclude Include="..\..\..\ssh.h" />
-    <ClInclude Include="..\..\..\sshblowf.h" />
+    <ClInclude Include="..\..\..\sshcr.h" />
     <ClInclude Include="..\..\..\sshsignals.h" />
     <ClInclude Include="..\..\..\sshttymodes.h" />
-    <ClInclude Include="..\..\..\storage.h" />
     <ClInclude Include="..\..\..\terminal.h" />
     <ClInclude Include="..\..\..\tree234.h" />
     <ClInclude Include="..\..\..\unix\unix.h" />
@@ -383,6 +378,9 @@
     <ClInclude Include="..\..\winhelp.h" />
     <ClInclude Include="..\..\winsecur.h" />
     <ClInclude Include="..\..\winstuff.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\..\pageant.mft" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
 </Project>

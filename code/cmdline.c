@@ -8,6 +8,10 @@
 #include <stdlib.h>
 #include "putty.h"
 
+#ifdef PUTTY_CAC
+#include "cert_common.h"
+#endif // PUTTY_CAC
+
 /*
  * Some command-line parameters need to be saved up until after
  * we've loaded the saved session which will form the basis of our
@@ -845,6 +849,12 @@ int cmdline_process_param(const char *p, char *value,
         !strcmp(p, "-restrictacl")) {
         RETURN(1);
         restrict_process_acl();
+    }
+#endif
+#ifdef PUTTY_CAC
+    if (cert_cmdline_parse(p))
+    {
+        RETURN(1);
     }
 #endif
 
