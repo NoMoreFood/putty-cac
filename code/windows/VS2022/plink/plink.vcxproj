@@ -21,7 +21,7 @@
   <PropertyGroup Label="Globals">
     <SccProjectName />
     <SccLocalPath />
-    <ProjectGuid>{8f44624a-d188-4188-b9aa-5f99f20723e1}</ProjectGuid>
+    <ProjectGuid>{4478087b-1dc8-4c3e-b624-13661de1947e}</ProjectGuid>
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
@@ -29,19 +29,19 @@
     <ConfigurationType>Application</ConfigurationType>
     <UseOfMfc>false</UseOfMfc>
     <CharacterSet>MultiByte</CharacterSet>
-    <PlatformToolset>v142</PlatformToolset>
+    <PlatformToolset>v143</PlatformToolset>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseOfMfc>false</UseOfMfc>
     <CharacterSet>MultiByte</CharacterSet>
-    <PlatformToolset>v142</PlatformToolset>
+    <PlatformToolset>v143</PlatformToolset>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseOfMfc>false</UseOfMfc>
     <CharacterSet>MultiByte</CharacterSet>
-    <PlatformToolset>v142</PlatformToolset>
+    <PlatformToolset>v143</PlatformToolset>
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <SpectreMitigation>
     </SpectreMitigation>
@@ -50,7 +50,7 @@
     <ConfigurationType>Application</ConfigurationType>
     <UseOfMfc>false</UseOfMfc>
     <CharacterSet>MultiByte</CharacterSet>
-    <PlatformToolset>v142</PlatformToolset>
+    <PlatformToolset>v143</PlatformToolset>
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <SpectreMitigation>
     </SpectreMitigation>
@@ -75,25 +75,25 @@
     <OutDir>..\..\..\..\binaries\x86\</OutDir>
     <IntDir>$(ProjectDir)\Temp\$(Configuration)\x86\</IntDir>
     <LinkIncremental>false</LinkIncremental>
-    <EmbedManifest>false</EmbedManifest>
+    <EmbedManifest>true</EmbedManifest>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
     <OutDir>..\..\..\..\binaries\x64\</OutDir>
     <IntDir>$(ProjectDir)\Temp\$(Configuration)\x64\</IntDir>
-    <EmbedManifest>false</EmbedManifest>
+    <EmbedManifest>true</EmbedManifest>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <OutDir>..\..\..\..\binaries\x86\</OutDir>
     <LinkIncremental>true</LinkIncremental>
     <IntDir>$(ProjectDir)\Temp\$(Configuration)\x86\</IntDir>
-    <EmbedManifest>false</EmbedManifest>
+    <EmbedManifest>true</EmbedManifest>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>false</LinkIncremental>
     <OutDir>..\..\..\..\binaries\x64\</OutDir>
     <IntDir>$(ProjectDir)\Temp\$(Configuration)\x64\</IntDir>
-    <EmbedManifest>false</EmbedManifest>
+    <EmbedManifest>true</EmbedManifest>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <ClCompile>
@@ -119,7 +119,7 @@
     <Midl>
       <SuppressStartupBanner>true</SuppressStartupBanner>
       <PreprocessorDefinitions>NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <TypeLibraryName>.\Release\putty.tlb</TypeLibraryName>
+      <TypeLibraryName>.\Release\plink.tlb</TypeLibraryName>
       <MkTypLibCompatible>true</MkTypLibCompatible>
       <TargetEnvironment>Win32</TargetEnvironment>
     </Midl>
@@ -130,11 +130,11 @@
     </ResourceCompile>
     <Bscmake>
       <SuppressStartupBanner>true</SuppressStartupBanner>
-      <OutputFile>.\Release\putty.bsc</OutputFile>
+      <OutputFile>.\Release\plink.bsc</OutputFile>
     </Bscmake>
     <Link>
       <SuppressStartupBanner>true</SuppressStartupBanner>
-      <SubSystem>Windows</SubSystem>
+      <SubSystem>Console</SubSystem>
       <OutputFile>..\..\..\..\binaries\x86\$(TargetFileName)</OutputFile>
       <AdditionalDependencies>gdi32.lib;comctl32.lib;imm32.lib;winmm.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <GenerateDebugInformation>false</GenerateDebugInformation>
@@ -144,6 +144,9 @@
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <LinkTimeCodeGeneration>UseLinkTimeCodeGeneration</LinkTimeCodeGeneration>
     </Link>
+    <Manifest>
+      <OutputManifestFile />
+    </Manifest>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
@@ -155,13 +158,13 @@
       <SuppressStartupBanner>true</SuppressStartupBanner>
       <WarningLevel>Level3</WarningLevel>
       <AdditionalIncludeDirectories>..\..\..\;..\..\..\charset;..\..\..\windows;..\..\..\unix;..\..\..\cert;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <ObjectFileName>$(IntDir)\%(Filename)%(Extension).obj</ObjectFileName>
       <WholeProgramOptimization>true</WholeProgramOptimization>
       <DebugInformationFormat>None</DebugInformationFormat>
       <ExceptionHandling>false</ExceptionHandling>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>PUTTY_CAC;NDEBUG;_WIN32_WINNT=_WIN32_WINNT_WIN6;WINVER=_WIN32_WINNT_WIN6;_WINDOWS;POSIX;_CRT_SECURE_NO_WARNINGS;_CRT_NONSTDC_NO_DEPRECATE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <DisableSpecificWarnings>4018;4267;4244;4201;4204;4221;4098</DisableSpecificWarnings>
-      <ObjectFileName>$(IntDir)\%(Filename)%(Extension).obj</ObjectFileName>
       <PrecompiledHeaderOutputFile />
       <OmitFramePointers>true</OmitFramePointers>
       <CompileAs>CompileAsC</CompileAs>
@@ -169,7 +172,7 @@
     <Midl>
       <SuppressStartupBanner>true</SuppressStartupBanner>
       <PreprocessorDefinitions>NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <TypeLibraryName>.\Release\putty.tlb</TypeLibraryName>
+      <TypeLibraryName>.\Release\plink.tlb</TypeLibraryName>
       <MkTypLibCompatible>true</MkTypLibCompatible>
     </Midl>
     <ResourceCompile>
@@ -179,11 +182,11 @@
     </ResourceCompile>
     <Bscmake>
       <SuppressStartupBanner>true</SuppressStartupBanner>
-      <OutputFile>.\Release\putty.bsc</OutputFile>
+      <OutputFile>.\Release\plink.bsc</OutputFile>
     </Bscmake>
     <Link>
       <SuppressStartupBanner>true</SuppressStartupBanner>
-      <SubSystem>Windows</SubSystem>
+      <SubSystem>Console</SubSystem>
       <OutputFile>..\..\..\..\binaries\x64\$(TargetFileName)</OutputFile>
       <AdditionalDependencies>gdi32.lib;comctl32.lib;imm32.lib;winmm.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <GenerateDebugInformation>false</GenerateDebugInformation>
@@ -193,6 +196,9 @@
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <LinkTimeCodeGeneration>UseLinkTimeCodeGeneration</LinkTimeCodeGeneration>
     </Link>
+    <Manifest>
+      <OutputManifestFile />
+    </Manifest>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -215,7 +221,7 @@
     <Midl>
       <SuppressStartupBanner>true</SuppressStartupBanner>
       <PreprocessorDefinitions>_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <TypeLibraryName>.\Debug\putty.tlb</TypeLibraryName>
+      <TypeLibraryName>.\Debug\plink.tlb</TypeLibraryName>
       <MkTypLibCompatible>true</MkTypLibCompatible>
       <TargetEnvironment>Win32</TargetEnvironment>
     </Midl>
@@ -226,18 +232,19 @@
     </ResourceCompile>
     <Bscmake>
       <SuppressStartupBanner>true</SuppressStartupBanner>
-      <OutputFile>.\Debug\putty.bsc</OutputFile>
+      <OutputFile>.\Debug\plink.bsc</OutputFile>
     </Bscmake>
     <Link>
       <SuppressStartupBanner>true</SuppressStartupBanner>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <SubSystem>Windows</SubSystem>
+      <SubSystem>Console</SubSystem>
       <OutputFile>..\..\..\..\binaries\x86\$(TargetFileName)</OutputFile>
       <AdditionalDependencies>advapi32.lib;comctl32.lib;comdlg32.lib;gdi32.lib;imm32.lib;ole32.lib;shell32.lib;user32.lib;winmm.lib;winspool.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <Profile>true</Profile>
     </Link>
     <Manifest>
-      <OutputManifestFile>$(TargetPath).manifest</OutputManifestFile>
+      <OutputManifestFile>
+      </OutputManifestFile>
     </Manifest>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
@@ -253,15 +260,15 @@
       <PreprocessorDefinitions>PUTTY_CAC;_DEBUG;_WIN32_WINNT=_WIN32_WINNT_WIN6;WINVER=_WIN32_WINNT_WIN6;_WINDOWS;POSIX;_CRT_SECURE_NO_WARNINGS;_CRT_NONSTDC_NO_DEPRECATE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <PrecompiledHeaderOutputFile>
       </PrecompiledHeaderOutputFile>
+      <ObjectFileName>$(IntDir)\%(Filename)%(Extension).obj</ObjectFileName>
       <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
       <DisableSpecificWarnings>4018;4267;4244;4201;4204;4221;4098</DisableSpecificWarnings>
-      <ObjectFileName>$(IntDir)\%(Filename)%(Extension).obj</ObjectFileName>
       <CompileAs>CompileAsC</CompileAs>
     </ClCompile>
     <Midl>
       <SuppressStartupBanner>true</SuppressStartupBanner>
       <PreprocessorDefinitions>_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <TypeLibraryName>.\Debug\putty.tlb</TypeLibraryName>
+      <TypeLibraryName>.\Debug\plink.tlb</TypeLibraryName>
       <MkTypLibCompatible>true</MkTypLibCompatible>
     </Midl>
     <ResourceCompile>
@@ -271,28 +278,26 @@
     </ResourceCompile>
     <Bscmake>
       <SuppressStartupBanner>true</SuppressStartupBanner>
-      <OutputFile>.\Debug\putty.bsc</OutputFile>
+      <OutputFile>.\Debug\plink.bsc</OutputFile>
     </Bscmake>
     <Link>
       <SuppressStartupBanner>true</SuppressStartupBanner>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <SubSystem>Windows</SubSystem>
+      <SubSystem>Console</SubSystem>
       <OutputFile>..\..\..\..\binaries\x64\$(TargetFileName)</OutputFile>
       <AdditionalDependencies>advapi32.lib;comctl32.lib;comdlg32.lib;gdi32.lib;imm32.lib;ole32.lib;shell32.lib;user32.lib;winmm.lib;winspool.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <Profile>true</Profile>
     </Link>
     <Manifest>
-      <InputResourceManifests>
-      </InputResourceManifests>
-      <OutputManifestFile>$(TargetPath).manifest</OutputManifestFile>
+      <OutputManifestFile>
+      </OutputManifestFile>
     </Manifest>
   </ItemDefinitionGroup>
   <ItemGroup>
     <CustomBuild Include="..\..\putty.ico" />
-    <CustomBuild Include="..\..\puttycfg.ico" />
   </ItemGroup>
   <ItemGroup>
-    <ResourceCompile Include="..\..\putty.rc">
+    <ResourceCompile Include="..\..\plink.rc">
       <AdditionalIncludeDirectories Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">..\..;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <AdditionalIncludeDirectories Condition="'$(Configuration)|$(Platform)'=='Release|x64'">..\..;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <AdditionalIncludeDirectories Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">..\..;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
@@ -308,11 +313,11 @@
     <ClCompile Include="..\..\..\cert\cert_capi.c" />
     <ClCompile Include="..\..\..\cert\cert_common.c" />
     <ClCompile Include="..\..\..\cert\cert_pkcs.c" />
+    <ClCompile Include="..\..\..\clicons.c" />
     <ClCompile Include="..\..\..\cmdline.c" />
     <ClCompile Include="..\..\..\conf.c" />
-    <ClCompile Include="..\..\..\config.c" />
+    <ClCompile Include="..\..\..\console.c" />
     <ClCompile Include="..\..\..\cproxy.c" />
-    <ClCompile Include="..\..\..\dialog.c" />
     <ClCompile Include="..\..\..\ecc.c" />
     <ClCompile Include="..\..\..\errsock.c" />
     <ClCompile Include="..\..\..\ldisc.c" />
@@ -320,10 +325,10 @@
     <ClCompile Include="..\..\..\mainchan.c" />
     <ClCompile Include="..\..\..\marshal.c" />
     <ClCompile Include="..\..\..\memory.c" />
-    <ClCompile Include="..\..\..\minibidi.c" />
     <ClCompile Include="..\..\..\misc.c" />
     <ClCompile Include="..\..\..\miscucs.c" />
     <ClCompile Include="..\..\..\mpint.c" />
+    <ClCompile Include="..\..\..\noterm.c" />
     <ClCompile Include="..\..\..\nullplug.c" />
     <ClCompile Include="..\..\..\pgssapi.c" />
     <ClCompile Include="..\..\..\pinger.c" />
@@ -381,42 +386,37 @@
     <ClCompile Include="..\..\..\stripctrl.c" />
     <ClCompile Include="..\..\..\supdup.c" />
     <ClCompile Include="..\..\..\telnet.c" />
-    <ClCompile Include="..\..\..\terminal.c" />
     <ClCompile Include="..\..\..\timing.c" />
     <ClCompile Include="..\..\..\tree234.c" />
     <ClCompile Include="..\..\..\utils.c" />
     <ClCompile Include="..\..\..\version.c" />
     <ClCompile Include="..\..\..\wcwidth.c" />
     <ClCompile Include="..\..\..\wildcard.c" />
-    <ClCompile Include="..\..\sizetip.c" />
     <ClCompile Include="..\..\wincapi.c" />
-    <ClCompile Include="..\..\wincfg.c" />
-    <ClCompile Include="..\..\winctrls.c" />
+    <ClCompile Include="..\..\wincliloop.c" />
+    <ClCompile Include="..\..\wincons.c" />
     <ClCompile Include="..\..\windefs.c" />
-    <ClCompile Include="..\..\windlg.c" />
-    <ClCompile Include="..\..\window.c" />
     <ClCompile Include="..\..\wingss.c" />
     <ClCompile Include="..\..\winhandl.c" />
-    <ClCompile Include="..\..\winhelp.c" />
     <ClCompile Include="..\..\winhsock.c" />
-    <ClCompile Include="..\..\winjump.c" />
     <ClCompile Include="..\..\winmisc.c" />
     <ClCompile Include="..\..\winmiscs.c" />
     <ClCompile Include="..\..\winnet.c" />
+    <ClCompile Include="..\..\winnohlp.c" />
     <ClCompile Include="..\..\winnoise.c" />
+    <ClCompile Include="..\..\winnojmp.c" />
     <ClCompile Include="..\..\winnpc.c" />
     <ClCompile Include="..\..\winnps.c" />
     <ClCompile Include="..\..\winpgntc.c" />
-    <ClCompile Include="..\..\winprint.c" />
+    <ClCompile Include="..\..\winplink.c" />
     <ClCompile Include="..\..\winproxy.c" />
     <ClCompile Include="..\..\winsecur.c" />
-    <ClCompile Include="..\..\winselgui.c" />
+    <ClCompile Include="..\..\winselcli.c" />
     <ClCompile Include="..\..\winser.c" />
     <ClCompile Include="..\..\winshare.c" />
     <ClCompile Include="..\..\winstore.c" />
     <ClCompile Include="..\..\wintime.c" />
     <ClCompile Include="..\..\winucs.c" />
-    <ClCompile Include="..\..\winutils.c" />
     <ClCompile Include="..\..\winx11.c" />
     <ClCompile Include="..\..\..\x11fwd.c" />
   </ItemGroup>
@@ -426,7 +426,6 @@
     <ClCompile Include="..\..\..\cert\cert_capi.h" />
     <ClInclude Include="..\..\..\charset\charset.h" />
     <ClInclude Include="..\..\..\defs.h" />
-    <ClInclude Include="..\..\..\dialog.h" />
     <ClInclude Include="..\..\..\ecc.h" />
     <ClInclude Include="..\..\..\empty.h" />
     <ClInclude Include="..\..\..\ldisc.h" />
@@ -462,7 +461,6 @@
     <ClInclude Include="..\..\..\unix\unix.h" />
     <ClInclude Include="..\..\..\version.h" />
     <ClInclude Include="..\..\rcstuff.h" />
-    <ClInclude Include="..\..\win_res.h" />
     <ClInclude Include="..\..\wincapi.h" />
     <ClInclude Include="..\..\winhelp.h" />
     <ClInclude Include="..\..\winsecur.h" />

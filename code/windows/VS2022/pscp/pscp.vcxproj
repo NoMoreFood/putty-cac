@@ -21,7 +21,7 @@
   <PropertyGroup Label="Globals">
     <SccProjectName />
     <SccLocalPath />
-    <ProjectGuid>{4478087b-1dc8-4c3e-b624-13661de1947e}</ProjectGuid>
+    <ProjectGuid>{26d200f3-250a-494f-aaa4-c992ec4345aa}</ProjectGuid>
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
@@ -29,19 +29,19 @@
     <ConfigurationType>Application</ConfigurationType>
     <UseOfMfc>false</UseOfMfc>
     <CharacterSet>MultiByte</CharacterSet>
-    <PlatformToolset>v142</PlatformToolset>
+    <PlatformToolset>v143</PlatformToolset>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseOfMfc>false</UseOfMfc>
     <CharacterSet>MultiByte</CharacterSet>
-    <PlatformToolset>v142</PlatformToolset>
+    <PlatformToolset>v143</PlatformToolset>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseOfMfc>false</UseOfMfc>
     <CharacterSet>MultiByte</CharacterSet>
-    <PlatformToolset>v142</PlatformToolset>
+    <PlatformToolset>v143</PlatformToolset>
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <SpectreMitigation>
     </SpectreMitigation>
@@ -50,7 +50,7 @@
     <ConfigurationType>Application</ConfigurationType>
     <UseOfMfc>false</UseOfMfc>
     <CharacterSet>MultiByte</CharacterSet>
-    <PlatformToolset>v142</PlatformToolset>
+    <PlatformToolset>v143</PlatformToolset>
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <SpectreMitigation>
     </SpectreMitigation>
@@ -119,7 +119,7 @@
     <Midl>
       <SuppressStartupBanner>true</SuppressStartupBanner>
       <PreprocessorDefinitions>NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <TypeLibraryName>.\Release\plink.tlb</TypeLibraryName>
+      <TypeLibraryName>.\Release\pscp.tlb</TypeLibraryName>
       <MkTypLibCompatible>true</MkTypLibCompatible>
       <TargetEnvironment>Win32</TargetEnvironment>
     </Midl>
@@ -130,7 +130,7 @@
     </ResourceCompile>
     <Bscmake>
       <SuppressStartupBanner>true</SuppressStartupBanner>
-      <OutputFile>.\Release\plink.bsc</OutputFile>
+      <OutputFile>.\Release\pscp.bsc</OutputFile>
     </Bscmake>
     <Link>
       <SuppressStartupBanner>true</SuppressStartupBanner>
@@ -172,7 +172,7 @@
     <Midl>
       <SuppressStartupBanner>true</SuppressStartupBanner>
       <PreprocessorDefinitions>NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <TypeLibraryName>.\Release\plink.tlb</TypeLibraryName>
+      <TypeLibraryName>.\Release\pscp.tlb</TypeLibraryName>
       <MkTypLibCompatible>true</MkTypLibCompatible>
     </Midl>
     <ResourceCompile>
@@ -182,7 +182,7 @@
     </ResourceCompile>
     <Bscmake>
       <SuppressStartupBanner>true</SuppressStartupBanner>
-      <OutputFile>.\Release\plink.bsc</OutputFile>
+      <OutputFile>.\Release\pscp.bsc</OutputFile>
     </Bscmake>
     <Link>
       <SuppressStartupBanner>true</SuppressStartupBanner>
@@ -221,7 +221,7 @@
     <Midl>
       <SuppressStartupBanner>true</SuppressStartupBanner>
       <PreprocessorDefinitions>_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <TypeLibraryName>.\Debug\plink.tlb</TypeLibraryName>
+      <TypeLibraryName>.\Debug\pscp.tlb</TypeLibraryName>
       <MkTypLibCompatible>true</MkTypLibCompatible>
       <TargetEnvironment>Win32</TargetEnvironment>
     </Midl>
@@ -232,7 +232,7 @@
     </ResourceCompile>
     <Bscmake>
       <SuppressStartupBanner>true</SuppressStartupBanner>
-      <OutputFile>.\Debug\plink.bsc</OutputFile>
+      <OutputFile>.\Debug\pscp.bsc</OutputFile>
     </Bscmake>
     <Link>
       <SuppressStartupBanner>true</SuppressStartupBanner>
@@ -268,7 +268,7 @@
     <Midl>
       <SuppressStartupBanner>true</SuppressStartupBanner>
       <PreprocessorDefinitions>_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <TypeLibraryName>.\Debug\plink.tlb</TypeLibraryName>
+      <TypeLibraryName>.\Debug\pscp.tlb</TypeLibraryName>
       <MkTypLibCompatible>true</MkTypLibCompatible>
     </Midl>
     <ResourceCompile>
@@ -278,7 +278,7 @@
     </ResourceCompile>
     <Bscmake>
       <SuppressStartupBanner>true</SuppressStartupBanner>
-      <OutputFile>.\Debug\plink.bsc</OutputFile>
+      <OutputFile>.\Debug\pscp.bsc</OutputFile>
     </Bscmake>
     <Link>
       <SuppressStartupBanner>true</SuppressStartupBanner>
@@ -294,10 +294,10 @@
     </Manifest>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <CustomBuild Include="..\..\putty.ico" />
+    <CustomBuild Include="..\..\pscp.ico" />
   </ItemGroup>
   <ItemGroup>
-    <ResourceCompile Include="..\..\plink.rc">
+    <ResourceCompile Include="..\..\pscp.rc">
       <AdditionalIncludeDirectories Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">..\..;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <AdditionalIncludeDirectories Condition="'$(Configuration)|$(Platform)'=='Release|x64'">..\..;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <AdditionalIncludeDirectories Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">..\..;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
@@ -307,12 +307,12 @@
   <ItemGroup>
     <ClCompile Include="..\..\..\agentf.c" />
     <ClCompile Include="..\..\..\aqsync.c" />
-    <ClCompile Include="..\..\..\be_all_s.c" />
     <ClCompile Include="..\..\..\be_misc.c" />
+    <ClCompile Include="..\..\..\be_ssh.c" />
     <ClCompile Include="..\..\..\callback.c" />
-    <ClCompile Include="..\..\..\cert\cert_capi.c" />
     <ClCompile Include="..\..\..\cert\cert_common.c" />
     <ClCompile Include="..\..\..\cert\cert_pkcs.c" />
+    <ClCompile Include="..\..\..\cert\cert_capi.c" />
     <ClCompile Include="..\..\..\clicons.c" />
     <ClCompile Include="..\..\..\cmdline.c" />
     <ClCompile Include="..\..\..\conf.c" />
@@ -320,7 +320,6 @@
     <ClCompile Include="..\..\..\cproxy.c" />
     <ClCompile Include="..\..\..\ecc.c" />
     <ClCompile Include="..\..\..\errsock.c" />
-    <ClCompile Include="..\..\..\ldisc.c" />
     <ClCompile Include="..\..\..\logging.c" />
     <ClCompile Include="..\..\..\mainchan.c" />
     <ClCompile Include="..\..\..\marshal.c" />
@@ -328,16 +327,16 @@
     <ClCompile Include="..\..\..\misc.c" />
     <ClCompile Include="..\..\..\miscucs.c" />
     <ClCompile Include="..\..\..\mpint.c" />
-    <ClCompile Include="..\..\..\noterm.c" />
     <ClCompile Include="..\..\..\nullplug.c" />
     <ClCompile Include="..\..\..\pgssapi.c" />
     <ClCompile Include="..\..\..\pinger.c" />
     <ClCompile Include="..\..\..\portfwd.c" />
     <ClCompile Include="..\..\..\proxy.c" />
-    <ClCompile Include="..\..\..\raw.c" />
-    <ClCompile Include="..\..\..\rlogin.c" />
-    <ClCompile Include="..\..\..\sessprep.c" />
+    <ClCompile Include="..\..\..\pscp.c" />
+    <ClCompile Include="..\..\..\psftpcommon.c" />
     <ClCompile Include="..\..\..\settings.c" />
+    <ClCompile Include="..\..\..\sftp.c" />
+    <ClCompile Include="..\..\..\sftpcommon.c" />
     <ClCompile Include="..\..\..\ssh.c" />
     <ClCompile Include="..\..\..\ssh1bpp.c" />
     <ClCompile Include="..\..\..\ssh1censor.c" />
@@ -384,8 +383,6 @@
     <ClCompile Include="..\..\..\sshverstring.c" />
     <ClCompile Include="..\..\..\sshzlib.c" />
     <ClCompile Include="..\..\..\stripctrl.c" />
-    <ClCompile Include="..\..\..\supdup.c" />
-    <ClCompile Include="..\..\..\telnet.c" />
     <ClCompile Include="..\..\..\timing.c" />
     <ClCompile Include="..\..\..\tree234.c" />
     <ClCompile Include="..\..\..\utils.c" />
@@ -408,16 +405,14 @@
     <ClCompile Include="..\..\winnpc.c" />
     <ClCompile Include="..\..\winnps.c" />
     <ClCompile Include="..\..\winpgntc.c" />
-    <ClCompile Include="..\..\winplink.c" />
     <ClCompile Include="..\..\winproxy.c" />
     <ClCompile Include="..\..\winsecur.c" />
     <ClCompile Include="..\..\winselcli.c" />
-    <ClCompile Include="..\..\winser.c" />
+    <ClCompile Include="..\..\winsftp.c" />
     <ClCompile Include="..\..\winshare.c" />
     <ClCompile Include="..\..\winstore.c" />
     <ClCompile Include="..\..\wintime.c" />
     <ClCompile Include="..\..\winucs.c" />
-    <ClCompile Include="..\..\winx11.c" />
     <ClCompile Include="..\..\..\x11fwd.c" />
   </ItemGroup>
   <ItemGroup>
@@ -428,7 +423,6 @@
     <ClInclude Include="..\..\..\defs.h" />
     <ClInclude Include="..\..\..\ecc.h" />
     <ClInclude Include="..\..\..\empty.h" />
-    <ClInclude Include="..\..\..\ldisc.h" />
     <ClInclude Include="..\..\..\licence.h" />
     <ClInclude Include="..\..\..\marshal.h" />
     <ClInclude Include="..\..\..\misc.h" />
@@ -439,9 +433,11 @@
     <ClInclude Include="..\..\..\pageant.h" />
     <ClInclude Include="..\..\..\pgssapi.h" />
     <ClInclude Include="..\..\..\proxy.h" />
+    <ClInclude Include="..\..\..\psftp.h" />
     <ClInclude Include="..\..\..\putty.h" />
     <ClInclude Include="..\..\..\puttymem.h" />
     <ClInclude Include="..\..\..\puttyps.h" />
+    <ClInclude Include="..\..\..\sftp.h" />
     <ClInclude Include="..\..\..\ssh.h" />
     <ClInclude Include="..\..\..\ssh1connection.h" />
     <ClInclude Include="..\..\..\ssh2connection.h" />
