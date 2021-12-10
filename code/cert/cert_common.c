@@ -15,6 +15,10 @@
 #include "cert_common.h"
 #undef DEFINE_VARIABLES
 
+#ifndef PUTTY_REG_POS
+#define PUTTY_REG_POS "Software\\SimonTatham\\PuTTY"
+#endif
+
 #ifndef SSH_AGENT_SUCCESS
 #include "ssh.h"
 #endif
@@ -748,53 +752,119 @@ PVOID cert_pin(LPSTR szCert, BOOL bUnicode, LPVOID szPin, HWND hWnd)
 	return szReturn;
 }
 
-EXTERN BOOL cert_trusted_certs_only(DWORD bEnable)
+VOID cert_registry_setting_set(LPCSTR sSetting, DWORD iSetting)
 {
-	static BOOL bTrustedCertsOnly = FALSE;
-	if (bEnable != -1) bTrustedCertsOnly = bEnable;
-	return bTrustedCertsOnly;
+	RegSetKeyValue(HKEY_CURRENT_USER, PUTTY_REG_POS, sSetting, REG_DWORD, &iSetting, sizeof(DWORD));
 }
 
-EXTERN BOOL cert_save_cert_list_enabled(DWORD bEnable)
+BOOL cert_registry_setting_load(LPCSTR sSetting, DWORD iDefault)
 {
-	static BOOL bSaveCertListEnabled = FALSE;
-	if (bEnable != -1) bSaveCertListEnabled = bEnable;
-	return bSaveCertListEnabled;
+	DWORD iSetting = 0;
+	DWORD iSettingSize = sizeof(iSetting);
+	if (RegGetValue(HKEY_CURRENT_USER, PUTTY_REG_POS, sSetting,
+		RRF_RT_REG_DWORD, NULL, &iSetting, &iSettingSize) == ERROR_SUCCESS)
+	{
+		return iSetting != 0;
+	}
+	else return iDefault;
 }
 
-EXTERN BOOL cert_cache_enabled(DWORD bEnable)
+BOOL cert_trusted_certs_only(DWORD bEnable)
 {
-	static BOOL bCacheEnabled = FALSE;
-	if (bEnable != -1) bCacheEnabled = bEnable;
-	return bCacheEnabled;
+	const LPSTR sSetting = "TrustedCertsOnly";
+	if (bEnable != -1) cert_registry_setting_set(sSetting, bEnable);
+	return cert_registry_setting_load(sSetting, FALSE);
 }
 
-EXTERN BOOL cert_auth_prompting(DWORD bEnable)
+BOOL cert_save_cert_list_enabled(DWORD bEnable)
 {
-	static BOOL bCertAuthPrompting = FALSE;
-	if (bEnable != -1) bCertAuthPrompting = bEnable;
-	return bCertAuthPrompting;
+	const LPSTR sSetting = "SaveCertListEnabled";
+	if (bEnable != -1) cert_registry_setting_set(sSetting, bEnable);
+	return cert_registry_setting_load(sSetting, FALSE);
 }
 
-EXTERN BOOL cert_smartcard_certs_only(DWORD bEnable)
+BOOL cert_cache_enabled(DWORD bEnable)
 {
-	static BOOL bSmartCardLogonCertsOnly = FALSE;
-	if (bEnable != -1) bSmartCardLogonCertsOnly = bEnable;
-	return bSmartCardLogonCertsOnly;
+	const LPSTR sSetting = "ForcePinCaching";
+	if (bEnable != -1) cert_registry_setting_set(sSetting, bEnable);
+	return cert_registry_setting_load(sSetting, FALSE);
 }
 
-EXTERN BOOL cert_ignore_expired_certs(DWORD bEnable)
+BOOL cert_auth_prompting(DWORD bEnable)
 {
-	static BOOL bIgnoreExpiredCerts = FALSE;
-	if (bEnable != -1) bIgnoreExpiredCerts = bEnable;
-	return bIgnoreExpiredCerts;
+	const LPSTR sSetting = "CertAuthPrompting";
+	if (bEnable != -1) cert_registry_setting_set(sSetting, bEnable);
+	return cert_registry_setting_load(sSetting, FALSE);
 }
 
-EXTERN BOOL cert_allow_any_cert(DWORD bEnable)
+BOOL cert_smartcard_certs_only(DWORD bEnable)
 {
-	static BOOL bAllowAnyCertificate = FALSE;
-	if (bEnable != -1) bAllowAnyCertificate = bEnable;
-	return bAllowAnyCertificate;
+	const LPSTR sSetting = "SmartCardLogonCertsOnly";
+	if (bEnable != -1) cert_registry_setting_set(sSetting, bEnable);
+	return cert_registry_setting_load(sSetting, FALSE);
+}
+
+BOOL cert_ignore_expired_certs(DWORD bEnable)
+{
+	const LPSTR sSetting = "IgnoreExpiredCerts";
+	if (bEnable != -1) cert_registry_setting_set(sSetting, bEnable);
+	return cert_registry_setting_load(sSetting, FALSE);
+}
+
+BOOL cert_allow_any_cert(DWORD bEnable)
+{
+	const LPSTR sSetting = "AllowAnyCert";
+	if (bEnable != -1) cert_registry_setting_set(sSetting, bEnable);
+	return cert_registry_setting_load(sSetting, FALSE);
+}
+
+BOOL cert_auto_load_certs(DWORD bEnable)
+{
+	const LPSTR sSetting = "AutoloadCerts";
+	if (bEnable != -1) cert_registry_setting_set(sSetting, bEnable);
+	return cert_registry_setting_load(sSetting, FALSE);
+}
+
+BOOL cert_cmdline_parse(LPCSTR sCommand)
+{
+	if (!strcmp(sCommand, "-autoload") || !strcmp(sCommand, "-autoloadoff")) 
+	{
+		cert_auto_load_certs((!strcmp(sCommand, "-autoload")) ? 1 : 0);
+	}
+	else if (!strcmp(sCommand, "-savecertlist") || !strcmp(sCommand, "-savecertlistoff")) 
+	{
+		cert_save_cert_list_enabled((!strcmp(sCommand, "-savecertlist")) ? 1 : 0);
+	}
+	else if (!strcmp(sCommand, "-forcepincache") || !strcmp(sCommand, "-forcepincacheoff")) 
+	{
+		cert_cache_enabled((!strcmp(sCommand, "-forcepincache")) ? 1 : 0);
+	}
+	else if (!strcmp(sCommand, "-certauthprompting") || !strcmp(sCommand, "-certauthpromptingoff")) 
+	{
+		cert_auth_prompting((!strcmp(sCommand, "-certauthprompting")) ? 1 : 0);
+	}
+	else if (!strcmp(sCommand, "-smartcardlogoncertsonly") || !strcmp(sCommand, "-smartcardlogoncertsonlyoff")) 
+	{
+		cert_smartcard_certs_only((!strcmp(sCommand, "-smartcardlogoncertsonly")) ? 1 : 0);
+	}
+	else if (!strcmp(sCommand, "-trustedcertsonly") || !strcmp(sCommand, "-trustedcertsonlyoff")) 
+	{
+		cert_trusted_certs_only((!strcmp(sCommand, "-trustedcertsonly")) ? 1 : 0);
+	}
+	else if (!strcmp(sCommand, "-ignoreexpiredcerts") || !strcmp(sCommand, "-ignoreexpiredcertsoff")) 
+	{
+		cert_ignore_expired_certs((!strcmp(sCommand, "-ignoreexpiredcerts")) ? 1 : 0);
+	}
+	else if (!strcmp(sCommand, "-allowanycert") || !strcmp(sCommand, "-allowanycertoff")) 
+	{
+		cert_allow_any_cert((!strcmp(sCommand, "-allowanycert")) ? 1 : 0);
+	}
+	else
+	{
+		return FALSE;
+	}
+	
+	return TRUE;
 }
 
 #endif // PUTTY_CAC

@@ -315,6 +315,8 @@ char *buildinfo(const char *newline)
     strbuf_catf(buf, " 2019 (16.11)");
 #elif _MSC_VER == 1929
     strbuf_catf(buf, " 2019 (16.10)");
+#elif _MSC_VER == 1930
+    strbuf_catf(buf, " 2022 (17.0)");
 #endif
 #else
     strbuf_catf(buf, ", unrecognised version");
