@@ -16,9 +16,113 @@
 #include "cert_capi.h"
 #undef DEFINE_VARIABLES
 
+void cert_capi_load_cert(LPCSTR szCert, PCCERT_CONTEXT* ppCertCtx, HCERTSTORE* phStore)
+{
+	HCERTSTORE hStore = cert_capi_get_cert_store(NULL, NULL);
+	if (hStore == NULL)
+	{
+		return;
+	}
+
+	// more forward in the cert string to just have the cert hash
+	LPCSTR szThumb = &szCert[IDEN_CAPI_SIZE];
+
+	// convert the sha1 string from hex to binary 
+	BYTE pbThumb[SHA1_BINARY_SIZE];
+	CRYPT_HASH_BLOB cryptHashBlob;
+	cryptHashBlob.cbData = SHA1_BINARY_SIZE;
+	cryptHashBlob.pbData = pbThumb;
+	CryptStringToBinary(szThumb, SHA1_HEX_SIZE, CRYPT_STRING_HEXRAW, cryptHashBlob.pbData,
+		&cryptHashBlob.cbData, NULL, NULL);
+
+	// enumerate the store looking for the certificate
+	PCCERT_CONTEXT pFindCertContext = NULL;
+	while ((pFindCertContext = CertFindCertificateInStore(hStore, PKCS_7_ASN_ENCODING | X509_ASN_ENCODING,
+		0, CERT_FIND_SHA1_HASH, &cryptHashBlob, pFindCertContext)) != NULL)
+	{
+		// we found a matching cert, return a copy of it 
+		*phStore = hStore;
+		*ppCertCtx = pFindCertContext;
+		return;
+	}
+
+	// cleanup
+	CertCloseStore(hStore, 0);
+}
+
+BOOL cert_capi_test_hash(LPCSTR szCert, DWORD iHashRequest)
+{
+	// use flags to determine requested signature hash algorithm
+	ALG_ID iHashAlg = CALG_SHA1;
+	LPCWSTR sHashAlgBCrypt = BCRYPT_SHA1_ALGORITHM;
+	if (iHashRequest == SSH_AGENT_RSA_SHA2_256)
+	{
+		iHashAlg = CALG_SHA_256;
+		sHashAlgBCrypt = BCRYPT_SHA256_ALGORITHM;
+	}
+	if (iHashRequest == SSH_AGENT_RSA_SHA2_512)
+	{
+		iHashAlg = CALG_SHA_512;
+		sHashAlgBCrypt = BCRYPT_SHA512_ALGORITHM;
+	}
+
+	// get a handle to the certificate
+	HCERTSTORE hCertStore = NULL;
+	PCCERT_CONTEXT pCertCtx = NULL;
+	cert_capi_load_cert(szCert, &pCertCtx, &hCertStore);
+
+	// sanity check
+	if (hCertStore == NULL || pCertCtx == NULL)
+	{
+		return FALSE;
+	}
+
+	// stores whether the provider is capable of performing the hashing
+	BOOL bHashSuccess = FALSE;
+
+	// pull provider information from certificate
+	PCRYPT_KEY_PROV_INFO pProviderInfo = NULL;
+	DWORD iProviderInfoSize = 0;
+	if (CertGetCertificateContextProperty(pCertCtx, CERT_KEY_PROV_INFO_PROP_ID, NULL, &iProviderInfoSize) != FALSE &&
+		CertGetCertificateContextProperty(pCertCtx, CERT_KEY_PROV_INFO_PROP_ID,
+			(pProviderInfo = (PCRYPT_KEY_PROV_INFO)snewn(iProviderInfoSize, BYTE)), &iProviderInfoSize) != FALSE)
+	{
+		HCRYPTPROV_OR_NCRYPT_KEY_HANDLE hCryptProv = 0;
+		NCRYPT_KEY_HANDLE hNCryptKey = 0;
+		NCRYPT_PROV_HANDLE hNCryptProv = 0;
+
+		if (CryptAcquireContextW(&hCryptProv, pProviderInfo->pwszContainerName,
+			pProviderInfo->pwszProvName, pProviderInfo->dwProvType,
+			(pProviderInfo->dwFlags & CRYPT_MACHINE_KEYSET) ? CRYPT_MACHINE_KEYSET : 0) != FALSE)
+		{
+			// check if legacy csp can create a hash of this type
+			HCRYPTHASH hHash = (ULONG_PTR)NULL;
+			bHashSuccess = CryptCreateHash((HCRYPTPROV)hCryptProv, iHashAlg, 0, 0, &hHash) != FALSE;
+			if (hHash != (ULONG_PTR)NULL) { CryptDestroyHash(hHash); }
+		}
+		else if (NCryptOpenStorageProvider(&hNCryptProv, pProviderInfo->pwszProvName, 0) == ERROR_SUCCESS)
+		{
+			// see whether this providers supports the algorihmn
+			BCRYPT_ALG_HANDLE hAlg = NULL;
+			bHashSuccess = BCryptOpenAlgorithmProvider(&hAlg, sHashAlgBCrypt, NULL, 0) == 0;
+			if (hAlg != NULL) BCryptCloseAlgorithmProvider(hAlg, 0);
+		}
+
+		// cleanup crypto structures and intermediate signing data
+		if (hCryptProv != 0) CryptReleaseContext(hCryptProv, 0);
+		if (hNCryptProv != 0) NCryptFreeObject(hNCryptProv);
+		if (pProviderInfo != NULL) sfree(pProviderInfo);
+	}
+
+	// cleanup certificate handles and return
+	if (pCertCtx != NULL) { CertFreeCertificateContext(pCertCtx); }
+	if (hCertStore != NULL) { CertCloseStore(hCertStore, 0); }
+	return bHashSuccess;
+}
+
 BYTE * cert_capi_sign(struct ssh2_userkey * userkey, LPCBYTE pDataToSign, int iDataToSignLen, int * iSigLen, LPCSTR sHashAlgName, HWND hWnd)
 {
-	//Use flags to determine requested signature hash algorithm
+	// use flags to determine requested signature hash algorithm
 	ALG_ID iHashAlg = CALG_SHA1;
 	LPCWSTR iHashAlgNCrypt = NCRYPT_SHA1_ALGORITHM;
 	if (strcmp(sHashAlgName, "rsa-sha2-256") == 0)
@@ -106,7 +210,7 @@ BYTE * cert_capi_sign(struct ssh2_userkey * userkey, LPCBYTE pDataToSign, int iD
 			// set window for any client
 			if (hWnd != NULL)
 			{
-				NCryptSetProperty(hNCryptKey, NCRYPT_WINDOW_HANDLE_PROPERTY, (LPBYTE)&hWnd, sizeof(HWND), 0);
+				(void) NCryptSetProperty(hNCryptKey, NCRYPT_WINDOW_HANDLE_PROPERTY, (LPBYTE)&hWnd, sizeof(HWND), 0);
 			}
 
 			// set pin prompt
@@ -115,7 +219,7 @@ BYTE * cert_capi_sign(struct ssh2_userkey * userkey, LPCBYTE pDataToSign, int iD
 				(szPin = cert_pin(userkey->comment, TRUE, NULL, hWnd)) != NULL)
 			{
 				DWORD iLength = (1 + wcslen(szPin)) * sizeof(WCHAR);
-				NCryptSetProperty(hNCryptKey, NCRYPT_PIN_PROPERTY, (PBYTE)szPin, iLength, 0);
+				(void) NCryptSetProperty(hNCryptKey, NCRYPT_PIN_PROPERTY, (PBYTE)szPin, iLength, 0);
 			}
 
 			// setup structure padding 
@@ -173,40 +277,6 @@ HCERTSTORE cert_capi_get_cert_store(LPCSTR * szHint, HWND hWnd)
 	if (szHint != NULL) *szHint = NULL;
 	return CertOpenStore(CERT_STORE_PROV_SYSTEM_W, PKCS_7_ASN_ENCODING | X509_ASN_ENCODING, 0,
 		CERT_SYSTEM_STORE_CURRENT_USER | CERT_STORE_READONLY_FLAG | CERT_STORE_OPEN_EXISTING_FLAG | CERT_STORE_ENUM_ARCHIVED_FLAG, L"MY");
-}
-
-void cert_capi_load_cert(LPCSTR szCert, PCCERT_CONTEXT* ppCertCtx, HCERTSTORE* phStore)
-{
-	HCERTSTORE hStore = cert_capi_get_cert_store(NULL, NULL);
-	if (hStore == NULL)
-	{
-		return;
-	}
-
-	// more forward in the cert string to just have the cert hash
-	LPCSTR szThumb = &szCert[IDEN_CAPI_SIZE];
-
-	// convert the sha1 string from hex to binary 
-	BYTE pbThumb[SHA1_BINARY_SIZE];
-	CRYPT_HASH_BLOB cryptHashBlob;
-	cryptHashBlob.cbData = SHA1_BINARY_SIZE;
-	cryptHashBlob.pbData = pbThumb;
-	CryptStringToBinary(szThumb, SHA1_HEX_SIZE, CRYPT_STRING_HEXRAW, cryptHashBlob.pbData,
-		&cryptHashBlob.cbData, NULL, NULL);
-
-	// enumerate the store looking for the certificate
-	PCCERT_CONTEXT pFindCertContext = NULL;
-	while ((pFindCertContext = CertFindCertificateInStore(hStore, PKCS_7_ASN_ENCODING | X509_ASN_ENCODING,
-		0, CERT_FIND_SHA1_HASH, &cryptHashBlob, pFindCertContext)) != NULL)
-	{
-		// we found a matching cert, return a copy of it 
-		*phStore = hStore;
-		*ppCertCtx = pFindCertContext;
-		return;
-	}
-
-	// cleanup
-	CertCloseStore(hStore, 0);
 }
 
 #endif // PUTTY_CAC

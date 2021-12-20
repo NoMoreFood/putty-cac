@@ -50,6 +50,12 @@ void pkcs_lookup_token_cert(LPCSTR szCert, CK_SESSION_HANDLE_PTR phSession, CK_O
 struct WeierstrassPoint { mp_int *X, *Y, *Z; WeierstrassCurve *wc; };
 struct WeierstrassCurve { mp_int *p; MontyContext *mc; ModsqrtContext *sc; mp_int *a, *b; };
 
+BOOL cert_pkcs_test_hash(LPCSTR szCert, DWORD iHashRequest)
+{
+	// could be enhanced to use pkcs functions to detect hashing support
+	return TRUE;
+}
+
 BYTE * cert_pkcs_sign(struct ssh2_userkey * userkey, LPCBYTE pDataToSign, int iDataToSignLen, int * iSigLen, LPCSTR sHashAlgName, HWND hWnd)
 {
 	// get the library to load from based on comment

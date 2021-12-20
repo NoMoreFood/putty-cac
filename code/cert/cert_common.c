@@ -139,6 +139,22 @@ BOOL cert_load_cert(LPCSTR szCert, PCERT_CONTEXT * ppCertContext, HCERTSTORE * p
 	return (*ppCertContext != NULL);
 }
 
+BOOL cert_test_hash(LPCSTR szCert, DWORD iHashRequest)
+{
+	// if capi, get the capi cert
+	if (cert_is_capipath(szCert))
+	{
+		return cert_capi_test_hash(szCert, iHashRequest);
+	}
+
+	if (cert_is_pkcspath(szCert))
+	{
+		return cert_pkcs_test_hash(szCert, iHashRequest);
+	}
+
+	return FALSE;
+}
+
 LPBYTE cert_sign(struct ssh2_userkey * userkey, LPCBYTE pDataToSign, int iDataToSignLen, int * iWrappedSigLen, int iAgentFlags, HWND hWnd)
 {
 	LPBYTE pRawSig = NULL;
@@ -166,10 +182,10 @@ LPBYTE cert_sign(struct ssh2_userkey * userkey, LPCBYTE pDataToSign, int iDataTo
 	
 	// determine hashing algorithm for signing
 	LPCSTR sHashAlgName = userkey->key->vt->ssh_id;
-	if (strstr(userkey->key->vt->ssh_id, "ssh-rsa") && iAgentFlags & SSH_AGENT_RSA_SHA2_256) {
+	if (strstr(userkey->key->vt->ssh_id, "ssh-rsa") && iAgentFlags & SSH_AGENT_RSA_SHA2_256 && cert_test_hash(userkey->comment, SSH_AGENT_RSA_SHA2_256)) {
 		sHashAlgName = "rsa-sha2-256";
 	}
-	if (strstr(userkey->key->vt->ssh_id, "ssh-rsa") && iAgentFlags & SSH_AGENT_RSA_SHA2_512) {
+	if (strstr(userkey->key->vt->ssh_id, "ssh-rsa") && iAgentFlags & SSH_AGENT_RSA_SHA2_512 && cert_test_hash(userkey->comment, SSH_AGENT_RSA_SHA2_512)) {
 		sHashAlgName = "rsa-sha2-512";
 	}
 
@@ -607,46 +623,54 @@ LPBYTE cert_get_hash(LPCSTR szAlgo, LPCBYTE pDataToHash, DWORD iDataToHashSize, 
 		0x04, 0x40  /* type Octet string, length 0x40 (64), followed by sha512 hash */
 	};
 
-	// determine algo to use for hashing
-	ALG_ID iHashAlg = CALG_SHA1;
-	if (strcmp(szAlgo, "rsa-sha2-256") == 0) iHashAlg = CALG_SHA_256;
-	if (strcmp(szAlgo, "rsa-sha2-512") == 0) iHashAlg = CALG_SHA_512;
-	if (strcmp(szAlgo, "ecdsa-sha2-nistp256") == 0) iHashAlg = CALG_SHA_256;
-	if (strcmp(szAlgo, "ecdsa-sha2-nistp384") == 0) iHashAlg = CALG_SHA_384;
-	if (strcmp(szAlgo, "ecdsa-sha2-nistp521") == 0) iHashAlg = CALG_SHA_512;
-
 	// for rsa, prepend the hash digest if requested
 	size_t iDigestSize = 0;
 	LPBYTE pDigest = NULL;
+	LPWSTR sNCryptAlg = NULL;
+
 	const BOOL bNeedsDigest = bRequestDigest && (strstr(szAlgo, "rsa") != NULL);
-	if (bNeedsDigest && iHashAlg == CALG_SHA1)
+	if (strcmp(szAlgo, "rsa-sha2-256") == 0 || strcmp(szAlgo, "ecdsa-sha2-nistp256") == 0)
 	{
-		iDigestSize = sizeof(OID_SHA1);
+		sNCryptAlg = BCRYPT_SHA256_ALGORITHM;
+		if (bNeedsDigest)
+		{
+			iDigestSize = sizeof(OID_SHA256);
+			pDigest = (LPBYTE)OID_SHA256;
+		}
+	}
+	else if (strcmp(szAlgo, "rsa-sha2-512") == 0 || strcmp(szAlgo, "ecdsa-sha2-nistp521") == 0)
+	{
+		sNCryptAlg = BCRYPT_SHA512_ALGORITHM;
+		if (bNeedsDigest)
+		{
+			iDigestSize = sizeof(OID_SHA512);
+			pDigest = (LPBYTE)OID_SHA512;
+		}
+	}
+	else
+	{
 		pDigest = (LPBYTE)OID_SHA1;
-	}
-	if (bNeedsDigest && iHashAlg == CALG_SHA_256)
-	{
-		iDigestSize = sizeof(OID_SHA256);
-		pDigest = (LPBYTE)OID_SHA256;
-	}
-	if (bNeedsDigest && iHashAlg == CALG_SHA_512)
-	{
-		iDigestSize = sizeof(OID_SHA512);
-		pDigest = (LPBYTE)OID_SHA512;
+		sNCryptAlg = BCRYPT_SHA1_ALGORITHM;
+		if (bNeedsDigest)
+		{
+			iDigestSize = sizeof(OID_SHA1);
+			pDigest = (LPBYTE)OID_SHA1;
+		}
 	}
 
-	HCRYPTPROV hHashProv = (ULONG_PTR)NULL;
-	HCRYPTHASH hHash = (ULONG_PTR)NULL;
+	BCRYPT_ALG_HANDLE hAlg = NULL;
+	BCRYPT_HASH_HANDLE hHash = NULL;
+	DWORD iPropSize = 0;
 	LPBYTE pHashData = NULL;
 	*iHashedDataSize = 0;
 
 	// acquire crypto provider, hash data, and export hashed binary data
-	if (CryptAcquireContext(&hHashProv, NULL, NULL, PROV_RSA_AES, CRYPT_VERIFYCONTEXT) == FALSE ||
-		CryptCreateHash(hHashProv, iHashAlg, 0, 0, &hHash) == FALSE ||
-		CryptHashData(hHash, pDataToHash, iDataToHashSize, 0) == FALSE ||
-		CryptGetHashParam(hHash, HP_HASHVAL, NULL, iHashedDataSize, 0) == FALSE ||
-		CryptGetHashParam(hHash, HP_HASHVAL, (pHashData = snewn(*iHashedDataSize +
-			iDigestSize, BYTE)) + iDigestSize, iHashedDataSize, 0) == FALSE)
+	if (BCryptOpenAlgorithmProvider(&hAlg, sNCryptAlg, NULL, 0) != STATUS_SUCCESS ||
+		BCryptGetProperty(hAlg, BCRYPT_HASH_LENGTH, (PBYTE) iHashedDataSize, sizeof(DWORD), &iPropSize, 0) != STATUS_SUCCESS ||
+		(pHashData = snewn(*iHashedDataSize + iDigestSize, BYTE)) == NULL ||
+		BCryptCreateHash(hAlg, &hHash, NULL, 0, NULL, 0, 0) != STATUS_SUCCESS ||
+		BCryptHashData(hHash, (PBYTE) pDataToHash, iDataToHashSize, 0) != STATUS_SUCCESS ||
+		BCryptFinishHash(hHash, pHashData + iDigestSize, (ULONG) *iHashedDataSize, 0) != STATUS_SUCCESS)
 	{
 		// something failed
 		if (pHashData != NULL)
@@ -664,8 +688,8 @@ LPBYTE cert_get_hash(LPCSTR szAlgo, LPCBYTE pDataToHash, DWORD iDataToHashSize, 
 	}
 
 	// cleanup and return
-	if (hHash != (ULONG_PTR)NULL) CryptDestroyHash(hHash);
-	if (hHashProv != (ULONG_PTR)NULL) CryptReleaseContext(hHashProv, 0);
+	if (hAlg != NULL) BCryptCloseAlgorithmProvider(hAlg, 0);
+	if (hHash != NULL) BCryptDestroyHash(hHash);
 	return pHashData;
 }
 
