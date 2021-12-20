@@ -20,7 +20,7 @@
 
 // functions used by the common module
 EXTERN BOOL cert_capi_test_hash(LPCSTR szCert, DWORD iHashRequest);
-EXTERN BYTE * cert_capi_sign(struct ssh2_userkey * userkey, LPCBYTE pDataToSign, int iDataToSignLen, int * iSigLen, LPCSTR sHashAlgName, HWND hWnd);
+EXTERN BYTE * cert_capi_sign(struct ssh2_userkey * userkey, LPCBYTE pDataToSign, int iDataToSignLen, int * iSigLen, LPCSTR sHashAlgName);
 EXTERN void cert_capi_load_cert(LPCSTR szCert, PCCERT_CONTEXT* ppCertCtx, HCERTSTORE* phStore);
 EXTERN HCERTSTORE cert_capi_get_cert_store(LPCSTR * szHint, HWND hWnd);
 

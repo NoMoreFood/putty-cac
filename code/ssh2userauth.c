@@ -1036,7 +1036,7 @@ static void ssh2_userauth_process_queue(PacketProtocolLayer *ppl)
 					{
 						DWORD siglen = 0;
 						ptrlen datatosign = ptrlen_from_strbuf(sigdata);
-						LPBYTE sig = cert_sign(key, datatosign.ptr, datatosign.len, &siglen, s->signflags, NULL);
+						LPBYTE sig = cert_sign(key, datatosign.ptr, datatosign.len, &siglen, s->signflags);
 						put_data(BinarySink_UPCAST(sigblob), sig, siglen);
 					}
 					else
