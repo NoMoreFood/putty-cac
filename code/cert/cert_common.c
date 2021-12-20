@@ -155,7 +155,29 @@ BOOL cert_test_hash(LPCSTR szCert, DWORD iHashRequest)
 	return FALSE;
 }
 
-LPBYTE cert_sign(struct ssh2_userkey * userkey, LPCBYTE pDataToSign, int iDataToSignLen, int * iWrappedSigLen, int iAgentFlags, HWND hWnd)
+BOOL cert_confirm_signing(LPCSTR sFingerPrint, LPCSTR sComment)
+{
+	// prompt if usage prompting is enabled
+	if (!cert_auth_prompting((DWORD)-1)) return TRUE;
+
+	// prompt user
+	BOOL bIsCert = cert_is_certpath(sComment);
+	LPSTR sDescription = bIsCert ? cert_subject_string(sComment) : sComment;
+	LPSTR sMessage = dupprintf("%s\r\n\r\n%s: %s\r\n%s: %s\r\n\r\n % s",
+		"An application is attempting to authenticate using a certificate or key with the following details:",
+		bIsCert ? "Subject" : "Comment", sDescription,
+		"Fingerprint", sFingerPrint,
+		"Would you like to permit this signing operation?");
+	int iResponse = MessageBox(NULL, sMessage, "Certificate & Key Usage Confirmation - Pageant",
+		MB_SYSTEMMODAL | MB_ICONQUESTION | MB_YESNO);
+	sfree(sMessage);
+	sfree(sDescription);
+
+	// return true if user allowed
+	return (iResponse == IDYES);
+}
+
+LPBYTE cert_sign(struct ssh2_userkey * userkey, LPCBYTE pDataToSign, int iDataToSignLen, int * iWrappedSigLen, int iAgentFlags)
 {
 	LPBYTE pRawSig = NULL;
 	int iRawSigLen = 0;
@@ -163,22 +185,6 @@ LPBYTE cert_sign(struct ssh2_userkey * userkey, LPCBYTE pDataToSign, int iDataTo
 
 	// sanity check
 	if (userkey->comment == NULL) return NULL;
-
-	// prompt if key usage is enabled
-	if (cert_auth_prompting((DWORD)-1))
-	{
-		LPSTR sSubject = cert_subject_string(userkey->comment);
-		LPSTR sMessage = dupprintf("%s\r\n\r\n%s\r\n\r\n%s",
-			"An application is attempting to authenticate using a certificate with the subject: ",
-			sSubject, "Would you like to permit this signing operation?");
-		int iResponse = MessageBox(hWnd, sMessage, "Certificate Usage Confirmation - Pageant",
-			MB_SYSTEMMODAL | MB_ICONQUESTION | MB_YESNO);
-		sfree(sMessage);
-		sfree(sSubject);
-
-		// return if user did not confirm usage
-		if (iResponse != IDYES) return NULL;
-	}
 	
 	// determine hashing algorithm for signing
 	LPCSTR sHashAlgName = userkey->key->vt->ssh_id;
@@ -192,13 +198,13 @@ LPBYTE cert_sign(struct ssh2_userkey * userkey, LPCBYTE pDataToSign, int iDataTo
 	// if capi, sign data using capi
 	if (cert_is_capipath(userkey->comment))
 	{
-		pRawSig = cert_capi_sign(userkey, pDataToSign, iDataToSignLen, &iRawSigLen, sHashAlgName, hWnd);
+		pRawSig = cert_capi_sign(userkey, pDataToSign, iDataToSignLen, &iRawSigLen, sHashAlgName);
 	}
 
 	// if pkcs, sign data using capi
 	if (cert_is_pkcspath(userkey->comment))
 	{
-		pRawSig = cert_pkcs_sign(userkey, pDataToSign, iDataToSignLen, &iRawSigLen, sHashAlgName, hWnd);
+		pRawSig = cert_pkcs_sign(userkey, pDataToSign, iDataToSignLen, &iRawSigLen, sHashAlgName);
 	}
 
 	// sanity check
@@ -693,7 +699,7 @@ LPBYTE cert_get_hash(LPCSTR szAlgo, LPCBYTE pDataToHash, DWORD iDataToHashSize, 
 	return pHashData;
 }
 
-PVOID cert_pin(LPSTR szCert, BOOL bUnicode, LPVOID szPin, HWND hWnd)
+PVOID cert_pin(LPSTR szCert, BOOL bUnicode, LPVOID szPin)
 {
 	typedef struct CACHE_ITEM
 	{
@@ -747,7 +753,6 @@ PVOID cert_pin(LPSTR szCert, BOOL bUnicode, LPVOID szPin, HWND hWnd)
 	// prompt the user to enter the pin
 	CREDUI_INFOW tCredInfo;
 	ZeroMemory(&tCredInfo, sizeof(CREDUI_INFO));
-	tCredInfo.hwndParent = hWnd;
 	tCredInfo.cbSize = sizeof(tCredInfo);
 	tCredInfo.pszCaptionText = L"PuTTY Authentication";
 	tCredInfo.pszMessageText = L"Please Enter Your Smart Card Credentials";
