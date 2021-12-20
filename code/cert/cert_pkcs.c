@@ -56,7 +56,7 @@ BOOL cert_pkcs_test_hash(LPCSTR szCert, DWORD iHashRequest)
 	return TRUE;
 }
 
-BYTE * cert_pkcs_sign(struct ssh2_userkey * userkey, LPCBYTE pDataToSign, int iDataToSignLen, int * iSigLen, LPCSTR sHashAlgName, HWND hWnd)
+BYTE * cert_pkcs_sign(struct ssh2_userkey * userkey, LPCBYTE pDataToSign, int iDataToSignLen, int * iSigLen, LPCSTR sHashAlgName)
 {
 	// get the library to load from based on comment
 	LPSTR szLibrary = strrchr(userkey->comment, '=') + 1;
@@ -202,7 +202,7 @@ BYTE * cert_pkcs_sign(struct ssh2_userkey * userkey, LPCBYTE pDataToSign, int iD
 	// if could not find the key, prompt the user for the pin
 	if (iCertListSize == 0)
 	{
-		LPSTR szPin = cert_pin(userkey->comment, FALSE, NULL, hWnd);
+		LPSTR szPin = cert_pin(userkey->comment, FALSE, NULL);
 		if (szPin == NULL)
 		{
 			// error
@@ -223,7 +223,7 @@ BYTE * cert_pkcs_sign(struct ssh2_userkey * userkey, LPCBYTE pDataToSign, int iD
 		}
 
 		// cleanup creds
-		cert_pin(userkey->comment, FALSE, szPin, hWnd);
+		cert_pin(userkey->comment, FALSE, szPin);
 		SecureZeroMemory(szPin, strlen(szPin));
 		free(szPin);
 
@@ -277,12 +277,12 @@ BYTE * cert_pkcs_sign(struct ssh2_userkey * userkey, LPCBYTE pDataToSign, int iD
 		if (iResult == CKR_KEY_TYPE_INCONSISTENT)
 		{
 			LPCSTR szMessage = "The PKCS library reported the selected certificate cannot be used to sign data.";
-			MessageBox(hWnd, szMessage, "PuTTY PKCS Signing Problem", MB_OK | MB_ICONERROR);
+			MessageBox(NULL, szMessage, "PuTTY PKCS Signing Problem", MB_OK | MB_ICONERROR);
 		}
 		else
 		{
 			LPCSTR szMessage = "The PKCS library experienced an error attempting to perform a signing operation.";
-			MessageBox(hWnd, szMessage, "PuTTY PKCS Signing Problem", MB_OK | MB_ICONERROR);
+			MessageBox(NULL, szMessage, "PuTTY PKCS Signing Problem", MB_OK | MB_ICONERROR);
 		}
 
 		// something failed so cleanup signature

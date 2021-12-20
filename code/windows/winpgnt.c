@@ -1926,7 +1926,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 	AppendMenu(systray_menu, MF_ENABLED | ((cert_cache_enabled(-1))
 		? MF_CHECKED : MF_UNCHECKED), IDM_PINCACHE, "Force PIN Caching");
 	AppendMenu(systray_menu, MF_ENABLED | ((cert_auth_prompting(-1))
-		? MF_CHECKED : MF_UNCHECKED), IDM_CERTAUTH, "Cert Auth Prompting");
+		? MF_CHECKED : MF_UNCHECKED), IDM_CERTAUTH, "Cert && Key Auth Prompting");
 	AppendMenu(systray_menu, MF_SEPARATOR, 0, 0);
 	AppendMenu(systray_menu, MF_ENABLED | ((cert_smartcard_certs_only(-1))
 		? MF_CHECKED : MF_UNCHECKED), IDM_SCONLY, "Filter: Smart Card Logon Certs");

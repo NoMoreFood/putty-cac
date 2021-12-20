@@ -462,7 +462,7 @@ static void signop_coroutine(PageantAsyncOp *pao)
     if (cert_is_certpath(so->pk->comment))
     {
         DWORD siglen = 0;
-        LPBYTE sig = cert_sign(so->pk->skey, (LPCBYTE)so->data_to_sign->u, so->data_to_sign->len, &siglen, so->flags, NULL);
+        LPBYTE sig = cert_sign(so->pk->skey, (LPCBYTE)so->data_to_sign->u, so->data_to_sign->len, &siglen, so->flags);
         put_data(BinarySink_UPCAST(signature), sig, siglen);
     }
     else
@@ -834,6 +834,17 @@ static PageantAsyncOp *pageant_make_op(
             fail("key not found");
             goto responded;
         }
+
+#ifdef PUTTY_CAC
+        char* fingerprint = ssh2_fingerprint_blob(keyblob, SSH_FPTYPE_DEFAULT);
+        BOOL bContinue = cert_confirm_signing(fingerprint, pk->skey->comment);
+        sfree(fingerprint);
+        if (!bContinue)
+        {
+            fail("signed operationg blocked by user");
+            goto responded;
+        }
+#endif // PUTTY_CAC
 
         if (have_flags)
             pageant_client_log(pc, reqid, "signature flags = 0x%08"PRIx32,

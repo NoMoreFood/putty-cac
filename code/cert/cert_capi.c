@@ -120,7 +120,7 @@ BOOL cert_capi_test_hash(LPCSTR szCert, DWORD iHashRequest)
 	return bHashSuccess;
 }
 
-BYTE * cert_capi_sign(struct ssh2_userkey * userkey, LPCBYTE pDataToSign, int iDataToSignLen, int * iSigLen, LPCSTR sHashAlgName, HWND hWnd)
+BYTE * cert_capi_sign(struct ssh2_userkey * userkey, LPCBYTE pDataToSign, int iDataToSignLen, int * iSigLen, LPCSTR sHashAlgName)
 {
 	// use flags to determine requested signature hash algorithm
 	ALG_ID iHashAlg = CALG_SHA1;
@@ -166,16 +166,10 @@ BYTE * cert_capi_sign(struct ssh2_userkey * userkey, LPCBYTE pDataToSign, int iD
 			pProviderInfo->pwszProvName, pProviderInfo->dwProvType,
 			(pProviderInfo->dwFlags & CRYPT_MACHINE_KEYSET) ? CRYPT_MACHINE_KEYSET : 0) != FALSE)
 		{
-			// set window for any client 
-			if (hWnd != NULL)
-			{
-				CryptSetProvParam(hCryptProv, PP_CLIENT_HWND, (LPBYTE)&hWnd, 0);
-			}
-
 			// set pin prompt
 			LPSTR szPin = NULL;
 			if (cert_cache_enabled((DWORD)-1) &&
-				(szPin = cert_pin(userkey->comment, FALSE, NULL, hWnd)) != NULL)
+				(szPin = cert_pin(userkey->comment, FALSE, NULL)) != NULL)
 			{
 				CryptSetProvParam(hCryptProv, (pProviderInfo->dwKeySpec ==
 					AT_SIGNATURE) ? PP_SIGNATURE_PIN : PP_KEYEXCHANGE_PIN, (LPCBYTE)szPin, 0);
@@ -196,7 +190,7 @@ BYTE * cert_capi_sign(struct ssh2_userkey * userkey, LPCBYTE pDataToSign, int iD
 				// add pin to cache if cache is enabled
 				if (cert_cache_enabled((DWORD)-1))
 				{
-					cert_pin(userkey->comment, FALSE, szPin, hWnd);
+					cert_pin(userkey->comment, FALSE, szPin);
 				}
 			}
 
@@ -207,16 +201,10 @@ BYTE * cert_capi_sign(struct ssh2_userkey * userkey, LPCBYTE pDataToSign, int iD
 		else if (NCryptOpenStorageProvider(&hNCryptProv, pProviderInfo->pwszProvName, 0) == ERROR_SUCCESS &&
 			NCryptOpenKey(hNCryptProv, &hNCryptKey, pProviderInfo->pwszContainerName, pProviderInfo->dwKeySpec, 0) == ERROR_SUCCESS)
 		{
-			// set window for any client
-			if (hWnd != NULL)
-			{
-				(void) NCryptSetProperty(hNCryptKey, NCRYPT_WINDOW_HANDLE_PROPERTY, (LPBYTE)&hWnd, sizeof(HWND), 0);
-			}
-
 			// set pin prompt
 			WCHAR * szPin = NULL;
 			if (cert_cache_enabled((DWORD)-1) &&
-				(szPin = cert_pin(userkey->comment, TRUE, NULL, hWnd)) != NULL)
+				(szPin = cert_pin(userkey->comment, TRUE, NULL)) != NULL)
 			{
 				DWORD iLength = (1 + wcslen(szPin)) * sizeof(WCHAR);
 				(void) NCryptSetProperty(hNCryptKey, NCRYPT_PIN_PROPERTY, (PBYTE)szPin, iLength, 0);
@@ -247,7 +235,7 @@ BYTE * cert_capi_sign(struct ssh2_userkey * userkey, LPCBYTE pDataToSign, int iD
 				// add pin to cache if cache is enabled
 				if (cert_cache_enabled((DWORD)-1))
 				{
-					cert_pin(userkey->comment, TRUE, szPin, hWnd);
+					cert_pin(userkey->comment, TRUE, szPin);
 				}
 			}
 
