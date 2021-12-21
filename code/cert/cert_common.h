@@ -38,6 +38,7 @@ EXTERN BOOL cert_cmdline_parse(LPCSTR sCommand);
 EXTERN LPSTR cert_key_string(LPCSTR szCert);
 EXTERN LPSTR cert_subject_string(LPCSTR szCert);
 EXTERN LPSTR cert_prompt(LPCSTR szIden, HWND hWnd, BOOL bAutoSelect);
+EXTERN BOOL cert_test_hash(LPCSTR szCert, DWORD iHashRequest);
 EXTERN BOOL cert_confirm_signing(LPCSTR sFingerPrint, LPCSTR sComment);
 EXTERN LPBYTE cert_sign(struct ssh2_userkey * userkey, LPCBYTE pDataToSign, int iDataToSignLen, int * iWrappedSigLen, int iAgentFlags);
 EXTERN struct ssh2_userkey * cert_load_key(LPCSTR szCert, HWND hWnd);
@@ -57,8 +58,8 @@ EXTERN LPBYTE cert_get_hash(LPCSTR szAlgo, LPCBYTE pDataToHash, DWORD iDataToHas
 #define IDEN_SPLIT(p) (strchr(p,':') + 1)
 #define IDEN_PREFIX(p) (cert_is_capipath(p) ? IDEN_CAPI : IDEN_PKCS)
 
-#define cert_is_capipath(p) (strnicmp((LPSTR) p, IDEN_CAPI, IDEN_CAPI_SIZE) == 0)
-#define cert_is_pkcspath(p) (strnicmp((LPSTR) p, IDEN_PKCS, IDEN_PKCS_SIZE) == 0)
+#define cert_is_capipath(p) (p != NULL && strnicmp((LPSTR) p, IDEN_CAPI, IDEN_CAPI_SIZE) == 0)
+#define cert_is_pkcspath(p) (p != NULL && strnicmp((LPSTR) p, IDEN_PKCS, IDEN_PKCS_SIZE) == 0)
 #define cert_is_certpath(p) (p != NULL && (cert_is_capipath(p) || cert_is_pkcspath(p)))
 #define cert_iden(p) (cert_is_capipath(p) ? IDEN_CAPI : (cert_is_pkcspath(p) ? IDEN_PKCS : ""))
 
