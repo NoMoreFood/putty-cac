@@ -152,7 +152,7 @@ BOOL cert_test_hash(LPCSTR szCert, DWORD iHashRequest)
 		return cert_pkcs_test_hash(szCert, iHashRequest);
 	}
 
-	return FALSE;
+	return TRUE;
 }
 
 BOOL cert_confirm_signing(LPCSTR sFingerPrint, LPCSTR sComment)
@@ -188,10 +188,10 @@ LPBYTE cert_sign(struct ssh2_userkey * userkey, LPCBYTE pDataToSign, int iDataTo
 	
 	// determine hashing algorithm for signing
 	LPCSTR sHashAlgName = userkey->key->vt->ssh_id;
-	if (strstr(userkey->key->vt->ssh_id, "ssh-rsa") && iAgentFlags & SSH_AGENT_RSA_SHA2_256 && cert_test_hash(userkey->comment, SSH_AGENT_RSA_SHA2_256)) {
+	if (strstr(userkey->key->vt->ssh_id, "ssh-rsa") && iAgentFlags & SSH_AGENT_RSA_SHA2_256) {
 		sHashAlgName = "rsa-sha2-256";
 	}
-	if (strstr(userkey->key->vt->ssh_id, "ssh-rsa") && iAgentFlags & SSH_AGENT_RSA_SHA2_512 && cert_test_hash(userkey->comment, SSH_AGENT_RSA_SHA2_512)) {
+	if (strstr(userkey->key->vt->ssh_id, "ssh-rsa") && iAgentFlags & SSH_AGENT_RSA_SHA2_512) {
 		sHashAlgName = "rsa-sha2-512";
 	}
 

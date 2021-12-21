@@ -837,7 +837,7 @@ static PageantAsyncOp *pageant_make_op(
 
 #ifdef PUTTY_CAC
         char* fingerprint = ssh2_fingerprint_blob(keyblob, SSH_FPTYPE_DEFAULT);
-        BOOL bContinue = cert_confirm_signing(fingerprint, pk->skey->comment);
+        BOOL bContinue = cert_confirm_signing(fingerprint, pk->comment);
         sfree(fingerprint);
         if (!bContinue)
         {
