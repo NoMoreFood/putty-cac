@@ -865,6 +865,10 @@ static void ssh2_userauth_process_queue(PacketProtocolLayer *ppl)
                 if (!strcmp(s->publickey_algorithm, "ssh-rsa")) {
                     /* Try to upgrade ssh-rsa to one of the rsa-sha2-* family,
                      * if the server has announced support for them. */
+#ifdef PUTTY_CAC
+                    s->ppl.bpp->ext_info_rsa_sha256_ok = s->ppl.bpp->ext_info_rsa_sha256_ok && cert_test_hash(s->publickey_comment, SSH_AGENT_RSA_SHA2_256);
+                    s->ppl.bpp->ext_info_rsa_sha512_ok = s->ppl.bpp->ext_info_rsa_sha512_ok && cert_test_hash(s->publickey_comment, SSH_AGENT_RSA_SHA2_512);
+#endif // PUTTY_CAC
                     if (s->ppl.bpp->ext_info_rsa_sha512_ok) {
                         sfree(s->publickey_algorithm);
                         s->publickey_algorithm = dupstr("rsa-sha2-512");
