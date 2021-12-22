@@ -461,6 +461,8 @@ static void signop_coroutine(PageantAsyncOp *pao)
 #ifdef PUTTY_CAC
     if (cert_is_certpath(so->pk->comment))
     {
+        so->flags = ((so->flags & SSH_AGENT_RSA_SHA2_512) && cert_test_hash(so->pk->skey->comment, SSH_AGENT_RSA_SHA2_512)) ? so->flags : 0;
+        so->flags = ((so->flags & SSH_AGENT_RSA_SHA2_256) && cert_test_hash(so->pk->skey->comment, SSH_AGENT_RSA_SHA2_256)) ? so->flags : 0;
         DWORD siglen = 0;
         LPBYTE sig = cert_sign(so->pk->skey, (LPCBYTE)so->data_to_sign->u, so->data_to_sign->len, &siglen, so->flags);
         put_data(BinarySink_UPCAST(signature), sig, siglen);
