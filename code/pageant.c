@@ -461,8 +461,6 @@ static void signop_coroutine(PageantAsyncOp *pao)
 #ifdef PUTTY_CAC
     if (cert_is_certpath(so->pk->comment))
     {
-        if (so->flags & SSH_AGENT_RSA_SHA2_512) so->flags = cert_test_hash(so->pk->comment, SSH_AGENT_RSA_SHA2_512) ? so->flags : 0;
-        if (so->flags & SSH_AGENT_RSA_SHA2_256) so->flags = cert_test_hash(so->pk->comment, SSH_AGENT_RSA_SHA2_256) ? so->flags : 0;
         DWORD siglen = 0;
         LPBYTE sig = cert_sign(so->pk->skey, (LPCBYTE)so->data_to_sign->u, so->data_to_sign->len, &siglen, so->flags);
         put_data(BinarySink_UPCAST(signature), sig, siglen);
@@ -949,7 +947,7 @@ static PageantAsyncOp *pageant_make_op(
                 if (key->key) ssh_key_free(key->key);
 				sfree(key);
 				key = cert_load_key(pSearch, NULL);
-                BinarySource_REWIND_TO(msg, (pSearch - msg->data - 4));
+                BinarySource_REWIND_TO(msg, (pSearch - ((const char*) msg->data) - 4));
 			}
 		}
 		if (key->key == NULL)

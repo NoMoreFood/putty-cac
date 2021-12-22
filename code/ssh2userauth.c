@@ -731,6 +731,10 @@ static void ssh2_userauth_process_queue(PacketProtocolLayer *ppl)
                 s->agent_keyalg = s->agent_keys[s->agent_key_index].algorithm;
                 s->signflags = 0;
                 if (ptrlen_eq_string(s->agent_keyalg, "ssh-rsa")) {
+#ifdef PUTTY_CAC
+                    s->ppl.bpp->ext_info_rsa_sha256_ok = s->ppl.bpp->ext_info_rsa_sha256_ok && cert_test_hash(s->publickey_comment, SSH_AGENT_RSA_SHA2_256);
+                    s->ppl.bpp->ext_info_rsa_sha512_ok = s->ppl.bpp->ext_info_rsa_sha512_ok && cert_test_hash(s->publickey_comment, SSH_AGENT_RSA_SHA2_512);
+#endif // PUTTY_CAC
                     /* Try to upgrade ssh-rsa to one of the rsa-sha2-* family,
                      * if the server has announced support for them. */
                     if (s->ppl.bpp->ext_info_rsa_sha512_ok) {
