@@ -226,12 +226,12 @@ LPBYTE cert_sign(struct ssh2_userkey * userkey, LPCBYTE pDataToSign, int iDataTo
 		// 1 byte of 0 padding in order to ensure the 's' value is represented as positive
 		// the 's' value (first half of the blob signature returned from windows)
 		const BYTE iZero = 0;
-		int iAlgName = strlen(userkey->key->vt->ssh_id);
+		int iAlgName = strlen(sHashAlgName);
 		*iWrappedSigLen = 4 + iAlgName + 4 + 4 + 1 + (iRawSigLen / 2) + 4 + 1 + (iRawSigLen / 2);
 		pWrappedSig = snewn(*iWrappedSigLen, unsigned char);
 		unsigned char * pWrappedPos = pWrappedSig;
 		PUT_32BIT_MSB_FIRST(pWrappedPos, iAlgName); pWrappedPos += 4;
-		memcpy(pWrappedPos, userkey->key->vt->ssh_id, iAlgName); pWrappedPos += iAlgName;
+		memcpy(pWrappedPos, sHashAlgName, iAlgName); pWrappedPos += iAlgName;
 		PUT_32BIT_MSB_FIRST(pWrappedPos, iRawSigLen + 4 + 4 + 1 + 1); pWrappedPos += 4;
 		PUT_32BIT_MSB_FIRST(pWrappedPos, 1 + iRawSigLen / 2); pWrappedPos += 4;
 		memcpy(pWrappedPos, &iZero, 1); pWrappedPos += 1;
