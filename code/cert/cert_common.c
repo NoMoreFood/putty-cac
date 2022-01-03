@@ -186,7 +186,7 @@ LPBYTE cert_sign(struct ssh2_userkey * userkey, LPCBYTE pDataToSign, int iDataTo
 	// sanity check
 	if (userkey->comment == NULL) return NULL;
 	
-	// determine hashing algorithm for signing
+	// determine hashing algorithm for signing - upgrade to sha2 if possible
 	LPCSTR sHashAlgName = userkey->key->vt->ssh_id;
 	if (strstr(userkey->key->vt->ssh_id, "ssh-rsa") && (iAgentFlags & SSH_AGENT_RSA_SHA2_256) && cert_test_hash(userkey->comment, SSH_AGENT_RSA_SHA2_256)) {
 		sHashAlgName = "rsa-sha2-256";
@@ -620,6 +620,14 @@ LPBYTE cert_get_hash(LPCSTR szAlgo, LPCBYTE pDataToHash, DWORD iDataToHashSize, 
 		0x05, 0x00, /* type NULL, length 0x0 (0) */
 		0x04, 0x20  /* type Octet string, length 0x20 (32), followed by sha256 hash */
 	};
+	const BYTE OID_SHA384[] = {
+		0x30, 0x41, /* type Sequence, length 0x41 (65) */
+		0x30, 0x0d, /* type Sequence, length 0x0d (13) */
+		0x06, 0x09, /* type OID, length 0x09 (9) */
+		0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x02, /* id-sha384 OID */
+		0x05, 0x00, /* type NULL, length 0x0 (0) */
+		0x04, 0x30  /* type Octet string, length 0x30 (48), followed by sha384 hash */
+	};
 	const BYTE OID_SHA512[] = {
 		0x30, 0x51, /* type Sequence, length 0x51 (81) */
 		0x30, 0x0d, /* type Sequence, length 0x0d (13) */
@@ -642,6 +650,15 @@ LPBYTE cert_get_hash(LPCSTR szAlgo, LPCBYTE pDataToHash, DWORD iDataToHashSize, 
 		{
 			iDigestSize = sizeof(OID_SHA256);
 			pDigest = (LPBYTE)OID_SHA256;
+		}
+	}
+	else if (strcmp(szAlgo, "ecdsa-sha2-nistp384") == 0)
+	{
+		sNCryptAlg = BCRYPT_SHA384_ALGORITHM;
+		if (bNeedsDigest)
+		{
+			iDigestSize = sizeof(OID_SHA384);
+			pDigest = (LPBYTE)OID_SHA384;
 		}
 	}
 	else if (strcmp(szAlgo, "rsa-sha2-512") == 0 || strcmp(szAlgo, "ecdsa-sha2-nistp521") == 0)
