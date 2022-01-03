@@ -1,6 +1,6 @@
 # PuTTY CAC
 
-PuTTY CAC is a fork of the PuTTY, a popular Secure Shell (SSH) terminal. PuTTY CAC adds the ability to use the Windows Certificate API (CAPI) or a Public Key Cryptography Standards (PKCS) library to perform SSH public key authentication using a private key associated with a certificate that is stored on a hardware token.
+PuTTY CAC is a fork of PuTTY, a popular Secure Shell (SSH) terminal. PuTTY CAC adds the ability to use the Windows Certificate API (CAPI) or a Public Key Cryptography Standards (PKCS) library to perform SSH public key authentication using a private key associated with a certificate that is stored on a hardware token.
 
 PuTTY CAC can be used with many types of cryptographic tokens such as Yubikeys and popular smart card models. The 'CAC' in 'PuTTY CAC' refers to Common Access Card, a smart card token used for US Government facilities which was one of the initial drivers for the development of PuTTY CAC.
 
@@ -21,7 +21,7 @@ https://playbooks.idmanagement.gov/piv/engineer/ssh/
 ## Command Line Usage
 PuTTY CAC supports the same command line options as PuTTY. In place of a PuTTY key file path for any PuTTY utility, you can specific certificate thumbprint. For example, `putty.exe CAPI:716B8B58D8F2C3A7F98F3F645161B1BF9818B689 ...` will load the noted thumbprint from the Windows certificate store. For certificates from PKCS libraries, the syntax is the similiar with the addition the library following the thumbprint. For example, `PKCS:716B8B58D8F2C3A7F98F3F645161B1BF9818B689=C:\Windows\Library.dll ...`. 
 
-Pageant supports the following additional command line options to control its operation. Most of these are also settable from the user interface. Once set, these options are saved through subsequent Pageant executions unless specifically unset. Settings that change Pageant certificate selection dialogs will also affect certificate selection in the standard PuTTY application:
+PuTTY executables (putty.exe, pageant.exe, psftp.exe) support the following additional command line options. Most of these options are focused on the operation of Pageant and are also settable from its user interface. Once set, these options will apply automatically to subsequent executions unless specifically unset. Settings that filter Pageant certificate selection dialogs will also affect filter certificate selection dialogs in the standard PuTTY application:
 * Automatically load any compatible CAPI certificates at startup: `-autoload`,`-autoloadoff`
 * Save key list between PuTTY executions: `-savecertlist`,`-savecertlistoff`
 * Enable supplementary PIN caching in Pageant: `-forcepincache`,`-forcepincacheoff`
@@ -37,10 +37,10 @@ For the purposes of PuTTY CAC, the certificate is simply a convenient way to ref
 The specific code used to interface with the hardware token utilizes the Microsoft cryptographic libraries which in turn are governed by system-level FIPS settings. However, PuTTY itself utilizes proprietary encryption and hashing for communication which has not undergone evaluation for FIPS compliance or certification. 
 ## Notes On Building PuTTY CAC
 ### Prerequisites
-* Visual Studio 2019 with C++ Desktop Application Development
+* Visual Studio 2022 with C++ Desktop Application Development
 * WiX Toolset (to build the MSI files)
 * Windows PowerShell (to build the MSI/ZIP/Hash files)
 
 ### Visual Studio Notes
-* Solution File: 'Code\windows\VS2019\putty.sln'
+* Solution File: 'Code\windows\VS2022\putty.sln'
 
