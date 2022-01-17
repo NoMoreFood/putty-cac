@@ -2,8 +2,8 @@
 TITLE Building PuTTY-CAC
 
 :: version information
-SET VER=0.76u3
-SET VERN=0.76.0.3
+SET VER=0.76u4
+SET VERN=0.76.0.4
 
 :: cert info to use for signing
 SET CERT=BC4F81C0B3B32755A8CC9A6B91713958294788F0
