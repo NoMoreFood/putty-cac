@@ -162,7 +162,7 @@ BOOL cert_confirm_signing(LPCSTR sFingerPrint, LPCSTR sComment)
 
 	// prompt user
 	BOOL bIsCert = cert_is_certpath(sComment);
-	LPSTR sDescription = bIsCert ? cert_subject_string(sComment) : sComment;
+	LPSTR sDescription = bIsCert ? cert_subject_string(sComment) : dupstr(sComment);
 	LPSTR sMessage = dupprintf("%s\r\n\r\n%s: %s\r\n%s: %s\r\n\r\n % s",
 		"An application is attempting to authenticate using a certificate or key with the following details:",
 		bIsCert ? "Subject" : "Comment", sDescription,
