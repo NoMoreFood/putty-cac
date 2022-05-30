@@ -7,7 +7,6 @@
 #include <windows.h>
 #include <wincrypt.h>
 #include <cryptuiapi.h>
-#include <cryptdlg.h>
 #include <bcrypt.h>
 
 #include "cert_common.h"
@@ -88,7 +87,6 @@ BOOL cert_capi_test_hash(LPCSTR szCert, DWORD iHashRequest)
 			(pProviderInfo = (PCRYPT_KEY_PROV_INFO)snewn(iProviderInfoSize, BYTE)), &iProviderInfoSize) != FALSE)
 	{
 		HCRYPTPROV_OR_NCRYPT_KEY_HANDLE hCryptProv = 0;
-		NCRYPT_KEY_HANDLE hNCryptKey = 0;
 		NCRYPT_PROV_HANDLE hNCryptProv = 0;
 
 		if (CryptAcquireContextW(&hCryptProv, pProviderInfo->pwszContainerName,
@@ -120,7 +118,7 @@ BOOL cert_capi_test_hash(LPCSTR szCert, DWORD iHashRequest)
 	return bHashSuccess;
 }
 
-BYTE * cert_capi_sign(struct ssh2_userkey * userkey, LPCBYTE pDataToSign, int iDataToSignLen, int * iSigLen, LPCSTR sHashAlgName)
+BYTE* cert_capi_sign(struct ssh2_userkey* userkey, LPCBYTE pDataToSign, int iDataToSignLen, int* iSigLen, LPCSTR sHashAlgName)
 {
 	// use flags to determine requested signature hash algorithm
 	ALG_ID iHashAlg = CALG_SHA1;
@@ -153,7 +151,7 @@ BYTE * cert_capi_sign(struct ssh2_userkey * userkey, LPCBYTE pDataToSign, int iD
 	DWORD iProviderInfoSize = 0;
 	if (CertGetCertificateContextProperty(pCertCtx, CERT_KEY_PROV_INFO_PROP_ID, NULL, &iProviderInfoSize) != FALSE &&
 		CertGetCertificateContextProperty(pCertCtx, CERT_KEY_PROV_INFO_PROP_ID,
-		(pProviderInfo = (PCRYPT_KEY_PROV_INFO)snewn(iProviderInfoSize, BYTE)), &iProviderInfoSize) != FALSE)
+			(pProviderInfo = (PCRYPT_KEY_PROV_INFO)snewn(iProviderInfoSize, BYTE)), &iProviderInfoSize) != FALSE)
 	{
 		LPBYTE pSig = NULL;
 		DWORD iSig = 0;
@@ -202,12 +200,12 @@ BYTE * cert_capi_sign(struct ssh2_userkey * userkey, LPCBYTE pDataToSign, int iD
 			NCryptOpenKey(hNCryptProv, &hNCryptKey, pProviderInfo->pwszContainerName, pProviderInfo->dwKeySpec, 0) == ERROR_SUCCESS)
 		{
 			// set pin prompt
-			WCHAR * szPin = NULL;
+			WCHAR* szPin = NULL;
 			if (cert_cache_enabled((DWORD)-1) &&
 				(szPin = cert_pin(userkey->comment, TRUE, NULL)) != NULL)
 			{
 				DWORD iLength = (1 + wcslen(szPin)) * sizeof(WCHAR);
-				(void) NCryptSetProperty(hNCryptKey, NCRYPT_PIN_PROPERTY, (PBYTE)szPin, iLength, 0);
+				(void)NCryptSetProperty(hNCryptKey, NCRYPT_PIN_PROPERTY, (PBYTE)szPin, iLength, 0);
 			}
 
 			// setup structure padding 
@@ -258,13 +256,146 @@ BYTE * cert_capi_sign(struct ssh2_userkey * userkey, LPCBYTE pDataToSign, int iD
 	return pSignedData;
 }
 
-HCERTSTORE cert_capi_get_cert_store(LPCSTR * szHint, HWND hWnd)
+HCERTSTORE cert_capi_get_cert_store(LPCSTR* szHint, HWND hWnd)
 {
 	UNREFERENCED_PARAMETER(hWnd);
 
+	// no library hint needed for fido
 	if (szHint != NULL) *szHint = NULL;
+
 	return CertOpenStore(CERT_STORE_PROV_SYSTEM_W, PKCS_7_ASN_ENCODING | X509_ASN_ENCODING, 0,
-		CERT_SYSTEM_STORE_CURRENT_USER | CERT_STORE_READONLY_FLAG | CERT_STORE_OPEN_EXISTING_FLAG | CERT_STORE_ENUM_ARCHIVED_FLAG, L"MY");
+		CERT_SYSTEM_STORE_CURRENT_USER | CERT_STORE_OPEN_EXISTING_FLAG | CERT_STORE_ENUM_ARCHIVED_FLAG, L"MY");
+}
+
+BOOL cert_capi_create_key(LPCSTR szAlgName, LPCSTR sSubjectName, BOOL bHardware)
+{
+	LPCWSTR szAlg = NULL;
+	DWORD iBits = 0;
+	if (false);
+	else if (strcmp(szAlgName, "rsa-1024") != 0) { iBits = 1024; szAlg = NCRYPT_RSA_ALGORITHM; }
+	else if (strcmp(szAlgName, "rsa-2048") != 0) { iBits = 2048; szAlg = NCRYPT_RSA_ALGORITHM; }
+	else if (strcmp(szAlgName, "rsa-3096") != 0) { iBits = 3096; szAlg = NCRYPT_RSA_ALGORITHM; }
+	else if (strcmp(szAlgName, "rsa-4096") != 0) { iBits = 4096; szAlg = NCRYPT_RSA_ALGORITHM; }
+	else if (strcmp(szAlgName, "ecdsa-sha2-nistp256") == 0) szAlg = NCRYPT_ECDSA_P256_ALGORITHM;
+	else if (strstr(szAlgName, "ecdsa-sha2-nistp384") == 0) szAlg = NCRYPT_ECDSA_P384_ALGORITHM;
+	else if (strcmp(szAlgName, "ecdsa-sha2-nistp512") == 0) szAlg = NCRYPT_ECDSA_P521_ALGORITHM;
+	else return false;
+
+	// decorate the name for the cert
+	BYTE sNameBufferEncoded[1024] = { 0 };
+	WCHAR sNameBufferWithCn[1024] = { 0 };
+	CERT_NAME_BLOB tSubjectNameDecorated = { sizeof(sNameBufferEncoded), sNameBufferEncoded };
+	if (swprintf_s(&sNameBufferWithCn[0], _countof(sNameBufferWithCn), L"CN=%S", sSubjectName) == -1 ||
+		CertStrToNameW(X509_ASN_ENCODING, sNameBufferWithCn, 0, NULL,
+			tSubjectNameDecorated.pbData, &tSubjectNameDecorated.cbData, NULL) == 0)
+	{
+		return FALSE;
+	}
+
+	// create crytographic key
+	BOOL bCertSuccess = FALSE;
+	NCRYPT_KEY_HANDLE hKey = (NCRYPT_KEY_HANDLE)NULL;
+	NCRYPT_PROV_HANDLE hProvider = (NCRYPT_PROV_HANDLE)NULL;
+	if (NCryptOpenStorageProvider(&hProvider, bHardware ? MS_SMART_CARD_KEY_STORAGE_PROVIDER :
+		MS_KEY_STORAGE_PROVIDER, 0) == ERROR_SUCCESS &&
+		NCryptCreatePersistedKey(hProvider, &hKey, szAlg,
+			sNameBufferWithCn, AT_SIGNATURE, 0) == ERROR_SUCCESS &&
+		(iBits == 0 || NCryptSetProperty(hKey, NCRYPT_LENGTH_PROPERTY,
+			(PBYTE)&iBits, sizeof(iBits), NCRYPT_PERSIST_FLAG) == ERROR_SUCCESS) &&
+		NCryptFinalizeKey(hKey, 0) == ERROR_SUCCESS)
+	{
+		// give the certificate the client auth and smartcard logon attributes
+		LPSTR tKeyUsageSoftware[] = { szOID_PKIX_KP_CLIENT_AUTH };
+		LPSTR tKeyUsageHardware[] = { szOID_KP_SMARTCARD_LOGON, szOID_PKIX_KP_CLIENT_AUTH };
+		CERT_ENHKEY_USAGE tEnhancedKeyUsage = {
+			(bHardware) ? _countof(tKeyUsageHardware) : _countof(tKeyUsageSoftware),
+			(bHardware) ? tKeyUsageHardware : tKeyUsageSoftware
+		};
+
+		BYTE sKeyUsageEncoded[32];
+		DWORD iKeyUsageEncodedSize = sizeof(sKeyUsageEncoded);
+		CryptEncodeObject(X509_ASN_ENCODING, X509_ENHANCED_KEY_USAGE, (LPVOID)&tEnhancedKeyUsage, &sKeyUsageEncoded[0], &iKeyUsageEncodedSize);
+		CERT_EXTENSION tExtension = { 0 };
+		tExtension.pszObjId = szOID_ENHANCED_KEY_USAGE;
+		tExtension.Value.cbData = iKeyUsageEncodedSize;
+		tExtension.Value.pbData = &sKeyUsageEncoded[0];
+
+		// give the certificate a long lifetime
+		SYSTEMTIME tSystemTimeStart;
+		GetSystemTime(&tSystemTimeStart);
+		SYSTEMTIME tSystemTimeEnd = tSystemTimeStart;
+		tSystemTimeEnd.wYear += 100;
+
+		// create tje certofocate
+		CERT_EXTENSIONS tExtensions = { 1, &tExtension };
+		PCCERT_CONTEXT pContext = CertCreateSelfSignCertificate(hKey, &tSubjectNameDecorated,
+			0, NULL, NULL, &tSystemTimeStart, &tSystemTimeEnd, &tExtensions);
+		if (pContext != NULL)
+		{
+			// open the cert store to save the cert
+			HCERTSTORE hCertStore = CertOpenSystemStoreW((HCRYPTPROV_LEGACY)NULL, L"MY");
+			if (hCertStore != NULL)
+			{
+				// add the cert to the personal store
+				bCertSuccess = CertAddCertificateContextToStore(hCertStore, pContext,
+					CERT_STORE_ADD_REPLACE_EXISTING, NULL);
+				CertCloseStore(hCertStore, 0);
+			}
+
+			CertFreeCertificateContext(pContext);
+		}
+	}
+
+	if (hKey != (NCRYPT_HANDLE)NULL) NCryptFreeObject(hKey);
+	if (hProvider != (NCRYPT_HANDLE)NULL) NCryptFreeObject(hProvider);
+	return bCertSuccess;
+}
+
+BOOL cert_capi_delete_key(LPCSTR szCert)
+{
+	// get a handle to the certificate
+	HCERTSTORE hCertStore = NULL;
+	PCCERT_CONTEXT pCertCtx = NULL;
+	cert_capi_load_cert(szCert, &pCertCtx, &hCertStore);
+	if (pCertCtx == NULL) return FALSE;
+
+	BOOL bSuccess = FALSE;
+	PCRYPT_KEY_PROV_INFO pProviderInfo = NULL;
+	DWORD iProviderInfoSize = 0;
+	if (CertGetCertificateContextProperty(pCertCtx, CERT_KEY_PROV_INFO_PROP_ID, NULL, &iProviderInfoSize) != FALSE &&
+		CertGetCertificateContextProperty(pCertCtx, CERT_KEY_PROV_INFO_PROP_ID,
+			(pProviderInfo = (PCRYPT_KEY_PROV_INFO)snewn(iProviderInfoSize, BYTE)), &iProviderInfoSize) != FALSE)
+	{
+		HCRYPTPROV_OR_NCRYPT_KEY_HANDLE hCryptProv = 0;
+		NCRYPT_KEY_HANDLE hNCryptKey = 0;
+		NCRYPT_PROV_HANDLE hNCryptProv = 0;
+
+		if (CryptAcquireContextW(&hCryptProv, pProviderInfo->pwszContainerName,
+			pProviderInfo->pwszProvName, pProviderInfo->dwProvType, CRYPT_DELETEKEYSET |
+			((pProviderInfo->dwFlags & CRYPT_MACHINE_KEYSET) ? CRYPT_MACHINE_KEYSET : 0)) != FALSE)
+		{
+			bSuccess = true;
+		}
+		else if (NCryptOpenStorageProvider(&hNCryptProv, pProviderInfo->pwszProvName, 0) == ERROR_SUCCESS &&
+			NCryptOpenKey(hNCryptProv, &hNCryptKey, pProviderInfo->pwszContainerName, pProviderInfo->dwKeySpec, 0) == ERROR_SUCCESS)
+		{
+			bSuccess = NCryptDeleteKey(hNCryptKey, 0) == ERROR_SUCCESS;
+		}
+
+		// cleanup crypto structures and intermediate signing data
+		if (hCryptProv != 0) CryptReleaseContext(hCryptProv, 0);
+		if (hNCryptProv != 0) NCryptFreeObject(hNCryptProv);
+		if (hNCryptKey != 0) NCryptFreeObject(hNCryptKey);
+		if (pProviderInfo != NULL) sfree(pProviderInfo);
+	}
+
+	// if key was cleaned up, already remove certificate from store
+	if (bSuccess) CertDeleteCertificateFromStore(pCertCtx);
+
+	// cleanup certificate handles and return
+	if (pCertCtx != NULL) { CertFreeCertificateContext(pCertCtx); }
+	if (hCertStore != NULL) { CertCloseStore(hCertStore, 0); }
+	return bSuccess;
 }
 
 #endif // PUTTY_CAC

@@ -8,8 +8,8 @@
 #include "putty.h"
 #include "storage.h"
 #ifndef NO_GSSAPI
-#include "sshgssc.h"
-#include "sshgss.h"
+#include "ssh/gssc.h"
+#include "ssh/gss.h"
 #endif
 
 #ifdef PUTTY_CAC
@@ -52,9 +52,9 @@ static const struct keyvalwhere hknames[] = {
 /*
  * All the terminal modes that we know about for the "TerminalModes"
  * setting. (Also used by config.c for the drop-down list.)
- * This is currently precisely the same as the set in ssh.c, but could
- * in principle differ if other backends started to support tty modes
- * (e.g., the pty backend).
+ * This is currently precisely the same as the set in
+ * ssh/ttymode-list.h, but could in principle differ if other backends
+ * started to support tty modes (e.g., the pty backend).
  * The set of modes in in this array is currently significant for
  * settings migration from old versions; if they change, review the
  * gppmap() invocation for "TerminalModes".
@@ -630,13 +630,14 @@ void save_open_settings(settings_w *sesskey, Conf *conf)
     write_setting_s(sesskey, "RemoteCommand", conf_get_str(conf, CONF_remote_cmd));
     write_setting_b(sesskey, "RFCEnviron", conf_get_bool(conf, CONF_rfc_environ));
 #ifdef PUTTY_CAC
-    write_setting_b(sesskey, "AuthCAPI", conf_get_bool(conf, CONF_try_cert_auth));
-    write_setting_s(sesskey, "CAPICertID", conf_get_str(conf, CONF_cert_certid));
+    write_setting_b(sesskey, "AuthCAPI", conf_get_bool(conf, CONF_cert_attempt_auth));
+    write_setting_s(sesskey, "CAPICertID", conf_get_str(conf, CONF_cert_fingerprint));
 #endif // PUTTY_CAC
     write_setting_b(sesskey, "PassiveTelnet", conf_get_bool(conf, CONF_passive_telnet));
     write_setting_b(sesskey, "BackspaceIsDelete", conf_get_bool(conf, CONF_bksp_is_delete));
     write_setting_b(sesskey, "RXVTHomeEnd", conf_get_bool(conf, CONF_rxvt_homeend));
     write_setting_i(sesskey, "LinuxFunctionKeys", conf_get_int(conf, CONF_funky_type));
+    write_setting_i(sesskey, "ShiftedArrowKeys", conf_get_int(conf, CONF_sharrow_type));
     write_setting_b(sesskey, "NoApplicationKeys", conf_get_bool(conf, CONF_no_applic_k));
     write_setting_b(sesskey, "NoApplicationCursors", conf_get_bool(conf, CONF_no_applic_c));
     write_setting_b(sesskey, "NoMouseReporting", conf_get_bool(conf, CONF_no_mouse_rep));
@@ -776,6 +777,7 @@ void save_open_settings(settings_w *sesskey, Conf *conf)
     write_setting_i(sesskey, "BugOldGex2", 2-conf_get_int(conf, CONF_sshbug_oldgex2));
     write_setting_i(sesskey, "BugWinadj", 2-conf_get_int(conf, CONF_sshbug_winadj));
     write_setting_i(sesskey, "BugChanReq", 2-conf_get_int(conf, CONF_sshbug_chanreq));
+    write_setting_i(sesskey, "BugDropStart", 2-conf_get_int(conf, CONF_sshbug_dropstart));
     write_setting_b(sesskey, "StampUtmp", conf_get_bool(conf, CONF_stamp_utmp));
     write_setting_b(sesskey, "LoginShell", conf_get_bool(conf, CONF_login_shell));
     write_setting_b(sesskey, "ScrollbarOnLeft", conf_get_bool(conf, CONF_scrollbar_on_left));
@@ -1050,17 +1052,19 @@ void load_open_settings(settings_r *sesskey, Conf *conf)
     gppb(sesskey, "RFCEnviron", false, conf, CONF_rfc_environ);
     gppb(sesskey, "PassiveTelnet", false, conf, CONF_passive_telnet);
 #ifdef PUTTY_CAC
-    gppb(sesskey, "AuthCAPI", 0, conf, CONF_try_cert_auth);
-    gpps(sesskey, "CAPICertID", "", conf, CONF_cert_certid);
+    gppb(sesskey, "AuthCAPI", 0, conf, CONF_cert_attempt_auth);
+    gpps(sesskey, "CAPICertID", "", conf, CONF_cert_fingerprint);
 
 	// convert certificate identifiers from old format
-	char * certid = conf_get_str(conf, CONF_cert_certid);
+	char * certid = conf_get_str(conf, CONF_cert_fingerprint);
 	cert_convert_legacy(certid);
-	conf_set_str(conf, CONF_cert_certid, certid);
+	conf_set_str(conf, CONF_cert_fingerprint, certid);
 #endif // PUTTY_CAC
     gppb(sesskey, "BackspaceIsDelete", true, conf, CONF_bksp_is_delete);
     gppb(sesskey, "RXVTHomeEnd", false, conf, CONF_rxvt_homeend);
     gppi(sesskey, "LinuxFunctionKeys", 0, conf, CONF_funky_type);
+    gppi(sesskey, "ShiftedArrowKeys", SHARROW_APPLICATION, conf,
+         CONF_sharrow_type);
     gppb(sesskey, "NoApplicationKeys", false, conf, CONF_no_applic_k);
     gppb(sesskey, "NoApplicationCursors", false, conf, CONF_no_applic_c);
     gppb(sesskey, "NoMouseReporting", false, conf, CONF_no_mouse_rep);
@@ -1260,6 +1264,7 @@ void load_open_settings(settings_r *sesskey, Conf *conf)
     i = gppi_raw(sesskey, "BugOldGex2", 0); conf_set_int(conf, CONF_sshbug_oldgex2, 2-i);
     i = gppi_raw(sesskey, "BugWinadj", 0); conf_set_int(conf, CONF_sshbug_winadj, 2-i);
     i = gppi_raw(sesskey, "BugChanReq", 0); conf_set_int(conf, CONF_sshbug_chanreq, 2-i);
+    i = gppi_raw(sesskey, "BugDropStart", 1); conf_set_int(conf, CONF_sshbug_dropstart, 2-i);
     conf_set_bool(conf, CONF_ssh_simple, false);
     gppb(sesskey, "StampUtmp", true, conf, CONF_stamp_utmp);
     gppb(sesskey, "LoginShell", true, conf, CONF_login_shell);
@@ -1318,6 +1323,8 @@ static int sessioncmp(const void *av, const void *bv)
     return strcmp(a, b);               /* otherwise, compare normally */
 }
 
+bool sesslist_demo_mode = false;
+
 void get_sesslist(struct sesslist *list, bool allocate)
 {
     int i;
@@ -1327,12 +1334,18 @@ void get_sesslist(struct sesslist *list, bool allocate)
     if (allocate) {
         strbuf *sb = strbuf_new();
 
-        if ((handle = enum_settings_start()) != NULL) {
-            while (enum_settings_next(handle, sb))
-                put_byte(sb, '\0');
-            enum_settings_finish(handle);
+        if (sesslist_demo_mode) {
+            put_asciz(sb, "demo-server");
+            put_asciz(sb, "demo-server-2");
+        } else {
+            if ((handle = enum_settings_start()) != NULL) {
+                while (enum_settings_next(handle, sb))
+                    put_byte(sb, '\0');
+                enum_settings_finish(handle);
+            }
+            put_byte(sb, '\0');
         }
-        put_byte(sb, '\0');
+
         list->buffer = strbuf_to_str(sb);
 
         /*

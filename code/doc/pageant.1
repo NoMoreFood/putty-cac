@@ -23,7 +23,7 @@ When running as an SSH agent, it listens on a Unix-domain socket for connections
 .PP
 \fBpageant\fP can also act as a client program itself, communicating with an already-running agent to add or remove keys, list the keys, or extract their public half.
 .PP
-The agent protocol used by \fBpageant\fP is compatible with the PuTTY tools and also with other implementations such as OpenSSH\*(Aqs SSH client and \fIssh-agent(1)\fP. Some \fBpageant\fP features are implemented with protocol extensions, so will only work if \fBpageant\fP is on both ends.
+The agent protocol used by \fBpageant\fP is compatible with the PuTTY tools and also with other implementations such as OpenSSH\*(Aqs SSH client and \fBssh-agent\fP(\fI1\fP). Some \fBpageant\fP features are implemented with protocol extensions, so will only work if \fBpageant\fP is on both ends.
 .PP
 To run \fBpageant\fP as an agent, you must provide an option to tell it what its \fIlifetime\fP should be. Typically you would probably want Pageant to last for the duration of a login session, in which case you should use either \fB-X\fP or \fB-T\fP, depending on whether your login session is GUI or purely terminal-based respectively. For example, in your X session startup script you might write
 .PP
@@ -154,10 +154,10 @@ The data to sign is taken from standard input, signed by the agent with the key 
 .RE
 .SH "SSH-ASKPASS REPLACEMENT"
 .IP "\fB--askpass\fP \fIprompt\fP"
-With this option, \fBpageant\fP acts as an \fIssh-askpass(1)\fP replacement, rather than performing any SSH agent functionality. This may be useful if you prefer Pageant\*(Aqs GUI prompt style, which minimises information leakage about your passphrase length in its visual feedback, compared to other \fIssh-askpass(1)\fP implementations.
+With this option, \fBpageant\fP acts as an \fBssh-askpass\fP(\fI1\fP) replacement, rather than performing any SSH agent functionality. This may be useful if you prefer Pageant\*(Aqs GUI prompt style, which minimises information leakage about your passphrase length in its visual feedback, compared to other \fBssh-askpass\fP(\fI1\fP) implementations.
 .RS
 .PP
-\fBpageant --askpass\fP implements the standard \fIssh-askpass(1)\fP interface: it can be passed a prompt to display (as a single argument) and, if successful, prints the passphrase on standard output and returns a zero exit status. Typically you would use the environment variable \fBSSH_ASKPASS\fP to tell other programs to use \fBpageant\fP in this way.
+\fBpageant --askpass\fP implements the standard \fBssh-askpass\fP(\fI1\fP) interface: it can be passed a prompt to display (as a single argument) and, if successful, prints the passphrase on standard output and returns a zero exit status. Typically you would use the environment variable \fBSSH_ASKPASS\fP to tell other programs to use \fBpageant\fP in this way.
 .RE
 .SH "OPTIONS"
 .IP "\fB-v\fP"

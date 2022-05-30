@@ -10,6 +10,7 @@
 
 #include "cert_pkcs.h"
 #include "cert_capi.h"
+#include "cert_fido.h"
 
 #define DEFINE_VARIABLES
 #include "cert_common.h"
@@ -24,8 +25,10 @@
 #endif
 #include "mpint.h"
 #include "ecc.h"
+#include "marshal.h"
+#include "misc.h"
 
-void cert_reverse_array(LPBYTE pb, DWORD cb)
+VOID cert_reverse_array(LPBYTE pb, DWORD cb)
 {
 	for (DWORD i = 0, j = cb - 1; i < cb / 2; i++, j--)
 	{
@@ -35,7 +38,7 @@ void cert_reverse_array(LPBYTE pb, DWORD cb)
 	}
 }
 
-LPSTR cert_get_cert_hash(LPCSTR szIden, PCCERT_CONTEXT pCertContext, LPCSTR szHint)
+LPSTR cert_get_cert_thumbprint(LPCSTR szIden, PCCERT_CONTEXT pCertContext, LPCSTR szHint)
 {
 	BYTE pbThumbBinary[SHA1_BINARY_SIZE];
 	DWORD cbThumbBinary = SHA1_BINARY_SIZE;
@@ -48,10 +51,40 @@ LPSTR cert_get_cert_hash(LPCSTR szIden, PCCERT_CONTEXT pCertContext, LPCSTR szHi
 	DWORD iThumbHexSize = _countof(szThumbHex);
 	CryptBinaryToStringA(pbThumbBinary, cbThumbBinary,
 		CRYPT_STRING_HEXRAW | CRYPT_STRING_NOCRLF, (LPSTR)szThumbHex, &iThumbHexSize);
-	return dupcat(szIden, szThumbHex, (szHint != NULL) ? "=" : "", (szHint != NULL) ? szHint : "");
+
+	LPSTR szThumb = NULL;
+	if (cert_is_capipath(szIden))
+	{
+		szThumb = dupprintf("CAPI:%s", &szThumbHex[0]);
+	}
+	else if (cert_is_pkcspath((LPSTR)szIden))
+	{
+		// retrieve the pkcs library that was stashed in the custom cert property
+		WCHAR szFileName[MAX_PATH + 1];
+		DWORD cbFileName = sizeof(szFileName);
+		if (CertGetCertificateContextProperty(pCertContext, CERT_PVK_FILE_PROP_ID, szFileName, &cbFileName) == TRUE)
+		{
+			szThumb = dupprintf("PKCS:%s=%S", &szThumbHex[0], szFileName);
+		}
+	}
+	else if (cert_is_fidopath(szIden))
+	{
+		// retrieve the application id that was stashed in the custom cert property
+		LPWSTR szCertData = NULL;
+		DWORD iAppIdSize = 1000;
+		CertGetCertificateContextProperty(pCertContext, CERT_FRIENDLY_NAME_PROP_ID, NULL, &iAppIdSize);
+		if (iAppIdSize > 0 && (szCertData = malloc(iAppIdSize)) && CertGetCertificateContextProperty(
+			pCertContext, CERT_FRIENDLY_NAME_PROP_ID, szCertData, &iAppIdSize) == TRUE)
+		{
+			szThumb = dupprintf("FIDO:%S", szCertData);
+		}
+		free(szCertData);
+	}
+
+	return szThumb;
 }
 
-LPSTR cert_prompt(LPCSTR szIden, HWND hWnd, BOOL bAutoSelect)
+LPSTR cert_prompt(LPCSTR szIden, HWND hWnd, BOOL bAutoSelect, LPCWSTR sCustomPrompt)
 {
 	HCERTSTORE hCertStore = NULL;
 	LPCSTR szHint = NULL;
@@ -60,10 +93,13 @@ LPSTR cert_prompt(LPCSTR szIden, HWND hWnd, BOOL bAutoSelect)
 	{
 		hCertStore = cert_capi_get_cert_store(&szHint, hWnd);
 	}
-
-	if (cert_is_pkcspath(szIden))
+	else if (cert_is_pkcspath(szIden))
 	{
 		hCertStore = cert_pkcs_get_cert_store(&szHint, hWnd);
+	}
+	else if (cert_is_fidopath(szIden))
+	{
+		hCertStore = cert_fido_get_cert_store(&szHint, hWnd);
 	}
 
 	// return if store could not be loaded
@@ -79,8 +115,8 @@ LPSTR cert_prompt(LPCSTR szIden, HWND hWnd, BOOL bAutoSelect)
 	int iCertCount = 0;
 	while ((pCertContext = CertEnumCertificatesInStore(hCertStore, pCertContext)) != NULL)
 	{
-		// ignore invalid cert sbased on settings
-		if (!cert_check_valid(pCertContext)) continue;
+		// ignore invalid certs based on settings
+		if (!cert_check_valid(szIden, pCertContext)) continue;
 
 		CertAddCertificateContextToStore(hMemoryStore, pCertContext, CERT_STORE_ADD_ALWAYS, NULL);
 		iCertCount++;
@@ -97,8 +133,11 @@ LPSTR cert_prompt(LPCSTR szIden, HWND hWnd, BOOL bAutoSelect)
 	{
 		// display the certificate selection dialog
 		pCertContext = CryptUIDlgSelectCertificateFromStore(hMemoryStore, hWnd,
-			L"PuTTY: Select Certificate for Authentication",
-			L"Please select the certificate that you would like to use for authentication to the remote system.",
+			L"PuTTY: Select Certificate Or Key",
+			sCustomPrompt != NULL ? sCustomPrompt : (
+				L"Please select the certificate or key identifier that you would like " \
+				L"to use for authentication to the remote system. For FIDO keys, PuTTY has " \
+				L"generated a dynamic certificate to represent the key within PuTTY."),
 			CRYPTUI_SELECT_LOCATION_COLUMN, 0, NULL);
 	}
 
@@ -109,7 +148,7 @@ LPSTR cert_prompt(LPCSTR szIden, HWND hWnd, BOOL bAutoSelect)
 		DWORD cbThumbBinary = SHA1_BINARY_SIZE;
 		if (CertGetCertificateContextProperty(pCertContext, CERT_HASH_PROP_ID, pbThumbBinary, &cbThumbBinary) == TRUE)
 		{
-			szCert = cert_get_cert_hash(IDEN_PREFIX(szIden), pCertContext, szHint);
+			szCert = cert_get_cert_thumbprint(IDEN_PREFIX(szIden), pCertContext, szHint);
 		}
 
 		// cleanup
@@ -121,18 +160,19 @@ LPSTR cert_prompt(LPCSTR szIden, HWND hWnd, BOOL bAutoSelect)
 	return szCert;
 }
 
-BOOL cert_load_cert(LPCSTR szCert, PCERT_CONTEXT * ppCertContext, HCERTSTORE * phCertStore)
+BOOL cert_load_cert(LPCSTR szCert, PCERT_CONTEXT* ppCertContext, HCERTSTORE* phCertStore)
 {
-	// if capi, get the capi cert
 	if (cert_is_capipath(szCert))
 	{
 		cert_capi_load_cert(szCert, ppCertContext, phCertStore);
 	}
-
-	// if pkcs, get the pkcs cert
-	if (cert_is_pkcspath(szCert))
+	else if (cert_is_pkcspath(szCert))
 	{
 		cert_pkcs_load_cert(szCert, ppCertContext, phCertStore);
+	}
+	else if (cert_is_fidopath(szCert))
+	{
+		cert_fido_load_cert(szCert, ppCertContext, phCertStore);
 	}
 
 	// sanity check
@@ -141,13 +181,15 @@ BOOL cert_load_cert(LPCSTR szCert, PCERT_CONTEXT * ppCertContext, HCERTSTORE * p
 
 BOOL cert_test_hash(LPCSTR szCert, DWORD iHashRequest)
 {
-	// if capi, get the capi cert
 	if (cert_is_capipath(szCert))
 	{
 		return cert_capi_test_hash(szCert, iHashRequest);
 	}
-
-	if (cert_is_pkcspath(szCert))
+	else if (cert_is_pkcspath(szCert))
+	{
+		return cert_pkcs_test_hash(szCert, iHashRequest);
+	}
+	else if (cert_is_fidopath(szCert))
 	{
 		return cert_pkcs_test_hash(szCert, iHashRequest);
 	}
@@ -177,15 +219,16 @@ BOOL cert_confirm_signing(LPCSTR sFingerPrint, LPCSTR sComment)
 	return (iResponse == IDYES);
 }
 
-LPBYTE cert_sign(struct ssh2_userkey * userkey, LPCBYTE pDataToSign, int iDataToSignLen, int * iWrappedSigLen, int iAgentFlags)
+BOOL cert_sign(struct ssh2_userkey* userkey, LPCBYTE pDataToSign, int iDataToSignLen, int iAgentFlags, strbuf* pSignature)
 {
 	LPBYTE pRawSig = NULL;
+	DWORD iCounter = 0;
+	BYTE iFlags = 0;
 	int iRawSigLen = 0;
-	*iWrappedSigLen = 0;
 
 	// sanity check
-	if (userkey->comment == NULL) return NULL;
-	
+	if (userkey->comment == NULL) return FALSE;
+
 	// determine hashing algorithm for signing - upgrade to sha2 if possible
 	LPCSTR sHashAlgName = userkey->key->vt->ssh_id;
 	if (strstr(userkey->key->vt->ssh_id, "ssh-rsa") && (iAgentFlags & SSH_AGENT_RSA_SHA2_256) && cert_test_hash(userkey->comment, SSH_AGENT_RSA_SHA2_256)) {
@@ -195,105 +238,130 @@ LPBYTE cert_sign(struct ssh2_userkey * userkey, LPCBYTE pDataToSign, int iDataTo
 		sHashAlgName = "rsa-sha2-512";
 	}
 
-	// if capi, sign data using capi
-	if (cert_is_capipath(userkey->comment))
+	// sign data
 	{
-		pRawSig = cert_capi_sign(userkey, pDataToSign, iDataToSignLen, &iRawSigLen, sHashAlgName);
+		if (cert_is_capipath(userkey->comment))
+		{
+			pRawSig = cert_capi_sign(userkey, pDataToSign, iDataToSignLen, &iRawSigLen, sHashAlgName);
+		}
+		else if (cert_is_pkcspath(userkey->comment))
+		{
+			pRawSig = cert_pkcs_sign(userkey, pDataToSign, iDataToSignLen, &iRawSigLen, sHashAlgName);
+		}
+		else if (cert_is_fidopath(userkey->comment))
+		{
+			pRawSig = cert_fido_sign(userkey, pDataToSign, iDataToSignLen, &iRawSigLen, sHashAlgName, &iCounter, &iFlags);
+		}
+
+		// sanity check signature
+		if (pRawSig == NULL) return FALSE;
 	}
 
-	// if pkcs, sign data using capi
-	if (cert_is_pkcspath(userkey->comment))
+	// create full wrapped signature payload
+	if (strstr(userkey->key->vt->ssh_id, "ecdsa-") == userkey->key->vt->ssh_id ||
+		strstr(userkey->key->vt->ssh_id, "sk-ecdsa-") == userkey->key->vt->ssh_id)
 	{
-		pRawSig = cert_pkcs_sign(userkey, pDataToSign, iDataToSignLen, &iRawSigLen, sHashAlgName);
+		// For ECDSA keys the signature is encoded:
+		// 
+		// 	string     "sk-ecdsa-sha2-nistpXXX@openssh.com"
+		// 	string	   ecdsa_signature (wrapped)
+		//    mpint    r
+		//    mpint    s
+		// 	byte       flags (sk-only)
+		// 	uint32     counter (sk-only)
+
+		// append algorithm
+		put_stringz(pSignature, userkey->key->vt->ssh_id);
+
+		// append signatures
+		strbuf* pRawSigWrapped = strbuf_new();
+		mp_int* r = mp_from_bytes_be(make_ptrlen(&pRawSig[0], iRawSigLen / 2));
+		mp_int* s = mp_from_bytes_be(make_ptrlen(&pRawSig[iRawSigLen / 2], iRawSigLen / 2));
+		put_mp_ssh2(pRawSigWrapped, r);
+		put_mp_ssh2(pRawSigWrapped, s);
+		put_stringpl(pSignature, ptrlen_from_strbuf(pRawSigWrapped));
+		strbuf_free(pRawSigWrapped);
+		mp_free(r);
+		mp_free(s);
+
+		if (cert_is_fidopath(userkey->comment))
+		{
+			put_byte(pSignature, iFlags);
+			put_uint32(pSignature, iCounter);
+		}
 	}
-
-	// sanity check
-	if (pRawSig == NULL) return NULL;
-
-	// used to hold wrapped signature to return to server
-	LPBYTE pWrappedSig = NULL;
-
-	if (strstr(userkey->key->vt->ssh_id, "ecdsa-") == userkey->key->vt->ssh_id)
+	else if (strstr(userkey->key->vt->ssh_id, "sk-ssh-ed25519") == userkey->key->vt->ssh_id)
 	{
-		// the full ecdsa ssh blob is as follows:
-		//
-		// size of algorithm name (4 bytes in big endian)
-		// algorithm name
-		// size of padded 'r' and 's' values from windows blob (4 bytes in big endian)
-		// size of padded 'r' value from signed structure (4 bytes in big endian)
-		// 1 byte of 0 padding in order to ensure the 'r' value is represented as positive
-		// the 'r' value (first half of the blob signature returned from windows)
-		// 1 byte of 0 padding in order to ensure the 's' value is represented as positive
-		// the 's' value (first half of the blob signature returned from windows)
-		const BYTE iZero = 0;
-		int iAlgName = strlen(sHashAlgName);
-		*iWrappedSigLen = 4 + iAlgName + 4 + 4 + 1 + (iRawSigLen / 2) + 4 + 1 + (iRawSigLen / 2);
-		pWrappedSig = snewn(*iWrappedSigLen, unsigned char);
-		unsigned char * pWrappedPos = pWrappedSig;
-		PUT_32BIT_MSB_FIRST(pWrappedPos, iAlgName); pWrappedPos += 4;
-		memcpy(pWrappedPos, sHashAlgName, iAlgName); pWrappedPos += iAlgName;
-		PUT_32BIT_MSB_FIRST(pWrappedPos, iRawSigLen + 4 + 4 + 1 + 1); pWrappedPos += 4;
-		PUT_32BIT_MSB_FIRST(pWrappedPos, 1 + iRawSigLen / 2); pWrappedPos += 4;
-		memcpy(pWrappedPos, &iZero, 1); pWrappedPos += 1;
-		memcpy(pWrappedPos, pRawSig, iRawSigLen / 2); pWrappedPos += iRawSigLen / 2;
-		PUT_32BIT_MSB_FIRST(pWrappedPos, 1 + iRawSigLen / 2); pWrappedPos += 4;
-		memcpy(pWrappedPos, &iZero, 1); pWrappedPos += 1;
-		memcpy(pWrappedPos, pRawSig + iRawSigLen / 2, iRawSigLen / 2); pWrappedPos += iRawSigLen / 2;
+		// For Ed25519 keys the signature is encoded as:
+		// 
+		// string    "sk-ssh-ed25519@openssh.com"
+		// string    signature
+		// byte      flags (sk-only)
+		// uint32    counter (sk-only)
+
+		// append algorithm
+		put_stringz(pSignature, userkey->key->vt->ssh_id);
+
+		// append signatures
+		put_stringpl(pSignature, make_ptrlen(&pRawSig[0], iRawSigLen));
+
+		if (cert_is_fidopath(userkey->comment))
+		{
+			put_byte(pSignature, iFlags);
+			put_uint32(pSignature, iCounter);
+		}
 	}
 	else
 	{
-		// the full rsa ssh blob is as follows:
-		//
-		// size of algorithm name (4 bytes in big endian)
-		// algorithm name
-		// size of binary signature (4 bytes in big endian)
-		// binary signature
-		int iAlgoNameLen = strlen(sHashAlgName);
-		*iWrappedSigLen = 4 + iAlgoNameLen + 4 + iRawSigLen;
-		pWrappedSig = snewn(*iWrappedSigLen, unsigned char);
-		unsigned char * pWrappedPos = pWrappedSig;
-		PUT_32BIT_MSB_FIRST(pWrappedPos, iAlgoNameLen); pWrappedPos += 4;
-		memcpy(pWrappedPos, sHashAlgName, iAlgoNameLen); pWrappedPos += iAlgoNameLen;
-		PUT_32BIT_MSB_FIRST(pWrappedPos, iRawSigLen); pWrappedPos += 4;
-		memcpy(pWrappedPos, pRawSig, iRawSigLen);
+		// For RSA keys the signature is encoded as:
+		// 
+		// string    algorithm
+		// string    signature
+
+		// append algorithm
+		put_stringz(pSignature, sHashAlgName);
+
+		// append signatures
+		put_string(pSignature, pRawSig, iRawSigLen);
 	}
 
 	// cleanup
 	sfree(pRawSig);
-	return pWrappedSig;
+	return TRUE;
 }
 
-struct ssh2_userkey * cert_get_ssh_userkey(LPCSTR szCert, PCERT_CONTEXT pCertContext)
+struct ssh2_userkey* cert_get_ssh_userkey(LPCSTR szCert, PCERT_CONTEXT pCertContext)
 {
-	struct ssh2_userkey * pUserKey = NULL;
+	struct ssh2_userkey* pUserKey = NULL;
 
 	// get a convenience pointer to the algorithm identifier 
 	LPCSTR sAlgoId = pCertContext->pCertInfo->SubjectPublicKeyInfo.Algorithm.pszObjId;
+	LPCSTR sSigAlgId = pCertContext->pCertInfo->SignatureAlgorithm.pszObjId;
+
+	// get convenience pointer to public key blob
+	PCRYPT_BIT_BLOB pPubKey = _ADDRESSOF(pCertContext->pCertInfo->SubjectPublicKeyInfo.PublicKey);
 
 	// Handle RSA Keys
 	if (strstr(sAlgoId, _CRT_CONCATENATE(szOID_RSA, ".")) == sAlgoId)
 	{
-		// get the size of the space required
-		PCRYPT_BIT_BLOB pKeyData = _ADDRESSOF(pCertContext->pCertInfo->SubjectPublicKeyInfo.PublicKey);
-
 		DWORD cbPublicKeyBlob = 0;
 		LPBYTE pbPublicKeyBlob = NULL;
-		if (CryptDecodeObject(X509_ASN_ENCODING, RSA_CSP_PUBLICKEYBLOB, pKeyData->pbData,
-			pKeyData->cbData, 0, NULL, &cbPublicKeyBlob) != FALSE && cbPublicKeyBlob != 0 &&
-			CryptDecodeObject(X509_ASN_ENCODING, RSA_CSP_PUBLICKEYBLOB, pKeyData->pbData,
-				pKeyData->cbData, 0, pbPublicKeyBlob = malloc(cbPublicKeyBlob), &cbPublicKeyBlob) != FALSE)
+		if (CryptDecodeObject(X509_ASN_ENCODING, RSA_CSP_PUBLICKEYBLOB, pPubKey->pbData,
+			pPubKey->cbData, 0, NULL, &cbPublicKeyBlob) != FALSE && cbPublicKeyBlob != 0 &&
+			CryptDecodeObject(X509_ASN_ENCODING, RSA_CSP_PUBLICKEYBLOB, pPubKey->pbData,
+				pPubKey->cbData, 0, pbPublicKeyBlob = malloc(cbPublicKeyBlob), &cbPublicKeyBlob) != FALSE)
 		{
 			// create a new putty rsa structure fill out all non-private params
-			struct RSAKey * rsa = snew(struct RSAKey);
+			struct RSAKey* rsa = snew(struct RSAKey);
 			ZeroMemory(rsa, sizeof(struct eddsa_key));
 			rsa->sshk.vt = find_pubkey_alg("ssh-rsa");
 
-			RSAPUBKEY * pPublicKey = (RSAPUBKEY *)(pbPublicKeyBlob + sizeof(BLOBHEADER));
+			RSAPUBKEY* pPublicKey = (RSAPUBKEY*)(pbPublicKeyBlob + sizeof(BLOBHEADER));
 			rsa->bits = pPublicKey->bitlen;
 			rsa->bytes = pPublicKey->bitlen / 8;
 			rsa->exponent = mp_from_integer(pPublicKey->pubexp);
-			cert_reverse_array((BYTE *)(pPublicKey)+sizeof(RSAPUBKEY), rsa->bytes);
-			rsa->modulus = mp_from_bytes_be(make_ptrlen((BYTE *)(pPublicKey)+sizeof(RSAPUBKEY), rsa->bytes));
+			cert_reverse_array((BYTE*)(pPublicKey)+sizeof(RSAPUBKEY), rsa->bytes);
+			rsa->modulus = mp_from_bytes_be(make_ptrlen((BYTE*)(pPublicKey)+sizeof(RSAPUBKEY), rsa->bytes));
 			rsa->comment = dupstr(szCert);
 			rsa->private_exponent = mp_from_integer(0);
 			rsa->p = mp_from_integer(0);
@@ -309,51 +377,82 @@ struct ssh2_userkey * cert_get_ssh_userkey(LPCSTR szCert, PCERT_CONTEXT pCertCon
 		if (pbPublicKeyBlob != NULL) free(pbPublicKeyBlob);
 	}
 
-	// Handle ECC Keys
-	else if (strstr(sAlgoId, szOID_ECC_PUBLIC_KEY) == sAlgoId)
+	// Handle EDDSA Keys
+	else if (strstr(sAlgoId, szOID_ECC_PUBLIC_KEY) == sAlgoId && strcmp(sSigAlgId, szOID_ED25119) == 0)
 	{
-		BCRYPT_KEY_HANDLE hBCryptKey = NULL;
-		if (CryptImportPublicKeyInfoEx2(X509_ASN_ENCODING, _ADDRESSOF(pCertContext->pCertInfo->SubjectPublicKeyInfo),
-			0, NULL, &hBCryptKey) != FALSE)
+		// calculate key bit and byte lengths (ignore leading byte)
+		int iKeyLength = ((pPubKey->cbData - 1) * 8 - pPubKey->cUnusedBits) / 2;
+		const int iKeyBytes = (iKeyLength + 7) / 8;
+		LPBYTE pPubKeyData = &pPubKey->pbData[1];
+
+		// create eddsa struture to hold our key params
+		struct eddsa_key* ec = snew(struct eddsa_key);
+		ZeroMemory(ec, sizeof(struct eddsa_key));
+		ec_ed_alg_and_curve_by_bits(iKeyLength, &(ec->curve), &(ec->sshk.vt));
+		ec->privateKey = mp_from_integer(0);
+
+		// translate v-tables for fido keys
+		if (cert_is_fidopath(szCert))
 		{
-			DWORD iKeyLength = 0;
-			ULONG iKeyLengthSize = sizeof(DWORD);
-			LPBYTE pEccKey = NULL;
-			ULONG iKeyBlobSize = 0;
-
-			if (BCryptGetProperty(hBCryptKey, BCRYPT_KEY_LENGTH, (PUCHAR)&iKeyLength, iKeyLengthSize, &iKeyLength, 0) == STATUS_SUCCESS &&
-				BCryptExportKey(hBCryptKey, NULL, BCRYPT_ECCPUBLIC_BLOB, NULL, iKeyBlobSize, &iKeyBlobSize, 0) == STATUS_SUCCESS && iKeyBlobSize != 0 &&
-				BCryptExportKey(hBCryptKey, NULL, BCRYPT_ECCPUBLIC_BLOB, pEccKey = malloc(iKeyBlobSize), iKeyBlobSize, &iKeyBlobSize, 0) == STATUS_SUCCESS)
-			{
-				// create a new putty ecc structure fill out all non-private params
-				struct ecdsa_key *ec = snew(struct ecdsa_key);
-				ZeroMemory(ec, sizeof(struct eddsa_key));
-				ec_nist_alg_and_curve_by_bits(iKeyLength, &(ec->curve), &(ec->sshk.vt));
-
-				int iKeyBytes = (iKeyLength + 7) / 8; // round up
-				ec->publicKey = ecc_weierstrass_point_new(ec->curve->w.wc,
-					mp_from_bytes_be(make_ptrlen(pEccKey + sizeof(BCRYPT_ECCKEY_BLOB), iKeyBytes)),
-					mp_from_bytes_be(make_ptrlen(pEccKey + sizeof(BCRYPT_ECCKEY_BLOB) + iKeyBytes, iKeyBytes)));
-				ec->privateKey = mp_from_integer(0);
-
-				// fill out the user key
-				pUserKey = snew(struct ssh2_userkey);
-				pUserKey->key = &ec->sshk;
-				pUserKey->comment = dupstr(szCert);
-			}
-
-			// cleanup
-			if (pEccKey != NULL) free(pEccKey);
+			if (ec->sshk.vt == &ssh_ecdsa_ed25519) ec->sshk.vt = &ssh_ecdsa_ed25519_sk;
+			ec->appid = dupstr(IDEN_SPLIT(szCert));
 		}
 
-		// cleanup
-		BCryptDestroyKey(hBCryptKey);
+		// calculate public key
+		mp_int* y = mp_from_bytes_le(make_ptrlen(pPubKeyData, iKeyBytes));
+		unsigned desired_x_parity = mp_get_bit(y, ec->curve->fieldBytes * 8 - 1);
+		mp_set_bit(y, ec->curve->fieldBytes * 8 - 1, 0);
+		ec->publicKey = ecc_edwards_point_new_from_y(ec->curve->e.ec, y, desired_x_parity);
+		mp_free(y);
+
+		// fill out the user key
+		pUserKey = snew(struct ssh2_userkey);
+		pUserKey->key = &ec->sshk;
+		pUserKey->comment = dupstr(szCert);
+	}
+
+	// Handle ECDSA Keys
+	else if (strstr(sAlgoId, szOID_ECC_PUBLIC_KEY) == sAlgoId)
+	{
+		// fetch lengths
+		DWORD iKeyLength = 0;
+		DWORD iKeyLengthSize = sizeof(DWORD);
+		BCRYPT_KEY_HANDLE hBCryptKey = NULL;
+		if (CryptImportPublicKeyInfoEx2(X509_ASN_ENCODING, _ADDRESSOF(pCertContext->pCertInfo->SubjectPublicKeyInfo), 0, NULL, &hBCryptKey) == FALSE) return NULL;
+		BCryptGetProperty(hBCryptKey, BCRYPT_KEY_LENGTH, (PUCHAR)&iKeyLength, iKeyLengthSize, &iKeyLengthSize, 0);
+		const int iKeyBytes = (iKeyLength + 7) / 8;
+
+		// create ecdsa struture to hold our key params
+		struct ecdsa_key* ec = snew(struct ecdsa_key);
+		ZeroMemory(ec, sizeof(struct eddsa_key));
+		ec_nist_alg_and_curve_by_bits(iKeyLength, &(ec->curve), &(ec->sshk.vt));
+		ec->privateKey = mp_from_integer(0);
+
+		// translate v-tables for fido keys
+		if (cert_is_fidopath(szCert))
+		{
+			if (ec->sshk.vt == &ssh_ecdsa_nistp256) ec->sshk.vt = &ssh_ecdsa_nistp256_sk;
+			if (ec->sshk.vt == &ssh_ecdsa_nistp384) ec->sshk.vt = &ssh_ecdsa_nistp384_sk;
+			if (ec->sshk.vt == &ssh_ecdsa_nistp521) ec->sshk.vt = &ssh_ecdsa_nistp521_sk;
+			ec->appid = dupstr(IDEN_SPLIT(szCert));
+		}
+
+		// calculate public key
+		LPBYTE pPubKeyData = &pPubKey->pbData[1];
+		ec->publicKey = ecc_weierstrass_point_new(ec->curve->w.wc,
+			mp_from_bytes_be(make_ptrlen(&pPubKeyData[0], iKeyBytes)),
+			mp_from_bytes_be(make_ptrlen(&pPubKeyData[iKeyBytes], iKeyBytes)));
+
+		// fill out the user key
+		pUserKey = snew(struct ssh2_userkey);
+		pUserKey->key = &ec->sshk;
+		pUserKey->comment = dupstr(szCert);
 	}
 
 	return pUserKey;
 }
 
-struct ssh2_userkey * cert_load_key(LPCSTR szCert, HWND hWnd)
+struct ssh2_userkey* cert_load_key(LPCSTR szCert, HWND hWnd)
 {
 	// sanity check
 	if (szCert == NULL) return NULL;
@@ -363,7 +462,7 @@ struct ssh2_userkey * cert_load_key(LPCSTR szCert, HWND hWnd)
 	BOOL bDynamicLookupAutoSelect = strcmp(IDEN_SPLIT(szCert), "**") == 0;
 	if (bDynamicLookup || bDynamicLookupAutoSelect)
 	{
-		szCert = cert_prompt(szCert, hWnd, bDynamicLookupAutoSelect);
+		szCert = cert_prompt(szCert, hWnd, bDynamicLookupAutoSelect, NULL);
 		if (szCert == NULL) return NULL;
 	}
 
@@ -373,7 +472,7 @@ struct ssh2_userkey * cert_load_key(LPCSTR szCert, HWND hWnd)
 	if (cert_load_cert(szCert, &pCertContext, &hCertStore) == FALSE) return NULL;
 
 	// get the public key data
-	struct ssh2_userkey * pUserKey = cert_get_ssh_userkey(szCert, pCertContext);
+	struct ssh2_userkey* pUserKey = cert_get_ssh_userkey(szCert, pCertContext);
 	CertFreeCertificateContext(pCertContext);
 	CertCloseStore(hCertStore, 0);
 	return pUserKey;
@@ -382,7 +481,7 @@ struct ssh2_userkey * cert_load_key(LPCSTR szCert, HWND hWnd)
 LPSTR cert_key_string(LPCSTR szCert)
 {
 	// sanity check
-	if (szCert == NULL || !cert_is_certpath(szCert))
+	if (szCert == NULL)
 	{
 		return NULL;
 	}
@@ -393,14 +492,15 @@ LPSTR cert_key_string(LPCSTR szCert)
 	if (cert_load_cert(szCert, &pCertContext, &hCertStore) == FALSE) return NULL;
 
 	// obtain the key and destroy the comment since we are going to customize it
-	struct ssh2_userkey * pUserKey = cert_get_ssh_userkey(szCert, pCertContext);
+	struct ssh2_userkey* pUserKey = cert_get_ssh_userkey(szCert, pCertContext);
+	if (pUserKey == NULL) return NULL;
 	sfree(pUserKey->comment);
 	pUserKey->comment = "";
 
 	// fetch the elements of the string
 	LPSTR szKey = ssh2_pubkey_openssh_str(pUserKey);
 	LPSTR szName = cert_subject_string(szCert);
-	LPSTR szHash = cert_get_cert_hash(cert_iden(szCert), pCertContext, NULL);
+	LPSTR szHash = cert_get_cert_thumbprint(cert_iden(szCert), pCertContext, NULL);
 
 	// append the ssh string, identifier:thumbprint, and certificate subject
 	LPSTR szKeyWithComment = dupprintf("%s %s %s", szKey, szHash, szName);
@@ -422,6 +522,12 @@ LPSTR cert_subject_string(LPCSTR szCert)
 	if (szCert == NULL || !cert_is_certpath(szCert))
 	{
 		return NULL;
+	}
+
+	// for fido, just return the appid from the comment
+	if (cert_is_fidopath(szCert))
+	{
+		return dupstr(&szCert[IDEN_FIDO_SIZE]);
 	}
 
 	// load certificate context
@@ -461,10 +567,16 @@ VOID cert_display_cert(LPCSTR szCert, HWND hWnd)
 	CertCloseStore(hCertStore, 0);
 }
 
-BOOL cert_check_valid(PCCERT_CONTEXT pCertContext)
+BOOL cert_check_valid(LPCSTR szIden, PCCERT_CONTEXT pCertContext)
 {
 	// if user has enabled hidden option, just allow the certificate
 	if (cert_allow_any_cert((DWORD)-1))
+	{
+		return TRUE;
+	}
+
+	// since they are automatically generated consider all fido valid
+	if (cert_is_fidopath(szIden))
 	{
 		return TRUE;
 	}
@@ -482,8 +594,7 @@ BOOL cert_check_valid(PCCERT_CONTEXT pCertContext)
 
 	// if certificate has eku, then it should be client auth or smartcard logon
 	BOOL bFoundSmartCardLogon = FALSE;
-	BOOL bFoundClientAuth = FALSE;
-	PCERT_EXTENSION pEnhancedKeyUsage = CertFindExtension(szOID_ENHANCED_KEY_USAGE, 
+	PCERT_EXTENSION pEnhancedKeyUsage = CertFindExtension(szOID_ENHANCED_KEY_USAGE,
 		pCertContext->pCertInfo->cExtension, pCertContext->pCertInfo->rgExtension);
 	if (pEnhancedKeyUsage != NULL)
 	{
@@ -497,6 +608,7 @@ BOOL cert_check_valid(PCCERT_CONTEXT pCertContext)
 		}
 
 		// loop through usages, looking for match
+		BOOL bFoundClientAuth = FALSE;
 		for (DWORD iUsage = 0; iUsage < pUsage->cUsageIdentifier; iUsage++)
 		{
 			bFoundClientAuth |= strcmp(pUsage->rgpszUsageIdentifier[iUsage], szOID_PKIX_KP_CLIENT_AUTH) == 0;
@@ -530,7 +642,7 @@ BOOL cert_check_valid(PCCERT_CONTEXT pCertContext)
 		ZeroMemory(&tChainParams, sizeof(tChainParams));
 		tChainParams.cbSize = sizeof(tChainParams);
 		PCCERT_CHAIN_CONTEXT pChainContext = NULL;
-		BOOL bChainResult = CertGetCertificateChain(NULL, pCertContext, NULL, NULL, &tChainParams, 
+		BOOL bChainResult = CertGetCertificateChain(NULL, pCertContext, NULL, NULL, &tChainParams,
 			CERT_CHAIN_REVOCATION_CHECK_CHAIN_EXCLUDE_ROOT, NULL, &pChainContext);
 		if (bChainResult == false) return FALSE;
 
@@ -544,31 +656,39 @@ BOOL cert_check_valid(PCCERT_CONTEXT pCertContext)
 	return TRUE;
 }
 
-int cert_all_certs(LPSTR ** pszCert)
+int cert_all_certs(LPSTR** pszCert)
 {
 	// get a handle to the cert store
-	LPCSTR szHint = NULL;
-	HCERTSTORE hCertStore = cert_capi_get_cert_store(&szHint, NULL);
+	LPCSTR sStoreType[2] = { IDEN_CAPI, IDEN_FIDO };
+	HCERTSTORE hCertStore[2] =
+	{
+		cert_capi_get_cert_store(NULL, NULL),
+		cert_fido_get_cert_store(NULL, NULL)
+	};
 
 	// find certificates matching our criteria
 	size_t iCertNum = 0;
-	PCCERT_CONTEXT pCertContext = NULL;
-	while ((pCertContext = CertEnumCertificatesInStore(hCertStore, pCertContext)) != NULL)
+	for (int iStore = 0; iStore < _countof(hCertStore); iStore++)
 	{
-		// ignore invalid cert sbased on settings
-		if (!cert_check_valid(pCertContext)) continue;
+		PCCERT_CONTEXT pCertContext = NULL;
+		while ((pCertContext = CertEnumCertificatesInStore(hCertStore[iStore], pCertContext)) != NULL)
+		{
+			// ignore invalid certs based on settings
+			if (!cert_check_valid(sStoreType[iStore], pCertContext)) continue;
 
-		// count cert and [re]allocate the return string array
-		*pszCert = snrealloc(*pszCert, iCertNum + 1, sizeof(LPSTR));
-		(*pszCert)[iCertNum++] = cert_get_cert_hash(IDEN_CAPI, pCertContext, NULL);
+			// count cert and [re]allocate the return string array
+			*pszCert = snrealloc(*pszCert, iCertNum + 1, sizeof(LPSTR));
+			(*pszCert)[iCertNum++] = cert_get_cert_thumbprint(sStoreType[iStore], pCertContext, NULL);
+		}
+
+		// cleanup and return
+		CertCloseStore(hCertStore[iStore], 0);
 	}
 
-	// cleanup and return
-	CertCloseStore(hCertStore, 0);
-	return iCertNum;
+	return (int)iCertNum;
 }
 
-void cert_convert_legacy(LPSTR szCert)
+VOID cert_convert_legacy(LPSTR szCert)
 {
 	// sanity check
 	if (szCert == NULL)
@@ -589,7 +709,7 @@ void cert_convert_legacy(LPSTR szCert)
 	{
 		strcpy(szCert, IDEN_CAPI);
 		strcpy(&szCert[IDEN_CAPI_SIZE], &sCompare[strlen(szIdenLegacyUsr)]);
-		strlwr(&szCert[IDEN_CAPI_SIZE]);
+		_strlwr(&szCert[IDEN_CAPI_SIZE]);
 	}
 
 	// search for 'Machine\MY\' and replace with 'CAPI:'
@@ -598,43 +718,43 @@ void cert_convert_legacy(LPSTR szCert)
 	{
 		strcpy(szCert, IDEN_CAPI);
 		strcpy(&szCert[IDEN_CAPI_SIZE], &sCompare[strlen(szIdenLegacySys)]);
-		strlwr(&szCert[IDEN_CAPI_SIZE]);
+		_strlwr(&szCert[IDEN_CAPI_SIZE]);
 	}
 }
 
-LPBYTE cert_get_hash(LPCSTR szAlgo, LPCBYTE pDataToHash, DWORD iDataToHashSize, DWORD * iHashedDataSize, BOOL bRequestDigest)
+LPBYTE cert_get_hash(LPCSTR szAlgo, LPCBYTE pDataToHash, DWORD iDataToHashSize, DWORD* iHashedDataSize, BOOL bRequestDigest)
 {
 	const BYTE OID_SHA1[] = {
-		0x30, 0x21, /* type Sequence, length 0x21 (33) */
-		0x30, 0x09, /* type Sequence, length 0x09 (9) */
-		0x06, 0x05, /* type OID, length 0x05 (5) */
-		0x2b, 0x0e, 0x03, 0x02, 0x1a, /* id-sha1 OID */
-		0x05, 0x00, /* type NULL, length 0x0 (0) */
-		0x04, 0x14  /* type Octet string, length 0x14 (20), followed by sha1 hash */
+		0x30, 0x21, //  type Sequence, length 0x21 (33) 
+		0x30, 0x09, //  type Sequence, length 0x09 (9) 
+		0x06, 0x05, //  type OID, length 0x05 (5) 
+		0x2b, 0x0e, 0x03, 0x02, 0x1a, //  id-sha1 OID 
+		0x05, 0x00, //  type NULL, length 0x0 (0) 
+		0x04, 0x14  //  type Octet string, length 0x14 (20), followed by sha1 hash 
 	};
 	const BYTE OID_SHA256[] = {
-		0x30, 0x31, /* type Sequence, length 0x31 (49) */
-		0x30, 0x0d, /* type Sequence, length 0x0d (13) */
-		0x06, 0x09, /* type OID, length 0x09 (9) */
-		0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x01, /* id-sha256 OID */
-		0x05, 0x00, /* type NULL, length 0x0 (0) */
-		0x04, 0x20  /* type Octet string, length 0x20 (32), followed by sha256 hash */
+		0x30, 0x31, //  type Sequence, length 0x31 (49) 
+		0x30, 0x0d, //  type Sequence, length 0x0d (13) 
+		0x06, 0x09, //  type OID, length 0x09 (9) 
+		0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x01, //  id-sha256 OID 
+		0x05, 0x00, //  type NULL, length 0x0 (0) 
+		0x04, 0x20  //  type Octet string, length 0x20 (32), followed by sha256 hash 
 	};
 	const BYTE OID_SHA384[] = {
-		0x30, 0x41, /* type Sequence, length 0x41 (65) */
-		0x30, 0x0d, /* type Sequence, length 0x0d (13) */
-		0x06, 0x09, /* type OID, length 0x09 (9) */
-		0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x02, /* id-sha384 OID */
-		0x05, 0x00, /* type NULL, length 0x0 (0) */
-		0x04, 0x30  /* type Octet string, length 0x30 (48), followed by sha384 hash */
+		0x30, 0x41, //  type Sequence, length 0x41 (65) 
+		0x30, 0x0d, //  type Sequence, length 0x0d (13) 
+		0x06, 0x09, //  type OID, length 0x09 (9) 
+		0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x02, //  id-sha384 OID 
+		0x05, 0x00, //  type NULL, length 0x0 (0) 
+		0x04, 0x30  //  type Octet string, length 0x30 (48), followed by sha384 hash 
 	};
 	const BYTE OID_SHA512[] = {
-		0x30, 0x51, /* type Sequence, length 0x51 (81) */
-		0x30, 0x0d, /* type Sequence, length 0x0d (13) */
-		0x06, 0x09, /* type OID, length 0x09 (9) */
-		0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x03, /* id-sha512 OID */
-		0x05, 0x00, /* type NULL, length 0x0 (0) */
-		0x04, 0x40  /* type Octet string, length 0x40 (64), followed by sha512 hash */
+		0x30, 0x51, //  type Sequence, length 0x51 (81) 
+		0x30, 0x0d, //  type Sequence, length 0x0d (13) 
+		0x06, 0x09, //  type OID, length 0x09 (9) 
+		0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x03, //  id-sha512 OID 
+		0x05, 0x00, //  type NULL, length 0x0 (0) 
+		0x04, 0x40  //  type Octet string, length 0x40 (64), followed by sha512 hash 
 	};
 
 	// for rsa, prepend the hash digest if requested
@@ -689,11 +809,11 @@ LPBYTE cert_get_hash(LPCSTR szAlgo, LPCBYTE pDataToHash, DWORD iDataToHashSize, 
 
 	// acquire crypto provider, hash data, and export hashed binary data
 	if (BCryptOpenAlgorithmProvider(&hAlg, sNCryptAlg, NULL, 0) != STATUS_SUCCESS ||
-		BCryptGetProperty(hAlg, BCRYPT_HASH_LENGTH, (PBYTE) iHashedDataSize, sizeof(DWORD), &iPropSize, 0) != STATUS_SUCCESS ||
+		BCryptGetProperty(hAlg, BCRYPT_HASH_LENGTH, (PBYTE)iHashedDataSize, sizeof(DWORD), &iPropSize, 0) != STATUS_SUCCESS ||
 		(pHashData = snewn(*iHashedDataSize + iDigestSize, BYTE)) == NULL ||
 		BCryptCreateHash(hAlg, &hHash, NULL, 0, NULL, 0, 0) != STATUS_SUCCESS ||
-		BCryptHashData(hHash, (PBYTE) pDataToHash, iDataToHashSize, 0) != STATUS_SUCCESS ||
-		BCryptFinishHash(hHash, pHashData + iDigestSize, (ULONG) *iHashedDataSize, 0) != STATUS_SUCCESS)
+		BCryptHashData(hHash, (PBYTE)pDataToHash, iDataToHashSize, 0) != STATUS_SUCCESS ||
+		BCryptFinishHash(hHash, pHashData + iDigestSize, (ULONG)*iHashedDataSize, 0) != STATUS_SUCCESS)
 	{
 		// something failed
 		if (pHashData != NULL)
@@ -720,23 +840,23 @@ PVOID cert_pin(LPSTR szCert, BOOL bUnicode, LPVOID szPin)
 {
 	typedef struct CACHE_ITEM
 	{
-		struct CACHE_ITEM * NextItem;
+		struct CACHE_ITEM* NextItem;
 		LPSTR szCert;
-		VOID * szPin;
+		VOID* szPin;
 		DWORD iLength;
 		BOOL bUnicode;
 		DWORD iSize;
 	}
 	CACHE_ITEM;
 
-	static CACHE_ITEM * PinCacheList = NULL;
+	static CACHE_ITEM* PinCacheList = NULL;
 
 	// attempt to locate the item in the pin cache
-	for (CACHE_ITEM * hCurItem = PinCacheList; hCurItem != NULL; hCurItem = hCurItem->NextItem)
+	for (CACHE_ITEM* hCurItem = PinCacheList; hCurItem != NULL; hCurItem = hCurItem->NextItem)
 	{
 		if (strcmp(hCurItem->szCert, szCert) == 0)
 		{
-			VOID * pEncrypted = memcpy(malloc(hCurItem->iLength), hCurItem->szPin, hCurItem->iLength);
+			VOID* pEncrypted = memcpy(malloc(hCurItem->iLength), hCurItem->szPin, hCurItem->iLength);
 			CryptUnprotectMemory(pEncrypted, hCurItem->iLength, CRYPTPROTECTMEMORY_SAME_PROCESS);
 			return pEncrypted;
 		}
@@ -750,15 +870,15 @@ PVOID cert_pin(LPSTR szCert, BOOL bUnicode, LPVOID szPin)
 			(1 + ((bUnicode) ? wcslen(szPin) : strlen(szPin)));
 		DWORD iCryptLength = CRYPTPROTECTMEMORY_BLOCK_SIZE *
 			((iLength / CRYPTPROTECTMEMORY_BLOCK_SIZE) + 1);
-		VOID * pEncrypted = memcpy(malloc(iCryptLength), szPin, iLength);
+		VOID* pEncrypted = memcpy(malloc(iCryptLength), szPin, iLength);
 
 		// encrypt memory
 		CryptProtectMemory(pEncrypted, iCryptLength,
 			CRYPTPROTECTMEMORY_SAME_PROCESS);
 
 		// allocate new item in cache and commit the change
-		CACHE_ITEM * hItem = (CACHE_ITEM *)calloc(1, sizeof(struct CACHE_ITEM));
-		hItem->szCert = strdup(szCert);
+		CACHE_ITEM* hItem = (CACHE_ITEM*)calloc(1, sizeof(struct CACHE_ITEM));
+		hItem->szCert = _strdup(szCert);
 		hItem->szPin = pEncrypted;
 		hItem->iLength = iCryptLength;
 		hItem->bUnicode = bUnicode;
@@ -769,7 +889,7 @@ PVOID cert_pin(LPSTR szCert, BOOL bUnicode, LPVOID szPin)
 
 	// prompt the user to enter the pin
 	CREDUI_INFOW tCredInfo;
-	ZeroMemory(&tCredInfo, sizeof(CREDUI_INFO));
+	ZeroMemory(&tCredInfo, sizeof(CREDUI_INFOW));
 	tCredInfo.cbSize = sizeof(tCredInfo);
 	tCredInfo.pszCaptionText = L"PuTTY Authentication";
 	tCredInfo.pszMessageText = L"Please Enter Your Smart Card Credentials";
@@ -785,13 +905,13 @@ PVOID cert_pin(LPSTR szCert, BOOL bUnicode, LPVOID szPin)
 	PVOID szReturn = NULL;
 	if (bUnicode)
 	{
-		szReturn = wcsdup(szPassword);
+		szReturn = _wcsdup(szPassword);
 	}
 	else
 	{
 		CHAR szPasswordAscii[CREDUI_MAX_PASSWORD_LENGTH + 1] = "";
 		WideCharToMultiByte(CP_ACP, 0, szPassword, -1, szPasswordAscii, sizeof(szPasswordAscii), NULL, NULL);
-		szReturn = strdup(szPasswordAscii);
+		szReturn = _strdup(szPasswordAscii);
 	}
 
 	SecureZeroMemory(szPassword, sizeof(szPassword));
@@ -873,35 +993,35 @@ BOOL cert_auto_load_certs(DWORD bEnable)
 
 BOOL cert_cmdline_parse(LPCSTR sCommand)
 {
-	if (!strcmp(sCommand, "-autoload") || !strcmp(sCommand, "-autoloadoff")) 
+	if (!strcmp(sCommand, "-autoload") || !strcmp(sCommand, "-autoloadoff"))
 	{
 		cert_auto_load_certs((!strcmp(sCommand, "-autoload")) ? 1 : 0);
 	}
-	else if (!strcmp(sCommand, "-savecertlist") || !strcmp(sCommand, "-savecertlistoff")) 
+	else if (!strcmp(sCommand, "-savecertlist") || !strcmp(sCommand, "-savecertlistoff"))
 	{
 		cert_save_cert_list_enabled((!strcmp(sCommand, "-savecertlist")) ? 1 : 0);
 	}
-	else if (!strcmp(sCommand, "-forcepincache") || !strcmp(sCommand, "-forcepincacheoff")) 
+	else if (!strcmp(sCommand, "-forcepincache") || !strcmp(sCommand, "-forcepincacheoff"))
 	{
 		cert_cache_enabled((!strcmp(sCommand, "-forcepincache")) ? 1 : 0);
 	}
-	else if (!strcmp(sCommand, "-certauthprompting") || !strcmp(sCommand, "-certauthpromptingoff")) 
+	else if (!strcmp(sCommand, "-certauthprompting") || !strcmp(sCommand, "-certauthpromptingoff"))
 	{
 		cert_auth_prompting((!strcmp(sCommand, "-certauthprompting")) ? 1 : 0);
 	}
-	else if (!strcmp(sCommand, "-smartcardlogoncertsonly") || !strcmp(sCommand, "-smartcardlogoncertsonlyoff")) 
+	else if (!strcmp(sCommand, "-smartcardlogoncertsonly") || !strcmp(sCommand, "-smartcardlogoncertsonlyoff"))
 	{
 		cert_smartcard_certs_only((!strcmp(sCommand, "-smartcardlogoncertsonly")) ? 1 : 0);
 	}
-	else if (!strcmp(sCommand, "-trustedcertsonly") || !strcmp(sCommand, "-trustedcertsonlyoff")) 
+	else if (!strcmp(sCommand, "-trustedcertsonly") || !strcmp(sCommand, "-trustedcertsonlyoff"))
 	{
 		cert_trusted_certs_only((!strcmp(sCommand, "-trustedcertsonly")) ? 1 : 0);
 	}
-	else if (!strcmp(sCommand, "-ignoreexpiredcerts") || !strcmp(sCommand, "-ignoreexpiredcertsoff")) 
+	else if (!strcmp(sCommand, "-ignoreexpiredcerts") || !strcmp(sCommand, "-ignoreexpiredcertsoff"))
 	{
 		cert_ignore_expired_certs((!strcmp(sCommand, "-ignoreexpiredcerts")) ? 1 : 0);
 	}
-	else if (!strcmp(sCommand, "-allowanycert") || !strcmp(sCommand, "-allowanycertoff")) 
+	else if (!strcmp(sCommand, "-allowanycert") || !strcmp(sCommand, "-allowanycertoff"))
 	{
 		cert_allow_any_cert((!strcmp(sCommand, "-allowanycert")) ? 1 : 0);
 	}
@@ -909,7 +1029,7 @@ BOOL cert_cmdline_parse(LPCSTR sCommand)
 	{
 		return FALSE;
 	}
-	
+
 	return TRUE;
 }
 
