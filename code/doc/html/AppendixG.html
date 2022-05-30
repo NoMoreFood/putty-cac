@@ -1,0 +1,155 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN"
+"http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+<meta http-equiv="content-type" content="text/html; charset=US-ASCII">
+<title>SSH-2 names specified for PuTTY</title>
+<link rel="previous" href="AppendixF.html">
+<link rel="ToC" href="index.html">
+<link rel="up" href="index.html">
+<link rel="index" href="IndexPage.html">
+<link rel="next" href="IndexPage.html">
+</head>
+<body>
+<p><a href="AppendixF.html">Previous</a> | <a href="index.html">Contents</a> | <a href="IndexPage.html">Index</a> | <a href="IndexPage.html">Next</a></p>
+
+<ul>
+<li><a href="#sshnames">Appendix G: SSH-2 names specified for PuTTY</a>
+<ul>
+<li><a href="#sshnames-channel">G.1 Connection protocol channel request names</a></li>
+<li><a href="#sshnames-kex">G.2 Key exchange method names</a></li>
+<li><a href="#sshnames-encrypt">G.3 Encryption algorithm names</a></li>
+<li><a href="#sshnames-agent">G.4 Agent extension request names</a></li>
+</ul></li>
+</ul>
+<h1><a name="sshnames"></a><a name="AG"></a>Appendix G: SSH-2 names specified for PuTTY</h1>
+<p>
+There are various parts of the SSH-2 protocol where things are specified using a textual name. Names ending in <code>@putty.projects.tartarus.org</code> are reserved for allocation by the PuTTY team. Allocated names are documented here.
+</p>
+<h2><a name="sshnames-channel"></a><a name="SG.1"></a>G.1 Connection protocol channel request names</h2>
+<p>
+These names can be sent in a <code>SSH_MSG_CHANNEL_REQUEST</code> message.
+</p>
+<dl><dt>
+<code>simple@putty.projects.tartarus.org</code>
+</dt>
+<dd>
+This is sent by a client to announce that it will not have more than one channel open at a time in the current connection (that one being the one the request is sent on). The intention is that the server, knowing this, can set the window on that one channel to something very large, and leave flow control to TCP. There is no message-specific data.
+</dd>
+<dt>
+<code>winadj@putty.projects.tartarus.org</code>
+</dt>
+<dd>
+PuTTY sends this request along with some <code>SSH_MSG_CHANNEL_WINDOW_ADJUST</code> messages as part of its window-size tuning. It can be sent on any type of channel. There is no message-specific data. Servers MUST treat it as an unrecognised request and respond with <code>SSH_MSG_CHANNEL_FAILURE</code>.
+<p>
+(Some SSH servers get confused by this message, so there is a bug-compatibility mode for disabling it. See <a href="Chapter4.html#config-ssh-bug-winadj">section 4.26.3</a>.) 
+</p>
+
+</dd>
+</dl>
+<h2><a name="sshnames-kex"></a><a name="SG.2"></a>G.2 Key exchange method names</h2>
+<dl><dt>
+<code>rsa-sha1-draft-00@putty.projects.tartarus.org</code>
+</dt>
+<dt>
+<code>rsa-sha256-draft-00@putty.projects.tartarus.org</code>
+</dt>
+<dt>
+<code>rsa1024-sha1-draft-01@putty.projects.tartarus.org</code>
+</dt>
+<dt>
+<code>rsa1024-sha256-draft-01@putty.projects.tartarus.org</code>
+</dt>
+<dt>
+<code>rsa2048-sha256-draft-01@putty.projects.tartarus.org</code>
+</dt>
+<dt>
+<code>rsa1024-sha1-draft-02@putty.projects.tartarus.org</code>
+</dt>
+<dt>
+<code>rsa2048-sha512-draft-02@putty.projects.tartarus.org</code>
+</dt>
+<dt>
+<code>rsa1024-sha1-draft-03@putty.projects.tartarus.org</code>
+</dt>
+<dt>
+<code>rsa2048-sha256-draft-03@putty.projects.tartarus.org</code>
+</dt>
+<dt>
+<code>rsa1024-sha1-draft-04@putty.projects.tartarus.org</code>
+</dt>
+<dt>
+<code>rsa2048-sha256-draft-04@putty.projects.tartarus.org</code>
+</dt>
+<dd>
+These appeared in various drafts of what eventually became RFC&nbsp;4432. They have been superseded by <code>rsa1024-sha1</code> and <code>rsa2048-sha256</code>.
+</dd>
+</dl>
+<h2><a name="sshnames-encrypt"></a><a name="SG.3"></a>G.3 Encryption algorithm names</h2>
+<dl><dt>
+<code>arcfour128-draft-00@putty.projects.tartarus.org</code>
+</dt>
+<dt>
+<code>arcfour256-draft-00@putty.projects.tartarus.org</code>
+</dt>
+<dd>
+These were used in drafts of what eventually became RFC&nbsp;4345. They have been superseded by <code>arcfour128</code> and <code>arcfour256</code>.
+</dd>
+</dl>
+<h2><a name="sshnames-agent"></a><a name="SG.4"></a>G.4 Agent extension request names</h2>
+<p>
+The SSH agent protocol, which is only specified in an Internet-Draft at the time of writing (<a href="https://tools.ietf.org/html/draft-miller-ssh-agent"><code>draft-miller-ssh-agent</code></a>), defines an extension mechanism. These names can be sent in an <code>SSH_AGENTC_EXTENSION</code> message.
+</p>
+<dl><dt>
+<code>add-ppk@putty.projects.tartarus.org</code>
+</dt>
+<dd>
+The payload is a single SSH-2 <code>string</code> containing a keypair in the PPK format defined in <a href="AppendixC.html#ppk">appendix C</a>. Compared to the standard <code>SSH_AGENTC_ADD_IDENTITY</code>, this extension allows adding keys in encrypted form, with the agent requesting a decryption passphrase from the user on demand, and able to revert the key to encrypted form.
+</dd>
+<dt>
+<code>reencrypt@putty.projects.tartarus.org</code>
+</dt>
+<dd>
+The payload is a single SSH-2 <code>string</code> specifying a public key blob, as in <code>SSH_AGENTC_REMOVE_IDENTITY</code>. Requests that the agent forget any cleartext form of a specific key.
+<p>
+Returns <code>SSH_AGENT_SUCCESS</code> if the agent ended up holding the key only in encrypted form (even if it was already encrypted); returns <code>SSH_AGENT_EXTENSION_FAILURE</code> if not (if it wasn't held by the agent at all, or only in cleartext form). 
+</p>
+
+</dd>
+<dt>
+<code>reencrypt-all@putty.projects.tartarus.org</code>
+</dt>
+<dd>
+No payload. Requests that the agent forget the cleartext form of any keys for which it holds an encrypted form.
+<p>
+If the agent holds any keys with an encrypted form (or no keys at all), returns <code>SSH_AGENT_SUCCESS</code> to indicate that no such keys are now held in cleartext form, followed by a <code>uint32</code> specifying how many keys remain in cleartext form (because the agent didn't hold an encrypted form for them). If the agent holds nothing but keys in cleartext form, returns <code>SSH_AGENT_EXTENSION_FAILURE</code>. 
+</p>
+
+</dd>
+<dt>
+<code>list-extended@putty.projects.tartarus.org</code>
+</dt>
+<dd>
+No payload. Returns <code>SSH_AGENT_SUCCESS</code> followed by a list of identities similar to <code>SSH_AGENT_IDENTITIES_ANSWER</code>, except that each key has an extra SSH-2 <code>string</code> at the end. Currently that <code>string</code> contains a single <code>uint32</code> flags word, with the following bits defined:
+<dl><dt>
+Bit 0
+</dt>
+<dd>
+If set, key is held with an encrypted form (so that the <code>reencrypt</code> extension can do something useful with it).
+</dd>
+<dt>
+Bit 1
+</dt>
+<dd>
+If set, key's cleartext form is not currently held (so the user will have to supply a passphrase before the key can be used). 
+</dd>
+</dl>
+
+</dd>
+</dl>
+<p>
+ersionid PuTTY release 0.77
+</p>
+
+<hr><p>If you want to provide feedback on this manual or on the PuTTY tools themselves, see the <a href="https://www.chiark.greenend.org.uk/~sgtatham/putty/feedback.html">Feedback page</a>.</p><address></address></body>
+</html>

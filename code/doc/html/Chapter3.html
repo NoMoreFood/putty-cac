@@ -1,0 +1,801 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN"
+"http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+<meta http-equiv="content-type" content="text/html; charset=US-ASCII">
+<title>Using PuTTY</title>
+<link rel="previous" href="Chapter2.html">
+<link rel="ToC" href="index.html">
+<link rel="up" href="index.html">
+<link rel="index" href="IndexPage.html">
+<link rel="next" href="Chapter4.html">
+</head>
+<body>
+<p><a href="Chapter2.html">Previous</a> | <a href="index.html">Contents</a> | <a href="IndexPage.html">Index</a> | <a href="Chapter4.html">Next</a></p>
+
+<ul>
+<li><a href="#using">Chapter 3: Using PuTTY</a>
+<ul>
+<li><a href="#using-session">3.1 During your session</a>
+<ul>
+<li><a href="#using-selection">3.1.1 Copying and pasting text</a></li>
+<li><a href="#using-scrollback">3.1.2 Scrolling the screen back</a></li>
+<li><a href="#using-sysmenu">3.1.3 The System menu</a></li>
+</ul></li>
+<li><a href="#using-logging">3.2 Creating a log file of your session</a></li>
+<li><a href="#using-translation">3.3 Altering your character set configuration</a></li>
+<li><a href="#using-x-forwarding">3.4 Using X11 forwarding in SSH</a></li>
+<li><a href="#using-port-forwarding">3.5 Using port forwarding in SSH</a></li>
+<li><a href="#using-serial">3.6 Connecting to a local serial line</a></li>
+<li><a href="#using-rawprot">3.7 Making raw TCP connections</a></li>
+<li><a href="#using-telnet">3.8 Connecting using the Telnet protocol</a></li>
+<li><a href="#using-rlogin">3.9 Connecting using the Rlogin protocol</a></li>
+<li><a href="#using-supdup">3.10 Connecting using the SUPDUP protocol</a></li>
+<li><a href="#using-cmdline">3.11 The PuTTY command line</a>
+<ul>
+<li><a href="#using-cmdline-session">3.11.1 Starting a session from the command line</a></li>
+<li><a href="#using-cleanup">3.11.2 <code>-cleanup</code></a></li>
+<li><a href="#using-general-opts">3.11.3 Standard command-line options</a></li>
+</ul></li>
+</ul></li>
+</ul>
+<h1><a name="using"></a><a name="C3"></a>Chapter 3: Using PuTTY</h1>
+<p>
+This chapter provides a general introduction to some more advanced features of PuTTY. For extreme detail and reference purposes, <a href="Chapter4.html#config">chapter 4</a> is likely to contain more information.
+</p>
+<h2><a name="using-session"></a><a name="S3.1"></a>3.1 During your session</h2>
+<p>
+A lot of PuTTY's complexity and features are in the configuration panel. Once you have worked your way through that and started a session, things should be reasonably simple after that. Nevertheless, there are a few more useful features available.
+</p>
+<h3><a name="using-selection"></a><a name="S3.1.1"></a>3.1.1 Copying and pasting text</h3>
+<p>
+<a name="i0"></a>Often in a PuTTY session you will find text on your terminal screen which you want to type in again. Like most other terminal emulators, PuTTY allows you to copy and paste the text rather than having to type it again. Also, copy and paste uses the <a name="i1"></a>Windows <a name="i2"></a>clipboard, so that you can paste (for example) URLs into a web browser, or paste from a word processor or spreadsheet into your terminal session.
+</p>
+<p>
+By default, PuTTY's copy and paste works entirely with the <a name="i3"></a>mouse. (This will be familiar to people who have used <a name="i4"></a><code>xterm</code> on Unix.) In order to copy text to the clipboard, you just click the <a name="i5"></a>left mouse button in the <a name="i6"></a>terminal window, and drag to <a name="i7"></a>select text. When you let go of the button, the text is <em>automatically</em> copied to the clipboard. You do not need to press <a name="i8"></a>Ctrl-C or <a name="i9"></a>Ctrl-Ins; in fact, if you do press Ctrl-C, PuTTY will send a Ctrl-C character down your session to the server where it will probably cause a process to be interrupted.
+</p>
+<p>
+Pasting into PuTTY is done using the right button (or the middle mouse button, if you have a <a name="i10"></a>three-button mouse and have set it up; see <a href="Chapter4.html#config-mouse">section 4.11.1</a>). (Pressing <a name="i11"></a>Shift-Ins, or selecting &#8216;Paste&#8217; from the <a name="i12"></a>Ctrl+right-click <a name="i13"></a>context menu, have the same effect.) When you click the <a name="i14"></a>right mouse button, PuTTY will read whatever is in the Windows clipboard and paste it into your session. By default, this behaves <em>exactly</em> as if the clipboard contents had been typed at the keyboard; therefore, be careful of pasting formatted text into an editor that does automatic <a name="i15"></a>indenting, as you may find that the spaces pasted from the clipboard plus the spaces added by the editor add up to too many spaces and ruin the formatting. (Some remote applications can ask PuTTY to identify text that is being pasted, to avoid this sort of problem; but if your application does not, there is nothing PuTTY can do to avoid this.)
+</p>
+<p>
+If you <a name="i16"></a>double-click the left mouse button, PuTTY will <a name="i17"></a>select a whole word. If you double-click, hold down the second click, and drag the mouse, PuTTY will select a sequence of whole words. (You can adjust precisely what PuTTY considers to be part of a word; see <a href="Chapter4.html#config-charclasses">section 4.12.1</a>.) If you <em>triple</em>-click, or <a name="i18"></a>triple-click and drag, then PuTTY will <a name="i19"></a>select a whole line or sequence of lines.
+</p>
+<p>
+If you want to select a <a name="i20"></a>rectangular region instead of selecting to the end of each line, you can do this by holding down Alt when you make your selection. You can also configure rectangular selection to be the default, and then holding down Alt gives the normal behaviour instead: see <a href="Chapter4.html#config-rectselect">section 4.11.3</a> for details.
+</p>
+<p>
+(In some Unix environments, Alt+drag is intercepted by the window manager. Shift+Alt+drag should work for rectangular selection as well, so you could try that instead.)
+</p>
+<p>
+If you have a <a name="i21"></a>middle mouse button, then you can use it to <a name="i22"></a>adjust an existing selection if you selected something slightly wrong. (If you have configured the middle mouse button to paste, then the right mouse button does this instead.) Click the button on the screen, and you can pick up the nearest end of the selection and drag it to somewhere else.
+</p>
+<p>
+If you are running PuTTY itself on Unix (not just using it to connect to a Unix system from Windows), by default you will likely have to use similar mouse actions in other applications to paste the text you copied from PuTTY, and to copy text for pasting into PuTTY; actions like <a name="i23"></a>Ctrl-C and Ctrl-V will likely not behave as you expect. <a href="Chapter4.html#config-clipboards">Section 4.11.4</a> explains why this is, and how you can change the behaviour. (On Windows there is only a single selection shared with other applications, so this confusion does not arise.)
+</p>
+<p>
+It's possible for the server to ask to <a name="i24"></a>handle mouse clicks in the PuTTY window itself. If this happens, the <a name="i25"></a>mouse pointer will turn into an arrow, and using the mouse to copy and paste will only work if you hold down Shift. See <a href="Chapter4.html#config-features-mouse">section 4.6.2</a> and <a href="Chapter4.html#config-mouseshift">section 4.11.2</a> for details of this feature and how to configure it.
+</p>
+<p>
+You can customise much of this behaviour, for instance to enable copy and paste from the keyboard; see <a href="Chapter4.html#config-selection">section 4.11</a>.
+</p>
+<h3><a name="using-scrollback"></a><a name="S3.1.2"></a>3.1.2 <a name="i26"></a>Scrolling the screen back</h3>
+<p>
+PuTTY keeps track of text that has scrolled up off the top of the terminal. So if something appears on the screen that you want to read, but it scrolls too fast and it's gone by the time you try to look for it, you can use the <a name="i27"></a>scrollbar on the right side of the window to look back up the session <a name="i28"></a>history and find it again.
+</p>
+<p>
+As well as using the scrollbar, you can also page the scrollback up and down by pressing <a name="i29"></a>Shift-PgUp and <a name="i30"></a>Shift-PgDn. You can scroll a line at a time using <a name="i31"></a>Ctrl-PgUp and <a name="i32"></a>Ctrl-PgDn, or to the top/bottom of the scrollback with <a name="i33"></a>Ctrl-Shift-PgUp and <a name="i34"></a>Ctrl-Shift-PgDn. These are still available if you configure the scrollbar to be invisible.
+</p>
+<p>
+By default the last 2000 lines scrolled off the top are preserved for you to look at. You can increase (or decrease) this value using the configuration box; see <a href="Chapter4.html#config-scrollback">section 4.7.3</a>.
+</p>
+<h3><a name="using-sysmenu"></a><a name="S3.1.3"></a>3.1.3 The <a name="i35"></a>System menu</h3>
+<p>
+If you click the left mouse button on the icon in the top left corner of PuTTY's terminal window, or click the right mouse button on the title bar, you will see the standard Windows system menu containing items like Minimise, Move, Size and Close.
+</p>
+<p>
+PuTTY's system menu contains extra program features in addition to the Windows standard options. These extra menu commands are described below.
+</p>
+<p>
+(These options are also available in a <a name="i36"></a>context menu brought up by holding Ctrl and clicking with the right mouse button anywhere in the <a name="i37"></a>PuTTY window.)
+</p>
+<h4><a name="using-eventlog"></a><a name="S3.1.3.1"></a>3.1.3.1 The PuTTY <a name="i38"></a>Event Log</h4>
+<p>
+If you choose &#8216;Event Log&#8217; from the system menu, a small window will pop up in which PuTTY logs significant events during the connection. Most of the events in the log will probably take place during session startup, but a few can occur at any point in the session, and one or two occur right at the end.
+</p>
+<p>
+You can use the mouse to select one or more lines of the Event Log, and hit the Copy button to copy them to the <a name="i39"></a>clipboard. If you are reporting a bug, it's often useful to paste the contents of the Event Log into your bug report.
+</p>
+<p>
+(The Event Log is not the same as the facility to create a log file of your session; that's described in <a href="#using-logging">section 3.2</a>.)
+</p>
+<h4><a name="using-specials"></a><a name="S3.1.3.2"></a>3.1.3.2 <a name="i40"></a>Special commands</h4>
+<p>
+Depending on the protocol used for the current session, there may be a submenu of &#8216;special commands&#8217;. These are protocol-specific tokens, such as a &#8216;break&#8217; signal, that can be sent down a connection in addition to normal data. Their precise effect is usually up to the server. Currently only Telnet, SSH, and serial connections have special commands.
+</p>
+<p>
+The &#8216;break&#8217; signal can also be invoked from the keyboard with <a name="i41"></a>Ctrl-Break.
+</p>
+<p>
+In an SSH connection, the following <a name="i42"></a>special commands are available:
+</p>
+<ul><li>
+<a name="i43"></a><a name="i44"></a><a name="i45"></a>IGNORE message
+<p>
+Should have no effect. 
+</p>
+
+</li>
+<li>
+<a name="i46"></a>Repeat key exchange
+<p>
+Only available in SSH-2. Forces a <a name="i47"></a>repeat key exchange immediately (and resets associated timers and counters). For more information about repeat key exchanges, see <a href="Chapter4.html#config-ssh-kex-rekey">section 4.18.2</a>. 
+</p>
+
+</li>
+<li>
+<a name="i48"></a>Cache new host key type
+<p>
+Only available in SSH-2. This submenu appears only if the server has host keys of a type that PuTTY doesn't already have cached, and so won't consider. Selecting a key here will allow PuTTY to use that key now and in future: PuTTY will do a fresh key-exchange with the selected key, and immediately add that key to its permanent cache (relying on the host key used at the start of the connection to cross-certify the new key). That key will be used for the rest of the current session; it may not actually be used for future sessions, depending on your preferences (see <a href="Chapter4.html#config-ssh-hostkey-order">section 4.19.1</a>).
+</p>
+<p>
+Normally, PuTTY will carry on using a host key it already knows, even if the server offers key formats that PuTTY would otherwise prefer, to avoid host key prompts. As a result, if you've been using a server for some years, you may still be using an older key than a new user would use, due to server upgrades in the meantime. The SSH protocol unfortunately does not have organised facilities for host key migration and rollover, but this allows you to <a name="i49"></a>manually upgrade. 
+</p>
+
+</li>
+<li>
+<a name="i50"></a>Break
+<p>
+Only available in SSH-2, and only during a session. Optional extension; may not be supported by server. PuTTY requests the server's default break length. 
+</p>
+
+</li>
+<li>
+<a name="i51"></a>Signals (SIGINT, SIGTERM etc)
+<p>
+Only available in SSH-2, and only during a session. Sends various POSIX signals. Not honoured by all servers. 
+</p>
+
+</li>
+</ul>
+<p>
+The following <a name="i52"></a>special commands are available in Telnet:
+</p>
+<ul><li>
+<a name="i53"></a>Are You There
+</li>
+<li>
+<a name="i54"></a>Break
+</li>
+<li>
+<a name="i55"></a>Synch
+</li>
+<li>
+<a name="i56"></a>Erase Character
+<p>
+PuTTY can also be configured to send this when the Backspace key is pressed; see <a href="Chapter4.html#config-telnetkey">section 4.29.3</a>. 
+</p>
+
+</li>
+<li>
+<a name="i57"></a>Erase Line
+</li>
+<li>
+<a name="i58"></a>Go Ahead
+</li>
+<li>
+<a name="i59"></a>No Operation
+<p>
+Should have no effect. 
+</p>
+
+</li>
+<li>
+<a name="i60"></a>Abort Process
+</li>
+<li>
+<a name="i61"></a>Abort Output
+</li>
+<li>
+<a name="i62"></a>Interrupt Process
+<p>
+PuTTY can also be configured to send this when Ctrl-C is typed; see <a href="Chapter4.html#config-telnetkey">section 4.29.3</a>. 
+</p>
+
+</li>
+<li>
+<a name="i63"></a>Suspend Process
+<p>
+PuTTY can also be configured to send this when Ctrl-Z is typed; see <a href="Chapter4.html#config-telnetkey">section 4.29.3</a>. 
+</p>
+
+</li>
+<li>
+<a name="i64"></a>End Of Record
+</li>
+<li>
+<a name="i65"></a>End Of File
+</li>
+</ul>
+<p>
+With a serial connection, the only available special command is <a name="i66"></a>&#8216;Break&#8217;.
+</p>
+<h4><a name="using-newsession"></a><a name="S3.1.3.3"></a>3.1.3.3 Starting new sessions</h4>
+<p>
+PuTTY's system menu provides some shortcut ways to start new sessions:
+</p>
+<ul><li>
+Selecting <a name="i67"></a>&#8216;New Session&#8217; will start a completely new instance of PuTTY, and bring up the configuration box as normal.
+</li>
+<li>
+Selecting <a name="i68"></a>&#8216;Duplicate Session&#8217; will start a session in a new window with precisely the same options as your current one - connecting to the same host using the same protocol, with all the same terminal settings and everything.
+</li>
+<li>
+In an inactive window, selecting <a name="i69"></a>&#8216;Restart Session&#8217; will do the same as &#8216;Duplicate Session&#8217;, but in the current window.
+</li>
+<li>
+The <a name="i70"></a>&#8216;Saved Sessions&#8217; submenu gives you quick access to any sets of stored session details you have previously saved. See <a href="Chapter4.html#config-saving">section 4.1.2</a> for details of how to create saved sessions.
+</li>
+</ul>
+<h4><a name="using-changesettings"></a><a name="S3.1.3.4"></a>3.1.3.4 <a name="i71"></a>Changing your session settings</h4>
+<p>
+If you select <a name="i72"></a>&#8216;Change Settings&#8217; from the system menu, PuTTY will display a cut-down version of its initial configuration box. This allows you to adjust most properties of your current session. You can change the terminal size, the font, the actions of various keypresses, the colours, and so on.
+</p>
+<p>
+Some of the options that are available in the main configuration box are not shown in the cut-down Change Settings box. These are usually options which don't make sense to change in the middle of a session (for example, you can't switch from SSH to Telnet in mid-session).
+</p>
+<p>
+You can save the current settings to a saved session for future use from this dialog box. See <a href="Chapter4.html#config-saving">section 4.1.2</a> for more on saved sessions.
+</p>
+<h4><a name="using-copyall"></a><a name="S3.1.3.5"></a>3.1.3.5 <a name="i73"></a>Copy All to Clipboard</h4>
+<p>
+This system menu option provides a convenient way to copy the whole contents of the terminal screen (up to the last nonempty line) and scrollback to the <a name="i74"></a>clipboard in one go.
+</p>
+<h4><a name="reset-terminal"></a><a name="S3.1.3.6"></a>3.1.3.6 <a name="i75"></a>Clearing and <a name="i76"></a>resetting the terminal</h4>
+<p>
+The <a name="i77"></a>&#8216;Clear Scrollback&#8217; option on the system menu tells PuTTY to discard all the lines of text that have been kept after they scrolled off the top of the screen. This might be useful, for example, if you displayed sensitive information and wanted to make sure nobody could look over your shoulder and see it. (Note that this only prevents a casual user from using the scrollbar to view the information; the text is not guaranteed not to still be in PuTTY's memory.)
+</p>
+<p>
+The <a name="i78"></a>&#8216;Reset Terminal&#8217; option causes a full reset of the <a name="i79"></a>terminal emulation. A VT-series terminal is a complex piece of software and can easily get into a state where all the text printed becomes unreadable. (This can happen, for example, if you accidentally output a binary file to your terminal.) If this happens, selecting Reset Terminal should sort it out.
+</p>
+<h4><a name="using-fullscreen"></a><a name="S3.1.3.7"></a>3.1.3.7 <a name="i80"></a>Full screen mode</h4>
+<p>
+If you find the title bar on a maximised window to be ugly or distracting, you can select Full Screen mode to maximise PuTTY &#8216;even more&#8217;. When you select this, PuTTY will expand to fill the whole screen and its borders, title bar and scrollbar will disappear. (You can configure the scrollbar not to disappear in full-screen mode if you want to keep it; see <a href="Chapter4.html#config-scrollback">section 4.7.3</a>.)
+</p>
+<p>
+When you are in full-screen mode, you can still access the <a name="i81"></a>system menu if you click the left mouse button in the <em>extreme</em> top left corner of the screen.
+</p>
+<h2><a name="using-logging"></a><a name="S3.2"></a>3.2 Creating a <a name="i82"></a>log file of your <a name="i83"></a>session</h2>
+<p>
+For some purposes you may find you want to log everything that appears on your screen. You can do this using the &#8216;Logging&#8217; panel in the configuration box.
+</p>
+<p>
+To begin a session log, select &#8216;Change Settings&#8217; from the system menu and go to the Logging panel. Enter a log file name, and select a logging mode. (You can log all session output including the terminal <a name="i84"></a>control sequences, or you can just log the printable text. It depends what you want the log for.) Click &#8216;Apply&#8217; and your log will be started. Later on, you can go back to the Logging panel and select &#8216;Logging turned off completely&#8217; to stop logging; then PuTTY will close the log file and you can safely read it.
+</p>
+<p>
+See <a href="Chapter4.html#config-logging">section 4.2</a> for more details and options.
+</p>
+<h2><a name="using-translation"></a><a name="S3.3"></a>3.3 Altering your <a name="i85"></a>character set configuration</h2>
+<p>
+If you find that special characters (<a name="i86"></a>accented characters, for example, or <a name="i87"></a>line-drawing characters) are not being displayed correctly in your PuTTY session, it may be that PuTTY is interpreting the characters sent by the server according to the wrong <em>character set</em>. There are a lot of different character sets available, and no good way for PuTTY to know which to use, so it's entirely possible for this to happen.
+</p>
+<p>
+If you click &#8216;Change Settings&#8217; and look at the &#8216;Translation&#8217; panel, you should see a large number of character sets which you can select, and other related options. Now all you need is to find out which of them you want! (See <a href="Chapter4.html#config-translation">section 4.10</a> for more information.)
+</p>
+<h2><a name="using-x-forwarding"></a><a name="S3.4"></a>3.4 Using <a name="i88"></a>X11 forwarding in SSH</h2>
+<p>
+The SSH protocol has the ability to securely forward X Window System <a name="i89"></a>graphical applications over your encrypted SSH connection, so that you can run an application on the SSH server machine and have it put its windows up on your local machine without sending any X network traffic in the clear.
+</p>
+<p>
+In order to use this feature, you will need an X display server for your Windows machine, such as Cygwin/X, X-Win32, or Exceed. This will probably install itself as display number 0 on your local machine; if it doesn't, the manual for the <a name="i90"></a>X server should tell you what it does do.
+</p>
+<p>
+You should then tick the &#8216;Enable X11 forwarding&#8217; box in the X11 panel (see <a href="Chapter4.html#config-ssh-x11">section 4.24</a>) before starting your SSH session. The <a name="i91"></a>&#8216;X display location&#8217; box is blank by default, which means that PuTTY will try to use a sensible default such as <code>:0</code>, which is the usual display location where your X server will be installed. If that needs changing, then change it.
+</p>
+<p>
+Now you should be able to log in to the SSH server as normal. To check that X forwarding has been successfully negotiated during connection startup, you can check the PuTTY Event Log (see <a href="#using-eventlog">section 3.1.3.1</a>). It should say something like this:
+</p>
+<pre><code>2001-12-05 17:22:01 Requesting X11 forwarding
+2001-12-05 17:22:02 X11 forwarding enabled
+</code></pre>
+<p>
+If the remote system is Unix or Unix-like, you should also be able to see that the <a name="i92"></a><code>DISPLAY</code> environment variable has been set to point at display 10 or above on the SSH server machine itself:
+</p>
+<pre><code>fred@unixbox:~$ echo $DISPLAY
+unixbox:10.0
+</code></pre>
+<p>
+If this works, you should then be able to run X applications in the remote session and have them display their windows on your PC.
+</p>
+<p>
+For more options relating to X11 forwarding, see <a href="Chapter4.html#config-ssh-x11">section 4.24</a>.
+</p>
+<h2><a name="using-port-forwarding"></a><a name="S3.5"></a>3.5 Using <a name="i93"></a>port forwarding in SSH</h2>
+<p>
+The SSH protocol has the ability to forward arbitrary <a name="i94"></a>network (TCP) connections over your encrypted SSH connection, to avoid the network traffic being sent in clear. For example, you could use this to connect from your home computer to a <a name="i95"></a>POP-3 server on a remote machine without your POP-3 password being visible to network sniffers.
+</p>
+<p>
+In order to use port forwarding to <a name="i96"></a>connect from your local machine to a port on a remote server, you need to:
+</p>
+<ul><li>
+Choose a <a name="i97"></a>port number on your local machine where PuTTY should listen for incoming connections. There are likely to be plenty of unused port numbers above 3000. (You can also use a local loopback address here; see below for more details.)
+</li>
+<li>
+Now, before you start your SSH connection, go to the Tunnels panel (see <a href="Chapter4.html#config-ssh-portfwd">section 4.25</a>). Make sure the &#8216;Local&#8217; radio button is set. Enter the local port number into the &#8216;Source port&#8217; box. Enter the destination host name and port number into the &#8216;Destination&#8217; box, separated by a colon (for example, <code>popserver.example.com:110</code> to connect to a POP-3 server).
+</li>
+<li>
+Now click the &#8216;Add&#8217; button. The details of your port forwarding should appear in the list box.
+</li>
+</ul>
+<p>
+Now start your session and log in. (Port forwarding will not be enabled until after you have logged in; otherwise it would be easy to perform completely anonymous network attacks, and gain access to anyone's virtual private network.) To check that PuTTY has set up the port forwarding correctly, you can look at the PuTTY Event Log (see <a href="#using-eventlog">section 3.1.3.1</a>). It should say something like this:
+</p>
+<pre><code>2001-12-05 17:22:10 Local port 3110 forwarding to
+         popserver.example.com:110
+</code></pre>
+<p>
+Now if you connect to the source port number on your local PC, you should find that it answers you exactly as if it were the service running on the destination machine. So in this example, you could then configure an e-mail client to use <code>localhost:3110</code> as a POP-3 server instead of <code>popserver.example.com:110</code>. (Of course, the forwarding will stop happening when your PuTTY session closes down.)
+</p>
+<p>
+You can also forward ports in the other direction: arrange for a particular port number on the <em>server</em> machine to be <a name="i98"></a>forwarded back to your PC as a connection to a service on your PC or near it. To do this, just select the &#8216;Remote&#8217; radio button instead of the &#8216;Local&#8217; one. The &#8216;Source port&#8217; box will now specify a port number on the <em>server</em> (note that most servers will not allow you to use <a name="i99"></a>port numbers under 1024 for this purpose).
+</p>
+<p>
+An alternative way to forward local connections to remote hosts is to use <a name="i100"></a>dynamic SOCKS proxying. In this mode, PuTTY acts as a SOCKS server, which SOCKS-aware programs can connect to and open forwarded connections to the destination of their choice, so this can be an alternative to long lists of static forwardings. To use this mode, you will need to select the &#8216;Dynamic&#8217; radio button instead of &#8216;Local&#8217;, and then you should not enter anything into the &#8216;Destination&#8217; box (it will be ignored). PuTTY will then listen for SOCKS connections on the port you have specified. Most <a name="i101"></a>web browsers can be configured to connect to this SOCKS proxy service; also, you can forward other PuTTY connections through it by setting up the Proxy control panel (see <a href="Chapter4.html#config-proxy">section 4.16</a> for details).
+</p>
+<p>
+The source port for a forwarded connection usually does not accept connections from any machine except the <a name="i102"></a>SSH client or server machine itself (for local and remote forwardings respectively). There are controls in the Tunnels panel to change this:
+</p>
+<ul><li>
+The &#8216;Local ports accept connections from other hosts&#8217; option allows you to set up local-to-remote port forwardings (including dynamic port forwardings) in such a way that machines other than your client PC can connect to the forwarded port.
+</li>
+<li>
+The &#8216;Remote ports do the same&#8217; option does the same thing for remote-to-local port forwardings (so that machines other than the SSH server machine can connect to the forwarded port.) Note that this feature is only available in the SSH-2 protocol, and not all SSH-2 servers honour it (in <a name="i103"></a>OpenSSH, for example, it's usually disabled by default).
+</li>
+</ul>
+<p>
+You can also specify an <a name="i104"></a>IP address to <a name="i105"></a>listen on. Typically a Windows machine can be asked to listen on any single IP address in the <code>127.*.*.*</code> range, and all of these are <a name="i106"></a>loopback addresses available only to the local machine. So if you forward (for example) <code>127.0.0.5:79</code> to a remote machine's <a name="i107"></a><code>finger</code> port, then you should be able to run commands such as <code>finger fred@127.0.0.5</code>. This can be useful if the program connecting to the forwarded port doesn't allow you to change the port number it uses. This feature is available for local-to-remote forwarded ports; SSH-1 is unable to support it for remote-to-local ports, while SSH-2 can support it in theory but servers will not necessarily cooperate.
+</p>
+<p>
+(Note that if you're using Windows XP Service Pack 2, you may need to obtain a fix from Microsoft in order to use addresses like <code>127.0.0.5</code> - see <a href="AppendixA.html#faq-alternate-localhost">question A.7.17</a>.)
+</p>
+<p>
+For more options relating to port forwarding, see <a href="Chapter4.html#config-ssh-portfwd">section 4.25</a>.
+</p>
+<p>
+If the connection you are forwarding over SSH is itself a second SSH connection made by another copy of PuTTY, you might find the &#8216;logical host name&#8217; configuration option useful to warn PuTTY of which host key it should be expecting. See <a href="Chapter4.html#config-loghost">section 4.14.5</a> for details of this.
+</p>
+<h2><a name="using-serial"></a><a name="S3.6"></a>3.6 Connecting to a local serial line</h2>
+<p>
+PuTTY can connect directly to a local serial line as an alternative to making a network connection. In this mode, text typed into the PuTTY window will be sent straight out of your computer's serial port, and data received through that port will be displayed in the PuTTY window. You might use this mode, for example, if your serial port is connected to another computer which has a serial connection.
+</p>
+<p>
+To make a connection of this type, simply select &#8216;Serial&#8217; from the &#8216;Connection type&#8217; radio buttons on the &#8216;Session&#8217; configuration panel (see <a href="Chapter4.html#config-hostname">section 4.1.1</a>). The &#8216;Host Name&#8217; and &#8216;Port&#8217; boxes will transform into &#8216;Serial line&#8217; and &#8216;Speed&#8217;, allowing you to specify which serial line to use (if your computer has more than one) and what speed (baud rate) to use when transferring data. For further configuration options (data bits, stop bits, parity, flow control), you can use the &#8216;Serial&#8217; configuration panel (see <a href="Chapter4.html#config-serial">section 4.28</a>).
+</p>
+<p>
+After you start up PuTTY in serial mode, you might find that you have to make the first move, by sending some data out of the serial line in order to notify the device at the other end that someone is there for it to talk to. This probably depends on the device. If you start up a PuTTY serial session and nothing appears in the window, try pressing Return a few times and see if that helps.
+</p>
+<p>
+A serial line provides no well defined means for one end of the connection to notify the other that the connection is finished. Therefore, PuTTY in serial mode will remain connected until you close the window using the close button.
+</p>
+<h2><a name="using-rawprot"></a><a name="S3.7"></a>3.7 Making <a name="i108"></a>raw TCP connections</h2>
+<p>
+A lot of <a name="i109"></a>Internet protocols are composed of commands and responses in plain text. For example, <a name="i110"></a>SMTP (the protocol used to transfer e-mail), <a name="i111"></a>NNTP (the protocol used to transfer Usenet news), and <a name="i112"></a>HTTP (the protocol used to serve Web pages) all consist of commands in readable plain text.
+</p>
+<p>
+Sometimes it can be useful to connect directly to one of these services and speak the protocol &#8216;by hand&#8217;, by typing protocol commands and watching the responses. On Unix machines, you can do this using the system's <code>telnet</code> command to connect to the right port number. For example, <code>telnet mailserver.example.com 25</code> might enable you to talk directly to the SMTP service running on a mail server.
+</p>
+<p>
+Although the Unix <code>telnet</code> program provides this functionality, the protocol being used is not really Telnet. Really there is no actual protocol at all; the bytes sent down the connection are exactly the ones you type, and the bytes shown on the screen are exactly the ones sent by the server. Unix <code>telnet</code> will attempt to detect or guess whether the service it is talking to is a real Telnet service or not; PuTTY prefers to be told for certain.
+</p>
+<p>
+In order to make a debugging connection to a service of this type, you simply select the fourth protocol name, <a name="i113"></a>&#8216;Raw&#8217;, from the &#8216;Protocol&#8217; buttons in the &#8216;Session&#8217; configuration panel. (See <a href="Chapter4.html#config-hostname">section 4.1.1</a>.) You can then enter a host name and a port number, and make the connection.
+</p>
+<h2><a name="using-telnet"></a><a name="S3.8"></a>3.8 Connecting using the <a name="i114"></a>Telnet protocol</h2>
+<p>
+PuTTY can use the Telnet protocol to connect to a server.
+</p>
+<p>
+Telnet was perhaps the most popular remote login protocol before SSH was introduced. It was general enough to be used by multiple server operating systems (Unix and VMS in particular), and supported many optional protocol extensions providing extra support for particular server features.
+</p>
+<p>
+Unlike SSH, Telnet runs over an unsecured network connection, so it is a very bad idea to use it over the hostile Internet (though it is still used to some extent as of 2020).
+</p>
+<h2><a name="using-rlogin"></a><a name="S3.9"></a>3.9 Connecting using the <a name="i115"></a>Rlogin protocol</h2>
+<p>
+PuTTY can use the Rlogin protocol to connect to a server.
+</p>
+<p>
+Rlogin was similar to Telnet in concept, but more focused on connections between Unix machines. It supported a feature for passwordless login, based on use of &#8216;privileged ports&#8217; (ports with numbers below 1024, which Unix traditionally does not allow users other than <code>root</code> to allocate). Ultimately, based on the server trusting that the client's IP address was owned by the Unix machine it claimed to be, and that that machine would guard its privileged ports appropriately.
+</p>
+<p>
+Like Telnet, Rlogin runs over an unsecured network connection.
+</p>
+<h2><a name="using-supdup"></a><a name="S3.10"></a>3.10 Connecting using the <a name="i116"></a>SUPDUP protocol</h2>
+<p>
+PuTTY can use the SUPDUP protocol to connect to a server.
+</p>
+<p>
+SUPDUP is a login protocol used mainly by PDP-10 and Lisp machines during the period 1975-1990. Like Telnet and Rlogin, it is unsecured, so modern systems almost never support it.
+</p>
+<p>
+To make a connection of this type, select &#8216;SUPDUP&#8217; from the &#8216;Connection type&#8217; radio buttons on the &#8216;Session&#8217; panel (see <a href="Chapter4.html#config-hostname">section 4.1.1</a>). For further configuration options (character set, more processing, scrolling), you can use the &#8216;SUPDUP&#8217; configuration panel (see <a href="Chapter4.html#config-supdup">section 4.31</a>).
+</p>
+<p>
+In SUPDUP, terminal emulation is more integrated with the network protocol than in other protocols such as SSH. The SUPDUP protocol can thus only be used with PuTTY proper, not with the command-line tool Plink.
+</p>
+<p>
+The SUPDUP protocol does not support changing the terminal dimensions, so this capability is disabled during a SUPDUP session.
+</p>
+<p>
+SUPDUP provides no well defined means for one end of the connection to notify the other that the connection is finished. Therefore, PuTTY in SUPDUP mode will remain connected until you close the window using the close button.
+</p>
+<h2><a name="using-cmdline"></a><a name="S3.11"></a>3.11 The PuTTY command line</h2>
+<p>
+PuTTY can be made to do various things without user intervention by supplying <a name="i117"></a>command-line arguments (e.g., from a <a name="i118"></a>command prompt window, or a <a name="i119"></a>Windows shortcut).
+</p>
+<h3><a name="using-cmdline-session"></a><a name="S3.11.1"></a>3.11.1 Starting a session from the command line</h3>
+<p>
+<a name="i120"></a><a name="i121"></a><a name="i122"></a><a name="i123"></a><a name="i124"></a><a name="i125"></a><a name="i126"></a>These options allow you to bypass the configuration window and launch straight into a session.
+</p>
+<p>
+To start a connection to a server called <code>host</code>:
+</p>
+<pre><code>putty.exe [-ssh | -ssh-connection | -telnet | -rlogin | -supdup | -raw] [user@]host
+</code></pre>
+<p>
+If this syntax is used, settings are taken from the <a name="i127"></a>Default Settings (see <a href="Chapter4.html#config-saving">section 4.1.2</a>); <code>user</code> overrides these settings if supplied. Also, you can specify a protocol, which will override the default protocol (see <a href="#using-cmdline-protocol">section 3.11.3.2</a>).
+</p>
+<p>
+For telnet sessions, the following alternative syntax is supported (this makes PuTTY suitable for use as a URL handler for <a name="i128"></a>telnet URLs in <a name="i129"></a>web browsers):
+</p>
+<pre><code>putty.exe telnet://host[:port]/
+</code></pre>
+<p>
+To start a connection to a serial port, e.g. COM1:
+</p>
+<pre><code>putty.exe -serial com1
+</code></pre>
+<p>
+In order to start an existing saved session called <code>sessionname</code>, use the <code>-load</code> option (described in <a href="#using-cmdline-load">section 3.11.3.1</a>).
+</p>
+<pre><code>putty.exe -load "session name"
+</code></pre>
+<h3><a name="using-cleanup"></a><a name="S3.11.2"></a>3.11.2 <a name="i130"></a><code>-cleanup</code></h3>
+<p>
+If invoked with the <code>-cleanup</code> option, rather than running as normal, PuTTY will remove its <a name="i131"></a>registry entries and <a name="i132"></a>random seed file from the local machine (after confirming with the user). It will also attempt to remove information about recently launched sessions stored in the &#8216;jump list&#8217; on Windows 7 and up.
+</p>
+<p>
+Note that on <a name="i133"></a>multi-user systems, <code>-cleanup</code> only removes registry entries and files associated with the currently logged-in user.
+</p>
+<h3><a name="using-general-opts"></a><a name="S3.11.3"></a>3.11.3 Standard command-line options</h3>
+<p>
+PuTTY and its associated tools support a range of command-line options, most of which are consistent across all the tools. This section lists the available options in all tools. Options which are specific to a particular tool are covered in the chapter about that tool.
+</p>
+<h4><a name="using-cmdline-load"></a><a name="S3.11.3.1"></a>3.11.3.1 <a name="i134"></a><code>-load</code>: load a saved session</h4>
+<p>
+<a name="i135"></a>The <code>-load</code> option causes PuTTY to load configuration details out of a saved session. If these details include a host name, then this option is all you need to make PuTTY start a session.
+</p>
+<p>
+You need double quotes around the session name if it contains spaces.
+</p>
+<p>
+If you want to create a <a name="i136"></a>Windows shortcut to start a PuTTY saved session, this is the option you should use: your shortcut should call something like
+</p>
+<pre><code>d:\path\to\putty.exe -load "my session"
+</code></pre>
+<p>
+(Note that PuTTY itself supports an alternative form of this option, for backwards compatibility. If you execute <a name="i137"></a><code>putty @sessionname</code> it will have the same effect as <code>putty -load "sessionname"</code>. With the <code>@</code> form, no double quotes are required, and the <code>@</code> sign must be the very first thing on the command line. This form of the option is deprecated.)
+</p>
+<h4><a name="using-cmdline-protocol"></a><a name="S3.11.3.2"></a>3.11.3.2 Selecting a protocol: <code>-ssh</code>, <code>-ssh-connection</code>, <code>-telnet</code>, <code>-rlogin</code>, <code>-supdup</code>, <code>-raw</code>, <code>-serial</code></h4>
+<p>
+To choose which protocol you want to connect with, you can use one of these options:
+</p>
+<ul><li>
+<a name="i138"></a><code>-ssh</code> selects the SSH protocol.
+</li>
+<li>
+<a name="i139"></a><code>-ssh-connection</code> selects the bare ssh-connection protocol. (This is only useful in specialised circumstances; see <a href="Chapter4.html#config-psusan">section 4.27</a> for more information.)
+</li>
+<li>
+<a name="i140"></a><code>-telnet</code> selects the Telnet protocol.
+</li>
+<li>
+<a name="i141"></a><code>-rlogin</code> selects the Rlogin protocol.
+</li>
+<li>
+<a name="i142"></a><code>-supdup</code> selects the SUPDUP protocol.
+</li>
+<li>
+<a name="i143"></a><code>-raw</code> selects the raw protocol.
+</li>
+<li>
+<a name="i144"></a><code>-serial</code> selects a serial connection.
+</li>
+</ul>
+<p>
+Most of these options are not available in the file transfer tools PSCP and PSFTP (which only work with the SSH protocol and the bare ssh-connection protocol).
+</p>
+<p>
+These options are equivalent to the <a name="i145"></a>protocol selection buttons in the Session panel of the PuTTY configuration box (see <a href="Chapter4.html#config-hostname">section 4.1.1</a>).
+</p>
+<h4><a name="using-cmdline-v"></a><a name="S3.11.3.3"></a>3.11.3.3 <a name="i146"></a><code>-v</code>: increase verbosity</h4>
+<p>
+<a name="i147"></a>Most of the PuTTY tools can be made to tell you more about what they are doing by supplying the <code>-v</code> option. If you are having trouble when making a connection, or you're simply curious, you can turn this switch on and hope to find out more about what is happening.
+</p>
+<h4><a name="using-cmdline-l"></a><a name="S3.11.3.4"></a>3.11.3.4 <a name="i148"></a><code>-l</code>: specify a <a name="i149"></a>login name</h4>
+<p>
+You can specify the user name to log in as on the remote server using the <code>-l</code> option. For example, <code>plink login.example.com -l fred</code>.
+</p>
+<p>
+These options are equivalent to the username selection box in the Connection panel of the PuTTY configuration box (see <a href="Chapter4.html#config-username">section 4.15.1</a>).
+</p>
+<h4><a name="using-cmdline-portfwd"></a><a name="S3.11.3.5"></a>3.11.3.5 <a name="i150"></a><code>-L</code>, <a name="i151"></a><code>-R</code> and <a name="i152"></a><code>-D</code>: set up <a name="i153"></a>port forwardings</h4>
+<p>
+As well as setting up port forwardings in the PuTTY configuration (see <a href="Chapter4.html#config-ssh-portfwd">section 4.25</a>), you can also set up forwardings on the command line. The command-line options work just like the ones in Unix <code>ssh</code> programs.
+</p>
+<p>
+To <a name="i154"></a>forward a local port (say 5110) to a remote destination (say <code>popserver.example.com</code> port 110), you can write something like one of these:
+</p>
+<pre><code>putty -L 5110:popserver.example.com:110 -load mysession
+plink mysession -L 5110:popserver.example.com:110
+</code></pre>
+<p>
+To forward a <a name="i155"></a>remote port to a local destination, just use the <code>-R</code> option instead of <code>-L</code>:
+</p>
+<pre><code>putty -R 5023:mytelnetserver.myhouse.org:23 -load mysession
+plink mysession -R 5023:mytelnetserver.myhouse.org:23
+</code></pre>
+<p>
+To <a name="i156"></a>specify an IP address for the listening end of the tunnel, prepend it to the argument:
+</p>
+<pre><code>plink -L 127.0.0.5:23:localhost:23 myhost
+</code></pre>
+<p>
+To set up <a name="i157"></a>SOCKS-based dynamic port forwarding on a local port, use the <code>-D</code> option. For this one you only have to pass the port number:
+</p>
+<pre><code>putty -D 4096 -load mysession
+</code></pre>
+<p>
+For general information on port forwarding, see <a href="#using-port-forwarding">section 3.5</a>.
+</p>
+<p>
+These options are not available in the file transfer tools PSCP and PSFTP.
+</p>
+<h4><a name="using-cmdline-m"></a><a name="S3.11.3.6"></a>3.11.3.6 <a name="i158"></a><code>-m</code>: <a name="i159"></a>read a remote command or script from a file</h4>
+<p>
+The <a name="i160"></a><code>-m</code> option performs a similar function to the &#8216;<a name="i161"></a>Remote command&#8217; box in the SSH panel of the PuTTY configuration box (see <a href="Chapter4.html#config-command">section 4.17.1</a>). However, the <code>-m</code> option expects to be given a local file name, and it will read a command from that file.
+</p>
+<p>
+With some servers (particularly Unix systems), you can even put multiple lines in this file and execute more than one command in sequence, or a whole shell script; but this is arguably an abuse, and cannot be expected to work on all servers. In particular, it is known <em>not</em> to work with certain &#8216;embedded&#8217; servers, such as <a name="i162"></a>Cisco routers.
+</p>
+<p>
+This option is not available in the file transfer tools PSCP and PSFTP.
+</p>
+<h4><a name="using-cmdline-p"></a><a name="S3.11.3.7"></a>3.11.3.7 <a name="i163"></a><code>-P</code>: specify a <a name="i164"></a>port number</h4>
+<p>
+The <code>-P</code> option is used to specify the port number to connect to. If you have a Telnet server running on port 9696 of a machine instead of port 23, for example:
+</p>
+<pre><code>putty -telnet -P 9696 host.name
+plink -telnet -P 9696 host.name
+</code></pre>
+<p>
+(Note that this option is more useful in Plink than in PuTTY, because in PuTTY you can write <code>putty -telnet host.name 9696</code> in any case.)
+</p>
+<p>
+This option is equivalent to the port number control in the Session panel of the PuTTY configuration box (see <a href="Chapter4.html#config-hostname">section 4.1.1</a>).
+</p>
+<h4><a name="using-cmdline-pw"></a><a name="S3.11.3.8"></a>3.11.3.8 <a name="i165"></a><code>-pwfile</code> and <a name="i166"></a><code>-pw</code>: specify a <a name="i167"></a>password</h4>
+<p>
+A simple way to automate a remote login is to supply your password on the command line.
+</p>
+<p>
+The <code>-pwfile</code> option takes a file name as an argument. The first line of text in that file will be used as your password.
+</p>
+<p>
+The <code>-pw</code> option takes the password itself as an argument. This is <strong>NOT SECURE</strong> if anybody else uses the same computer, because the whole command line (including the password) is likely to show up if another user lists the running processes. <code>-pw</code> is retained for backwards compatibility only; you should use <code>-pwfile</code> instead.
+</p>
+<p>
+Note that these options only work when you are using the SSH protocol. Due to fundamental limitations of Telnet, Rlogin, and SUPDUP, these protocols do not support automated password authentication.
+</p>
+<h4><a name="using-cmdline-agentauth"></a><a name="S3.11.3.9"></a>3.11.3.9 <a name="i168"></a><code>-agent</code> and <a name="i169"></a><code>-noagent</code>: control use of Pageant for authentication</h4>
+<p>
+The <code>-agent</code> option turns on SSH authentication using Pageant, and <code>-noagent</code> turns it off. These options are only meaningful if you are using SSH.
+</p>
+<p>
+See <a href="Chapter9.html#pageant">chapter 9</a> for general information on <a name="i170"></a>Pageant.
+</p>
+<p>
+These options are equivalent to the agent authentication checkbox in the Auth panel of the PuTTY configuration box (see <a href="Chapter4.html#config-ssh-tryagent">section 4.21.4</a>).
+</p>
+<h4><a name="using-cmdline-agent"></a><a name="S3.11.3.10"></a>3.11.3.10 <a name="i171"></a><code>-A</code> and <a name="i172"></a><code>-a</code>: control <a name="i173"></a>agent forwarding</h4>
+<p>
+The <code>-A</code> option turns on SSH agent forwarding, and <code>-a</code> turns it off. These options are only meaningful if you are using SSH.
+</p>
+<p>
+See <a href="Chapter9.html#pageant">chapter 9</a> for general information on <a name="i174"></a>Pageant, and <a href="Chapter9.html#pageant-forward">section 9.4</a> for information on agent forwarding. Note that there is a security risk involved with enabling this option; see <a href="Chapter9.html#pageant-security">section 9.6</a> for details.
+</p>
+<p>
+These options are equivalent to the agent forwarding checkbox in the Auth panel of the PuTTY configuration box (see <a href="Chapter4.html#config-ssh-agentfwd">section 4.21.7</a>).
+</p>
+<p>
+These options are not available in the file transfer tools PSCP and PSFTP.
+</p>
+<h4><a name="using-cmdline-x11"></a><a name="S3.11.3.11"></a>3.11.3.11 <a name="i175"></a><code>-X</code> and <a name="i176"></a><code>-x</code>: control <a name="i177"></a>X11 forwarding</h4>
+<p>
+The <code>-X</code> option turns on X11 forwarding in SSH, and <code>-x</code> turns it off. These options are only meaningful if you are using SSH.
+</p>
+<p>
+For information on X11 forwarding, see <a href="#using-x-forwarding">section 3.4</a>.
+</p>
+<p>
+These options are equivalent to the X11 forwarding checkbox in the X11 panel of the PuTTY configuration box (see <a href="Chapter4.html#config-ssh-x11">section 4.24</a>).
+</p>
+<p>
+These options are not available in the file transfer tools PSCP and PSFTP.
+</p>
+<h4><a name="using-cmdline-pty"></a><a name="S3.11.3.12"></a>3.11.3.12 <a name="i178"></a><code>-t</code> and <a name="i179"></a><code>-T</code>: control <a name="i180"></a>pseudo-terminal allocation</h4>
+<p>
+The <code>-t</code> option ensures PuTTY attempts to allocate a pseudo-terminal at the server, and <code>-T</code> stops it from allocating one. These options are only meaningful if you are using SSH.
+</p>
+<p>
+These options are equivalent to the &#8216;Don't allocate a pseudo-terminal&#8217; checkbox in the SSH panel of the PuTTY configuration box (see <a href="Chapter4.html#config-ssh-pty">section 4.23.1</a>).
+</p>
+<p>
+These options are not available in the file transfer tools PSCP and PSFTP.
+</p>
+<h4><a name="using-cmdline-noshell"></a><a name="S3.11.3.13"></a>3.11.3.13 <a name="i181"></a><code>-N</code>: suppress starting a <a name="i182"></a>shell or command</h4>
+<p>
+The <code>-N</code> option prevents PuTTY from attempting to start a shell or command on the remote server. You might want to use this option if you are only using the SSH connection for port forwarding, and your user account on the server does not have the ability to run a shell.
+</p>
+<p>
+This feature is only available in SSH protocol version 2 (since the version 1 protocol assumes you will always want to run a shell).
+</p>
+<p>
+This option is equivalent to the &#8216;Don't start a shell or command at all&#8217; checkbox in the SSH panel of the PuTTY configuration box (see <a href="Chapter4.html#config-ssh-noshell">section 4.17.2</a>).
+</p>
+<p>
+This option is not available in the file transfer tools PSCP and PSFTP.
+</p>
+<h4><a name="using-cmdline-ncmode"></a><a name="S3.11.3.14"></a>3.11.3.14 <a name="i183"></a><code>-nc</code>: make a <a name="i184"></a>remote network connection in place of a remote shell or command</h4>
+<p>
+The <code>-nc</code> option prevents Plink (or PuTTY) from attempting to start a shell or command on the remote server. Instead, it will instruct the remote server to open a network connection to a host name and port number specified by you, and treat that network connection as if it were the main session.
+</p>
+<p>
+You specify a host and port as an argument to the <code>-nc</code> option, with a colon separating the host name from the port number, like this:
+</p>
+<pre><code>plink host1.example.com -nc host2.example.com:1234
+</code></pre>
+<p>
+This can be useful if you're trying to make a connection to a target host which you can only reach by SSH forwarding through a proxy host. One way to do this would be to have an existing SSH connection to the proxy host, with a port forwarding, but if you prefer to have the connection started on demand as needed, then this approach can also work.
+</p>
+<p>
+However, this does depend on the program <em>using</em> the proxy being able to run a subprocess in place of making a network connection. PuTTY itself can do this using the &#8216;Local&#8217; proxy type, but there's a built-in more flexible way using the &#8216;SSH&#8217; proxy type. (See <a href="Chapter4.html#config-proxy-type">section 4.16.1</a> for a description of both.) So this feature is probably most useful with another client program as the end user.
+</p>
+<p>
+This feature is only available in SSH protocol version 2 (since the version 1 protocol assumes you will always want to run a shell). It is not available in the file transfer tools PSCP and PSFTP. It is available in PuTTY itself, although it is unlikely to be very useful in any tool other than Plink. Also, <code>-nc</code> uses the same server functionality as port forwarding, so it will not work if your server administrator has disabled port forwarding.
+</p>
+<p>
+(The option is named <code>-nc</code> after the Unix program <a href="http://www.vulnwatch.org/netcat/"><code>nc</code></a>, short for &#8216;netcat&#8217;. The command &#8216;<code>plink host1 -nc host2:port</code>&#8217; is very similar in functionality to &#8216;<code>plink host1 nc host2 port</code>&#8217;, which invokes <code>nc</code> on the server and tells it to connect to the specified destination. However, Plink's built-in <code>-nc</code> option does not depend on the <code>nc</code> program being installed on the server.)
+</p>
+<h4><a name="using-cmdline-compress"></a><a name="S3.11.3.15"></a>3.11.3.15 <a name="i185"></a><code>-C</code>: enable <a name="i186"></a>compression</h4>
+<p>
+The <code>-C</code> option enables compression of the data sent across the network. This option is only meaningful if you are using SSH.
+</p>
+<p>
+This option is equivalent to the &#8216;Enable compression&#8217; checkbox in the SSH panel of the PuTTY configuration box (see <a href="Chapter4.html#config-ssh-comp">section 4.17.3</a>).
+</p>
+<h4><a name="using-cmdline-sshprot"></a><a name="S3.11.3.16"></a>3.11.3.16 <a name="i187"></a><code>-1</code> and <a name="i188"></a><code>-2</code>: specify an <a name="i189"></a>SSH protocol version</h4>
+<p>
+The <code>-1</code> and <code>-2</code> options force PuTTY to use version <a name="i190"></a>1 or version <a name="i191"></a>2 of the SSH protocol. These options are only meaningful if you are using SSH.
+</p>
+<p>
+These options are equivalent to selecting the SSH protocol version in the SSH panel of the PuTTY configuration box (see <a href="Chapter4.html#config-ssh-prot">section 4.17.4</a>).
+</p>
+<h4><a name="using-cmdline-ipversion"></a><a name="S3.11.3.17"></a>3.11.3.17 <a name="i192"></a><code>-4</code> and <a name="i193"></a><code>-6</code>: specify an <a name="i194"></a>Internet protocol version</h4>
+<p>
+The <code>-4</code> and <code>-6</code> options force PuTTY to use the older Internet protocol <a name="i195"></a>IPv4 or the newer <a name="i196"></a>IPv6 for most outgoing connections.
+</p>
+<p>
+These options are equivalent to selecting your preferred Internet protocol version as &#8216;IPv4&#8217; or &#8216;IPv6&#8217; in the Connection panel of the PuTTY configuration box (see <a href="Chapter4.html#config-address-family">section 4.14.4</a>).
+</p>
+<h4><a name="using-cmdline-identity"></a><a name="S3.11.3.18"></a>3.11.3.18 <a name="i197"></a><code>-i</code>: specify an SSH <a name="i198"></a>private key</h4>
+<p>
+The <code>-i</code> option allows you to specify the name of a private key file in <code>*.<a name="i199"></a>PPK</code> format which PuTTY will use to authenticate with the server. This option is only meaningful if you are using SSH.
+</p>
+<p>
+If you are using Pageant, you can also specify a <em>public</em> key file (in RFC 4716 or OpenSSH format) to identify a specific key file to use. (This won't work if you're not running Pageant, of course.)
+</p>
+<p>
+For general information on <a name="i200"></a>public-key authentication, see <a href="Chapter8.html#pubkey">chapter 8</a>.
+</p>
+<p>
+This option is equivalent to the &#8216;Private key file for authentication&#8217; box in the Auth panel of the PuTTY configuration box (see <a href="Chapter4.html#config-ssh-privkey">section 4.21.9</a>).
+</p>
+<h4><a name="using-cmdline-no-trivial-auth"></a><a name="S3.11.3.19"></a>3.11.3.19 <a name="i201"></a><code>-no-trivial-auth</code>: disconnect if SSH authentication succeeds trivially</h4>
+<p>
+This option causes PuTTY to abandon an SSH session if the server accepts authentication without ever having asked for any kind of password or signature or token.
+</p>
+<p>
+See <a href="Chapter4.html#config-ssh-notrivialauth">section 4.21.3</a> for why you might want this.
+</p>
+<h4><a name="using-cmdline-loghost"></a><a name="S3.11.3.20"></a>3.11.3.20 <a name="i202"></a><code>-loghost</code>: specify a <a name="i203"></a>logical host name</h4>
+<p>
+This option overrides PuTTY's normal SSH <a name="i204"></a>host key caching policy by telling it the name of the host you expect your connection to end up at (in cases where this differs from the location PuTTY thinks it's connecting to). It can be a plain host name, or a host name followed by a colon and a port number. See <a href="Chapter4.html#config-loghost">section 4.14.5</a> for more detail on this.
+</p>
+<h4><a name="using-cmdline-hostkey"></a><a name="S3.11.3.21"></a>3.11.3.21 <a name="i205"></a><code>-hostkey</code>: <a name="i206"></a>manually specify an expected host key</h4>
+<p>
+This option overrides PuTTY's normal SSH <a name="i207"></a>host key caching policy by telling it exactly what host key to expect, which can be useful if the normal automatic host key store in the Registry is unavailable. The argument to this option should be either a host key fingerprint, or an SSH-2 public key blob. See <a href="Chapter4.html#config-ssh-kex-manual-hostkeys">section 4.19.3</a> for more information.
+</p>
+<p>
+You can specify this option more than once if you want to configure more than one key to be accepted.
+</p>
+<h4><a name="using-cmdline-pgpfp"></a><a name="S3.11.3.22"></a>3.11.3.22 <a name="i208"></a><code>-pgpfp</code>: display <a name="i209"></a>PGP key fingerprints</h4>
+<p>
+This option causes the PuTTY tools not to run as normal, but instead to display the fingerprints of the PuTTY PGP Master Keys, in order to aid with <a name="i210"></a>verifying new versions. See <a href="AppendixF.html#pgpkeys">appendix F</a> for more information.
+</p>
+<h4><a name="using-cmdline-sercfg"></a><a name="S3.11.3.23"></a>3.11.3.23 <a name="i211"></a><code>-sercfg</code>: specify serial port <a name="i212"></a>configuration</h4>
+<p>
+This option specifies the configuration parameters for the serial port (baud rate, stop bits etc). Its argument is interpreted as a comma-separated list of configuration options, which can be as follows:
+</p>
+<ul><li>
+Any single digit from 5 to 9 sets the number of data bits.
+</li>
+<li>
+&#8216;<code>1</code>&#8217;, &#8216;<code>1.5</code>&#8217; or &#8216;<code>2</code>&#8217; sets the number of stop bits.
+</li>
+<li>
+Any other numeric string is interpreted as a baud rate.
+</li>
+<li>
+A single lower-case letter specifies the parity: &#8216;<code>n</code>&#8217; for none, &#8216;<code>o</code>&#8217; for odd, &#8216;<code>e</code>&#8217; for even, &#8216;<code>m</code>&#8217; for mark and &#8216;<code>s</code>&#8217; for space.
+</li>
+<li>
+A single upper-case letter specifies the flow control: &#8216;<code>N</code>&#8217; for none, &#8216;<code>X</code>&#8217; for XON/XOFF, &#8216;<code>R</code>&#8217; for RTS/CTS and &#8216;<code>D</code>&#8217; for DSR/DTR.
+</li>
+</ul>
+<p>
+For example, &#8216;<code>-sercfg 19200,8,n,1,N</code>&#8217; denotes a baud rate of 19200, 8 data bits, no parity, 1 stop bit and no flow control.
+</p>
+<h4><a name="using-cmdline-sshlog"></a><a name="S3.11.3.24"></a>3.11.3.24 <a name="i213"></a><code>-sessionlog</code>, <a name="i214"></a><code>-sshlog</code>, <a name="i215"></a><code>-sshrawlog</code>: enable session logging</h4>
+<p>
+These options cause the PuTTY network tools to write out a <a name="i216"></a>log file. Each of them expects a file name as an argument, e.g. &#8216;<code>-sshlog putty.log</code>&#8217; causes an SSH packet log to be written to a file called &#8216;<code>putty.log</code>&#8217;. The three different options select different logging modes, all available from the GUI too:
+</p>
+<ul><li>
+<code>-sessionlog</code> selects &#8216;All session output&#8217; logging mode.
+</li>
+<li>
+<code>-sshlog</code> selects &#8216;SSH packets&#8217; logging mode.
+</li>
+<li>
+<code>-sshrawlog</code> selects &#8216;SSH packets and raw data&#8217; logging mode.
+</li>
+</ul>
+<p>
+For more information on logging configuration, see <a href="Chapter4.html#config-logging">section 4.2</a>.
+</p>
+<h4><a name="using-cmdline-logfileexists"></a><a name="S3.11.3.25"></a>3.11.3.25 <a name="i217"></a><code>-logoverwrite</code>, <a name="i218"></a><code>-logappend</code>: control behaviour with existing log file</h4>
+<p>
+If logging has been enabled (in the saved configuration, or by another command-line option), and the specified log file already exists, these options tell the PuTTY network tools what to do so that they don't have to ask the user. See <a href="Chapter4.html#config-logfileexists">section 4.2.2</a> for details.
+</p>
+<h4><a name="using-cmdline-proxycmd"></a><a name="S3.11.3.26"></a>3.11.3.26 <a name="i219"></a><code>-proxycmd</code>: specify a local proxy command</h4>
+<p>
+This option enables PuTTY's mode for running a <a name="i220"></a>command on the local machine and using it as a proxy for the network connection. It expects a shell command string as an argument.
+</p>
+<p>
+See <a href="Chapter4.html#config-proxy-type">section 4.16.1</a> for more information on this, and on other proxy settings. In particular, note that since the special sequences described there are understood in the argument string, literal backslashes must be doubled (if you want <code>\</code> in your command, you must put <code>\\</code> on the command line).
+</p>
+<h4><a name="using-cmdline-restrict-acl"></a><a name="S3.11.3.27"></a>3.11.3.27 <a name="i221"></a><code>-restrict-acl</code>: restrict the <a name="i222"></a>Windows process ACL</h4>
+<p>
+This option (on Windows only) causes PuTTY (or another PuTTY tool) to try to lock down the operating system's access control on its own process. If this succeeds, it should present an extra obstacle to malware that has managed to run under the same user id as the PuTTY process, by preventing it from attaching to PuTTY using the same interfaces debuggers use and either reading sensitive information out of its memory or hijacking its network session.
+</p>
+<p>
+This option is not enabled by default, because this form of interaction between Windows programs has many legitimate uses, including accessibility software such as screen readers. Also, it cannot provide full security against this class of attack in any case, because PuTTY can only lock down its own ACL <em>after</em> it has started up, and malware could still get in if it attacks the process between startup and lockdown. So it trades away noticeable convenience, and delivers less real security than you might want. However, if you do want to make that tradeoff anyway, the option is available.
+</p>
+<p>
+A PuTTY process started with <code>-restrict-acl</code> will pass that on to any processes started with Duplicate Session, New Session etc. (However, if you're invoking PuTTY tools explicitly, for instance as a proxy command, you'll need to arrange to pass them the <code>-restrict-acl</code> option yourself, if that's what you want.)
+</p>
+<p>
+If Pageant is started with the <code>-restrict-acl</code> option, and you use it to launch a PuTTY session from its <a name="i223"></a>System Tray submenu, then Pageant will <em>not</em> default to starting the PuTTY subprocess with a restricted ACL. This is because PuTTY is more likely to suffer reduced functionality as a result of restricted ACLs (e.g. screen reader software will have a greater need to interact with it), whereas Pageant stores the more critical information (hence benefits more from the extra protection), so it's reasonable to want to run Pageant but not PuTTY with the ACL restrictions. You can force Pageant to start subsidiary PuTTY processes with a restricted ACL if you also pass the <a name="i224"></a><code>-restrict-putty-acl</code> option.
+</p>
+
+<hr><p>If you want to provide feedback on this manual or on the PuTTY tools themselves, see the <a href="https://www.chiark.greenend.org.uk/~sgtatham/putty/feedback.html">Feedback page</a>.</p><address></address></body>
+</html>

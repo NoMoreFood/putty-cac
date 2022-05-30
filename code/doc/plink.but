@@ -41,7 +41,7 @@ use Plink:
 
 \c C:\>plink
 \c Plink: command-line connection utility
-\c Release 0.76
+\c Release 0.77
 \c Usage: plink [options] [user@]host [command]
 \c        ("host" can also be a PuTTY saved session name)
 \c Options:
@@ -61,7 +61,7 @@ use Plink:
 \c   -sercfg configuration-string (e.g. 19200,8,n,1,X)
 \c             Specify the serial configuration (serial only)
 \c The following options only apply to SSH connections:
-\c   -pw passw login with specified password
+\c   -pwfile file   login with password read from specified file
 \c   -D [listen-IP:]listen-port
 \c             Dynamic SOCKS-based port forwarding
 \c   -L [listen-IP:]listen-port:host:port

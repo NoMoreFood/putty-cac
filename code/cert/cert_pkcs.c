@@ -4,8 +4,6 @@
 #include <stdio.h>
 #include <malloc.h>
 #include <cryptuiapi.h>
-#include <cryptdlg.h>
-#include <wincred.h>
 
 #pragma comment(lib,"crypt32.lib")
 #pragma comment(lib,"credui.lib")
@@ -258,7 +256,7 @@ BYTE * cert_pkcs_sign(struct ssh2_userkey * userkey, LPCBYTE pDataToSign, int iD
 	LPBYTE pHashData = cert_get_hash(sHashAlgName, pDataToSign, iDataToSignLen, &iHashSize, TRUE);
 
 	// setup the signature process to sign using the rsa private key on the card 
-	CK_MECHANISM tSignMech;
+	CK_MECHANISM tSignMech = { 0 };
 	tSignMech.mechanism = (oType == CKK_RSA) ? CKM_RSA_PKCS : CKM_ECDSA;
 	tSignMech.pParameter = NULL;
 	tSignMech.ulParameterLen = 0;
@@ -303,9 +301,9 @@ BYTE * cert_pkcs_sign(struct ssh2_userkey * userkey, LPCBYTE pDataToSign, int iD
 void cert_pkcs_load_cert(LPCSTR szCert, PCCERT_CONTEXT* ppCertCtx, HCERTSTORE* phStore)
 {
 	// split on the hint symbol to get the library path
-	LPSTR szThumb = strdup(szCert);
+	if (strrchr(szCert, '=') == NULL) return;
+	LPSTR szThumb = _strdup(szCert);
 	LPSTR szLibrary = strrchr(szThumb, '=');
-	if (szLibrary == NULL) return;
 	*szLibrary++ = '\0';
 
 	CK_FUNCTION_LIST_PTR pFunctionList = cert_pkcs_load_library(szLibrary);
@@ -348,7 +346,7 @@ CK_FUNCTION_LIST_PTR cert_pkcs_load_library(LPCSTR szLibrary)
 	// see if module was already loaded
 	for (PROGRAM_ITEM * hCurItem = LibraryList; hCurItem != NULL; hCurItem = hCurItem->NextItem)
 	{
-		if (stricmp(hCurItem->Path,szLibrary) == 0)
+		if (_stricmp(hCurItem->Path,szLibrary) == 0)
 		{
 			return hCurItem->FunctionList;
 		}
@@ -403,7 +401,7 @@ CK_FUNCTION_LIST_PTR cert_pkcs_load_library(LPCSTR szLibrary)
 
 	// add the item to the linked list
 	PROGRAM_ITEM * hItem = (PROGRAM_ITEM *)calloc(1, sizeof(struct PROGRAM_ITEM));
-	hItem->Path = strdup(szLibrary);
+	hItem->Path = _strdup(szLibrary);
 	hItem->Library = hModule;
 	hItem->FunctionList = hFunctionList;
 	hItem->NextItem = LibraryList;
@@ -496,6 +494,17 @@ HCERTSTORE cert_pkcs_get_cert_store(LPCSTR * szHint, HWND hWnd)
 				continue;
 			}
 
+			// store the pkcs library as an attribute on the certificate
+			WCHAR sFileNameWide[MAX_PATH + 1];
+			MultiByteToWideChar(CP_ACP, 0, szFile, -1, sFileNameWide, _countof(sFileNameWide));
+			CRYPT_DATA_BLOB tFileName = { (wcslen(sFileNameWide) + 1) * sizeof(WCHAR), (PBYTE) sFileNameWide };
+			if (CertSetCertificateContextProperty(pCertContext, CERT_PVK_FILE_PROP_ID, 0, &tFileName) != TRUE)
+			{
+				// error
+				CertFreeCertificateContext(pCertContext);
+				continue;
+			}
+
 			// add this certificate to our store
 			CertAddCertificateContextToStore(hMemoryStore, pCertContext, CERT_STORE_ADD_ALWAYS, NULL);
 			CertFreeCertificateContext(pCertContext);
@@ -504,8 +513,7 @@ HCERTSTORE cert_pkcs_get_cert_store(LPCSTR * szHint, HWND hWnd)
 		// cleanup 
 		pFunctionList->C_CloseSession(hSession);
 	}
-
-	if (szHint != NULL) *szHint = strdup(szFile);
+	
 	return hMemoryStore;
 }
 
@@ -581,7 +589,7 @@ void pkcs_lookup_token_cert(LPCSTR szCert, CK_SESSION_HANDLE_PTR phSession, CK_O
 	BYTE pbThumb[SHA1_BINARY_SIZE];
 	if (szCert != NULL)
 	{
-		CRYPT_HASH_BLOB cryptHashBlob;
+		CRYPT_HASH_BLOB cryptHashBlob = { 0 };
 		cryptHashBlob.cbData = SHA1_BINARY_SIZE;
 		cryptHashBlob.pbData = pbThumb;
 		CryptStringToBinary(&szCert[IDEN_PKCS_SIZE], SHA1_HEX_SIZE, CRYPT_STRING_HEXRAW,
