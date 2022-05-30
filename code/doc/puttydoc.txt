@@ -12,7 +12,7 @@ not described here; and the pterm and command-line puttygen and pageant
 utilities are not described at all. The only Unix-specific documentation
 that currently exists is the man pages.
 
-This manual is copyright 1997-2021 Simon Tatham. All rights reserved. You
+This manual is copyright 1997-2022 Simon Tatham. All rights reserved. You
 may distribute this documentation under the MIT licence. See appendix D for
 the licence text in full.
 
@@ -158,8 +158,9 @@ Chapter 2: Getting started with PuTTY
        If you are using SSH to connect to a server for the first time, you
        will probably see a message looking something like this:
 
-         The server's host key is not cached in the registry. You have no
-         guarantee that the server is the computer you think it is.
+         The host key is not cached for this server:
+          ssh.example.com (port 22)
+         You have no guarantee that the server is the computer you think it is.
          The server's ssh-ed25519 key fingerprint is:
           ssh-ed25519 255 SHA256:TddlQk20DVs4LRcAsIfDN9pInKpY06D+h4kSHwWAj4w
          If you trust this host, press "Accept" to add the key to PuTTY's
@@ -1082,15 +1083,22 @@ Chapter 3: Using PuTTY
        This option is equivalent to the port number control in the Session
        panel of the PuTTY configuration box (see section 4.1.1).
 
-3.11.3.8 `-pw': specify a password
+3.11.3.8 `-pwfile' and `-pw': specify a password
 
        A simple way to automate a remote login is to supply your password
-       on the command line. This is _not recommended_ for reasons of
-       security. If you possibly can, we recommend you set up public-key
-       authentication instead. See chapter 8 for details.
+       on the command line.
 
-       Note that the `-pw' option only works when you are using the
-       SSH protocol. Due to fundamental limitations of Telnet, Rlogin,
+       The `-pwfile' option takes a file name as an argument. The first
+       line of text in that file will be used as your password.
+
+       The `-pw' option takes the password itself as an argument. This is
+       *NOT SECURE* if anybody else uses the same computer, because the
+       whole command line (including the password) is likely to show up
+       if another user lists the running processes. `-pw' is retained for
+       backwards compatibility only; you should use `-pwfile' instead.
+
+       Note that these options only work when you are using the SSH
+       protocol. Due to fundamental limitations of Telnet, Rlogin,
        and SUPDUP, these protocols do not support automated password
        authentication.
 
@@ -1178,14 +1186,19 @@ Chapter 3: Using PuTTY
 
          plink host1.example.com -nc host2.example.com:1234
 
-       You might want to use this feature if you needed to make an SSH
-       connection to a target host which you can only reach by going
-       through a proxy host, and rather than using port forwarding you
-       prefer to use the local proxy feature (see section 4.16.1 for more
-       about local proxies). In this situation you might select `Local'
-       proxy type, set your local proxy command to be `plink %proxyhost -
-       nc %host:%port', enter the target host name on the Session panel,
-       and enter the directly reachable proxy host name on the Proxy panel.
+       This can be useful if you're trying to make a connection to a target
+       host which you can only reach by SSH forwarding through a proxy
+       host. One way to do this would be to have an existing SSH connection
+       to the proxy host, with a port forwarding, but if you prefer to have
+       the connection started on demand as needed, then this approach can
+       also work.
+
+       However, this does depend on the program _using_ the proxy being
+       able to run a subprocess in place of making a network connection.
+       PuTTY itself can do this using the `Local' proxy type, but there's a
+       built-in more flexible way using the `SSH' proxy type. (See section
+       4.16.1 for a description of both.) So this feature is probably most
+       useful with another client program as the end user.
 
        This feature is only available in SSH protocol version 2 (since the
        version 1 protocol assumes you will always want to run a shell). It
@@ -1963,10 +1976,36 @@ Chapter 4: Configuring PuTTY
            to `ESC [v', and with shift and control together they generate
            `ESC [w' through to `ESC [{'.
 
+        -  In Xterm 216 mode, the unshifted function keys behave the same
+           as Xterm R6 mode. But pressing a function key together with
+           Shift or Alt or Ctrl generates a different sequence containing
+           an extra numeric parameter of the form (1 for Shift) + (2 for
+           Alt) + (4 for Ctrl) + 1. For F1-F4, the basic sequences like
+           `ESC OP' become ESC [1;_bitmap_P and similar; for F5 and above,
+           ESC[_index_~ becomes ESC[_index_;_bitmap_~.
+
        If you don't know what any of this means, you probably don't need to
        fiddle with it.
 
- 4.4.4 Controlling Application Cursor Keys mode
+ 4.4.4 Changing the action of the shifted arrow keys
+
+       This option affects the arrow keys, if you press one with any of the
+       modifier keys Shift, Ctrl or Alt held down.
+
+        -  In the default mode, labelled `Ctrl toggles app mode', the
+           Ctrl key toggles between the default arrow-key sequences like
+           `ESC [A' and `ESC [B', and the sequences Digital's terminals
+           generate in `application cursor keys' mode, i.e. `ESC O A' and
+           so on. Shift and Alt have no effect.
+
+        -  In the `xterm-style bitmap' mode, Shift, Ctrl and Alt all
+           generate different sequences, with a number indicating which set
+           of modifiers is active.
+
+       If you don't know what any of this means, you probably don't need to
+       fiddle with it.
+
+ 4.4.5 Controlling Application Cursor Keys mode
 
        Application Cursor Keys mode is a way for the server to change the
        control sequences sent by the arrow keys. In normal mode, the arrow
@@ -1980,7 +2019,7 @@ Chapter 4: Configuring PuTTY
        You can also disable application cursor keys mode completely, using
        the `Features' configuration panel; see section 4.6.1.
 
- 4.4.5 Controlling Application Keypad mode
+ 4.4.6 Controlling Application Keypad mode
 
        Application Keypad mode is a way for the server to change the
        behaviour of the numeric keypad.
@@ -2005,7 +2044,7 @@ Chapter 4: Configuring PuTTY
        You can also disable application keypad mode completely, using the
        `Features' configuration panel; see section 4.6.1.
 
- 4.4.6 Using NetHack keypad mode
+ 4.4.7 Using NetHack keypad mode
 
        PuTTY has a special mode for playing NetHack. You can enable it
        by selecting `NetHack' in the `Initial state of numeric keypad'
@@ -2024,7 +2063,7 @@ Chapter 4: Configuring PuTTY
        For some reason, this feature only works properly when Num Lock is
        on. We don't know why.
 
- 4.4.7 Enabling a DEC-like Compose key
+ 4.4.8 Enabling a DEC-like Compose key
 
        DEC terminals have a Compose key, which provides an easy-to-remember
        way of typing accented characters. You press Compose and then type
@@ -2037,7 +2076,7 @@ Chapter 4: Configuring PuTTY
        key in PuTTY. Alternatively, if you enable the `AltGr acts as
        Compose key' option, the AltGr key will become a Compose key.
 
- 4.4.8 `Control-Alt is different from AltGr'
+ 4.4.9 `Control-Alt is different from AltGr'
 
        Some old keyboards do not have an AltGr key, which can make it
        difficult to type some characters. PuTTY can be configured to treat
@@ -2056,7 +2095,7 @@ Chapter 4: Configuring PuTTY
 
        (However, Ctrl-Alt will never act as a Compose key, regardless of
        the setting of `AltGr acts as Compose key' described in section
-       4.4.7.)
+       4.4.8.)
 
    4.5 The Bell panel
 
@@ -2162,8 +2201,8 @@ Chapter 4: Configuring PuTTY
 
  4.6.1 Disabling application keypad and cursor keys
 
-       Application keypad mode (see section 4.4.5) and application cursor
-       keys mode (see section 4.4.4) alter the behaviour of the keypad and
+       Application keypad mode (see section 4.4.6) and application cursor
+       keys mode (see section 4.4.5) alter the behaviour of the keypad and
        cursor keys. Some applications enable these modes but then do not
        deal correctly with the modified keys. You can force these modes to
        be permanently disabled no matter what the server tries to do.
@@ -2702,8 +2741,8 @@ Chapter 4: Configuring PuTTY
        by holding down Ctrl and right-clicking, regardless of the setting
        of this option.)
 
-       (When PuTTY iself is running on Unix, it follows the X Window System
-       convention.)
+       (When PuTTY itself is running on Unix, it follows the X Window
+       System convention.)
 
 4.11.2 `Shift overrides application's use of mouse'
 
@@ -3046,7 +3085,7 @@ Chapter 4: Configuring PuTTY
        alternative, see section 4.14.3.)
 
        Note that if you are using SSH-1 and the server has a bug that makes
-       it unable to deal with SSH-1 ignore messages (see section 4.26.11),
+       it unable to deal with SSH-1 ignore messages (see section 4.26.12),
        enabling keepalives will have no effect.
 
 4.14.2 `Disable Nagle's algorithm'
@@ -3278,11 +3317,24 @@ Chapter 4: Configuring PuTTY
         -  Selecting `SOCKS 4' or `SOCKS 5' allows you to proxy your
            connections through a SOCKS server.
 
-        -  Many firewalls implement a less formal type of proxy in which
-           a user can make a Telnet connection directly to the firewall
-           machine and enter a command such as `connect myhost.com 22' to
-           connect through to an external host. Selecting `Telnet' allows
-           you to tell PuTTY to use this type of proxy.
+        -  Many firewalls implement a less formal type of proxy in
+           which a user can make a Telnet or TCP connection directly
+           to the firewall machine and enter a command such as
+           `connect myhost.com 22' to connect through to an external host.
+           Selecting `Telnet' allows you to tell PuTTY to use this type
+           of proxy, with the precise command specified as described in
+           section 4.16.5.
+
+        -  Selecting `SSH' causes PuTTY to make a secondary SSH connection
+           to the proxy host (sometimes called a `jump host' in this
+           context), and then open a port-forwarding channel to the final
+           destination host.
+
+           The `Proxy hostname' field will be interpreted as the name of a
+           PuTTY saved session if one exists, or a hostname if not. This
+           allows multi-hop jump paths, if the referenced saved session is
+           itself configured to use an SSH proxy; and it allows combining
+           SSH and non-SSH proxying.
 
         -  Selecting `Local' allows you to specify an arbitrary command
            on the local machine to act as a proxy. When the session is
@@ -3293,11 +3345,6 @@ Chapter 4: Configuring PuTTY
            This could be used, for instance, to talk to some kind of
            network proxy that PuTTY does not natively support; or you could
            tunnel a connection over something other than TCP/IP entirely.
-
-           If you want your local proxy command to make a secondary
-           SSH connection to a proxy host and then tunnel the primary
-           connection over that, you might well want the `-nc' command-line
-           option in Plink. See section 3.11.3.14 for more information.
 
            You can also enable this mode on the command line; see section
            3.11.3.26.
@@ -3354,9 +3401,9 @@ Chapter 4: Configuring PuTTY
        without trying to look them up first.
 
        If you set this option to `Auto' (the default), PuTTY will do
-       something it considers appropriate for each type of proxy. Telnet,
-       HTTP, and SOCKS5 proxies will have host names passed straight to
-       them; SOCKS4 proxies will not.
+       something it considers appropriate for each type of proxy. Most
+       types of proxy (HTTP, SOCK5, SSH, Telnet, and local) will have host
+       names passed straight to them; SOCKS4 proxies will not.
 
        Note that if you are doing DNS at the proxy, you should make sure
        that your proxy exclusion settings (see section 4.16.2) do not
@@ -3369,14 +3416,29 @@ Chapter 4: Configuring PuTTY
        all SOCKS 4 servers provide this extension. If you enable proxy DNS
        and your SOCKS 4 server cannot deal with it, this might be why.
 
+       If you want to avoid PuTTY making _any_ DNS query related to your
+       destination host name (for example, because your local DNS resolver
+       is very slow to return a negative response in that situation), then
+       as well as setting this control to `Yes', you may also need to
+       turn off GSSAPI authentication and GSSAPI key exchange in SSH (see
+       section 4.22 and section 4.18.1.1 respectively). This is because
+       GSSAPI setup also involves a DNS query for the destination host
+       name, and that query is performed by the separate GSSAPI library, so
+       PuTTY can't override or reconfigure it.
+
 4.16.4 Username and password
 
-       If your proxy requires authentication, you can enter a username and
-       a password in the `Username' and `Password' boxes.
+       You can enter a username and a password in the `Username' and
+       `Password' boxes, which will be used if your proxy requires
+       authentication.
 
        Note that if you save your session, the proxy password will be saved
        in plain text, so anyone who can access your PuTTY configuration
        data will be able to discover it.
+
+       If PuTTY discovers that it needs a proxy username or password
+       and you have not specified one here, PuTTY will prompt for it
+       interactively in the terminal window.
 
        Authentication is not fully supported for all forms of proxy:
 
@@ -3387,15 +3449,26 @@ Chapter 4: Configuring PuTTY
                supports it (this is not supported in PuTTYtel); otherwise
                the password is sent to the proxy in plain text.
 
-            -  With HTTP proxying, the only currently supported
-               authentication method is `basic', where the password is sent
-               to the proxy in plain text.
+            -  With HTTP proxying, authentication is via `HTTP Digest'
+               if possible (again, not supported in PuTTYtel), or `HTTP
+               Basic'. In the latter case, the password is sent to the
+               proxy in plain text.
 
         -  SOCKS 4 can use the `Username' field, but does not support
            passwords.
 
+        -  SSH proxying can use all the same forms of SSH authentication
+           supported by PuTTY for its main connection. If the SSH server
+           requests password authentication, any configured proxy password
+           will be used, but other authentication methods such as public
+           keys and GSSAPI will be tried first, just as for a primary
+           SSH connection, and if they require credentials such as a key
+           passphrase, PuTTY will interactively prompt for these.
+
         -  You can specify a way to include a username and password in the
-           Telnet/Local proxy command (see section 4.16.5).
+           Telnet/Local proxy command (see section 4.16.5). If you do so,
+           and don't also specify the actual username and/or password in
+           the configuration, PuTTY will interactively prompt for them.
 
 4.16.5 Specifying the Telnet or Local proxy command
 
@@ -3415,21 +3488,22 @@ Chapter 4: Configuring PuTTY
        Also, the special strings `%host' and `%port' will be replaced by
        the host name and port number you want to connect to. The strings
        `%user' and `%pass' will be replaced by the proxy username and
-       password you specify. The strings `%proxyhost' and `%proxyport' will
-       be replaced by the host details specified on the _Proxy_ panel, if
-       any (this is most likely to be useful for the Local proxy type). To
-       get a literal `%' sign, enter `%%'.
+       password (which, if not specified in the configuration, will be
+       prompted for). The strings `%proxyhost' and `%proxyport' will be
+       replaced by the host details specified on the _Proxy_ panel, if any
+       (this is most likely to be useful for the Local proxy type). To get
+       a literal `%' sign, enter `%%'.
 
        If a Telnet proxy server prompts for a username and password before
        commands can be sent, you can use a command such as:
 
          %user\n%pass\nconnect %host %port\n
 
-       This will send your username and password as the first two lines
-       to the proxy, followed by a command to connect to the desired host
-       and port. Note that if you do not include the `%user' or `%pass'
-       tokens in the Telnet command, then the `Username' and `Password'
-       configuration fields will be ignored.
+       This will send your username and password as the first two lines to
+       the proxy, followed by a command to connect to the desired host and
+       port. Note that if you do not include the `%user' or `%pass' tokens
+       in the Telnet command, then anything specified in `Username' and
+       `Password' configuration fields will be ignored.
 
 4.16.6 Controlling proxy logging
 
@@ -3740,16 +3814,16 @@ Chapter 4: Configuring PuTTY
 
   4.19 The Host Keys panel
 
-       The Host Keys panel allows you to configure options related to SSH-2
-       host key management.
+       The Host Keys panel allows you to configure options related to host
+       key management.
 
        Host keys are used to prove the server's identity, and assure you
        that the server is not being spoofed (either by a man-in-the-middle
        attack or by completely replacing it on the network). See section
        2.2 for a basic introduction to host keys.
 
-       This entire panel is only relevant to SSH protocol version 2; none
-       of these settings affect SSH-1 at all.
+       Much of this panel is only relevant to SSH protocol version 2; SSH-1
+       only supports one type of host key.
 
 4.19.1 Host key type selection
 
@@ -3788,9 +3862,9 @@ Chapter 4: Configuring PuTTY
 
 4.19.2 Preferring known host keys
 
-       By default, PuTTY will adjust the preference order for host key
-       algorithms so that any host keys it already knows are moved to the
-       top of the list.
+       By default, PuTTY will adjust the preference order for SSH-2 host
+       key algorithms so that any host keys it already knows are moved to
+       the top of the list.
 
        This prevents you from having to check and confirm a new host key
        for a server you already had one for (e.g. because the server has
@@ -4523,7 +4597,10 @@ Chapter 4: Configuring PuTTY
         -  `On': PuTTY will assume the server _does_ have the bug.
 
         -  `Auto': PuTTY will use the server's version number announcement
-           to try to guess whether or not the server has the bug.
+           to try to guess whether or not the server has the bug. (This
+           option is not available for bugs that _cannot_ be detected from
+           the server version, e.g. because they must be acted on before
+           the server version is known.)
 
 4.26.1 `Chokes on SSH-2 ignore messages'
 
@@ -4614,7 +4691,29 @@ Chapter 4: Configuring PuTTY
        server, the session will work correctly, but download performance
        will be less than it could be.
 
-4.26.6 `Requires padding on SSH-2 RSA signatures'
+4.26.6 `Discards data sent before its greeting'
+
+       Just occasionally, an SSH connection can be established over some
+       channel that will accidentally discard outgoing data very early in
+       the connection.
+
+       This is not typically seen as a bug in an actual SSH server, but
+       it can sometimes occur in situations involving a complicated proxy
+       process. An example is Debian bug #991958, in which a connection
+       going over the console of a User Mode Linux kernel can lose outgoing
+       data before the kernel has fully booted.
+
+       You can work around this problem by manually enabling this bug flag,
+       which will cause PuTTY to wait to send its initial SSH greeting
+       until after it sees the greeting from the server.
+
+       Note that this bug flag can never be automatically detected,
+       since auto-detection relies on the version string in the server's
+       greeting, and PuTTY has to decide whether to expect this bug
+       _before_ it sees the server's greeting. So this is a manual
+       workaround only.
+
+4.26.7 `Requires padding on SSH-2 RSA signatures'
 
        Versions below 3.3 of OpenSSH require SSH-2 RSA signatures to be
        padded with zero bytes to the same length as the RSA key modulus.
@@ -4631,7 +4730,7 @@ Chapter 4: Configuring PuTTY
 
        This is an SSH-2-specific bug.
 
-4.26.7 `Only supports pre-RFC4419 SSH-2 DH GEX'
+4.26.8 `Only supports pre-RFC4419 SSH-2 DH GEX'
 
        The SSH key exchange method that uses Diffie-Hellman group exchange
        was redesigned after its original release, to use a slightly more
@@ -4646,7 +4745,7 @@ Chapter 4: Configuring PuTTY
 
        This is an SSH-2-specific bug.
 
-4.26.8 `Miscomputes SSH-2 HMAC keys'
+4.26.9 `Miscomputes SSH-2 HMAC keys'
 
        Versions 2.3.0 and below of the SSH server software from ssh.com
        compute the keys for their HMAC message authentication codes
@@ -4661,7 +4760,7 @@ Chapter 4: Configuring PuTTY
 
        This is an SSH-2-specific bug.
 
-4.26.9 `Misuses the session ID in SSH-2 PK auth'
+4.26.10 `Misuses the session ID in SSH-2 PK auth'
 
        Versions below 2.3 of OpenSSH require SSH-2 public-key
        authentication to be done slightly differently: the data to be
@@ -4677,7 +4776,7 @@ Chapter 4: Configuring PuTTY
 
        This is an SSH-2-specific bug.
 
-4.26.10 `Miscomputes SSH-2 encryption keys'
+4.26.11 `Miscomputes SSH-2 encryption keys'
 
        Versions below 2.0.11 of the SSH server software from ssh.com
        compute the keys for the session encryption incorrectly. This
@@ -4691,7 +4790,7 @@ Chapter 4: Configuring PuTTY
 
        This is an SSH-2-specific bug.
 
-4.26.11 `Chokes on SSH-1 ignore messages'
+4.26.12 `Chokes on SSH-1 ignore messages'
 
        An ignore message (SSH_MSG_IGNORE) is a message in the SSH protocol
        which can be sent from the client to the server, or from the server
@@ -4704,15 +4803,15 @@ Chapter 4: Configuring PuTTY
        If this bug is detected, PuTTY will stop using ignore messages.
        This means that keepalives will stop working, and PuTTY will
        have to fall back to a secondary defence against SSH-1 password-
-       length eavesdropping. See section 4.26.12. If this bug is enabled
+       length eavesdropping. See section 4.26.13. If this bug is enabled
        when talking to a correct server, the session will succeed, but
        keepalives will not work and the session might be more vulnerable to
        eavesdroppers than it could be.
 
-4.26.12 `Refuses all SSH-1 password camouflage'
+4.26.13 `Refuses all SSH-1 password camouflage'
 
        When talking to an SSH-1 server which cannot deal with ignore
-       messages (see section 4.26.11), PuTTY will attempt to disguise the
+       messages (see section 4.26.12), PuTTY will attempt to disguise the
        length of the user's password by sending additional padding _within_
        the password packet. This is technically a violation of the SSH-
        1 specification, and so PuTTY will only do it when it cannot use
@@ -4732,7 +4831,7 @@ Chapter 4: Configuring PuTTY
        This is an SSH-1-specific bug. SSH-2 is secure against this type of
        attack.
 
-4.26.13 `Chokes on SSH-1 RSA authentication'
+4.26.14 `Chokes on SSH-1 RSA authentication'
 
        Some SSH-1 servers cannot deal with RSA authentication messages at
        all. If Pageant is running and contains any SSH-1 keys, PuTTY will
@@ -5110,7 +5209,7 @@ Chapter 5: Using PSCP to transfer files securely
 
          C:\>pscp
          PuTTY Secure Copy client
-         Release 0.76
+         Release 0.77
          Usage: pscp [options] [user@]host:source target
                 pscp [options] source [source...] [user@]host:target
                 pscp [options] -ls [user@]host:filespec
@@ -5124,7 +5223,7 @@ Chapter 5: Using PSCP to transfer files securely
            -load sessname  Load settings from saved session
            -P port   connect to specified port
            -l user   connect with specified username
-           -pw passw login with specified password
+           -pwfile file   login with password read from specified file
            -1 -2     force use of particular SSH protocol version
            -ssh -ssh-connection
                      force use of particular SSH protocol variant
@@ -6032,7 +6131,7 @@ Chapter 7: Using the command-line connection tool Plink
 
          C:\>plink
          Plink: command-line connection utility
-         Release 0.76
+         Release 0.77
          Usage: plink [options] [user@]host [command]
                 ("host" can also be a PuTTY saved session name)
          Options:
@@ -6052,7 +6151,7 @@ Chapter 7: Using the command-line connection tool Plink
            -sercfg configuration-string (e.g. 19200,8,n,1,X)
                      Specify the serial configuration (serial only)
          The following options only apply to SSH connections:
-           -pw passw login with specified password
+           -pwfile file   login with password read from specified file
            -D [listen-IP:]listen-port
                      Dynamic SOCKS-based port forwarding
            -L [listen-IP:]listen-port:host:port
@@ -6604,6 +6703,15 @@ Chapter 8: Using public keys for SSH authentication
        proof of its primality. This takes more effort, but it eliminates
        that theoretical risk in the probabilistic method.
 
+       There in one way in which PuTTYgen's `proven primes' method is
+       not strictly better than its `probable primes' method. If you use
+       PuTTYgen to generate an RSA key on a computer that is potentially
+       susceptible to timing- or cache-based side-channel attacks, such
+       as a shared computer, the `probable primes' method is designed to
+       resist such attacks, whereas the `proven primes' methods are not.
+       (This is only a concern for RSA keys; for other key types, primes
+       are either not secret or not involved.)
+
        You might choose to switch from probable to proven primes if you
        have a local security standard that demands it, or if you don't
        trust the probabilistic argument for the safety of the usual method.
@@ -6889,6 +6997,78 @@ Chapter 8: Using public keys for SSH authentication
        client, you can use it with PuTTY, and vice versa. Hence, the export
        options are not available if you have generated an SSH-1 key.
 
+8.2.15 PuTTYgen command-line configuration
+
+       PuTTYgen supports a set of command-line options to configure many
+       of the same settings you can select in the GUI. This allows you to
+       start it up with your own preferences ready-selected, which might be
+       useful if you generate a lot of keys. (For example, you could make a
+       Windows shortcut that runs PuTTYgen with some command line options,
+       or a batch file or Powershell script that you could distribute to a
+       whole organisation containing your local standards.)
+
+       The options supported on the command line are:
+
+       -t _keytype_
+
+           Type of key to generate. You can select `rsa', `dsa', `ecdsa',
+           `eddsa' or `rsa1'. See section 8.2.2.
+
+       -b _bits_
+
+           Size of the key to generate, in bits. See section 8.2.3.
+
+       --primes _method_
+
+           Method for generating prime numbers. You can select `probable',
+           `proven', and `proven-even'. See section 8.2.4.
+
+       --strong-rsa
+
+           When generating an RSA key, make sure the prime factors of the
+           key modulus are `strong primes'. See section 8.2.4.
+
+       --ppk-param _key_=_value_,...
+
+           Allows setting all the same details of the PPK save file format
+           described in section 8.2.12.
+
+           Aspects to change are specified as a series of _key_=_value_
+           pairs separated by commas. The _key_s are:
+
+           version
+
+               The PPK format version: either 3 or 2.
+
+           kdf
+
+               The variant of Argon2 to use: argon2id, argon2i, and
+               argon2d.
+
+           memory
+
+               The amount of memory needed to decrypt the key, in Kbyte.
+
+           time
+
+               Specifies how much time is required to attempt decrypting
+               the key, in milliseconds.
+
+           passes
+
+               Alternative to time: specifies the number of hash passes
+               required to attempt decrypting the key.
+
+           parallelism
+
+               Number of parallelisable threads that can be used to decrypt
+               the key.
+
+       -E _fptype_
+
+           Algorithm to use when displaying key fingerprints. You can
+           select `sha256' or `md5'. See section 8.2.6.
+
    8.3 Getting ready for public key authentication
 
        Connect to your SSH server using PuTTY with the SSH protocol. When
@@ -7116,12 +7296,59 @@ Chapter 9: Using Pageant for authentication
 
          C:\PuTTY\pageant.exe d:\main.ppk -c C:\PuTTY\putty.exe
 
- 9.3.3 Starting with the key list visible
+ 9.3.3 Integrating with Windows OpenSSH
+
+       Windows's own port of OpenSSH uses the same mechanism as Pageant to
+       talk to its SSH agent (Windows named pipes). This means that Windows
+       OpenSSH can talk directly to Pageant, if it knows where to find
+       Pageant's named pipe.
+
+       When Pageant starts up, it can optionally write out a file
+       containing an OpenSSH configuration directive that tells the Windows
+       `ssh.exe' where to find Pageant. If you include this file from your
+       Windows SSH configuration, then `ssh.exe' should automatically use
+       Pageant as its agent, so that you can keep your keys in one place
+       and have both SSH clients able to use them.
+
+       The option is `--openssh-config', and you follow it with a filename.
+
+       To refer to this file from your main OpenSSH configuration, you can
+       use the `Include' directive. For example, you might run Pageant like
+       this (with your own username substituted, of course):
+
+         pageant --openssh-config C:\Users\Simon\.ssh\pageant.conf
+
+       and then add a directive like this to your main `.ssh\config'
+       file (assuming that lives in the same directory that you just put
+       pageant.conf):
+
+         Include pageant.conf
+
+       *Note*: this technique only works with _Windows's_ port of OpenSSH,
+       which lives at C:\Windows\System32\OpenSSH\ssh.exe if you have
+       it installed. (If not, it can be installed as a Windows optional
+       feature, e.g., via Settings > Apps & features > Optional features >
+       Add a feature > OpenSSH Client.)
+
+       There are other versions of OpenSSH for Windows, notably the one
+       that comes with Windows git. Those will likely not work with the
+       same configuration, because they tend to depend on Unix emulation
+       layers like MinGW or MSys, so they won't speak Windows native
+       pathname syntax or understand named pipes. The above instructions
+       will only work with Windows's own version of OpenSSH.
+
+       So, if you want to use Windows git with an SSH key held in
+       Pageant, you'll have to set the environment variable GIT_SSH,
+       to point at a different program. You could point it at
+       c:\Windows\System32\OpenSSH\ssh.exe once you've done this setup -
+       but it's just as easy to point it at Plink!
+
+ 9.3.4 Starting with the key list visible
 
        Start Pageant with the `--keylist' option to show the main window as
        soon as it starts up.
 
- 9.3.4 Restricting the Windows process ACL
+ 9.3.5 Restricting the Windows process ACL
 
        Pageant supports the same `-restrict-acl' option as the other PuTTY
        utilities to lock down the Pageant process's access control; see
@@ -7304,7 +7531,7 @@ Chapter 10: Common error messages
        which you don't understand, report it to us as a bug (see appendix
        B) and we will add documentation for it.
 
-  10.1 `The server's host key is not cached in the registry'
+  10.1 `The host key is not cached for this server'
 
        This error message occurs when PuTTY connects to a new SSH server.
        Every server identifies itself by means of a host key; once PuTTY
@@ -7328,7 +7555,7 @@ Chapter 10: Common error messages
   10.2 `WARNING - POTENTIAL SECURITY BREACH!'
 
        This message, followed by `The server's host key does not match
-       the one PuTTY has cached in the registry', means that PuTTY has
+       the one PuTTY has cached for this server', means that PuTTY has
        connected to the SSH server before, knows what its host key _should_
        be, but has found a different one.
 
@@ -7494,7 +7721,7 @@ Chapter 10: Common error messages
        This error can be caused by buggy SSH-1 servers that fail to cope
        with the various strategies we use for camouflaging passwords in
        transit. Upgrade your server, or use the workarounds described in
-       section 4.26.11 and possibly section 4.26.12.
+       section 4.26.12 and possibly section 4.26.13.
 
  10.11 `No supported authentication methods available'
 
@@ -7521,7 +7748,7 @@ Chapter 10: Common error messages
        which may not be noticed.
 
        Occasionally this has been caused by server bugs. An example is the
-       bug described at section 4.26.8, although you're very unlikely to
+       bug described at section 4.26.9, although you're very unlikely to
        encounter that one these days.
 
        In this context MAC stands for Message Authentication Code. It's a
@@ -7538,7 +7765,7 @@ Chapter 10: Common error messages
 
        If you get this error, one thing you could try would be to fiddle
        with the setting of `Miscomputes SSH-2 encryption keys' (see section
-       4.26.10) or `Ignores SSH-2 maximum packet size' (see section 4.26.5)
+       4.26.11) or `Ignores SSH-2 maximum packet size' (see section 4.26.5)
        on the Bugs panel.
 
  10.14 `PuTTY X11 proxy: _various errors_'
@@ -7969,9 +8196,9 @@ A.2.11 Can PSCP or PSFTP transfer files in ASCII mode?
        substantially unfinished.
 
        If any OS X and/or GTK programming experts are keen to have a
-       finished version of this, we urge them to help out with some of the
-       remaining problems! See the TODO list in `unix/gtkapp.c' in the
-       source code.
+       finished version of this, we urge them to help out with some of
+       the remaining problems! See the TODO list in `unix/main-gtk-
+       application.c' in the source code.
 
  A.3.7 Will there be a port to EPOC?
 
@@ -10021,7 +10248,7 @@ Appendix C: PPK file format
 Appendix D: PuTTY Licence
 -------------------------
 
-       PuTTY is copyright 1997-2021 Simon Tatham.
+       PuTTY is copyright 1997-2022 Simon Tatham.
 
        Portions copyright Robert de Bath, Joris van Rantwijk, Delian
        Delchev, Andreas Schultz, Jeroen Massar, Wez Furlong, Nicolas Barry,
@@ -10076,9 +10303,9 @@ Appendix E: PuTTY hacking guide
        the `unix' subdirectory; the Windows-specific modules are in the
        `windows' subdirectory.
 
-       All the modules in the main source directory - notably _all_ of the
-       code for the various back ends - are platform-generic. We want to
-       keep them that way.
+       All the modules in the main source directory and other
+       subdirectories - notably _all_ of the code for the various back ends
+       - are platform-generic. We want to keep them that way.
 
        This also means you should stick to the C semantics guaranteed by
        the C standard: try not to make assumptions about the precise size
@@ -10220,9 +10447,7 @@ Appendix E: PuTTY hacking guide
        We want PuTTY to continue being pure C, at least in the platform-
        independent parts and the currently existing ports. Patches which
        switch the Makefiles to compile it as C++ and start using classes
-       will not be accepted. Also, in particular, we disapprove of //
-       comments, at least for the moment. (Perhaps once C99 becomes
-       genuinely widespread we might be more lenient.)
+       will not be accepted.
 
        The one exception: a port to a new platform may use languages other
        than C if they are necessary to code on that platform. If your
@@ -10326,16 +10551,17 @@ Appendix E: PuTTY hacking guide
        and is passed on to our window procedure by the MessageBox() message
        loop.
 
-       Also, the front ends (in particular Windows Plink) can use multiple
-       threads if they like. However, Windows Plink keeps _very_ tight
-       control of its auxiliary threads, and uses them pretty much
-       exclusively as a form of select(). Pretty much all the code outside
-       windows/winplink.c is _only_ ever called from the one primary
-       thread; the others just loop round blocking on file handles and
-       send messages to the main thread when some real work needs doing.
-       This is not considered a portability hazard because that bit of
-       windows/winplink.c will need rewriting on other platforms in any
-       case.
+       Also, the front ends can use multiple threads if they like. For
+       example, the Windows front-end code spawns subthreads to deal with
+       bidirectional blocking I/O on non-network streams such as Windows
+       pipes. However, it keeps tight control of its auxiliary threads, and
+       uses them only for that one purpose, as a form of select(). Pretty
+       much all the code outside windows/handle-io.c is _only_ ever called
+       from the one primary thread; the others just loop round blocking
+       on file handles, and signal the main thread (via Windows event
+       objects) when some real work needs doing. This is not considered a
+       portability hazard because that code is already Windows-specific and
+       needs rewriting on other platforms.
 
        One important consequence of this: PuTTY has only one thread in
        which to do everything. That `everything' may include managing
@@ -10380,49 +10606,11 @@ Appendix E: PuTTY hacking guide
        boxes and you find yourself wanting to increase the size of the
        whole box, _don't_. Split it into more panels instead.
 
-  E.11 Automatically generated Makefiles
+  E.11 Coroutines in protocol code
 
-       PuTTY is intended to compile on multiple platforms, and with
-       multiple compilers. It would be horrifying to try to maintain a
-       single Makefile which handled all possible situations, and just as
-       painful to try to directly maintain a set of matching Makefiles for
-       each different compilation environment.
-
-       Therefore, we have moved the problem up by one level. In the PuTTY
-       source archive is a file called `Recipe', which lists which source
-       files combine to produce which binaries; and there is also a script
-       called mkfiles.pl, which reads `Recipe' and writes out the real
-       Makefiles. (The script also reads all the source files and analyses
-       their dependencies on header files, so we get an extra benefit from
-       doing it this way, which is that we can supply correct dependency
-       information even in environments where it's difficult to set up an
-       automated `make depend' phase.)
-
-       You should _never_ edit any of the PuTTY Makefiles directly.
-       They are not stored in our source repository at all. They are
-       automatically generated by mkfiles.pl from the file `Recipe'.
-
-       If you need to add a new object file to a particular binary, the
-       right thing to do is to edit `Recipe' and re-run mkfiles.pl. This
-       will cause the new object file to be added in every tool that
-       requires it, on every platform where it matters, in every Makefile
-       to which it is relevant, _and_ to get all the dependency data right.
-
-       If you send us a patch that modifies one of the Makefiles, you just
-       waste our time, because we will have to convert it into a change
-       to `Recipe'. If you send us a patch that modifies _all_ of the
-       Makefiles, you will have wasted a lot of _your_ time as well!
-
-       (There is a comment at the top of every Makefile in the PuTTY source
-       archive saying this, but many people don't seem to read it, so it's
-       worth repeating here.)
-
-  E.12 Coroutines in the SSH code
-
-       Large parts of the code in the various SSH modules (in fact most
-       of the protocol layers) are structured using a set of macros that
-       implement (something close to) Donald Knuth's `coroutines' concept
-       in C.
+       Large parts of the code in modules implementing wire protocols
+       (mainly SSH) are structured using a set of macros that implement
+       (something close to) Donald Knuth's `coroutines' concept in C.
 
        Essentially, the purpose of these macros are to arrange that a
        function can call crReturn() to return to its caller, and the next
@@ -10433,8 +10621,8 @@ Appendix E: PuTTY hacking guide
        function will be corrupted every time you call crReturn. If you need
        a variable to persist for longer than that, you _must_ make it a
        field in some appropriate structure containing the persistent state
-       of the coroutine - typically the main state structure for an SSH
-       protocol layer.
+       of the coroutine - typically the main state structure for a protocol
+       layer.
 
        See `https://www.chiark.greenend.org.uk/~sgtatham/coroutines.html'
        for a more in-depth discussion of what these macros are for and how
@@ -10456,7 +10644,7 @@ Appendix E: PuTTY hacking guide
        function is called, it can reliably free the memory if there is any,
        and not crash if there isn't.
 
-  E.13 Explicit vtable structures to implement traits
+  E.12 Explicit vtable structures to implement traits
 
        A lot of PuTTY's code is written in a style that looks structurally
        rather like an object-oriented language, in spite of PuTTY being a
@@ -10589,13 +10777,13 @@ Appendix E: PuTTY hacking guide
        to write a set of static inline wrapper functions in the same header
        file that defined the MyAbstraction structure types, like this:
 
-         static MyAbstraction *myabs_new(const MyAbstractionVtable *vt)
+         static inline MyAbstraction *myabs_new(const MyAbstractionVtable *vt)
          { return vt->new(vt); }
-         static void myabs_free(MyAbstraction *myabs)
+         static inline void myabs_free(MyAbstraction *myabs)
          { myabs->vt->free(myabs); }
-         static void myimpl_modify(MyAbstraction *myabs, unsigned param)
+         static inline void myimpl_modify(MyAbstraction *myabs, unsigned param)
          { myabs->vt->modify(myabs, param); }
-         static unsigned myimpl_query(MyAbstraction *myabs, unsigned param)
+         static inline unsigned myimpl_query(MyAbstraction *myabs, unsigned param)
          { return myabs->vt->query(myabs, param); }
 
        And now call sites can use those reasonably clean-looking wrapper
@@ -10642,8 +10830,8 @@ Appendix E: PuTTY hacking guide
 
            This system is flexible enough to permit `multiple inheritance',
            or rather, multiple _implementation_: having one object type
-           implement more than one trait. For example, the Proxy type
-           implements both the Socket trait and the Plug trait that
+           implement more than one trait. For example, the ProxySocket
+           type implements both the Socket trait and the Plug trait that
            connects to it, because it has to act as an adapter between
            another instance of each of those types.
 
@@ -10823,46 +11011,7 @@ Appendix E: PuTTY hacking guide
            whose vt field points to &ssh_sha256: they all point to one of
            the other two full implementation vtables.
 
-  E.14 Single compilation of each source file
-
-       The PuTTY build system for any given platform works on the following
-       very simple model:
-
-        -  Each source file is compiled precisely once, to produce a single
-           object file.
-
-        -  Each binary is created by linking together some combination of
-           those object files.
-
-       Therefore, if you need to introduce functionality to a particular
-       module which is only available in some of the tool binaries (for
-       example, a cryptographic proxy authentication mechanism which needs
-       to be left out of PuTTYtel to maintain its usability in crypto-
-       hostile jurisdictions), the _wrong_ way to do it is by adding
-       #ifdefs in (say) proxy.c. This would require separate compilation
-       of proxy.c for PuTTY and PuTTYtel, which means that the entire
-       Makefile-generation architecture (see section E.11) would have to
-       be significantly redesigned. Unless you are prepared to do that
-       redesign yourself, _and_ guarantee that it will still port to any
-       future platforms we might decide to run on, you should not attempt
-       this!
-
-       The _right_ way to introduce a feature like this is to put the
-       new code in a separate source file, and (if necessary) introduce
-       a second new source file defining the same set of functions, but
-       defining them as stubs which don't provide the feature. Then the
-       module whose behaviour needs to vary (proxy.c in this example) can
-       call the functions defined in these two modules, and it will either
-       provide the new feature or not provide it according to which of your
-       new modules it is linked with.
-
-       Of course, object files are never shared _between_ platforms; so it
-       is allowable to use #ifdef to select between platforms. This happens
-       in puttyps.h (choosing which of the platform-specific include files
-       to use), and also in misc.c (the Windows-specific `Minefield' memory
-       diagnostic system). It should be used sparingly, though, if at all.
-
-  E.15 Do as we say, not as we do
+  E.13 Do as we say, not as we do
 
        The current PuTTY code probably does not conform strictly to _all_
        of the principles listed above. There may be the occasional SSH-
@@ -10934,25 +11083,25 @@ Appendix F: PuTTY download keys and signatures
        PuTTY website, and are also available on PGP keyservers using the
        key IDs listed below.
 
-       *Master Key* (2018)
+       *Master Key* (2021)
 
-           RSA, 4096-bit. Key ID: 76BC7FE4EBFD2D9E. Fingerprint:
-           24E1 B1C5 75EA 3C9F F752  A922 76BC 7FE4 EBFD 2D9E
+           RSA, 3072-bit. Key ID: DD4355EAAC1119DE. Fingerprint:
+           A872 D42F 1660 890F 0E05 223E DD43 55EA AC11 19DE
 
-       *Release Key* (2018)
+       *Release Key* (2021)
 
-           RSA, 3072-bit. Key ID: 6289A25F4AE8DA82. Fingerprint:
-           E273 94AC A3F9 D904 9522  E054 6289 A25F 4AE8 DA82
+           RSA, 3072-bit. Key ID: E4F83EA2AA4915EC. Fingerprint:
+           2CF6 134B D3F7 7A65 88EB D668 E4F8 3EA2 AA49 15EC
 
-       *Snapshot Key* (2018)
+       *Snapshot Key* (2021)
 
-           RSA, 3072-bit. Key ID: 38BA7229B7588FD1. Fingerprint:
-           C92B 52E9 9AB6 1DDA 33DB  2B7A 38BA 7229 B758 8FD1
+           RSA, 3072-bit. Key ID: B43979F89F446CFD. Fingerprint:
+           1FD3 BCAC E532 FBE0 6A8C 09E2 B439 79F8 9F44 6CFD
 
-       *Secure Contact Key* (2018)
+       *Secure Contact Key* (2021)
 
-           RSA, 3072-bit. Key ID: 657D487977F95C98. Fingerprint:
-           A680 0082 2998 6E46 22CA  0E43 657D 4879 77F9 5C98
+           RSA, 3072-bit. Key ID: 012C59D4211BD62A. Fingerprint:
+           E30F 1354 2A04 BE0E 56F0 5801 012C 59D4 211B D62A
 
    F.2 Security details
 
@@ -11048,6 +11197,28 @@ Appendix F: PuTTY download keys and signatures
        newly generated keys.
 
        The details of all previous keys are given here.
+
+       *Keys generated in the 2018 rollover*
+
+       *Master Key* (2018)
+
+           RSA, 4096-bit. Key ID: 76BC7FE4EBFD2D9E. Fingerprint:
+           24E1 B1C5 75EA 3C9F F752  A922 76BC 7FE4 EBFD 2D9E
+
+       *Release Key* (2018)
+
+           RSA, 3072-bit. Key ID: 6289A25F4AE8DA82. Fingerprint:
+           E273 94AC A3F9 D904 9522  E054 6289 A25F 4AE8 DA82
+
+       *Snapshot Key* (2018)
+
+           RSA, 3072-bit. Key ID: 38BA7229B7588FD1. Fingerprint:
+           C92B 52E9 9AB6 1DDA 33DB  2B7A 38BA 7229 B758 8FD1
+
+       *Secure Contact Key* (2018)
+
+           RSA, 3072-bit. Key ID: 657D487977F95C98. Fingerprint:
+           A680 0082 2998 6E46 22CA  0E43 657D 4879 77F9 5C98
 
        *Key generated in 2016* (when we first introduced the Secure Contact
        Key)
@@ -11244,4 +11415,5 @@ Appendix G: SSH-2 names specified for PuTTY
                user will have to supply a passphrase before the key can be
                used).
 
-[PuTTY release 0.76]
+       ersionid PuTTY release 0.77
+

@@ -1,0 +1,12 @@
+/*
+ * Windows resources for PuTTYimp.
+ */
+
+#include "rcstuff.h"
+
+#define APPNAME "PuTTYimp"
+#define APPDESC "PuTTY key import utility"
+
+200 ICON "puttygen.ico"
+
+#include "version.rc2"

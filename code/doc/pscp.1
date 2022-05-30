@@ -53,14 +53,16 @@ Set remote username to \fIuser\fP.
 Disable interactive prompts.
 .IP "\fB-no-sanitise-stderr\fP"
 By default, PSCP will filter control characters from the standard error channel from the server, to prevent remote processes sending confusing escape sequences. This option forces the standard error channel to not be filtered.
+.IP "\fB-pwfile\fP \fIfilename\fP"
+Open the specified file, and use the first line of text read from it as the remote password.
 .IP "\fB-pw\fP \fIpassword\fP"
-Set remote password to \fIpassword\fP. \fICAUTION:\fP this will likely make the password visible to other users of the local machine (via commands such as `\fBw\fP').
+Set remote password to \fIpassword\fP. \fICAUTION:\fP this will likely make the password visible to other users of the local machine (via commands such as `\fBps\fP' or `\fBw\fP'). Use \fB-pwfile\fP instead.
 .IP "\fB-1\fP"
 Force use of SSH protocol version 1.
 .IP "\fB-2\fP"
 Force use of SSH protocol version 2.
 .IP "\fB-ssh-connection\fP"
-Force use of the `bare \fBssh-connection\fP' protocol. This is only likely to be useful when connecting to a \fIpsusan(1)\fP server, most likely with an absolute path to a Unix-domain socket in place of \fIhost\fP.
+Force use of the `bare \fBssh-connection\fP' protocol. This is only likely to be useful when connecting to a \fBpsusan\fP(\fI1\fP) server, most likely with an absolute path to a Unix-domain socket in place of \fIhost\fP.
 .IP "\fB-ssh\fP"
 Force use of the SSH protocol. (This is usually not needed; it's only likely to be useful if you need to override some other configuration of the `bare \fBssh-connection\fP' protocol.)
 .IP "\fB-4\fP, \fB-6\fP"

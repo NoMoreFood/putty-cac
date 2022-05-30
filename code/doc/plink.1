@@ -34,7 +34,7 @@ Force raw mode.
 .IP "\fB-serial\fP"
 Force serial mode.
 .IP "\fB-ssh-connection\fP"
-Force use of the `bare \fBssh-connection\fP' protocol. This is only likely to be useful when connecting to a \fIpsusan(1)\fP server, most likely with an absolute path to a Unix-domain socket in place of \fIhost\fP.
+Force use of the `bare \fBssh-connection\fP' protocol. This is only likely to be useful when connecting to a \fBpsusan\fP(\fI1\fP) server, most likely with an absolute path to a Unix-domain socket in place of \fIhost\fP.
 .IP "\fB\-proxycmd\fP \fIcommand\fP"
 Instead of making a TCP connection, use \fIcommand\fP as a proxy; network traffic will be redirected to the standard input and output of \fIcommand\fP. \fIcommand\fP must be a single word, so is likely to need quoting by the shell.
 .RS
@@ -61,8 +61,10 @@ Disable interactive prompts.
 
 .IP "\fB-no-sanitise-stdout\fP"
 By default, Plink can choose to filter control characters if that seems appropriate, to prevent remote processes sending confusing escape sequences. These options override Plink's default behaviour to enable or disabling such filtering on the standard error and standard output channels.
+.IP "\fB-pwfile\fP \fIfilename\fP"
+Open the specified file, and use the first line of text read from it as the remote password.
 .IP "\fB-pw\fP \fIpassword\fP"
-Set remote password to \fIpassword\fP. \fICAUTION:\fP this will likely make the password visible to other users of the local machine (via commands such as `\fBw\fP').
+Set remote password to \fIpassword\fP. \fICAUTION:\fP this will likely make the password visible to other users of the local machine (via commands such as `\fBps\fP' or `\fBw\fP'). Use \fB-pwfile\fP instead.
 .IP "\fB\-L\fP \fB[\fP\fIsrcaddr\fP\fB:]\fP\fIsrcport\fP\fB:\fP\fIdesthost\fP\fB:\fP\fIdestport\fP"
 Set up a local port forwarding: listen on \fIsrcport\fP (or \fIsrcaddr\fP:\fIsrcport\fP if specified), and forward any connections over the SSH connection to the destination address \fIdesthost\fP:\fIdestport\fP. Only works in SSH.
 .IP "\fB\-R\fP \fB[\fP\fIsrcaddr\fP\fB:]\fP\fIsrcport\fP\fB:\fP\fIdesthost\fP\fB:\fP\fIdestport\fP"

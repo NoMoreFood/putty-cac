@@ -1,0 +1,420 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN"
+"http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+<meta http-equiv="content-type" content="text/html; charset=US-ASCII">
+<title>PuTTY hacking guide</title>
+<link rel="previous" href="AppendixD.html">
+<link rel="ToC" href="index.html">
+<link rel="up" href="index.html">
+<link rel="index" href="IndexPage.html">
+<link rel="next" href="AppendixF.html">
+</head>
+<body>
+<p><a href="AppendixD.html">Previous</a> | <a href="index.html">Contents</a> | <a href="IndexPage.html">Index</a> | <a href="AppendixF.html">Next</a></p>
+
+<ul>
+<li><a href="#udp">Appendix E: PuTTY hacking guide</a>
+<ul>
+<li><a href="#udp-portability">E.1 Cross-OS portability</a></li>
+<li><a href="#udp-multi-backend">E.2 Multiple backends treated equally</a></li>
+<li><a href="#udp-globals">E.3 Multiple sessions per process on some platforms</a></li>
+<li><a href="#udp-pure-c">E.4 C, not C++</a></li>
+<li><a href="#udp-security">E.5 Security-conscious coding</a></li>
+<li><a href="#udp-multi-compiler">E.6 Independence of specific compiler</a></li>
+<li><a href="#udp-small">E.7 Small code size</a></li>
+<li><a href="#udp-single-threaded">E.8 Single-threaded code</a></li>
+<li><a href="#udp-keystrokes">E.9 Keystrokes sent to the server wherever possible</a></li>
+<li><a href="#udp-640x480">E.10 640&#215;480 friendliness in configuration panels</a></li>
+<li><a href="#udp-ssh-coroutines">E.11 Coroutines in protocol code</a></li>
+<li><a href="#udp-traits">E.12 Explicit vtable structures to implement traits</a></li>
+<li><a href="#udp-perfection">E.13 Do as we say, not as we do</a></li>
+</ul></li>
+</ul>
+<h1><a name="udp"></a><a name="AE"></a>Appendix E: PuTTY hacking guide</h1>
+<p>
+This appendix lists a selection of the design principles applying to the PuTTY source code. If you are planning to send code contributions, you should read this first.
+</p>
+<h2><a name="udp-portability"></a><a name="SE.1"></a>E.1 Cross-OS portability</h2>
+<p>
+Despite Windows being its main area of fame, PuTTY is no longer a Windows-only application suite. It has a working Unix port; a Mac port is in progress; more ports may or may not happen at a later date.
+</p>
+<p>
+Therefore, embedding Windows-specific code in core modules such as <code>ssh.c</code> is not acceptable. We went to great lengths to <em>remove</em> all the Windows-specific stuff from our core modules, and to shift it out into Windows-specific modules. Adding large amounts of Windows-specific stuff in parts of the code that should be portable is almost guaranteed to make us reject a contribution.
+</p>
+<p>
+The PuTTY source base is divided into platform-specific modules and platform-generic modules. The Unix-specific modules are all in the <code>unix</code> subdirectory; the Windows-specific modules are in the <code>windows</code> subdirectory.
+</p>
+<p>
+All the modules in the main source directory and other subdirectories - notably <em>all</em> of the code for the various back ends - are platform-generic. We want to keep them that way.
+</p>
+<p>
+This also means you should stick to the C semantics guaranteed by the C standard: try not to make assumptions about the precise size of basic types such as <code>int</code> and <code>long int</code>; don't use pointer casts to do endianness-dependent operations, and so on.
+</p>
+<p>
+(Even <em>within</em> a platform front end you should still be careful of some of these portability issues. The Windows front end compiles on both 32- and 64-bit x86 and also Arm.)
+</p>
+<p>
+Our current choice of C standards version is <em>mostly</em> C99. With a couple of exceptions, you can assume that C99 features are available (in particular <code>&lt;stdint.h&gt;</code>, <code>&lt;stdbool.h&gt;</code> and <code>inline</code>), but you shouldn't use things that are new in C11 (such as <code>&lt;uchar.h&gt;</code> or <code>_Generic</code>).
+</p>
+<p>
+The exceptions to that rule are due to the need for Visual Studio compatibility:
+</p>
+<ul><li>
+Don't use variable-length arrays. Visual Studio doesn't support them even now that it's adopted the rest of C99. We use <code>-Wvla</code> when building with gcc and clang, to make it easier to avoid accidentally breaking that rule.
+</li>
+<li>
+For historical reasons, we still build with one older VS version which lacks <code>&lt;inttypes.h&gt;</code>. So that file is included centrally in <code>defs.h</code>, and has a set of workaround definitions for the <code>PRIx64</code>-type macros we use. If you need to use another one of those macros, you need to add a workaround definition in <code>defs.h</code>, and don't casually re-include <code>&lt;inttypes.h&gt;</code> anywhere else in the source file.
+</li>
+</ul>
+<p>
+Here are a few portability assumptions that we <em>do</em> currently allow (because we'd already have to thoroughly vet the existing code if they ever needed to change, and it doesn't seem worth doing that unless we really have to):
+</p>
+<ul><li>
+You can assume <code>int</code> is <em>at least</em> 32 bits wide. (We've never tried to port PuTTY to a platform with 16-bit <code>int</code>, and it doesn't look likely to be necessary in future.)
+</li>
+<li>
+Similarly, you can assume <code>char</code> is exactly 8 bits. (Exceptions to that are even less likely to be relevant to us than short <code>int</code>.)
+</li>
+<li>
+You can assume that using <code>memset</code> to write zero bytes over a whole structure will have the effect of setting all its pointer fields to <code>NULL</code>. (The standard itself guarantees this for <em>integer</em> fields, but not for pointers.)
+</li>
+<li>
+You can assume that <code>time_t</code> has POSIX semantics, i.e. that it represents an integer number of non-leap seconds since 1970-01-01 00:00:00 UTC. (Times in this format are used in X authorisation, but we could work around that by carefully distinguishing local <code>time_t</code> from time values used in the wire protocol; but these semantics of <code>time_t</code> are also baked into the shared library API used by the GSSAPI authentication code, which would be much harder to change.)
+</li>
+<li>
+You can assume that the execution character encoding is a superset of the printable characters of ASCII. (In particular, it's fine to do arithmetic on a <code>char</code> value representing a Latin alphabetic character, without bothering to allow for EBCDIC or other non-consecutive encodings of the alphabet.)
+</li>
+</ul>
+<p>
+On the other hand, here are some particular things <em>not</em> to assume:
+</p>
+<ul><li>
+Don't assume anything about the <em>signedness</em> of <code>char</code>. In particular, you <em>must</em> cast <code>char</code> values to <code>unsigned char</code> before passing them to any <code>&lt;ctype.h&gt;</code> function (because those expect a non-negative character value, or <code>EOF</code>). If you need a particular signedness, explicitly specify <code>signed char</code> or <code>unsigned char</code>, or use C99 <code>int8_t</code> or <code>uint8_t</code>.
+</li>
+<li>
+From past experience with MacOS, we're still a bit nervous about <code>'\n'</code> and <code>'\r'</code> potentially having unusual meanings on a given platform. So it's fine to say <code>\n</code> in a string you're passing to <code>printf</code>, but in any context where those characters appear in a standardised wire protocol or a binary file format, they should be spelled <code>'\012'</code> and <code>'\015'</code> respectively.
+</li>
+</ul>
+<h2><a name="udp-multi-backend"></a><a name="SE.2"></a>E.2 Multiple backends treated equally</h2>
+<p>
+PuTTY is not an SSH client with some other stuff tacked on the side. PuTTY is a generic, multiple-backend, remote VT-terminal client which happens to support one backend which is larger, more popular and more useful than the rest. Any extra feature which can possibly be general across all backends should be so: localising features unnecessarily into the SSH back end is a design error. (For example, we had several code submissions for proxy support which worked by hacking <code>ssh.c</code>. Clearly this is completely wrong: the <code>network.h</code> abstraction is the place to put it, so that it will apply to all back ends equally, and indeed we eventually put it there after another contributor sent a better patch.)
+</p>
+<p>
+The rest of PuTTY should try to avoid knowing anything about specific back ends if at all possible. To support a feature which is only available in one network protocol, for example, the back end interface should be extended in a general manner such that <em>any</em> back end which is able to provide that feature can do so. If it so happens that only one back end actually does, that's just the way it is, but it shouldn't be relied upon by any code.
+</p>
+<h2><a name="udp-globals"></a><a name="SE.3"></a>E.3 Multiple sessions per process on some platforms</h2>
+<p>
+Some ports of PuTTY - notably the in-progress Mac port - are constrained by the operating system to run as a single process potentially managing multiple sessions.
+</p>
+<p>
+Therefore, the platform-independent parts of PuTTY never use global variables to store per-session data. The global variables that do exist are tolerated because they are not specific to a particular login session. The random number state in <code>sshrand.c</code>, the timer list in <code>timing.c</code> and the queue of top-level callbacks in <code>callback.c</code> serve all sessions equally. But most data is specific to a particular network session, and is therefore stored in dynamically allocated data structures, and pointers to these structures are passed around between functions.
+</p>
+<p>
+Platform-specific code can reverse this decision if it likes. The Windows code, for historical reasons, stores most of its data as global variables. That's OK, because <em>on Windows</em> we know there is only one session per PuTTY process, so it's safe to do that. But changes to the platform-independent code should avoid introducing global variables, unless they are genuinely cross-session.
+</p>
+<h2><a name="udp-pure-c"></a><a name="SE.4"></a>E.4 C, not C++</h2>
+<p>
+PuTTY is written entirely in C, not in C++.
+</p>
+<p>
+We have made <em>some</em> effort to make it easy to compile our code using a C++ compiler: notably, our <code>snew</code>, <code>snewn</code> and <code>sresize</code> macros explicitly cast the return values of <code>malloc</code> and <code>realloc</code> to the target type. (This has type checking advantages even in C: it means you never accidentally allocate the wrong size piece of memory for the pointer type you're assigning it to. C++ friendliness is really a side benefit.)
+</p>
+<p>
+We want PuTTY to continue being pure C, at least in the platform-independent parts and the currently existing ports. Patches which switch the Makefiles to compile it as C++ and start using classes will not be accepted.
+</p>
+<p>
+The one exception: a port to a new platform may use languages other than C if they are necessary to code on that platform. If your favourite PDA has a GUI with a C++ API, then there's no way you can do a port of PuTTY without using C++, so go ahead and use it. But keep the C++ restricted to that platform's subdirectory; if your changes force the Unix or Windows ports to be compiled as C++, they will be unacceptable to us.
+</p>
+<h2><a name="udp-security"></a><a name="SE.5"></a>E.5 Security-conscious coding</h2>
+<p>
+PuTTY is a network application and a security application. Assume your code will end up being fed deliberately malicious data by attackers, and try to code in a way that makes it unlikely to be a security risk.
+</p>
+<p>
+In particular, try not to use fixed-size buffers for variable-size data such as strings received from the network (or even the user). We provide functions such as <code>dupcat</code> and <code>dupprintf</code>, which dynamically allocate buffers of the right size for the string they construct. Use these wherever possible.
+</p>
+<h2><a name="udp-multi-compiler"></a><a name="SE.6"></a>E.6 Independence of specific compiler</h2>
+<p>
+Windows PuTTY can currently be compiled with any of three Windows compilers: MS Visual C, the Cygwin / <code>mingw32</code> GNU tools, and <code>clang</code> (in MS compatibility mode).
+</p>
+<p>
+This is a really useful property of PuTTY, because it means people who want to contribute to the coding don't depend on having a specific compiler; so they don't have to fork out money for MSVC if they don't already have it, but on the other hand if they <em>do</em> have it they also don't have to spend effort installing <code>gcc</code> alongside it. They can use whichever compiler they happen to have available, or install whichever is cheapest and easiest if they don't have one.
+</p>
+<p>
+Therefore, we don't want PuTTY to start depending on which compiler you're using. Using GNU extensions to the C language, for example, would ruin this useful property (not that anyone's ever tried it!); and more realistically, depending on an MS-specific library function supplied by the MSVC C library (<code>_snprintf</code>, for example) is a mistake, because that function won't be available under the other compilers. Any function supplied in an official Windows DLL as part of the Windows API is fine, and anything defined in the C library standard is also fine, because those should be available irrespective of compilation environment. But things in between, available as non-standard library and language extensions in only one compiler, are disallowed.
+</p>
+<p>
+(<code>_snprintf</code> in particular should be unnecessary, since we provide <code>dupprintf</code>; see <a href="#udp-security">section E.5</a>.)
+</p>
+<p>
+Compiler independence should apply on all platforms, of course, not just on Windows.
+</p>
+<h2><a name="udp-small"></a><a name="SE.7"></a>E.7 Small code size</h2>
+<p>
+PuTTY is tiny, compared to many other Windows applications. And it's easy to install: it depends on no DLLs, no other applications, no service packs or system upgrades. It's just one executable. You install that executable wherever you want to, and run it.
+</p>
+<p>
+We want to keep both these properties - the small size, and the ease of installation - if at all possible. So code contributions that depend critically on external DLLs, or that add a huge amount to the code size for a feature which is only useful to a small minority of users, are likely to be thrown out immediately.
+</p>
+<p>
+We do vaguely intend to introduce a DLL plugin interface for PuTTY, whereby seriously large extra features can be implemented in plugin modules. The important thing, though, is that those DLLs will be <em>optional</em>; if PuTTY can't find them on startup, it should run perfectly happily and just won't provide those particular features. A full installation of PuTTY might one day contain ten or twenty little DLL plugins, which would cut down a little on the ease of installation - but if you really needed ease of installation you <em>could</em> still just install the one PuTTY binary, or just the DLLs you really needed, and it would still work fine.
+</p>
+<p>
+Depending on <em>external</em> DLLs is something we'd like to avoid if at all possible (though for some purposes, such as complex SSH authentication mechanisms, it may be unavoidable). If it can't be avoided, the important thing is to follow the same principle of graceful degradation: if a DLL can't be found, then PuTTY should run happily and just not supply the feature that depended on it.
+</p>
+<h2><a name="udp-single-threaded"></a><a name="SE.8"></a>E.8 Single-threaded code</h2>
+<p>
+PuTTY and its supporting tools, or at least the vast majority of them, run in only one OS thread.
+</p>
+<p>
+This means that if you're devising some piece of internal mechanism, there's no need to use locks to make sure it doesn't get called by two threads at once. The only way code can be called re-entrantly is by recursion.
+</p>
+<p>
+That said, most of Windows PuTTY's network handling is triggered off Windows messages requested by <code>WSAAsyncSelect()</code>, so if you call <code>MessageBox()</code> deep within some network event handling code you should be aware that you might be re-entered if a network event comes in and is passed on to our window procedure by the <code>MessageBox()</code> message loop.
+</p>
+<p>
+Also, the front ends can use multiple threads if they like. For example, the Windows front-end code spawns subthreads to deal with bidirectional blocking I/O on non-network streams such as Windows pipes. However, it keeps tight control of its auxiliary threads, and uses them only for that one purpose, as a form of <code>select()</code>. Pretty much all the code outside <code>windows/handle-io.c</code> is <em>only</em> ever called from the one primary thread; the others just loop round blocking on file handles, and signal the main thread (via Windows event objects) when some real work needs doing. This is not considered a portability hazard because that code is already Windows-specific and needs rewriting on other platforms.
+</p>
+<p>
+One important consequence of this: PuTTY has only one thread in which to do everything. That &#8216;everything&#8217; may include managing more than one login session (<a href="#udp-globals">section E.3</a>), managing multiple data channels within an SSH session, responding to GUI events even when nothing is happening on the network, and responding to network requests from the server (such as repeat key exchange) even when the program is dealing with complex user interaction such as the re-configuration dialog box. This means that <em>almost none</em> of the PuTTY code can safely block.
+</p>
+<h2><a name="udp-keystrokes"></a><a name="SE.9"></a>E.9 Keystrokes sent to the server wherever possible</h2>
+<p>
+In almost all cases, PuTTY sends keystrokes to the server. Even weird keystrokes that you think should be hot keys controlling PuTTY. Even Alt-F4 or Alt-Space, for example. If a keystroke has a well-defined escape sequence that it could usefully be sending to the server, then it should do so, or at the very least it should be configurably able to do so.
+</p>
+<p>
+To unconditionally turn a key combination into a hot key to control PuTTY is almost always a design error. If a hot key is really truly required, then try to find a key combination for it which <em>isn't</em> already used in existing PuTTYs (either it sends nothing to the server, or it sends the same thing as some other combination). Even then, be prepared for the possibility that one day that key combination might end up being needed to send something to the server - so make sure that there's an alternative way to invoke whatever PuTTY feature it controls.
+</p>
+<h2><a name="udp-640x480"></a><a name="SE.10"></a>E.10 640&#215;480 friendliness in configuration panels</h2>
+<p>
+There's a reason we have lots of tiny configuration panels instead of a few huge ones, and that reason is that not everyone has a 1600&#215;1200 desktop. 640&#215;480 is still a viable resolution for running Windows (and indeed it's still the default if you start up in safe mode), so it's still a resolution we care about.
+</p>
+<p>
+Accordingly, the PuTTY configuration box, and the PuTTYgen control window, are deliberately kept just small enough to fit comfortably on a 640&#215;480 display. If you're adding controls to either of these boxes and you find yourself wanting to increase the size of the whole box, <em>don't</em>. Split it into more panels instead.
+</p>
+<h2><a name="udp-ssh-coroutines"></a><a name="SE.11"></a>E.11 Coroutines in protocol code</h2>
+<p>
+Large parts of the code in modules implementing wire protocols (mainly SSH) are structured using a set of macros that implement (something close to) Donald Knuth's &#8216;coroutines&#8217; concept in C.
+</p>
+<p>
+Essentially, the purpose of these macros are to arrange that a function can call <code>crReturn()</code> to return to its caller, and the next time it is called control will resume from just after that <code>crReturn</code> statement.
+</p>
+<p>
+This means that any local (automatic) variables declared in such a function will be corrupted every time you call <code>crReturn</code>. If you need a variable to persist for longer than that, you <em>must</em> make it a field in some appropriate structure containing the persistent state of the coroutine &#8211; typically the main state structure for a protocol layer.
+</p>
+<p>
+See <a href="https://www.chiark.greenend.org.uk/~sgtatham/coroutines.html"><code>https://www.chiark.greenend.org.uk/~sgtatham/coroutines.html</code></a> for a more in-depth discussion of what these macros are for and how they work.
+</p>
+<p>
+Another caveat: most of these coroutines are not <em>guaranteed</em> to run to completion, because the SSH connection (or whatever) that they're part of might be interrupted at any time by an unexpected network event or user action. So whenever a coroutine-managed variable refers to a resource that needs releasing, you should also ensure that the cleanup function for its containing state structure can reliably release it even if the coroutine is aborted at an arbitrary point.
+</p>
+<p>
+For example, if an SSH packet protocol layer has to have a field that sometimes points to a piece of allocated memory, then you should ensure that when you free that memory you reset the pointer field to <code>NULL</code>. Then, no matter when the protocol layer's cleanup function is called, it can reliably free the memory if there is any, and not crash if there isn't.
+</p>
+<h2><a name="udp-traits"></a><a name="SE.12"></a>E.12 Explicit vtable structures to implement traits</h2>
+<p>
+A lot of PuTTY's code is written in a style that looks structurally rather like an object-oriented language, in spite of PuTTY being a pure C program.
+</p>
+<p>
+For example, there's a single data type called <code>ssh_hash</code>, which is an abstraction of a secure hash function, and a bunch of functions called things like <code>ssh_hash_</code><em>foo</em> that do things with those data types. But in fact, PuTTY supports many different hash functions, and each one has to provide its own implementation of those functions.
+</p>
+<p>
+In C++ terms, this is rather like having a single abstract base class, and multiple concrete subclasses of it, each of which fills in all the pure virtual methods in a way that's compatible with the data fields of the subclass. The implementation is more or less the same, as well: in C, we do explicitly in the source code what the C++ compiler will be doing behind the scenes at compile time.
+</p>
+<p>
+But perhaps a closer analogy in functional terms is the Rust concept of a &#8216;trait&#8217;, or the Java idea of an &#8216;interface&#8217;. C++ supports a multi-level hierarchy of inheritance, whereas PuTTY's system &#8211; like traits or interfaces &#8211; has only two levels, one describing a generic object of a type (e.g. a hash function) and another describing a specific implementation of that type (e.g. SHA-256).
+</p>
+<p>
+The PuTTY code base has a standard idiom for doing this in C, as follows.
+</p>
+<p>
+Firstly, we define two <code>struct</code> types for our trait. One of them describes a particular <em>kind</em> of implementation of that trait, and it's full of (mostly) function pointers. The other describes a specific <em>instance</em> of an implementation of that trait, and it will contain a pointer to a <code>const</code> instance of the first type. For example:
+</p>
+<pre><code>typedef struct MyAbstraction MyAbstraction;
+typedef struct MyAbstractionVtable MyAbstractionVtable;
+
+struct MyAbstractionVtable {
+    MyAbstraction *(*new)(const MyAbstractionVtable *vt);
+    void (*free)(MyAbstraction *);
+    void (*modify)(MyAbstraction *, unsigned some_parameter);
+    unsigned (*query)(MyAbstraction *, unsigned some_parameter);
+};
+
+struct MyAbstraction {
+    const MyAbstractionVtable *vt;
+};
+</code></pre>
+<p>
+Here, we imagine that <code>MyAbstraction</code> might be some kind of object that contains mutable state. The associated vtable structure shows what operations you can perform on a <code>MyAbstraction</code>: you can create one (dynamically allocated), free one you already have, or call the example methods &#8216;modify&#8217; (to change the state of the object in some way) and &#8216;query&#8217; (to return some value derived from the object's current state).
+</p>
+<p>
+(In most cases, the vtable structure has a name ending in &#8216;<code>vtable</code>&#8217;. But for historical reasons a lot of the crypto primitives that use this scheme &#8211; ciphers, hash functions, public key methods and so on &#8211; instead have names ending in &#8216;<code>alg</code>&#8217;, on the basis that the primitives they implement are often referred to as &#8216;encryption algorithms&#8217;, &#8216;hash algorithms&#8217; and so forth.)
+</p>
+<p>
+Now, to define a concrete instance of this trait, you'd define a <code>struct</code> that contains a <code>MyAbstraction</code> field, plus any other data it might need:
+</p>
+<pre><code>struct MyImplementation {
+    unsigned internal_data[16];
+    SomeOtherType *dynamic_subthing;
+
+    MyAbstraction myabs;
+};
+</code></pre>
+<p>
+Next, you'd implement all the necessary methods for that implementation of the trait, in this kind of style:
+</p>
+<pre><code>static MyAbstraction *myimpl_new(const MyAbstractionVtable *vt)
+{
+    MyImplementation *impl = snew(MyImplementation);
+    memset(impl, 0, sizeof(*impl));
+    impl-&gt;dynamic_subthing = allocate_some_other_type();
+    impl-&gt;myabs.vt = vt;
+    return &amp;impl-&gt;myabs;
+}
+
+static void myimpl_free(MyAbstraction *myabs)
+{
+    MyImplementation *impl = container_of(myabs, MyImplementation, myabs);
+    free_other_type(impl-&gt;dynamic_subthing);
+    sfree(impl);
+}
+
+static void myimpl_modify(MyAbstraction *myabs, unsigned param)
+{
+    MyImplementation *impl = container_of(myabs, MyImplementation, myabs);
+    impl-&gt;internal_data[param] += do_something_with(impl-&gt;dynamic_subthing);
+}
+
+static unsigned myimpl_query(MyAbstraction *myabs, unsigned param)
+{
+    MyImplementation *impl = container_of(myabs, MyImplementation, myabs);
+    return impl-&gt;internal_data[param];
+}
+</code></pre>
+<p>
+Having defined those methods, now we can define a <code>const</code> instance of the vtable structure containing pointers to them:
+</p>
+<pre><code>const MyAbstractionVtable MyImplementation_vt = {
+    .new = myimpl_new,
+    .free = myimpl_free,
+    .modify = myimpl_modify,
+    .query = myimpl_query,
+};
+</code></pre>
+<p>
+<em>In principle</em>, this is all you need. Client code can construct a new instance of a particular implementation of <code>MyAbstraction</code> by digging out the <code>new</code> method from the vtable and calling it (with the vtable itself as a parameter), which returns a <code>MyAbstraction *</code> pointer that identifies a newly created instance, in which the <code>vt</code> field will contain a pointer to the same vtable structure you passed in. And once you have an instance object, say <code>MyAbstraction *myabs</code>, you can dig out one of the other method pointers from the vtable it points to, and call that, passing the object itself as a parameter.
+</p>
+<p>
+But in fact, we don't do that, because it looks pretty ugly at all the call sites. Instead, what we generally do in this code base is to write a set of <code>static inline</code> wrapper functions in the same header file that defined the <code>MyAbstraction</code> structure types, like this:
+</p>
+<pre><code>static inline MyAbstraction *myabs_new(const MyAbstractionVtable *vt)
+{ return vt-&gt;new(vt); }
+static inline void myabs_free(MyAbstraction *myabs)
+{ myabs-&gt;vt-&gt;free(myabs); }
+static inline void myimpl_modify(MyAbstraction *myabs, unsigned param)
+{ myabs-&gt;vt-&gt;modify(myabs, param); }
+static inline unsigned myimpl_query(MyAbstraction *myabs, unsigned param)
+{ return myabs-&gt;vt-&gt;query(myabs, param); }
+</code></pre>
+<p>
+And now call sites can use those reasonably clean-looking wrapper functions, and shouldn't ever have to directly refer to the <code>vt</code> field inside any <code>myabs</code> object they're holding. For example, you might write something like this:
+</p>
+<pre><code>MyAbstraction *myabs = myabs_new(&amp;MyImplementation_vtable);
+myabs_update(myabs, 10);
+unsigned output = myabs_query(myabs, 2);
+myabs_free(myabs);
+</code></pre>
+<p>
+and then all this code can use a different implementation of the same abstraction by just changing which vtable pointer it passed in in the first line.
+</p>
+<p>
+Some things to note about this system:
+</p>
+<ul><li>
+The implementation instance type (here &#8216;<code>MyImplementation</code>&#8217; contains the abstraction type (&#8216;<code>MyAbstraction</code>&#8217;) as one of its fields. But that field is not necessarily at the start of the structure. So you can't just <em>cast</em> pointers back and forth between the two types. Instead:
+<ul><li>
+You &#8216;up-cast&#8217; from implementation to abstraction by taking the address of the <code>MyAbstraction</code> field. You can see the example <code>new</code> method above doing this, returning <code>&amp;impl-&gt;myabs</code>. All <code>new</code> methods do this on return.
+</li>
+<li>
+Going in the other direction, each method that was passed a generic <code>MyAbstraction *myabs</code> parameter has to recover a pointer to the specific implementation type <code>MyImplementation *impl</code>. The idiom for doing that is to use the &#8216;<code>container_of</code>&#8217; macro, also seen in the Linux kernel code. Generally, <code>container_of(p, Type, field)</code> says: &#8216;I'm confident that the pointer value &#8216;<code>p</code>&#8217; is pointing to the field called &#8216;<code>field</code>&#8217; within a larger <code>struct</code> of type <code>Type</code>. Please return me the pointer to the containing structure.&#8217; So in this case, we take the &#8216;<code>myabs</code>&#8217; pointer passed to the function, and &#8216;down-cast&#8217; it into a pointer to the larger and more specific structure type <code>MyImplementation</code>, by adjusting the pointer value based on the offset within that structure of the field called &#8216;<code>myabs</code>&#8217;.
+</li>
+</ul>
+<p>
+This system is flexible enough to permit &#8216;multiple inheritance&#8217;, or rather, multiple <em>implementation</em>: having one object type implement more than one trait. For example, the <code>ProxySocket</code> type implements both the <code>Socket</code> trait and the <code>Plug</code> trait that connects to it, because it has to act as an adapter between another instance of each of those types.
+</p>
+<p>
+It's also perfectly possible to have the same object implement the <em>same</em> trait in two different ways. At the time of writing this I can't think of any case where we actually do this, but a theoretical example might be if you needed to support a trait like <code>Comparable</code> in two ways that sorted by different criteria. There would be no difficulty doing this in the PuTTY system: simply have your implementation <code>struct</code> contain two (or more) fields of the same abstraction type. The fields will have different names, which makes it easy to explicitly specify which one you're returning a pointer to during up-casting, or which one you're down-casting from using <code>container_of</code>. And then both sets of implementation methods can recover a pointer to the same containing structure.
+</p>
+
+</li>
+<li>
+Unlike in C++, all objects in PuTTY that use this system are dynamically allocated. The &#8216;constructor&#8217; functions (whether they're virtualised across the whole abstraction or specific to each implementation) always allocate memory and return a pointer to it. The &#8216;free&#8217; method (our analogue of a destructor) always expects the input pointer to be dynamically allocated, and frees it. As a result, client code doesn't need to know how large the implementing object type is, because it will never need to allocate it (on the stack or anywhere else).
+</li>
+<li>
+Unlike in C++, the abstraction's &#8216;vtable&#8217; structure does not only hold methods that you can call on an instance object. It can also hold several other kinds of thing:
+<ul><li>
+Methods that you can call <em>without</em> an instance object, given only the vtable structure identifying a particular implementation of the trait. You might think of these as &#8216;static methods&#8217;, as in C++, except that they're <em>virtual</em> &#8211; the same code can call the static method of a different &#8216;class&#8217; given a different vtable pointer. So they're more like &#8216;virtual static methods&#8217;, which is a concept C++ doesn't have. An example is the <code>pubkey_bits</code> method in <code>ssh_keyalg</code>.
+</li>
+<li>
+The most important case of a &#8216;virtual static method&#8217; is the <code>new</code> method that allocates and returns a new object. You can think of it as a &#8216;virtual constructor&#8217; &#8211; another concept C++ doesn't have. (However, not all types need one of these: see below.)
+</li>
+<li>
+The vtable can also contain constant data relevant to the class as a whole &#8211; &#8216;virtual constant data&#8217;. For example, a cryptographic hash function will contain an integer field giving the length of the output hash, and most crypto primitives will contain a string field giving the identifier used in the SSH protocol that describes that primitive.
+</li>
+</ul>
+<p>
+The effect of all of this is that you can make other pieces of code able to use any instance of one of these types, by passing it an actual vtable as a parameter. For example, the <code>hash_simple</code> function takes an <code>ssh_hashalg</code> vtable pointer specifying any hash algorithm you like, and internally, it creates an object of that type, uses it, and frees it. In C++, you'd probably do this using a template, which would mean you had multiple specialisations of <code>hash_simple</code> &#8211; and then it would be much more difficult to decide <em>at run time</em> which one you needed to use. Here, <code>hash_simple</code> is still just one function, and you can decide as late as you like which vtable to pass to it.
+</p>
+
+</li>
+<li>
+The abstract <em>instance</em> structure can also contain publicly visible data fields (this time, usually treated as mutable) which are common to all implementations of the trait. For example, <code>BinaryPacketProtocol</code> has lots of these.
+</li>
+<li>
+Not all abstractions of this kind want virtual constructors. It depends on how different the implementations are.
+<p>
+With a crypto primitive like a hash algorithm, the constructor call looks the same for every implementing type, so it makes sense to have a standardised virtual constructor in the vtable and a <code>ssh_hash_new</code> wrapper function which can make an instance of whatever vtable you pass it. And then you make all the vtable objects themselves globally visible throughout the source code, so that any module can call (for example) <code>ssh_hash_new(&amp;ssh_sha256)</code>.
+</p>
+<p>
+But with other kinds of object, the constructor for each implementing type has to take a different set of parameters. For example, implementations of <code>Socket</code> are not generally interchangeable at construction time, because constructing different kinds of socket require totally different kinds of address parameter. In that situation, it makes more sense to keep the vtable structure itself private to the implementing source file, and instead, publish an ordinary constructing function that allocates and returns an instance of that particular subtype, taking whatever parameters are appropriate to that subtype.
+</p>
+
+</li>
+<li>
+If you do have virtual constructors, you can choose whether they take a vtable pointer as a parameter (as shown above), or an <em>existing</em> instance object. In the latter case, they can refer to the object itself as well as the vtable. For example, you could have a trait come with a virtual constructor called &#8216;clone&#8217;, meaning &#8216;Make a copy of this object, no matter which implementation it is.&#8217;
+</li>
+<li>
+Sometimes, a single vtable structure type can be shared between two completely different object types, and contain all the methods for both. For example, <code>ssh_compression_alg</code> contains methods to create, use and free <code>ssh_compressor</code> and <code>ssh_decompressor</code> objects, which are not interchangeable &#8211; but putting their methods in the same vtable means that it's easy to create a matching pair of objects that are compatible with each other.
+</li>
+<li>
+Passing the vtable itself as an argument to the <code>new</code> method is not compulsory: if a given <code>new</code> implementation is only used by a single vtable, then that function can simply hard-code the vtable pointer that it writes into the object it constructs. But passing the vtable is more flexible, because it allows a single constructor function to be shared between multiple slightly different object types. For example, SHA-384 and SHA-512 share the same <code>new</code> method and the same implementation data type, because they're very nearly the same hash algorithm &#8211; but a couple of the other methods in their vtables are different, because the &#8216;reset&#8217; function has to set up the initial algorithm state differently, and the &#8216;digest&#8217; method has to write out a different amount of data.
+<p>
+One practical advantage of having the <code>myabs_</code><em>foo</em> family of inline wrapper functions in the header file is that if you change your mind later about whether the vtable needs to be passed to <code>new</code>, you only have to update the <code>myabs_new</code> wrapper, and then the existing call sites won't need changing.
+</p>
+
+</li>
+<li>
+Another piece of &#8216;stunt object orientation&#8217; made possible by this scheme is that you can write two vtables that both use the same structure layout for the implementation object, and have an object <em>transform from one to the other</em> part way through its lifetime, by overwriting its own vtable pointer field. For example, the <code>sesschan</code> type that handles the server side of an SSH terminal session will sometimes transform in mid-lifetime into an SCP or SFTP file-transfer channel in this way, at the point where the client sends an &#8216;<code>exec</code>&#8217; or &#8216;<code>subsystem</code>&#8217; request that indicates that that's what it wants to do with the channel.
+<p>
+This concept would be difficult to arrange in C++. In Rust, it wouldn't even <em>make sense</em>, because in Rust, objects implementing a trait don't even contain a vtable pointer at all &#8211; instead, the &#8216;trait object&#8217; type (identifying a specific instance of some implementation of a given trait) consists of a pair of pointers, one to the object itself and one to the vtable. In that model, the only way you could make an existing object turn into a different trait would be to know where all the pointers to it were stored elsewhere in the program, and persuade all their owners to rewrite them.
+</p>
+
+</li>
+<li>
+Another stunt you can do is to have a vtable that doesn't have a corresponding implementation structure at all, because the only methods implemented in it are the constructors, and they always end up returning an implementation of some other vtable. For example, some of PuTTY's crypto primitives have a hardware-accelerated version and a pure software version, and decide at run time which one to use (based on whether the CPU they're running on supports the necessary acceleration instructions). So, for example, there are vtables for <code>ssh_sha256_sw</code> and <code>ssh_sha256_hw</code>, each of which has its own data layout and its own implementations of all the methods; and then there's a top-level vtable <code>ssh_sha256</code>, which only provides the &#8216;new&#8217; method, and implements it by calling the &#8216;new&#8217; method on one or other of the subtypes depending on what it finds out about the machine it's running on. That top-level selector vtable is nearly always the one used by client code. (Except for the test suite, which has to instantiate both of the subtypes in order to make sure they both pass the tests.)
+<p>
+As a result, the top-level selector vtable <code>ssh_sha256</code> doesn't need to implement any method that takes an <code>ssh_cipher *</code> parameter, because no <code>ssh_cipher</code> object is ever constructed whose <code>vt</code> field points to <code>&amp;ssh_sha256</code>: they all point to one of the other two full implementation vtables.
+</p>
+
+</li>
+</ul>
+<h2><a name="udp-perfection"></a><a name="SE.13"></a>E.13 Do as we say, not as we do</h2>
+<p>
+The current PuTTY code probably does not conform strictly to <em>all</em> of the principles listed above. There may be the occasional SSH-specific piece of code in what should be a backend-independent module, or the occasional dependence on a non-standard X library function under Unix.
+</p>
+<p>
+This should not be taken as a licence to go ahead and violate the rules. Where we violate them ourselves, we're not happy about it, and we would welcome patches that fix any existing problems. Please try to help us make our code better, not worse!
+</p>
+
+<hr><p>If you want to provide feedback on this manual or on the PuTTY tools themselves, see the <a href="https://www.chiark.greenend.org.uk/~sgtatham/putty/feedback.html">Feedback page</a>.</p><address></address></body>
+</html>

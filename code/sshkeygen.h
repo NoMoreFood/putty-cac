@@ -94,6 +94,14 @@ typedef struct MillerRabin MillerRabin;
 MillerRabin *miller_rabin_new(mp_int *p);
 void miller_rabin_free(MillerRabin *mr);
 
+/* Perform a single Miller-Rabin test, using a specified witness value.
+ * Used in the test suite. */
+struct mr_result {
+    unsigned passed;
+    unsigned potential_primitive_root;
+};
+struct mr_result miller_rabin_test(MillerRabin *mr, mp_int *w);
+
 /* Perform a single Miller-Rabin test, using a random witness value. */
 bool miller_rabin_test_random(MillerRabin *mr);
 
@@ -286,7 +294,7 @@ extern const PrimeGenerationPolicy primegen_provable_maurer_complex;
 
 int rsa_generate(RSAKey *key, int bits, bool strong,
                  PrimeGenerationContext *pgc, ProgressReceiver *prog);
-int dsa_generate(struct dss_key *key, int bits, PrimeGenerationContext *pgc,
+int dsa_generate(struct dsa_key *key, int bits, PrimeGenerationContext *pgc,
                  ProgressReceiver *prog);
 int ecdsa_generate(struct ecdsa_key *key, int bits);
 int eddsa_generate(struct eddsa_key *key, int bits);

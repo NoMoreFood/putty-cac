@@ -461,9 +461,7 @@ static void signop_coroutine(PageantAsyncOp *pao)
 #ifdef PUTTY_CAC
     if (cert_is_certpath(so->pk->comment))
     {
-        DWORD siglen = 0;
-        LPBYTE sig = cert_sign(so->pk->skey, (LPCBYTE)so->data_to_sign->u, so->data_to_sign->len, &siglen, so->flags);
-        put_data(BinarySink_UPCAST(signature), sig, siglen);
+        cert_sign(so->pk->skey, (LPCBYTE)so->data_to_sign->u, so->data_to_sign->len, so->flags, signature);
     }
     else
 #endif // PUTTY_CAC
@@ -859,6 +857,7 @@ static PageantAsyncOp *pageant_make_op(
         so->pao.info = pc->info;
         so->pao.cr.prev = pc->info->head.prev;
         so->pao.cr.next = &pc->info->head;
+        so->pao.cr.prev->next = so->pao.cr.next->prev = &so->pao.cr;
         so->pao.reqid = reqid;
         so->pk = pk;
         so->pkr.prev = so->pkr.next = NULL;
@@ -938,18 +937,22 @@ static PageantAsyncOp *pageant_make_op(
         }
 
 #ifdef PUTTY_CAC
-		/* scan the message looking for a capi or pkcs identifier */
-		for (const char * pSearch = msg->data; pSearch + IDEN_CAPI_SIZE + SHA1_HEX_SIZE - 1 < 
-			(((const char *) msg->data) + msg->len); pSearch++)
+		/* scan the message looking for a capi, fido, or pkcs identifier */
+        size_t current_pos = msg->pos;
+		for (ptrlen t = get_string(msg); t.len != 0; t = get_string(msg))
 		{
-			if (cert_is_certpath(pSearch))
+            char * search = dupprintf("%.*s", (int) t.len, t.ptr);
+			if (cert_is_certpath(search))
 			{
-                if (key->key) ssh_key_free(key->key);
-				sfree(key);
-				key = cert_load_key(pSearch, NULL);
-                BinarySource_REWIND_TO(msg, (pSearch - ((const char*) msg->data) - 4));
+				key = cert_load_key(search, NULL);
+                BinarySource_REWIND_TO(msg, ((char *) t.ptr - (char*) msg->data) - 4);
+                sfree(search);
+                break;
 			}
+            sfree(search);
 		}
+
+        if (key->key == NULL) BinarySource_REWIND_TO(msg, current_pos);
 		if (key->key == NULL)
 #endif // PUTTY_CAC
         key->key = ssh_key_new_priv_openssh(alg, msg);
@@ -1391,6 +1394,7 @@ static PageantAsyncOp *pageant_make_op(
     io->pao.info = pc->info;
     io->pao.cr.prev = pc->info->head.prev;
     io->pao.cr.next = &pc->info->head;
+    io->pao.cr.prev->next = io->pao.cr.next->prev = &io->pao.cr;
     io->pao.reqid = reqid;
     io->response = sb;
     io->crLine = 0;
@@ -1499,12 +1503,12 @@ struct pageant_conn_state {
     Plug plug;
 };
 
-static void pageant_conn_closing(Plug *plug, const char *error_msg,
-                                 int error_code, bool calling_back)
+static void pageant_conn_closing(Plug *plug, PlugCloseType type,
+                                 const char *error_msg)
 {
     struct pageant_conn_state *pc = container_of(
         plug, struct pageant_conn_state, plug);
-    if (error_msg)
+    if (type != PLUGCLOSE_NORMAL)
         pageant_listener_client_log(pc->plc, "c#%"SIZEu": error: %s",
                                     pc->conn_index, error_msg);
     else
@@ -1646,12 +1650,12 @@ struct pageant_listen_state {
     Plug plug;
 };
 
-static void pageant_listen_closing(Plug *plug, const char *error_msg,
-                                   int error_code, bool calling_back)
+static void pageant_listen_closing(Plug *plug, PlugCloseType type,
+                                   const char *error_msg)
 {
     struct pageant_listen_state *pl = container_of(
         plug, struct pageant_listen_state, plug);
-    if (error_msg)
+    if (type != PLUGCLOSE_NORMAL)
         pageant_listener_client_log(pl->plc, "listening socket: error: %s",
                                     error_msg);
     sk_close(pl->listensock);
@@ -1662,6 +1666,7 @@ static const PlugVtable pageant_connection_plugvt = {
     .closing = pageant_conn_closing,
     .receive = pageant_conn_receive,
     .sent = pageant_conn_sent,
+    .log = nullplug_log,
 };
 
 static int pageant_listen_accepting(Plug *plug,
@@ -1710,6 +1715,7 @@ static int pageant_listen_accepting(Plug *plug,
 static const PlugVtable pageant_listener_plugvt = {
     .closing = pageant_listen_closing,
     .accepting = pageant_listen_accepting,
+    .log = nullplug_log,
 };
 
 struct pageant_listen_state *pageant_listener_new(

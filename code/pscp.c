@@ -1,5 +1,5 @@
 /*
- * scp.c  -  Scp (Secure Copy) client for PuTTY.
+ * pscp.c  -  Scp (Secure Copy) client for PuTTY.
  * Joris van Rantwijk, Simon Tatham
  *
  * This is mainly based on ssh-1.2.26/scp.c by Timo Rinne & Tatu Ylonen.
@@ -22,7 +22,7 @@
 #include "putty.h"
 #include "psftp.h"
 #include "ssh.h"
-#include "sftp.h"
+#include "ssh/sftp.h"
 #include "storage.h"
 
 static bool list = false;
@@ -49,8 +49,6 @@ static void source(const char *src);
 static void rsource(const char *src);
 static void sink(const char *targ, const char *src);
 
-const char *const appname = "PSCP";
-
 /*
  * The maximum amount of queued data we accept before we stop and
  * wait for the server to process some.
@@ -58,20 +56,25 @@ const char *const appname = "PSCP";
 #define MAX_SCP_BUFSIZE 16384
 
 void ldisc_echoedit_update(Ldisc *ldisc) { }
+void ldisc_check_sendok(Ldisc *ldisc) { }
 
-static size_t pscp_output(Seat *, bool is_stderr, const void *, size_t);
+static size_t pscp_output(Seat *, SeatOutputType type, const void *, size_t);
 static bool pscp_eof(Seat *);
 
 static const SeatVtable pscp_seat_vt = {
     .output = pscp_output,
     .eof = pscp_eof,
+    .sent = nullseat_sent,
+    .banner = nullseat_banner_to_stderr,
     .get_userpass_input = filexfer_get_userpass_input,
+    .notify_session_started = nullseat_notify_session_started,
     .notify_remote_exit = nullseat_notify_remote_exit,
+    .notify_remote_disconnect = nullseat_notify_remote_disconnect,
     .connection_fatal = console_connection_fatal,
     .update_specials_menu = nullseat_update_specials_menu,
     .get_ttymode = nullseat_get_ttymode,
     .set_busy_status = nullseat_set_busy_status,
-    .verify_ssh_host_key = console_verify_ssh_host_key,
+    .confirm_ssh_host_key = console_confirm_ssh_host_key,
     .confirm_weak_crypto_primitive = console_confirm_weak_crypto_primitive,
     .confirm_weak_cached_hostkey = console_confirm_weak_cached_hostkey,
     .is_utf8 = nullseat_is_never_utf8,
@@ -80,7 +83,9 @@ static const SeatVtable pscp_seat_vt = {
     .get_windowid = nullseat_get_windowid,
     .get_window_pixel_size = nullseat_get_window_pixel_size,
     .stripctrl_new = console_stripctrl_new,
-    .set_trust_status = nullseat_set_trust_status_vacuously,
+    .set_trust_status = nullseat_set_trust_status,
+    .can_set_trust_status = nullseat_can_set_trust_status_yes,
+    .has_mixed_input_stream = nullseat_has_mixed_input_stream_no,
     .verbose = cmdline_seat_verbose,
     .interactive = nullseat_interactive_no,
     .get_cursor_position = nullseat_get_cursor_position,
@@ -141,13 +146,14 @@ static PRINTF_LIKE(2, 3) void tell_user(FILE *stream, const char *fmt, ...)
 static bufchain received_data;
 static BinarySink *stderr_bs;
 static size_t pscp_output(
-    Seat *seat, bool is_stderr, const void *data, size_t len)
+    Seat *seat, SeatOutputType type, const void *data, size_t len)
 {
     /*
-     * stderr data is just spouted to local stderr (optionally via a
-     * sanitiser) and otherwise ignored.
+     * Non-stdout data (both stderr and SSH auth banners) is just
+     * spouted to local stderr (optionally via a sanitiser) and
+     * otherwise ignored.
      */
-    if (is_stderr) {
+    if (type != SEAT_OUTPUT_STDOUT) {
         put_data(stderr_bs, data, len);
         return 0;
     }
@@ -848,7 +854,8 @@ int scp_send_filedata(char *data, int len)
         scp_sftp_fileoffset += len;
         return 0;
     } else {
-        int bufsize = backend_send(backend, data, len);
+        backend_send(backend, data, len);
+        int bufsize = backend_sendbuffer(backend);
 
         /*
          * If the network transfer is backing up - that is, the
@@ -1806,7 +1813,7 @@ static void sink(const char *targ, const char *src)
             striptarget = stripslashes(act.name, true);
             if (striptarget != act.name) {
                 with_stripctrl(sanname, act.name) {
-                    with_stripctrl(santarg, act.name) {
+                    with_stripctrl(santarg, striptarget) {
                         tell_user(stderr, "warning: remote host sent a"
                                   " compound pathname '%s'", sanname);
                         tell_user(stderr, "         renaming local"
@@ -2194,7 +2201,7 @@ static void usage(void)
     printf("  -load sessname  Load settings from saved session\n");
     printf("  -P port   connect to specified port\n");
     printf("  -l user   connect with specified username\n");
-    printf("  -pw passw login with specified password\n");
+    printf("  -pwfile file   login with password read from specified file\n");
     printf("  -1 -2     force use of particular SSH protocol version\n");
     printf("  -ssh -ssh-connection\n");
     printf("            force use of particular SSH protocol variant\n");
