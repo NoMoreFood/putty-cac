@@ -944,7 +944,8 @@ static PageantAsyncOp *pageant_make_op(
             char * search = dupprintf("%.*s", (int) t.len, t.ptr);
 			if (cert_is_certpath(search))
 			{
-				key = cert_load_key(search, NULL);
+                ssh2_userkey * newkey = cert_load_key(search);
+                if (newkey == NULL) continue; else key = newkey;
                 BinarySource_REWIND_TO(msg, ((char *) t.ptr - (char*) msg->data) - 4);
                 sfree(search);
                 break;

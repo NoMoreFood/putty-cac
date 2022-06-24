@@ -8,25 +8,22 @@
 #include <cryptuiapi.h>
 #include <wincred.h>
 
-#include "cert_pkcs.h"
-#include "cert_capi.h"
-#include "cert_fido.h"
+#include "marshal.h"
+#include "ssh.h"
+#include "mpint.h"
+#include "ecc.h"
 
 #define DEFINE_VARIABLES
 #include "cert_common.h"
 #undef DEFINE_VARIABLES
 
+#include "cert_pkcs.h"
+#include "cert_capi.h"
+#include "cert_fido.h"
+
 #ifndef PUTTY_REG_POS
 #define PUTTY_REG_POS "Software\\SimonTatham\\PuTTY"
 #endif
-
-#ifndef SSH_AGENT_SUCCESS
-#include "ssh.h"
-#endif
-#include "mpint.h"
-#include "ecc.h"
-#include "marshal.h"
-#include "misc.h"
 
 VOID cert_reverse_array(LPBYTE pb, DWORD cb)
 {
@@ -38,8 +35,11 @@ VOID cert_reverse_array(LPBYTE pb, DWORD cb)
 	}
 }
 
-LPSTR cert_get_cert_thumbprint(LPCSTR szIden, PCCERT_CONTEXT pCertContext, LPCSTR szHint)
+LPSTR cert_get_cert_thumbprint(LPCSTR szIden, PCCERT_CONTEXT pCertContext)
 {
+	// sanity check
+	if (szIden == NULL || pCertContext == NULL) return FALSE;
+
 	BYTE pbThumbBinary[SHA1_BINARY_SIZE];
 	DWORD cbThumbBinary = SHA1_BINARY_SIZE;
 	if (CertGetCertificateContextProperty(pCertContext, CERT_HASH_PROP_ID, pbThumbBinary, &cbThumbBinary) == FALSE)
@@ -84,22 +84,22 @@ LPSTR cert_get_cert_thumbprint(LPCSTR szIden, PCCERT_CONTEXT pCertContext, LPCST
 	return szThumb;
 }
 
-LPSTR cert_prompt(LPCSTR szIden, HWND hWnd, BOOL bAutoSelect, LPCWSTR sCustomPrompt)
+LPSTR cert_prompt(LPCSTR szIden, BOOL bAutoSelect, LPCWSTR sCustomPrompt)
 {
 	HCERTSTORE hCertStore = NULL;
 	LPCSTR szHint = NULL;
 
 	if (cert_is_capipath(szIden))
 	{
-		hCertStore = cert_capi_get_cert_store(&szHint, hWnd);
+		hCertStore = cert_capi_get_cert_store();
 	}
 	else if (cert_is_pkcspath(szIden))
 	{
-		hCertStore = cert_pkcs_get_cert_store(&szHint, hWnd);
+		hCertStore = cert_pkcs_get_cert_store();
 	}
 	else if (cert_is_fidopath(szIden))
 	{
-		hCertStore = cert_fido_get_cert_store(&szHint, hWnd);
+		hCertStore = cert_fido_get_cert_store();
 	}
 
 	// return if store could not be loaded
@@ -132,7 +132,7 @@ LPSTR cert_prompt(LPCSTR szIden, HWND hWnd, BOOL bAutoSelect, LPCWSTR sCustomPro
 	else
 	{
 		// display the certificate selection dialog
-		pCertContext = CryptUIDlgSelectCertificateFromStore(hMemoryStore, hWnd,
+		pCertContext = CryptUIDlgSelectCertificateFromStore(hMemoryStore, GetForegroundWindow(),
 			L"PuTTY: Select Certificate Or Key",
 			sCustomPrompt != NULL ? sCustomPrompt : (
 				L"Please select the certificate or key identifier that you would like " \
@@ -148,7 +148,7 @@ LPSTR cert_prompt(LPCSTR szIden, HWND hWnd, BOOL bAutoSelect, LPCWSTR sCustomPro
 		DWORD cbThumbBinary = SHA1_BINARY_SIZE;
 		if (CertGetCertificateContextProperty(pCertContext, CERT_HASH_PROP_ID, pbThumbBinary, &cbThumbBinary) == TRUE)
 		{
-			szCert = cert_get_cert_thumbprint(IDEN_PREFIX(szIden), pCertContext, szHint);
+			szCert = cert_get_cert_thumbprint(IDEN_PREFIX(szIden), pCertContext);
 		}
 
 		// cleanup
@@ -219,7 +219,7 @@ BOOL cert_confirm_signing(LPCSTR sFingerPrint, LPCSTR sComment)
 	return (iResponse == IDYES);
 }
 
-BOOL cert_sign(struct ssh2_userkey* userkey, LPCBYTE pDataToSign, int iDataToSignLen, int iAgentFlags, strbuf* pSignature)
+BOOL cert_sign(struct ssh2_userkey* userkey, LPCBYTE pDataToSign, int iDataToSignLen, int iAgentFlags, struct strbuf * pSignature)
 {
 	LPBYTE pRawSig = NULL;
 	DWORD iCounter = 0;
@@ -452,7 +452,7 @@ struct ssh2_userkey* cert_get_ssh_userkey(LPCSTR szCert, PCERT_CONTEXT pCertCont
 	return pUserKey;
 }
 
-struct ssh2_userkey* cert_load_key(LPCSTR szCert, HWND hWnd)
+struct ssh2_userkey* cert_load_key(LPCSTR szCert)
 {
 	// sanity check
 	if (szCert == NULL) return NULL;
@@ -462,7 +462,7 @@ struct ssh2_userkey* cert_load_key(LPCSTR szCert, HWND hWnd)
 	BOOL bDynamicLookupAutoSelect = strcmp(IDEN_SPLIT(szCert), "**") == 0;
 	if (bDynamicLookup || bDynamicLookupAutoSelect)
 	{
-		szCert = cert_prompt(szCert, hWnd, bDynamicLookupAutoSelect, NULL);
+		szCert = cert_prompt(szCert, bDynamicLookupAutoSelect, NULL);
 		if (szCert == NULL) return NULL;
 	}
 
@@ -500,7 +500,7 @@ LPSTR cert_key_string(LPCSTR szCert)
 	// fetch the elements of the string
 	LPSTR szKey = ssh2_pubkey_openssh_str(pUserKey);
 	LPSTR szName = cert_subject_string(szCert);
-	LPSTR szHash = cert_get_cert_thumbprint(cert_iden(szCert), pCertContext, NULL);
+	LPSTR szHash = cert_get_cert_thumbprint(cert_iden(szCert), pCertContext);
 
 	// append the ssh string, identifier:thumbprint, and certificate subject
 	LPSTR szKeyWithComment = dupprintf("%s %s %s", szKey, szHash, szName);
@@ -662,8 +662,8 @@ int cert_all_certs(LPSTR** pszCert)
 	LPCSTR sStoreType[2] = { IDEN_CAPI, IDEN_FIDO };
 	HCERTSTORE hCertStore[2] =
 	{
-		cert_capi_get_cert_store(NULL, NULL),
-		cert_fido_get_cert_store(NULL, NULL)
+		cert_capi_get_cert_store(NULL),
+		cert_fido_get_cert_store(NULL)
 	};
 
 	// find certificates matching our criteria
@@ -678,7 +678,7 @@ int cert_all_certs(LPSTR** pszCert)
 
 			// count cert and [re]allocate the return string array
 			*pszCert = snrealloc(*pszCert, iCertNum + 1, sizeof(LPSTR));
-			(*pszCert)[iCertNum++] = cert_get_cert_thumbprint(sStoreType[iStore], pCertContext, NULL);
+			(*pszCert)[iCertNum++] = cert_get_cert_thumbprint(sStoreType[iStore], pCertContext);
 		}
 
 		// cleanup and return

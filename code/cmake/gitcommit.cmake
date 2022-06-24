@@ -1,6 +1,6 @@
 # Pure cmake script to write out cmake_commit.c and cmake_version.but
 
-set(DEFAULT_COMMIT "61ab33efe48cfd1cea77e249e5598a89f3387fa3")
+set(DEFAULT_COMMIT "See https://github.com/NoMoreFood/putty-cac")
 set(commit "${DEFAULT_COMMIT}")
 
 set(TOPLEVEL_SOURCE_DIR ${CMAKE_SOURCE_DIR})
