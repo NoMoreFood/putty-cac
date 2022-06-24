@@ -1003,7 +1003,7 @@ ssh2_userkey *ppk_load_f(const Filename *filename, const char *passphrase,
 {
 #ifdef PUTTY_CAC
     if (cert_is_certpath(filename->path)) {
-        ssh2_userkey* ret = cert_load_key(filename->path, NULL);
+        ssh2_userkey* ret = cert_load_key(filename->path);
         if (ret == NULL) {
             *errorstr = "load key from certificate failed";
         }
@@ -1323,7 +1323,7 @@ bool ppk_loadpub_f(const Filename *filename, char **algorithm, BinarySink *bs,
 #ifdef PUTTY_CAC
     cert_convert_legacy(filename->path);
     if (cert_is_certpath(filename->path)) {
-        struct ssh2_userkey* userkey = cert_load_key(filename->path, NULL);
+        struct ssh2_userkey* userkey = cert_load_key(filename->path);
         if (userkey == NULL || userkey->key == NULL) {
             *errorstr = "load key from certificate failed";
             return false;

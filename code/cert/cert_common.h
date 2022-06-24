@@ -4,10 +4,9 @@
 
 #include <windows.h>
 
-// include ssh for types
-#ifndef SSH_AGENT_SUCCESS
-#include "ssh.h"
-#endif
+// forward declarations for shared structures
+struct ssh2_userkey;
+struct strbuf;
 
 // used to determine whether these variables are marked as extern
 // for external source files including these files
@@ -15,7 +14,11 @@
 #ifdef DEFINE_VARIABLES
 #define EXTERN 
 #else
+#ifdef __cplusplus
+#define EXTERN EXTERN_C
+#else
 #define EXTERN extern
+#endif
 #endif
 
 // functions used only by the capi and pkcs addon modules
@@ -37,21 +40,21 @@ EXTERN BOOL cert_cmdline_parse(LPCSTR sCommand);
 // functions used by putty code 
 EXTERN LPSTR cert_key_string(LPCSTR szCert);
 EXTERN LPSTR cert_subject_string(LPCSTR szCert);
-EXTERN LPSTR cert_prompt(LPCSTR szIden, HWND hWnd, BOOL bAutoSelect, LPCWSTR sCustomPrompt);
+EXTERN LPSTR cert_prompt(LPCSTR szIden, BOOL bAutoSelect, LPCWSTR sCustomPrompt);
 EXTERN BOOL cert_test_hash(LPCSTR szCert, DWORD iHashRequest);
 EXTERN BOOL cert_confirm_signing(LPCSTR sFingerPrint, LPCSTR sComment);
-EXTERN BOOL cert_sign(struct ssh2_userkey * userkey, LPCBYTE pDataToSign, int iDataToSignLen, int iAgentFlags, strbuf* pSignature);
-EXTERN struct ssh2_userkey * cert_load_key(LPCSTR szCert, HWND hWnd);
+EXTERN BOOL cert_sign(struct ssh2_userkey * userkey, LPCBYTE pDataToSign, int iDataToSignLen, int iAgentFlags, struct strbuf* pSignature);
+EXTERN struct ssh2_userkey * cert_load_key(LPCSTR szCert);
 EXTERN VOID cert_display_cert(LPCSTR szCert, HWND hWnd);
 EXTERN int cert_all_certs(LPSTR ** pszCert);
 EXTERN VOID cert_convert_legacy(LPSTR szCert);
 EXTERN LPBYTE cert_get_hash(LPCSTR szAlgo, LPCBYTE pDataToHash, DWORD iDataToHashSize, DWORD * iHashedDataSize, BOOL bPrependDigest);
-EXTERN BOOL cert_capi_create_key(LPCSTR szAlgName, LPCSTR sSubjectName, BOOL bHardware);
 EXTERN BOOL cert_capi_delete_key(LPCSTR szCert);
 EXTERN BOOL fido_create_key(LPCSTR szAlgName, LPCSTR szApplication, BOOL bResidentKey, BOOL bUserVerification);
 EXTERN BOOL fido_delete_key(LPCSTR szCert);
 EXTERN VOID fido_import_keys();
 EXTERN VOID fido_clear_keys();
+EXTERN LPSTR cert_capi_create_key(LPCSTR szAlgName, LPCSTR sSubjectName, BOOL bHardware);
 
 // ed25519 oid; no native support in windows
 #ifndef szOID_ED25119
@@ -69,7 +72,7 @@ EXTERN VOID fido_clear_keys();
 #define IDEN_FIDO_SIZE (strlen(IDEN_FIDO))
 
 #define IDEN_SPLIT(p) (strchr(p,':') + 1)
-#define IDEN_PREFIX(p) (cert_is_capipath(p) ? IDEN_CAPI : cert_is_pkcspath(p) ? IDEN_CAPI : IDEN_FIDO)
+#define IDEN_PREFIX(p) (cert_is_capipath(p) ? IDEN_CAPI : cert_is_pkcspath(p) ? IDEN_PKCS : IDEN_FIDO)
 
 #define cert_is_capipath(p) (p != NULL && _strnicmp((LPSTR) p, IDEN_CAPI, IDEN_CAPI_SIZE) == 0)
 #define cert_is_pkcspath(p) (p != NULL && _strnicmp((LPSTR) p, IDEN_PKCS, IDEN_PKCS_SIZE) == 0)

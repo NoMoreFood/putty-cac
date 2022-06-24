@@ -192,9 +192,10 @@ target_include_directories(testcrypt PUBLIC ../cert)
 target_include_directories(puttygen PUBLIC ../cert)
 add_sources_from_current_dir(crypto
 ../cert/cert_common.c
-../cert/cert_pkcs.c
 ../cert/cert_capi.c
-../cert/cert_fido.c)
+../cert/cert_capi_tools.cc
+../cert/cert_fido.c
+../cert/cert_pkcs.c)
 
 add_executable(puttyimp
   puttyimp.c puttyimp.rc)

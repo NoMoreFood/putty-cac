@@ -7,6 +7,8 @@
 #include <sddl.h>
 #include <webauthn.h>
 
+#include "ssh.h"
+
 #define DEFINE_VARIABLES
 #include "cert_fido.h"
 #undef DEFINE_VARIABLES
@@ -202,7 +204,7 @@ BYTE* cert_fido_sign(struct ssh2_userkey* userkey, LPCBYTE pDataToSign, int iDat
 	tClientData.pbClientDataJSON = (PBYTE)pDataToSign;
 	tClientData.pwszHashAlgId = sHashAlg;
 
-	//  identify credential list(technically only required for non - resident keys) 
+	//  identify credential list (technically only required for non-resident keys) 
 	WEBAUTHN_CREDENTIAL tCredential = { WEBAUTHN_CREDENTIAL_CURRENT_VERSION };
 	tCredential.cbId = iCredIdBufferSize;
 	tCredential.pwszCredentialType = WEBAUTHN_CREDENTIAL_TYPE_PUBLIC_KEY;
@@ -380,13 +382,8 @@ void cert_fido_load_cert(LPCSTR szCert, PCCERT_CONTEXT* ppCertCtx, HCERTSTORE* p
 }
 
 
-HCERTSTORE cert_fido_get_cert_store(LPCSTR* szHint, HWND hWnd)
+HCERTSTORE cert_fido_get_cert_store()
 {
-	UNREFERENCED_PARAMETER(hWnd);
-
-	// no library hint needed for fido
-	if (szHint != NULL) *szHint = NULL;
-
 	// open a memory-based cert store to store the certificate context i
 	HCERTSTORE hStoreHandle = CertOpenStore(CERT_STORE_PROV_MEMORY,
 		X509_ASN_ENCODING | PKCS_7_ASN_ENCODING, 0, CERT_STORE_CREATE_NEW_FLAG, NULL);
