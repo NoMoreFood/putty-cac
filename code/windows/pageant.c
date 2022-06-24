@@ -713,7 +713,7 @@ static INT_PTR CALLBACK KeyListProc(HWND hwnd, UINT msg,
 			  char * szCert = cert_prompt(
                   (LOWORD(wParam) == IDC_KEYLIST_ADD_CAPI) ? IDEN_CAPI :
                   (LOWORD(wParam) == IDC_KEYLIST_ADD_PKCS) ? IDEN_PKCS :
-                  (LOWORD(wParam) == IDC_KEYLIST_ADD_FIDO) ? IDEN_FIDO : 0, hwnd, FALSE, NULL);
+                  (LOWORD(wParam) == IDC_KEYLIST_ADD_FIDO) ? IDEN_FIDO : 0, FALSE, NULL);
 			  if (szCert == NULL) return 0;
 			  Filename *fn = filename_from_str(szCert);
 			  char *err = NULL;
@@ -1400,7 +1400,7 @@ static LRESULT CALLBACK TrayWndProc(HWND hwnd, UINT message,
           char* szCert = cert_prompt(
               ((wParam & ~0xF) == IDM_ADDCAPI) ? IDEN_CAPI :
               ((wParam & ~0xF) == IDM_ADDPKCS) ? IDEN_PKCS :
-              ((wParam & ~0xF) == IDM_ADDFIDO) ? IDEN_FIDO : NULL, hwnd, FALSE, NULL);
+              ((wParam & ~0xF) == IDM_ADDFIDO) ? IDEN_FIDO : NULL, FALSE, NULL);
           if (szCert == NULL) break;
           Filename* fn = filename_from_str(szCert);
           char* err = NULL;

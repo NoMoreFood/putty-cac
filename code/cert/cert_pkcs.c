@@ -8,16 +8,14 @@
 #pragma comment(lib,"crypt32.lib")
 #pragma comment(lib,"credui.lib")
 
-#include "cert_common.h"
+#include "ssh.h"
+#include "mpint.h"
 
 #define DEFINE_VARIABLES
 #include "cert_pkcs.h"
 #undef DEFINE_VARIABLES
 
-#ifndef SSH_AGENT_SUCCESS
-#include "ssh.h"
-#endif
-#include "mpint.h"
+#include "cert_common.h"
 
 // required to be defined by pkcs headers
 #define CK_PTR *
@@ -37,7 +35,7 @@
 #pragma pack(pop, cryptoki)
 
 // functions used within the pkcs module
-PCCERT_CONTEXT pkcs_get_cert_from_token(CK_FUNCTION_LIST_PTR FunctionList, CK_SESSION_HANDLE hSession, CK_OBJECT_HANDLE hObject);
+PCCERT_CONTEXT pkcs_get_cert_from_token(CK_FUNCTION_LIST_PTR FunctionList, CK_SESSION_HANDLE hSession, CK_OBJECT_HANDLE hObject, LPSTR szFile);
 CK_FUNCTION_LIST_PTR cert_pkcs_load_library(LPCSTR szLibrary);
 void * pkcs_get_attribute_value(CK_FUNCTION_LIST_PTR FunctionList, CK_SESSION_HANDLE hSession,
 	CK_OBJECT_HANDLE hObject, CK_ATTRIBUTE_TYPE iAttribute, CK_ULONG_PTR iValueSize);
@@ -325,9 +323,10 @@ void cert_pkcs_load_cert(LPCSTR szCert, PCCERT_CONTEXT* ppCertCtx, HCERTSTORE* p
 
 	// lookup the cert in the token
 	*phStore = NULL;
-	*ppCertCtx = pkcs_get_cert_from_token(pFunctionList, hSession, hObject);
+	*ppCertCtx = pkcs_get_cert_from_token(pFunctionList, hSession, hObject, szLibrary);
 
 	// cleanup
+	pFunctionList->C_CloseSession(hSession);
 	free(szThumb);
 }
 
@@ -409,7 +408,7 @@ CK_FUNCTION_LIST_PTR cert_pkcs_load_library(LPCSTR szLibrary)
 	return hItem->FunctionList;
 }
 
-HCERTSTORE cert_pkcs_get_cert_store(LPCSTR * szHint, HWND hWnd)
+HCERTSTORE cert_pkcs_get_cert_store()
 {
 	static char szSysDir[MAX_PATH + 1] = "\0";
 	if (strlen(szSysDir) == 0 && GetSystemDirectory(szSysDir, _countof(szSysDir)) == 0)
@@ -421,8 +420,8 @@ HCERTSTORE cert_pkcs_get_cert_store(LPCSTR * szHint, HWND hWnd)
 	OPENFILENAME tFileNameInfo;
 	ZeroMemory(&tFileNameInfo, sizeof(OPENFILENAME));
 	tFileNameInfo.lStructSize = sizeof(OPENFILENAME);
-	tFileNameInfo.hwndOwner = hWnd;
-	tFileNameInfo.lpstrFilter = "PKCS Library Files (*pkcs*.dll;*pks*.dll;*p11*.dll;gclib.dll)\0*pkcs*.dll;*pks*.dll;*p11*.dll;gclib.dll\0All Library Files (*.dll)\0*.dll\0\0";
+	tFileNameInfo.hwndOwner = GetForegroundWindow();
+	tFileNameInfo.lpstrFilter = "PKCS Library Files (*pkcs*.dll;*pks*.dll;*p11*.dll;*ykcs*.dll;gclib.dll)\0*pkcs*.dll;*pks*.dll;*p11*.dll;*ykcs*.dll;gclib.dll\0All Library Files (*.dll)\0*.dll\0\0";
 	tFileNameInfo.lpstrTitle = "Please Select PKCS #11 Library File";
 	tFileNameInfo.lpstrInitialDir = szSysDir;
 	tFileNameInfo.Flags = OFN_FORCESHOWHIDDEN | OFN_FILEMUSTEXIST;
@@ -485,23 +484,12 @@ HCERTSTORE cert_pkcs_get_cert_store(LPCSTR * szHint, HWND hWnd)
 		for (CK_ULONG iCert = 0; iCert < iCertListSize; iCert++)
 		{
 			PCCERT_CONTEXT pCertContext =
-				pkcs_get_cert_from_token(pFunctionList, hSession, aCertList[iCert]);
+				pkcs_get_cert_from_token(pFunctionList, hSession, aCertList[iCert], tFileNameInfo.lpstrFile);
 
 			// attributes to query from the certificate
 			if (pCertContext == NULL)
 			{
 				// error
-				continue;
-			}
-
-			// store the pkcs library as an attribute on the certificate
-			WCHAR sFileNameWide[MAX_PATH + 1];
-			MultiByteToWideChar(CP_ACP, 0, szFile, -1, sFileNameWide, _countof(sFileNameWide));
-			CRYPT_DATA_BLOB tFileName = { (wcslen(sFileNameWide) + 1) * sizeof(WCHAR), (PBYTE) sFileNameWide };
-			if (CertSetCertificateContextProperty(pCertContext, CERT_PVK_FILE_PROP_ID, 0, &tFileName) != TRUE)
-			{
-				// error
-				CertFreeCertificateContext(pCertContext);
 				continue;
 			}
 
@@ -552,7 +540,7 @@ void * pkcs_get_attribute_value(CK_FUNCTION_LIST_PTR FunctionList, CK_SESSION_HA
 	return aAttribute.pValue;
 }
 
-PCCERT_CONTEXT pkcs_get_cert_from_token(CK_FUNCTION_LIST_PTR FunctionList, CK_SESSION_HANDLE hSession, CK_OBJECT_HANDLE hObject)
+PCCERT_CONTEXT pkcs_get_cert_from_token(CK_FUNCTION_LIST_PTR FunctionList, CK_SESSION_HANDLE hSession, CK_OBJECT_HANDLE hObject, LPSTR szFile)
 {
 	// query value from string
 	CK_ULONG iValue = 0;
@@ -568,6 +556,17 @@ PCCERT_CONTEXT pkcs_get_cert_from_token(CK_FUNCTION_LIST_PTR FunctionList, CK_SE
 	// create a certificate context from this token
 	PCCERT_CONTEXT pCertObject = CertCreateCertificateContext(
 		X509_ASN_ENCODING | PKCS_7_ASN_ENCODING, pValue, iValue);
+
+	// store the pkcs library as an attribute on the certificate
+	WCHAR sFileNameWide[MAX_PATH + 1];
+	MultiByteToWideChar(CP_ACP, 0, szFile, -1, sFileNameWide, _countof(sFileNameWide));
+	CRYPT_DATA_BLOB tFileName = { (wcslen(sFileNameWide) + 1) * sizeof(WCHAR), (PBYTE)sFileNameWide };
+	if (CertSetCertificateContextProperty(pCertObject, CERT_PVK_FILE_PROP_ID, 0, &tFileName) != TRUE)
+	{
+		// error
+		CertFreeCertificateContext(pCertObject);
+		pCertObject = NULL;
+	}
 
 	// cleanup and return
 	free(pValue);
@@ -648,7 +647,7 @@ void pkcs_lookup_token_cert(LPCSTR szCert, CK_SESSION_HANDLE_PTR phSession, CK_O
 		{
 			// decode windows cert object from 
 			PCCERT_CONTEXT pCertContext =
-				pkcs_get_cert_from_token(pFunctionList, hSession, aCertList[iCert]);
+				pkcs_get_cert_from_token(pFunctionList, hSession, aCertList[iCert], szLibrary);
 
 			// attributes to query from the certificate
 			if (pCertContext == NULL)

@@ -23,7 +23,7 @@ ForEach ($KeyProvider in $KeyProviders.Keys)
             -FriendlyName "$KeyProviderAbbr RSA $KeyLength" -Subject "CN=$KeyProviderAbbr RSA $KeyLength" -ErrorAction SilentlyContinue
     }   
 
-    If ($KeyProviderAbbr -notmatch 'CNG') { Continue }
+    If ($KeyProviderAbbr -ne 'CNG') { Continue }
     $AlgTypes = @('ECDSA_nistP256','ECDSA_nistP384','ECDSA_nistP521')
     ForEach ($AlgType in $AlgTypes) 
     {

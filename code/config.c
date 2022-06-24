@@ -828,7 +828,7 @@ void cert_event_handler(union control* ctrl, dlgparam* dlg, void* data, int even
 	// handle capi certificate set button press
 	if (ctrl == certd->cert_set_capi_button && event == EVENT_ACTION)
 	{
-		char* szCert = cert_prompt(IDEN_CAPI, NULL, FALSE, NULL);
+		char* szCert = cert_prompt(IDEN_CAPI, FALSE, NULL);
 		if (szCert == NULL) return;
 		conf_set_str(conf, CONF_cert_fingerprint, szCert);
 		conf_set_bool(conf, CONF_cert_attempt_auth, 1);
@@ -840,7 +840,7 @@ void cert_event_handler(union control* ctrl, dlgparam* dlg, void* data, int even
 	// handle pkcs certificate set button press
 	if (ctrl == certd->cert_set_pkcs_button && event == EVENT_ACTION)
 	{
-		char* szCert = cert_prompt(IDEN_PKCS, NULL, FALSE, NULL);
+		char* szCert = cert_prompt(IDEN_PKCS, FALSE, NULL);
 		if (szCert == NULL) return;
 		conf_set_str(conf, CONF_cert_fingerprint, szCert);
 		conf_set_bool(conf, CONF_cert_attempt_auth, 1);
@@ -853,7 +853,7 @@ void cert_event_handler(union control* ctrl, dlgparam* dlg, void* data, int even
 	// handle fido certificate set button press
 	if (ctrl == certd->cert_set_fido_button && event == EVENT_ACTION)
 	{
-		char* szCert = cert_prompt(IDEN_FIDO, NULL, FALSE, NULL);
+		char* szCert = cert_prompt(IDEN_FIDO, FALSE, NULL);
 		if (szCert == NULL) return;
 		conf_set_str(conf, CONF_cert_fingerprint, szCert);
 		conf_set_bool(conf, CONF_cert_attempt_auth, 1);
@@ -936,7 +936,7 @@ void fido_event_handler(union control* ctrl, dlgparam* dlg, void* data, int even
 		{
 			// alert user of success and ask about assignment
 			if (MessageBoxW(NULL, L"FIDO key creation was successful and has been added to the FIDO cache. " \
-				L"Do you want to assign the new key to the current session configuration?",
+				L"Do you want to assign the new key to the current session?",
 				L"FIDO Key Creation Successful", MB_SYSTEMMODAL | MB_ICONQUESTION | MB_YESNO) == IDYES)
 			{
 				char* szCert = dupprintf("FIDO:%s", szAppId);
@@ -956,7 +956,7 @@ void fido_event_handler(union control* ctrl, dlgparam* dlg, void* data, int even
 	// handle fido key delete button press
 	if (ctrl == fidod->fido_delete_key_button && event == EVENT_ACTION)
 	{
-		char* szCert = cert_prompt(IDEN_FIDO, NULL, FALSE,
+		char* szCert = cert_prompt(IDEN_FIDO, FALSE,
 			L"Select a FIDO key to remove. If this is a resident key, it will also " \
 			L"be deleted from the token.");
 		if (szCert == NULL) return;
@@ -1062,11 +1062,17 @@ void capi_event_handler(union control* ctrl, dlgparam* dlg, void* data, int even
 		}
 
         // attempt to create certificate
-        if (cert_capi_create_key(szAlgId, szSubjectName, bHardwareToken))
+        char* szCert = cert_capi_create_key(szAlgId, szSubjectName, bHardwareToken);
+        if (szCert != NULL)
         {
-            MessageBoxW(NULL, L"Certificate was successfully created. It should now be " \
-                L"selectable in PuTTY if your filtering allows self-signed certificates.",
-                L"CAPI Certificate Creation Successful", MB_SYSTEMMODAL | MB_ICONINFORMATION);
+            if (MessageBoxW(NULL, L"Certificate was successfully created. " \
+                L"Do you want to assign the new certificate to the current session?",
+                L"CAPI Certificate Creation Successful", MB_SYSTEMMODAL | MB_ICONQUESTION | MB_YESNO) == IDYES)
+            {
+                conf_set_str(conf, CONF_cert_fingerprint, szCert);
+                conf_set_bool(conf, CONF_cert_attempt_auth, 1);                   
+            }
+            sfree(szCert);
         }
         else
         {
@@ -1083,7 +1089,7 @@ void capi_event_handler(union control* ctrl, dlgparam* dlg, void* data, int even
 	// handle capi key delete button press
 	if (ctrl == capid->capi_delete_key_button && event == EVENT_ACTION)
 	{
-		char* szCert = cert_prompt(IDEN_CAPI, NULL, FALSE,
+		char* szCert = cert_prompt(IDEN_CAPI, FALSE,
 			L"Select a CAPI key to remove. If this key on a smart card or token, " \
 			L"PuTTY will attempt to delete it from there as well.");
 		if (szCert == NULL) return;

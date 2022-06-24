@@ -2,8 +2,8 @@
 TITLE Building PuTTY-CAC
 
 :: version information
-SET VER=0.77
-SET VERN=0.77.0.0
+SET VER=0.77u1
+SET VERN=0.77.0.1
 
 :: setup environment variables based on location of this script
 SET INSTDIR=%~dp0
@@ -26,11 +26,11 @@ CALL "%VS%"
 CD /D "%INSTDIR%"
 RD /S /Q "%BLDDIR%"
 RD /S /Q "%BINDIR%"
-CMAKE -S ..\code -A x64 -B %BLDDIR%\x64 -D PUTTY_CAC=1
+CMAKE -S ..\code -A x64 -B %BLDDIR%\x64 -D PUTTY_CAC=1 -D PUTTY_EMBEDDED_CHM_FILE=%BASEDIR%\doc\putty.chm
 CMAKE --build %BLDDIR%\x64 --parallel --config Release --target pageant plink pscp psftp pterm putty puttygen puttyimp puttytel
 MKDIR "%BINDIR%\x64"
 COPY /Y %BLDDIR%\x64\Release\*.exe "%BINDIR%\x64"
-CMAKE -S ..\code -A Win32 -B %BLDDIR%\x86 -D PUTTY_CAC=1
+CMAKE -S ..\code -A Win32 -B %BLDDIR%\x86 -D PUTTY_CAC=1 -D PUTTY_EMBEDDED_CHM_FILE=%BASEDIR%\doc\putty.chm
 CMAKE --build %BLDDIR%\x86 --parallel --config Release --target pageant plink pscp psftp pterm putty puttygen puttyimp puttytel
 MKDIR "%BINDIR%\x86"
 COPY /Y %BLDDIR%\x86\Release\*.exe "%BINDIR%\x86"
@@ -90,9 +90,9 @@ POPD
 :: output hash information
 SET HASHFILE=%BINDIR%\puttycac-hash.txt
 IF EXIST "%HASHFILE%" DEL /F "%HASHFILE%"
-POWERSHELL -NoProfile -NonInteractive -NoLogo -Command "Get-ChildItem -Include @('*.msi','*.exe','*.zip') -Path '%BINDIR%' -Recurse | Get-FileHash -Algorithm SHA256 | Out-File -Append '%HASHFILE%' -Width 256"
-POWERSHELL -NoProfile -NonInteractive -NoLogo -Command "Get-ChildItem -Include @('*.msi','*.exe','*.zip') -Path '%BINDIR%' -Recurse | Get-FileHash -Algorithm SHA1 | Out-File -Append '%HASHFILE%' -Width 256"
-POWERSHELL -NoProfile -NonInteractive -NoLogo -Command "Get-ChildItem -Include @('*.msi','*.exe','*.zip') -Path '%BINDIR%' -Recurse | Get-FileHash -Algorithm MD5 | Out-File -Append '%HASHFILE%' -Width 256"
-POWERSHELL -NoProfile -NonInteractive -NoLogo -Command "$Data = Get-Content '%HASHFILE%'; $Data.Replace((Get-Item -LiteralPath '%BINDIR%').FullName + '\','').Trim() | Set-Content '%HASHFILE%'"
+%POWERSHELL% -Command "Get-ChildItem -Include @('*.msi','*.exe','*.zip') -Path '%BINDIR%' -Recurse | Get-FileHash -Algorithm SHA256 | Out-File -Append '%HASHFILE%' -Width 256"
+%POWERSHELL% -Command "Get-ChildItem -Include @('*.msi','*.exe','*.zip') -Path '%BINDIR%' -Recurse | Get-FileHash -Algorithm SHA1 | Out-File -Append '%HASHFILE%' -Width 256"
+%POWERSHELL% -NoProfile -NonInteractive -NoLogo -Command "Get-ChildItem -Include @('*.msi','*.exe','*.zip') -Path '%BINDIR%' -Recurse | Get-FileHash -Algorithm MD5 | Out-File -Append '%HASHFILE%' -Width 256"
+%POWERSHELL% -NoProfile -NonInteractive -NoLogo -Command "$Data = Get-Content '%HASHFILE%'; $Data.Replace((Get-Item -LiteralPath '%BINDIR%').FullName + '\','').Trim() | Set-Content '%HASHFILE%'"
 
 PAUSE
