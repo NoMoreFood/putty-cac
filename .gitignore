@@ -6,5 +6,6 @@
 *.vcxproj.user
 *.lastcodeanalysissucceeded
 *.manifest
+*.nupkg
 Temp
 Build

@@ -1,0 +1,25 @@
+name: Build Choco package
+on: [workflow_dispatch]
+jobs:
+  PackAndPublish:
+    runs-on: windows-latest
+    steps:
+      -
+        name: Checkout
+        uses: actions/checkout@v3
+      # -
+      #   name: Test powershell
+      #   shell: pwsh
+      #   run: |
+      #     ls '${{github.workspace}}\packager\chocolatey\'
+      #     cat '${{github.workspace}}\packager\chocolatey\putty cac.nuspec'
+      -
+        name: Choco pack
+        uses: crazy-max/ghaction-chocolatey@v2
+        with:
+          args: pack "${{github.workspace}}\packager\chocolatey\putty cac.nuspec"
+      -
+        name: Choco push
+        uses: crazy-max/ghaction-chocolatey@v2
+        with:
+          args: push -s https://push.chocolatey.org/ -k="'${{secrets.CHOCOAPIKEY}}'"
