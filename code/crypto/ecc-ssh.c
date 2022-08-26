@@ -1367,6 +1367,12 @@ const ssh_keyalg ssh_ecdsa_nistp521 = {
 };
 
 #ifdef PUTTY_CAC
+static ssh_key* ecdsa_new_priv_openssh_sk(
+    const ssh_keyalg* alg, BinarySource* src)
+{
+    return NULL;
+}
+
 static void ecdsa_freekey_sk(ssh_key* key)
 {
     struct ecdsa_key* ek = container_of(key, struct ecdsa_key, sshk);
@@ -1388,7 +1394,7 @@ static void ecdsa_public_blob_sk(ssh_key* key, BinarySink* bs)
 const ssh_keyalg ssh_ecdsa_nistp256_sk = {
     .new_pub = ecdsa_new_pub,
     .new_priv = ecdsa_new_priv,
-    .new_priv_openssh = ecdsa_new_priv_openssh,
+    .new_priv_openssh = ecdsa_new_priv_openssh_sk,
     .freekey = ecdsa_freekey_sk,
     .invalid = ec_signkey_invalid,
     .sign = ecdsa_sign,
@@ -1407,7 +1413,7 @@ const ssh_keyalg ssh_ecdsa_nistp256_sk = {
 const ssh_keyalg ssh_ecdsa_nistp384_sk = {
     .new_pub = ecdsa_new_pub,
     .new_priv = ecdsa_new_priv,
-    .new_priv_openssh = ecdsa_new_priv_openssh,
+    .new_priv_openssh = ecdsa_new_priv_openssh_sk,
     .freekey = ecdsa_freekey_sk,
     .invalid = ec_signkey_invalid,
     .sign = ecdsa_sign,
@@ -1426,7 +1432,7 @@ const ssh_keyalg ssh_ecdsa_nistp384_sk = {
 const ssh_keyalg ssh_ecdsa_nistp521_sk = {
     .new_pub = ecdsa_new_pub,
     .new_priv = ecdsa_new_priv,
-    .new_priv_openssh = ecdsa_new_priv_openssh,
+    .new_priv_openssh = ecdsa_new_priv_openssh_sk,
     .freekey = ecdsa_freekey_sk,
     .invalid = ec_signkey_invalid,
     .sign = ecdsa_sign,
@@ -1441,6 +1447,12 @@ const ssh_keyalg ssh_ecdsa_nistp521_sk = {
     .cache_id = "sk-ecdsa-sha2-nistp521@openssh.com",
     .extra = &sign_extra_nistp521,
 };
+
+static ssh_key* eddsa_new_priv_openssh_sk(
+    const ssh_keyalg* alg, BinarySource* src)
+{
+    return NULL;
+}
 
 static void eddsa_freekey_sk(ssh_key* key)
 {
@@ -1463,7 +1475,7 @@ static void eddsa_public_blob_sk(ssh_key* key, BinarySink* bs)
 const ssh_keyalg ssh_ecdsa_ed25519_sk = {
     .new_pub = eddsa_new_pub,
     .new_priv = eddsa_new_priv,
-    .new_priv_openssh = eddsa_new_priv_openssh,
+    .new_priv_openssh = eddsa_new_priv_openssh_sk,
     .freekey = eddsa_freekey_sk,
     .invalid = ec_signkey_invalid,
     .sign = eddsa_sign,

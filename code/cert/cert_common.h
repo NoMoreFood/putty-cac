@@ -25,7 +25,7 @@ struct strbuf;
 EXTERN VOID cert_reverse_array(LPBYTE pb, DWORD cb);
 EXTERN BOOL cert_load_cert(LPCSTR szCert, PCERT_CONTEXT * ppCertContext, HCERTSTORE * phCertStore);
 EXTERN BOOL cert_check_valid(LPCSTR szIden, PCCERT_CONTEXT pCertContext);
-EXTERN LPSTR cert_get_cert_thumbprint(LPCSTR szIden, PCCERT_CONTEXT pCertContext, LPCSTR szHint);
+EXTERN LPSTR cert_get_cert_thumbprint(LPCSTR szIden, PCCERT_CONTEXT pCertContext);
 EXTERN PVOID cert_pin(LPSTR szCert, BOOL bUnicode, LPVOID szPin);
 EXTERN BOOL cert_save_cert_list_enabled(DWORD bEnable);
 EXTERN BOOL cert_cache_enabled(DWORD bEnable);
