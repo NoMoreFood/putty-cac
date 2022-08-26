@@ -17,8 +17,19 @@
 
 #include "putty.h"
 
+#ifdef PUTTY_CAC
+#include <VersionHelpers.h>
+#endif
+
 void dll_hijacking_protection(void)
 {
+#ifdef PUTTY_CAC
+    /* Windows 7 has a bug that prevents loading of smart card libaries if
+     * a non-default search order is used;
+     */
+    if (!IsWindows8OrGreater()) return;
+#endif // PUTTY_CAC
+
     static HMODULE kernel32_module;
     DECL_WINDOWS_FUNCTION(static, BOOL, SetDefaultDllDirectories, (DWORD));
 

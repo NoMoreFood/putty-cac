@@ -50,6 +50,8 @@ char *buildinfo(const char *newline)
     put_fmt(buf, " 2022 (17.1)");
 #elif PUTTY_CAC && _MSC_VER == 1932
     put_fmt(buf, " 2022 (17.2)");
+#elif PUTTY_CAC && _MSC_VER == 1933
+    put_fmt(buf, " 2022 (17.3)");	
 #elif _MSC_VER == 1929 && _MSC_FULL_VER >= 192930100
     put_fmt(buf, " 2019 (16.11)");
 #elif _MSC_VER == 1929
