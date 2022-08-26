@@ -157,7 +157,7 @@ EXTERN_C LPSTR cert_capi_create_key(LPCSTR szAlgName, LPCSTR sSubjectName, BOOL 
          HCERTSTORE hCertStore = cert_capi_get_cert_store();
          PCCERT_CONTEXT tUnifiedCert = CertFindCertificateInStore(hCertStore, X509_ASN_ENCODING | PKCS_7_ASN_ENCODING,
              0, CERT_FIND_PUBLIC_KEY, (PVOID)&tDummyCertContext->pCertInfo->SubjectPublicKeyInfo, NULL);
-         szThumbprint = cert_get_cert_thumbprint(IDEN_CAPI, tUnifiedCert, NULL);
+         szThumbprint = cert_get_cert_thumbprint(IDEN_CAPI, tUnifiedCert);
          CertCloseStore(hCertStore, 0);
          if (tDummyCertContext != NULL) CertFreeCertificateContext(tUnifiedCert);
      }
