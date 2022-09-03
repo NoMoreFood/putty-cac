@@ -533,6 +533,9 @@ struct ecdsa_key {
     ssh_key sshk;
 #ifdef PUTTY_CAC
     char* appid;
+    int flags;
+    ptrlen publicKeyRaw;
+    ptrlen credId;
 #endif
 };
 struct eddsa_key {
@@ -542,6 +545,9 @@ struct eddsa_key {
     ssh_key sshk;
 #ifdef PUTTY_CAC
     char* appid;
+    int flags;
+    ptrlen publicKeyRaw;
+    ptrlen credId;
 #endif
 };
 

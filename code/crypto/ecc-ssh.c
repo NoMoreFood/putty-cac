@@ -1370,15 +1370,49 @@ const ssh_keyalg ssh_ecdsa_nistp521 = {
 static ssh_key* ecdsa_new_priv_openssh_sk(
     const ssh_keyalg* alg, BinarySource* src)
 {
-    return NULL;
+    const struct ecsign_extra* extra =
+        (const struct ecsign_extra*)alg->extra;
+    struct ec_curve* curve = extra->curve();
+    assert(curve->type == EC_WEIERSTRASS);
+
+    get_string(src);
+
+    struct ecdsa_key* ek = snew(struct ecdsa_key);
+    ek->sshk.vt = alg;
+    ek->curve = curve;
+    ek->privateKey = NULL;
+
+    // get the raw key since their no way to extract it later
+    ek->publicKeyRaw = get_string(src);
+    BinarySource_REWIND_TO(src, src->pos - ek->publicKeyRaw.len - sizeof(int));
+    ek->publicKey = get_wpoint(src, curve);
+
+    // the raw key will be preceded by byte indicating the compression type 
+    // which we will assume is uncompressed and will throw away
+    ek->publicKeyRaw.ptr = ((char*) ek->publicKeyRaw.ptr) + 1;
+    ek->publicKeyRaw.len--;
+    ek->publicKeyRaw.ptr = mkstr(ek->publicKeyRaw);
+
+    // get appid and cred id
+    ek->appid = mkstr(get_string(src));
+    ek->flags = get_byte(src);
+    ek->credId = get_string(src);
+    ek->credId.ptr = mkstr(ek->credId);
+    
+    // reserved
+    get_string(src);
+
+    return &ek->sshk;
 }
 
 static void ecdsa_freekey_sk(ssh_key* key)
 {
     struct ecdsa_key* ek = container_of(key, struct ecdsa_key, sshk);
 
-    // free app id and then call standard function to free rest
+    // free sk specific values and call standard function to free rest
     if (ek->appid) sfree(ek->appid);
+    if (ek->credId.ptr) sfree(ek->credId.ptr);
+    if (ek->publicKeyRaw.ptr) sfree(ek->publicKeyRaw.ptr);
     ecdsa_freekey(key);
 }
 
@@ -1451,15 +1485,41 @@ const ssh_keyalg ssh_ecdsa_nistp521_sk = {
 static ssh_key* eddsa_new_priv_openssh_sk(
     const ssh_keyalg* alg, BinarySource* src)
 {
-    return NULL;
+    const struct ecsign_extra* extra =
+        (const struct ecsign_extra*)alg->extra;
+    struct ec_curve* curve = extra->curve();
+    assert(curve->type == EC_EDWARDS);
+
+    struct eddsa_key* ek = snew(struct eddsa_key);
+    ek->sshk.vt = alg;
+    ek->curve = curve;
+    ek->privateKey = NULL;
+
+    // get the raw key since their no way to extract it later
+    ek->publicKeyRaw = get_string(src);
+    ek->publicKey = eddsa_decode(ek->publicKeyRaw, curve);
+    ek->publicKeyRaw.ptr = mkstr(ek->publicKeyRaw);
+
+    // get appid and cred id
+    ek->appid = mkstr(get_string(src));
+    ek->flags = get_byte(src);
+    ek->credId = get_string(src);
+    ek->credId.ptr = mkstr(ek->credId);
+
+    // reserved
+    get_string(src);
+
+    return &ek->sshk;
 }
 
 static void eddsa_freekey_sk(ssh_key* key)
 {
     struct eddsa_key* ek = container_of(key, struct eddsa_key, sshk);
     
-    // free app id and then call standard function to free rest
+    // free sk specific values and call standard function to free rest
     if (ek->appid) sfree(ek->appid);
+    if (ek->credId.ptr) sfree(ek->credId.ptr);
+    if (ek->publicKeyRaw.ptr) sfree(ek->publicKeyRaw.ptr);
     eddsa_freekey(key);
 }
 
