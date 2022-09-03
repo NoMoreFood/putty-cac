@@ -864,8 +864,8 @@ void cert_event_handler(union control* ctrl, dlgparam* dlg, void* data, int even
 }
 
 struct fido_data {
-	union control* fido_create_key_button, * fido_delete_key_button, * fido_import_key_button, * fido_clear_key_button,
-		* fido_algo_combobox, * fido_app_text, * fido_verification_radio, * fido_resident_radio;
+	union control* fido_create_key_button, * fido_delete_key_button, * fido_import_key_button, * fido_import_ssh_button,
+        * fido_clear_key_button, * fido_algo_combobox, * fido_app_text, * fido_verification_radio, * fido_resident_radio;
 };
 
 void fido_event_handler(union control* ctrl, dlgparam* dlg, void* data, int event)
@@ -890,6 +890,31 @@ void fido_event_handler(union control* ctrl, dlgparam* dlg, void* data, int even
 	{
 		fido_import_keys();
 	}
+
+    // handle fido ssh key import button press
+    if (ctrl == fidod->fido_import_ssh_button && event == EVENT_ACTION)
+    {
+        char * szAppId = fido_import_openssh_key();
+        if (szAppId != NULL) 
+        {
+            // alert user of success and ask about assignment
+            if (MessageBoxW(NULL, L"FIDO OpenSSH key import was successful " \
+                "and has been added to the FIDO cache. Do you want to assign the key to the current session?",
+                L"FIDO OpenSSH Key Import Successful", MB_SYSTEMMODAL | MB_ICONQUESTION | MB_YESNO) == IDYES)
+            {
+                char* szCert = dupprintf("FIDO:%s", szAppId);
+                conf_set_str(conf, CONF_cert_fingerprint, szCert);
+                conf_set_bool(conf, CONF_cert_attempt_auth, 1);
+                sfree(szCert);
+            }
+            sfree(szAppId);
+        }
+        else
+        {
+            MessageBoxW(NULL, L"No file was selected or the selected file could not be read.",
+                L"FIDO OpenSSH Key Import Failed", MB_SYSTEMMODAL | MB_ICONERROR | MB_OK);
+        }
+    }
 
 	// handle fido key create button press
 	if (ctrl == fidod->fido_create_key_button && event == EVENT_ACTION)
@@ -3248,6 +3273,10 @@ void setup_config_box(struct controlbox *b, bool midsession,
 			fidod->fido_import_key_button = ctrl_pushbutton(s, "Import Keys...",
 				NO_SHORTCUT, HELPCTX(no_help), fido_event_handler, P(fidod));
 			fidod->fido_import_key_button->generic.column = 2;
+
+            fidod->fido_import_ssh_button = ctrl_pushbutton(s, "Import Key File...",
+                NO_SHORTCUT, HELPCTX(no_help), fido_event_handler, P(fidod));
+            fidod->fido_import_ssh_button->generic.column = 2;
 
 			fidod->fido_delete_key_button = ctrl_pushbutton(s, "Delete Key...",
 				NO_SHORTCUT, HELPCTX(no_help), fido_event_handler, P(fidod));

@@ -53,6 +53,7 @@ EXTERN BOOL cert_capi_delete_key(LPCSTR szCert);
 EXTERN BOOL fido_create_key(LPCSTR szAlgName, LPCSTR szApplication, BOOL bResidentKey, BOOL bUserVerification);
 EXTERN BOOL fido_delete_key(LPCSTR szCert);
 EXTERN VOID fido_import_keys();
+EXTERN LPSTR fido_import_openssh_key();
 EXTERN VOID fido_clear_keys();
 EXTERN LPSTR cert_capi_create_key(LPCSTR szAlgName, LPCSTR sSubjectName, BOOL bHardware);
 

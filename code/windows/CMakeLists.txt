@@ -191,6 +191,7 @@ target_include_directories(sshclient PUBLIC ../cert)
 target_include_directories(testcrypt PUBLIC ../cert)
 target_include_directories(puttygen PUBLIC ../cert)
 add_sources_from_current_dir(crypto
+../import.c
 ../cert/cert_common.c
 ../cert/cert_capi.c
 ../cert/cert_capi_tools.cc

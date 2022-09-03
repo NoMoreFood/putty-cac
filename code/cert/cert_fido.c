@@ -1,6 +1,6 @@
 #ifdef PUTTY_CAC
 
-#include <windows.h>
+#include <WinSock2.h>
 #include <stdio.h>
 #include <bcrypt.h>
 #include <wincred.h>
@@ -8,6 +8,7 @@
 #include <webauthn.h>
 
 #include "ssh.h"
+#include "putty.h"
 
 #define DEFINE_VARIABLES
 #include "cert_fido.h"
@@ -574,6 +575,7 @@ BOOL fido_create_key(LPCSTR szAlgName, LPCSTR szApplication, BOOL bResidentKey, 
 	//  allocate key blob and populate headers
 	LONG iPubKeySize = iSigBytes * 2;
 	PBCRYPT_ECCKEY_BLOB pPublicKey = calloc(sizeof(BCRYPT_ECCKEY_BLOB) + iPubKeySize, 1);
+	if (pPublicKey == NULL) return FALSE;
 	PBYTE pPublicKeyParts = &((PBYTE)pPublicKey)[sizeof(BCRYPT_ECCKEY_BLOB)];
 	pPublicKey->cbKey = iSigBytes;
 
@@ -719,8 +721,114 @@ VOID fido_import_keys()
 			L"have not have the appropriate privileges or PuTTYImp was not found. Please "
 			L"ensure that PuTTYImp.exe is downloaded in same directory as this executable.",
 			L"FIDO Key Importer Failed", MB_SYSTEMMODAL | MB_ICONERROR | MB_OK);
-		return;
 	}
+}
+
+LPSTR fido_import_openssh_key()
+{
+	// get the default directory for the file browser
+	char * szBaseDir = dupprintf("%s\\.ssh", getenv("USERPROFILE"));
+	if (GetFileAttributesA(szBaseDir) == INVALID_FILE_ATTRIBUTES)
+	{
+		sfree(szBaseDir);
+		szBaseDir = NULL;
+		szBaseDir = _strdup(getenv("USERPROFILE"));
+	}
+
+	// get the file from the user
+	char szFile[MAX_PATH + 1] = "\0";
+	OPENFILENAME tFileNameInfo;
+	ZeroMemory(&tFileNameInfo, sizeof(OPENFILENAME));
+	tFileNameInfo.lStructSize = sizeof(OPENFILENAME);
+	tFileNameInfo.hwndOwner = GetForegroundWindow();
+	tFileNameInfo.lpstrFilter = "SSH Key Files (id_*_sk)\0id_*_sk\0All Files (*)\0*\0\0";
+	tFileNameInfo.lpstrTitle = "Please Select SSH Security Key File To Import";
+	tFileNameInfo.lpstrInitialDir = szBaseDir;
+	tFileNameInfo.Flags = OFN_FORCESHOWHIDDEN | OFN_FILEMUSTEXIST;
+	tFileNameInfo.lpstrFile = szFile;
+	tFileNameInfo.nMaxFile = _countof(szFile);
+	tFileNameInfo.nFilterIndex = 1;
+	DWORD iResult = GetOpenFileName(&tFileNameInfo);
+	sfree(szBaseDir);
+	if (iResult == 0)
+	{
+		return NULL;
+	}
+
+	// attempt to get the key
+	Filename* oFile = filename_from_str(szFile);
+	ssh2_userkey * pKey = import_ssh2(oFile, SSH_KEYTYPE_OPENSSH_NEW, "", NULL);
+	sfree(oFile);
+
+	// allocate memory for the public key blob to store in the registry
+	PBCRYPT_ECCKEY_BLOB pPublicKey = calloc(FIDO_MAX_BLOB_SIZE, 1);
+	if (pPublicKey == NULL) return NULL;
+
+	char* szAppId = NULL;
+	DWORD iFlags = 0;
+	DWORD iPubKeyLen = 0;
+	ptrlen* tPubKeyRaw = NULL;
+	ptrlen* tCredId = NULL;
+	ptrlen* szPubKey = NULL;
+
+	// handle ecdsa import
+	if (pKey != NULL && strstr(pKey->key->vt->ssh_id, "sk-ecdsa-") == pKey->key->vt->ssh_id)
+	{
+		struct ecdsa_key* ek = container_of(pKey->key, struct ecdsa_key, sshk);
+		tPubKeyRaw = &ek->publicKeyRaw;
+		tCredId = &ek->credId;
+		szAppId = _strdup(ek->appid);
+		iFlags = ek->flags;
+		pPublicKey->cbKey = ek->publicKeyRaw.len / 2;
+		pPublicKey->dwMagic =
+			strcmp(pKey->key->vt->ssh_id, "sk-ecdsa-sha2-nistp256@openssh.com") == 0 ? BCRYPT_ECDSA_PUBLIC_P256_MAGIC :
+			strcmp(pKey->key->vt->ssh_id, "sk-ecdsa-sha2-nistp384@openssh.com") == 0 ? BCRYPT_ECDSA_PUBLIC_P384_MAGIC :
+			strcmp(pKey->key->vt->ssh_id, "sk-ecdsa-sha2-nistp521@openssh.com") == 0 ? BCRYPT_ECDSA_PUBLIC_P521_MAGIC :
+			BCRYPT_ECDSA_PUBLIC_GENERIC_MAGIC;
+	}
+
+	// handle eddsa import
+	else if (pKey != NULL && strstr(pKey->key->vt->ssh_id, "sk-ssh-ed25519") == pKey->key->vt->ssh_id)
+	{
+		struct eddsa_key* ek = container_of(pKey->key, struct eddsa_key, sshk);
+		tPubKeyRaw = &ek->publicKeyRaw;
+		tCredId = &ek->credId;
+		szAppId = _strdup(ek->appid);
+		iFlags = ek->flags;
+		pPublicKey->cbKey = ek->publicKeyRaw.len;
+		pPublicKey->dwMagic = BCRYPT_ECDSA_PUBLIC_GENERIC_MAGIC;
+	}
+
+	// key load - upload to cache
+	if (szAppId != NULL)
+	{
+		// copy public key part into blob
+		memcpy(&((PBYTE)pPublicKey)[sizeof(BCRYPT_ECCKEY_BLOB)], tPubKeyRaw->ptr, tPubKeyRaw->len);
+
+		// convert to unicode for storing to registry
+		WCHAR szAppIdUnicode[FIDO_MAX_CREDID_LEN] = L"";
+		if (MultiByteToWideChar(CP_UTF8, 0, szAppId, -1, szAppIdUnicode, _countof(szAppIdUnicode)) == 0) return NULL;
+
+		// commit to registry
+		RegSetKeyValueW(HKEY_CURRENT_USER, FIDO_REG_PUBKEYS, szAppIdUnicode, REG_BINARY,
+			pPublicKey, sizeof(BCRYPT_ECCKEY_BLOB) + tPubKeyRaw->len);
+		RegSetKeyValueW(HKEY_CURRENT_USER, FIDO_REG_CREDIDS, szAppIdUnicode, REG_BINARY,
+			tCredId->ptr, tCredId->len);
+		RegSetKeyValueW(HKEY_CURRENT_USER, FIDO_REG_USERVER, szAppIdUnicode, REG_DWORD,
+			&iFlags, sizeof(DWORD));
+	}
+
+	// key cleanup
+	if (pKey != NULL)
+	{
+		if (pKey->key)
+			ssh_key_free(pKey->key);
+		if (pKey->comment)
+			sfree(pKey->comment);
+		sfree(pKey);
+	}
+
+	return szAppId;
 }
 
 VOID fido_clear_keys()
