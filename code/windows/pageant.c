@@ -1774,11 +1774,19 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
             else
                 command = "";
             break;
+#ifdef PUTTY_CAC
+        }
+        else if (cert_cmdline_parse(amo.argv[amo.index])) {
+            /*
+             * Matching processed by PuTTY CAC functions
+             */
+            amo.index++;
+#endif // PUTTY_CAC
         } else {
             opt_error("unrecognised option '%s'\n", amo.argv[amo.index]);
         }
     }
-
+    
     /*
      * Create and lock an interprocess mutex while we figure out
      * whether we're going to be the Pageant server or a client. That
