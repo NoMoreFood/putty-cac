@@ -899,7 +899,7 @@ void fido_event_handler(union control* ctrl, dlgparam* dlg, void* data, int even
         {
             // alert user of success and ask about assignment
             if (MessageBoxW(NULL, L"FIDO OpenSSH key import was successful " \
-                "and has been added to the FIDO cache. Do you want to assign the key to the current session?",
+                L"and has been added to the FIDO cache. Do you want to assign the key to the current session?",
                 L"FIDO OpenSSH Key Import Successful", MB_SYSTEMMODAL | MB_ICONQUESTION | MB_YESNO) == IDYES)
             {
                 char* szCert = dupprintf("FIDO:%s", szAppId);

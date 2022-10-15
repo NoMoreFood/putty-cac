@@ -353,7 +353,7 @@ struct ssh2_userkey* cert_get_ssh_userkey(LPCSTR szCert, PCERT_CONTEXT pCertCont
 		{
 			// create a new putty rsa structure fill out all non-private params
 			struct RSAKey* rsa = snew(struct RSAKey);
-			ZeroMemory(rsa, sizeof(struct eddsa_key));
+			ZeroMemory(rsa, sizeof(struct RSAKey));
 			rsa->sshk.vt = find_pubkey_alg("ssh-rsa");
 
 			RSAPUBKEY* pPublicKey = (RSAPUBKEY*)(pbPublicKeyBlob + sizeof(BLOBHEADER));
@@ -424,7 +424,7 @@ struct ssh2_userkey* cert_get_ssh_userkey(LPCSTR szCert, PCERT_CONTEXT pCertCont
 
 		// create ecdsa struture to hold our key params
 		struct ecdsa_key* ec = snew(struct ecdsa_key);
-		ZeroMemory(ec, sizeof(struct eddsa_key));
+		ZeroMemory(ec, sizeof(struct ecdsa_key));
 		ec_nist_alg_and_curve_by_bits(iKeyLength, &(ec->curve), &(ec->sshk.vt));
 		ec->privateKey = mp_from_integer(0);
 
