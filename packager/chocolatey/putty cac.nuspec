@@ -2,9 +2,9 @@
 <package xmlns="http://schemas.microsoft.com/packaging/2015/06/nuspec.xsd">
   <metadata>
     <id>putty-cac</id>
-    <version>0.77-r2</version>
-    <packageSourceUrl>https://github.com/RufusJWB/puTTY-CAC-Chocolatey</packageSourceUrl>
-    <owners>Rufus J.W. Buschart</owners>
+    <version>0.78</version>
+    <packageSourceUrl>https://github.com/NoMoreFood/putty-cac</packageSourceUrl>
+    <owners>NoMoreFood</owners>
     <title>puTTY CAC (Install)</title>
     <authors>Robert de Bath, Joris van Rantwijk, Delian Delchev, Andreas Schultz, Jeroen Massar, Wez Furlong, Nicolas Barry, Justin Bradford, Ben Harris, Malcolm Smith, Ahmad Khalifa, Markus Kuhn, Colin Watson, Christopher Staite, Lorenz Diener, Christian Brabandt, Jeff Smith, Pavel Kryukov, Maxim Kuznetsov, Svyatoslav Kuzmich, Nico Williams, Viktor Dukhovni, Daniel Risacher, Joshua Dantzler, Bryan Berns, and CORE SDI S.A.</authors>
     <projectUrl>https://github.com/NoMoreFood/putty-cac/releases</projectUrl>

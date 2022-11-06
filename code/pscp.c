@@ -77,6 +77,7 @@ static const SeatVtable pscp_seat_vt = {
     .confirm_ssh_host_key = console_confirm_ssh_host_key,
     .confirm_weak_crypto_primitive = console_confirm_weak_crypto_primitive,
     .confirm_weak_cached_hostkey = console_confirm_weak_cached_hostkey,
+    .prompt_descriptions = console_prompt_descriptions,
     .is_utf8 = nullseat_is_never_utf8,
     .echoedit_update = nullseat_echoedit_update,
     .get_x_display = nullseat_get_x_display,
@@ -644,8 +645,8 @@ void scp_sftp_listdir(const char *dirname)
     dirh = fxp_opendir_recv(pktin, req);
 
     if (dirh == NULL) {
-                tell_user(stderr, "Unable to open %s: %s\n", dirname, fxp_error());
-                errs++;
+        tell_user(stderr, "Unable to open %s: %s\n", dirname, fxp_error());
+        errs++;
     } else {
         struct list_directory_from_sftp_ctx *ctx =
             list_directory_from_sftp_new();
@@ -2188,8 +2189,7 @@ static void usage(void)
     printf("PuTTY Secure Copy client\n");
     printf("%s\n", ver);
     printf("Usage: pscp [options] [user@]host:source target\n");
-    printf
-        ("       pscp [options] source [source...] [user@]host:target\n");
+    printf("       pscp [options] source [source...] [user@]host:target\n");
     printf("       pscp [options] -ls [user@]host:filespec\n");
     printf("Options:\n");
     printf("  -V        print version information and exit\n");

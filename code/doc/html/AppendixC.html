@@ -38,7 +38,7 @@
 This appendix documents the file format used by PuTTY to store private keys.
 </p>
 <p>
-In this appendix, binary data structures are described using data type representations such as &#8216;<code>uint32</code>&#8217;, &#8216;<code>string</code>&#8217; and &#8216;<code>mpint</code>&#8217; as used in the SSH protocol standards themselves. These are defined authoritatively by <a href="https://tools.ietf.org/html/rfc4251#section-5">RFC 4251 section 5</a>, &#8216;Data Type Representations Used in the SSH Protocols&#8217;.
+In this appendix, binary data structures are described using data type representations such as &#8216;<code>uint32</code>&#8217;, &#8216;<code>string</code>&#8217; and &#8216;<code>mpint</code>&#8217; as used in the SSH protocol standards themselves. These are defined authoritatively by <a href="https://www.rfc-editor.org/rfc/rfc4251#section-5">RFC 4251 section 5</a>, &#8216;Data Type Representations Used in the SSH Protocols&#8217;.
 </p>
 <h2><a name="ppk-overview"></a><a name="SC.1"></a>C.1 Overview</h2>
 <p>
@@ -86,7 +86,7 @@ Comment: <b>key-comment-string</b>
 <strong>key-comment-string</strong> is a free text field giving the comment. This can contain any byte values other than 13 and 10 (CR and LF).
 </p>
 <p>
-The next part of the file gives the public key. This is stored unencrypted but base64-encoded (<a href="https://tools.ietf.org/html/rfc4648">RFC 4648</a>), and is preceded by a header line saying how many lines of base64 data are shown, looking like this:
+The next part of the file gives the public key. This is stored unencrypted but base64-encoded (<a href="https://www.rfc-editor.org/rfc/rfc4648">RFC 4648</a>), and is preceded by a header line saying how many lines of base64 data are shown, looking like this:
 </p>
 <pre><code>Public-Lines: <b>number-of-lines</b>
 <b>that many lines of base64 data</b>
@@ -202,7 +202,7 @@ The public key data has already provided the key parameters (the large prime <em
 </ul>
 <h3><a name="ppk-privkey-ecdsa"></a><a name="SC.3.3"></a>C.3.3 NIST elliptic-curve keys</h3>
 <p>
-NIST elliptic-curve keys are stored using one of the following <strong>algorithm-name</strong> values, each corresponding to a different elliptic curve and key size:
+<a name="i0"></a>NIST elliptic-curve keys are stored using one of the following <strong>algorithm-name</strong> values, each corresponding to a different elliptic curve and key size:
 </p>
 <ul><li>
 &#8216;<code>ecdsa-sha2-nistp256</code>&#8217;
@@ -349,5 +349,6 @@ The idea was that checking this hash would verify that the key parameters had no
 In an <em>unencrypted</em> version 1 key file, the MAC is replaced by a plain SHA-1 hash of the private key data. This is indicated by the &#8216;<code>Private-MAC:</code>&#8217; header being replaced with &#8216;<code>Private-Hash:</code>&#8217; instead.
 </p>
 
-<hr><p>If you want to provide feedback on this manual or on the PuTTY tools themselves, see the <a href="https://www.chiark.greenend.org.uk/~sgtatham/putty/feedback.html">Feedback page</a>.</p><address></address></body>
+<hr><p>If you want to provide feedback on this manual or on the PuTTY tools themselves, see the <a href="https://www.chiark.greenend.org.uk/~sgtatham/putty/feedback.html">Feedback page</a>.</p><address>
+[PuTTY release 0.78]</address></body>
 </html>

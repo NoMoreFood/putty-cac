@@ -35,7 +35,7 @@ ForEach ($KeyProvider in $KeyProviders.Keys)
 }
 
 # create base registry keys
-Remove-Item -Path 'HKCU:SOFTWARE\SimonTatham' -Force -Recurse -Confirm:$False | Out-Null 
+Remove-Item -Path 'HKCU:SOFTWARE\SimonTatham' -Force -Recurse -Confirm:$False -ErrorAction SilentlyContinue | Out-Null 
 New-Item -Path 'HKCU:SOFTWARE\SimonTatham' -Force | Out-Null 
 New-Item -Path 'HKCU:SOFTWARE\SimonTatham\PuTTY' -Force | Out-Null
 New-Item -Path 'HKCU:SOFTWARE\SimonTatham\PuTTY\Sessions' -Force | Out-Null

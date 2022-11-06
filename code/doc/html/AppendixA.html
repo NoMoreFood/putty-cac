@@ -103,6 +103,7 @@
 <li><a href="#faq-cleanup">A.8.2 What does PuTTY leave on a system? How can I clean up after it?</a></li>
 <li><a href="#faq-dsa">A.8.3 How come PuTTY now supports DSA, when the website used to say how insecure it was?</a></li>
 <li><a href="#faq-virtuallock">A.8.4 Couldn't Pageant use <code>VirtualLock()</code> to stop private keys being written to disk?</a></li>
+<li><a href="#faq-windowsstore">A.8.5 Is the version of PuTTY in the Microsoft Store legit?</a></li>
 </ul></li>
 <li><a href="#faq-admin">A.9 Administrative questions</a>
 <ul>
@@ -193,7 +194,7 @@ Yes, all of PuTTY's settings can be saved in named session profiles. You can als
 </p>
 <h3><a name="faq-disksettings"></a><a name="QA.2.6"></a>A.2.6 Does PuTTY support storing its settings in a disk file?</h3>
 <p>
-Not at present, although <a href="Chapter4.html#config-file">section 4.32</a> in the documentation gives a method of achieving the same effect.
+Not at present, although <a href="Chapter4.html#config-file">section 4.33</a> in the documentation gives a method of achieving the same effect.
 </p>
 <h3><a name="faq-fullscreen"></a><a name="QA.2.7"></a>A.2.7 Does PuTTY support full-screen mode, like a DOS box?</h3>
 <p>
@@ -220,7 +221,7 @@ No, there isn't. And there won't be. Even if you write it yourself and send us t
 Those annoying host key prompts are the <em>whole point</em> of SSH. Without them, all the cryptographic technology SSH uses to secure your session is doing nothing more than making an attacker's job slightly harder; instead of sitting between you and the server with a packet sniffer, the attacker must actually subvert a router and start modifying the packets going back and forth. But that's not all that much harder than just sniffing; and without host key checking, it will go completely undetected by client or server.
 </p>
 <p>
-Host key checking is your guarantee that the encryption you put on your data at the client end is the <em>same</em> encryption taken off the data at the server end; it's your guarantee that it hasn't been removed and replaced somewhere on the way. Host key checking makes the attacker's job <em>astronomically</em> hard, compared to packet sniffing, and even compared to subverting a router. Instead of applying a little intelligence and keeping an eye on Bugtraq, the attacker must now perform a brute-force attack against at least one military-strength cipher. That insignificant host key prompt really does make <em>that</em> much difference.
+Host key checking is your guarantee that the encryption you put on your data at the client end is the <em>same</em> encryption taken off the data at the server end; it's your guarantee that it hasn't been removed and replaced somewhere on the way. Host key checking makes the attacker's job <em>astronomically</em> hard, compared to packet sniffing, and even compared to subverting a router. Instead of applying a little intelligence and keeping an eye on oss-security, the attacker must now perform a brute-force attack against at least one military-strength cipher. That insignificant host key prompt really does make <em>that</em> much difference.
 </p>
 <p>
 If you're having a specific problem with host key checking - perhaps you want an automated batch job to make use of PSCP or Plink, and the interactive host key prompt is hanging the batch process - then the right way to fix it is to add the correct host key to the Registry in advance, or if the Registry is not available, to use the <code>-hostkey</code> command-line option. That way, you retain the <em>important</em> feature of host key checking: the right key will be accepted and the wrong ones will not. Adding an option to turn host key checking off completely is the wrong solution and we will not do it.
@@ -263,7 +264,7 @@ PuTTY has been gaining a generalised porting layer, drawing a clear line between
 Currently, release versions of PuTTY tools only run on Windows systems and Unix.
 </p>
 <p>
-As of 0.68, the supplied PuTTY executables run on versions of Windows from XP onwards, up to and including Windows 10; and we know of no reason why PuTTY should not continue to work on future versions of Windows. We provide 32-bit and 64-bit Windows executables for the common x86 processor family; see <a href="#faq-32bit-64bit">question A.6.10</a> for discussion of the compatibility issues around that. The 32-bit executables require a <a name="i8"></a>Pentium 4 or newer processor. We also provide executables for Windows on Arm processors.
+As of 0.68, the supplied PuTTY executables run on versions of Windows from XP onwards, up to and including Windows 11; and we know of no reason why PuTTY should not continue to work on future versions of Windows. We provide 32-bit and 64-bit Windows executables for the common x86 processor family; see <a href="#faq-32bit-64bit">question A.6.10</a> for discussion of the compatibility issues around that. The 32-bit executables require a <a name="i8"></a>Pentium 4 or newer processor. We also provide executables for Windows on Arm processors.
 </p>
 <p>
 (We used to also provide executables for Windows for the Alpha processor, but stopped after 0.58 due to lack of interest.)
@@ -285,7 +286,7 @@ There are some third-party ports to various platforms, mentioned on the <a href=
 There are Unix ports of most of the traditional PuTTY tools, and also one entirely new application.
 </p>
 <p>
-If you look at the source release, you should find a <code>unix</code> subdirectory. There are a couple of ways of building it, including the usual <code>configure</code>/<code>make</code>; see the file <code>README</code> in the source distribution. This should build you:
+If you look at the source release, you should find a <code>unix</code> subdirectory. You need <code>cmake</code> to build it; see the file <code>README</code> in the source distribution. This should build you:
 </p>
 <ul><li>
 Unix ports of PuTTY, Plink, PSCP, and PSFTP, which work pretty much the same as their Windows counterparts;
@@ -483,7 +484,7 @@ You can also paste by pressing Shift-Ins.
 </p>
 <h3><a name="faq-options"></a><a name="QA.6.7"></a>A.6.7 How do I use all PuTTY's features (public keys, proxying, cipher selection, etc.) in PSCP, PSFTP and Plink?</h3>
 <p>
-Most major features (e.g., public keys, port forwarding) are available through command line options. See the documentation.
+Most major features (e.g., public keys, port forwarding) are available through command line options. See <a href="Chapter3.html#using-general-opts">section 3.11.3</a>.
 </p>
 <p>
 Not all features are accessible from the command line yet, although we'd like to fix this. In the meantime, you can use most of PuTTY's features if you create a PuTTY saved session, and then use the name of the saved session on the command line in place of a hostname. This works for PSCP, PSFTP and Plink (but don't expect port forwarding in the file transfer applications!).
@@ -497,7 +498,13 @@ To use PSCP properly, run it from a Command Prompt window. See <a href="Chapter5
 </p>
 <h3><a name="faq-pscp-spaces"></a><a name="QA.6.9"></a>A.6.9 <a name="i25"></a>How do I use PSCP to copy a file whose name has spaces in?</h3>
 <p>
-If PSCP is using the traditional SCP protocol, this is confusing. If you're specifying a file at the local end, you just use one set of quotes as you would normally do:
+If PSCP is using the newer SFTP protocol (which is usual with most modern servers), this is straightforward; all filenames with spaces in are specified using a single pair of quotes in the obvious way:
+</p>
+<pre><code>pscp "local file" user@host:
+pscp user@host:"remote file" .
+</code></pre>
+<p>
+However, if PSCP is using the older SCP protocol for some reason, things are more confusing. If you're specifying a file at the local end, you just use one set of quotes as you would normally do:
 </p>
 <pre><code>pscp "local filename with spaces" user@host:
 pscp user@host:myfile "local filename with spaces"
@@ -520,12 +527,6 @@ Instead, you need to specify the local file name in full:
 </p>
 <pre><code>c:\&gt;pscp user@host:"\"oo er\"" "oo er"
 </code></pre>
-<p>
-If PSCP is using the newer SFTP protocol, none of this is a problem, and all filenames with spaces in are specified using a single pair of quotes in the obvious way:
-</p>
-<pre><code>pscp "local file" user@host:
-pscp user@host:"remote file" .
-</code></pre>
 <h3><a name="faq-32bit-64bit"></a><a name="QA.6.10"></a>A.6.10 Should I run the 32-bit or the 64-bit version?</h3>
 <p>
 If you're not sure, the <a name="i26"></a>32-bit version is generally the safe option. It will run perfectly well on all processors and on all versions of Windows that PuTTY supports. PuTTY doesn't require to run as a 64-bit application to work well, and having a 32-bit PuTTY on a 64-bit system isn't likely to cause you any trouble.
@@ -534,7 +535,7 @@ If you're not sure, the <a name="i26"></a>32-bit version is generally the safe o
 The 64-bit version (first released in 0.68) will only run if you have a 64-bit processor <em>and</em> a <a name="i27"></a>64-bit edition of Windows (both of these things are likely to be true of any recent Windows PC). It will run somewhat faster (in particular, the cryptography will be faster, especially during link setup), but it will consume slightly more memory.
 </p>
 <p>
-If you need to use an external <a name="i28"></a>DLL for GSSAPI authentication, that DLL may only be available in a 32-bit or 64-bit form, and that will dictate the version of PuTTY you need to use. (You will probably know if you're doing this; see <a href="Chapter4.html#config-ssh-auth-gssapi-libraries">section 4.22.2</a> in the documentation.)
+If you need to use an external <a name="i28"></a>DLL for GSSAPI authentication, that DLL may only be available in a 32-bit or 64-bit form, and that will dictate the version of PuTTY you need to use. (You will probably know if you're doing this; see <a href="Chapter4.html#config-ssh-auth-gssapi-libraries">section 4.23.2</a> in the documentation.)
 </p>
 <h2><a name="faq-trouble"></a><a name="SA.7"></a>A.7 Troubleshooting</h2>
 <h3><a name="faq-pscp-protocol"></a><a name="QA.7.1"></a>A.7.1 Why do I see &#8216;Fatal: Protocol error: Expected control record&#8217; in PSCP?</h3>
@@ -727,7 +728,7 @@ There is a patch for OpenSSH attached to that bug; it's also fixed in recent ver
 </p>
 <h3><a name="faq-connaborted"></a><a name="QA.7.19"></a>A.7.19 Do you want to hear about &#8216;Software caused connection abort&#8217;?</h3>
 <p>
-In the documentation for PuTTY 0.53 and 0.53b, we mentioned that we'd like to hear about any occurrences of this error. Since the release of PuTTY 0.54, however, we've been convinced that this error doesn't indicate that PuTTY's doing anything wrong, and we don't need to hear about further occurrences. See <a href="Chapter10.html#errors-connaborted">section 10.15</a> for our current documentation of this error.
+In the documentation for PuTTY 0.53 and 0.53b, we mentioned that we'd like to hear about any occurrences of this error. Since the release of PuTTY 0.54, however, we've been convinced that this error doesn't indicate that PuTTY's doing anything wrong, and we don't need to hear about further occurrences. See <a href="Chapter10.html#errors-connaborted">section 10.16</a> for our current documentation of this error.
 </p>
 <h3><a name="faq-rekey"></a><a name="QA.7.20"></a>A.7.20 My SSH-2 session <a name="i55"></a>locks up for a few seconds every so often.</h3>
 <p>
@@ -752,7 +753,7 @@ On 64-bit systems, <code>C:\WINDOWS\SYSTEM32</code> is intended to contain only 
 If your SSH server has started unexpectedly closing SSH connections after you enter your password, and it worked before 0.68, you may have a buggy server that objects to certain SSH protocol extensions.
 </p>
 <p>
-The SSH protocol recently gained a new &#8216;terminal mode&#8217;, <code>IUTF8</code>, which PuTTY sends by default; see <a href="Chapter4.html#config-ttymodes">section 4.23.2</a>. This is the first new terminal mode since the SSH-2 protocol was defined. While servers are supposed to ignore modes they don't know about, some buggy servers will unceremoniously close the connection if they see anything they don't recognise. SSH servers in embedded devices, network appliances, and the like seem to disproportionately have this bug.
+The SSH protocol recently gained a new &#8216;terminal mode&#8217;, <code>IUTF8</code>, which PuTTY sends by default; see <a href="Chapter4.html#config-ttymodes">section 4.24.2</a>. This is the first new terminal mode since the SSH-2 protocol was defined. While servers are supposed to ignore modes they don't know about, some buggy servers will unceremoniously close the connection if they see anything they don't recognise. SSH servers in embedded devices, network appliances, and the like seem to disproportionately have this bug.
 </p>
 <p>
 If you think you have such a server, from 0.69 onwards you can disable sending of the <code>IUTF8</code> mode: on the SSH / TTY panel, select <code>IUTF8</code> on the list, select &#8216;Nothing&#8217;, and press &#8216;Set&#8217;. (It's not possible to disable sending this mode in 0.68.)
@@ -788,6 +789,16 @@ The recently added elliptic-curve signature methods are also DSA-style algorithm
 <h3><a name="faq-virtuallock"></a><a name="QA.8.4"></a>A.8.4 Couldn't Pageant use <code>VirtualLock()</code> to stop private keys being written to disk?</h3>
 <p>
 Unfortunately not. The <code>VirtualLock()</code> function in the Windows API doesn't do a proper job: it may prevent small pieces of a process's memory from being paged to disk while the process is running, but it doesn't stop the process's memory as a whole from being swapped completely out to disk when the process is long-term inactive. And Pageant spends most of its time inactive.
+</p>
+<h3><a name="faq-windowsstore"></a><a name="QA.8.5"></a>A.8.5 Is the version of PuTTY in the <a name="i66"></a>Microsoft Store legit?</h3>
+<p>
+The free-of-charge &#8216;PuTTY&#8217; application at <a href="https://apps.microsoft.com/store/detail/putty/XPFNZKSKLBP7RJ">this link</a> is published and maintained by us. The copy there is the latest release, usually updated within a few days of us publishing it on our own website.
+</p>
+<p>
+There have been other copies of PuTTY on the store, some looking quite similar, and some charging money. Those were uploaded by other people, and we can't guarantee anything about them.
+</p>
+<p>
+The first version we published to the Microsoft Store was 0.76 (some time after its initial release on our website).
 </p>
 <h2><a name="faq-admin"></a><a name="SA.9"></a>A.9 Administrative questions</h2>
 <h3><a name="faq-putty-org"></a><a name="QA.9.1"></a>A.9.1 Is <code>putty.org</code> your website?</h3>
@@ -853,7 +864,7 @@ Please, <em>please</em> don't feel you have to. PuTTY is completely free softwar
 Having said all that, if you still really <em>want</em> to give us money, we won't argue :-) The easiest way for us to accept donations is if you send money to <code>&lt;anakin@pobox.com&gt;</code> using PayPal (<a href="http://www.paypal.com/"><code>www.paypal.com</code></a>). If you don't like PayPal, talk to us; we can probably arrange some alternative means.
 </p>
 <p>
-Small donations (tens of dollars or tens of euros) will probably be spent on beer or curry, which helps motivate our volunteer team to continue doing this for the world. Larger donations will be spent on something that actually helps development, if we can find anything (perhaps new hardware, or a copy of Windows XP), but if we can't find anything then we'll just distribute the money among the developers. If you want to be sure your donation is going towards something worthwhile, ask us first. If you don't like these terms, feel perfectly free not to donate. We don't mind.
+Small donations (tens of dollars or tens of euros) will probably be spent on beer or curry, which helps motivate our volunteer team to continue doing this for the world. Larger donations will be spent on something that actually helps development, if we can find anything (perhaps new hardware, or a new version of Windows), but if we can't find anything then we'll just distribute the money among the developers. If you want to be sure your donation is going towards something worthwhile, ask us first. If you don't like these terms, feel perfectly free not to donate. We don't mind.
 </p>
 <h3><a name="faq-permission"></a><a name="QA.9.9"></a>A.9.9 Can I have permission to put PuTTY on a cover disk / distribute it with other software / etc?</h3>
 <p>
@@ -983,7 +994,7 @@ the checksum that file says the binary should have.
 </li>
 </ul>
 <h2><a name="faq-misc"></a><a name="SA.10"></a>A.10 Miscellaneous questions</h2>
-<h3><a name="faq-openssh"></a><a name="QA.10.1"></a>A.10.1 Is PuTTY a port of <a name="i66"></a>OpenSSH, or based on OpenSSH or OpenSSL?</h3>
+<h3><a name="faq-openssh"></a><a name="QA.10.1"></a>A.10.1 Is PuTTY a port of <a name="i67"></a>OpenSSH, or based on OpenSSH or OpenSSL?</h3>
 <p>
 No, it isn't. PuTTY is almost completely composed of code written from scratch for PuTTY. The only code we share with OpenSSH is the detector for SSH-1 CRC compensation attacks, written by CORE SDI S.A; we share no code at all with OpenSSL.
 </p>
@@ -1003,5 +1014,6 @@ It's the name of a popular SSH and Telnet client. Any other meaning is in the ey
 Exactly like the English word &#8216;putty&#8217;, which we pronounce /&#712;p&#652;ti/.
 </p>
 
-<hr><p>If you want to provide feedback on this manual or on the PuTTY tools themselves, see the <a href="https://www.chiark.greenend.org.uk/~sgtatham/putty/feedback.html">Feedback page</a>.</p><address></address></body>
+<hr><p>If you want to provide feedback on this manual or on the PuTTY tools themselves, see the <a href="https://www.chiark.greenend.org.uk/~sgtatham/putty/feedback.html">Feedback page</a>.</p><address>
+[PuTTY release 0.78]</address></body>
 </html>
