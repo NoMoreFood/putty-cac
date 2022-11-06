@@ -127,6 +127,8 @@ to indicate that it is a comment string
 to indicate that it is a fingerprint; any fingerprint format will be matched
 .IP "`\fBsha256:\fP' or `\fBmd5:\fP'"
 to indicate that it is a fingerprint of a specific format
+.IP "`\fBsha256-cert:\fP' or `\fBmd5-cert:\fP'"
+to indicate that it is a fingerprint of a specific format, and specifically matches the fingerprint of the public key \fIincluding\fP a certificate if any
 .RE
 .IP "\fB--public-openssh\fP \fIkey-identifiers\fP, \fB-L\fP \fIkey-identifiers\fP"
 Print the public half of each specified key, in the one-line format used by OpenSSH, suitable for putting in \fB.ssh/authorized_keys\fP files.

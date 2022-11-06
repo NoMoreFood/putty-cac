@@ -8,10 +8,10 @@
 <link rel="ToC" href="index.html">
 <link rel="up" href="index.html">
 <link rel="index" href="IndexPage.html">
-<link rel="next" href="IndexPage.html">
+<link rel="next" href="AppendixH.html">
 </head>
 <body>
-<p><a href="AppendixF.html">Previous</a> | <a href="index.html">Contents</a> | <a href="IndexPage.html">Index</a> | <a href="IndexPage.html">Next</a></p>
+<p><a href="AppendixF.html">Previous</a> | <a href="index.html">Contents</a> | <a href="IndexPage.html">Index</a> | <a href="AppendixH.html">Next</a></p>
 
 <ul>
 <li><a href="#sshnames">Appendix G: SSH-2 names specified for PuTTY</a>
@@ -42,7 +42,7 @@ This is sent by a client to announce that it will not have more than one channel
 <dd>
 PuTTY sends this request along with some <code>SSH_MSG_CHANNEL_WINDOW_ADJUST</code> messages as part of its window-size tuning. It can be sent on any type of channel. There is no message-specific data. Servers MUST treat it as an unrecognised request and respond with <code>SSH_MSG_CHANNEL_FAILURE</code>.
 <p>
-(Some SSH servers get confused by this message, so there is a bug-compatibility mode for disabling it. See <a href="Chapter4.html#config-ssh-bug-winadj">section 4.26.3</a>.) 
+(Some SSH servers get confused by this message, so there is a bug-compatibility mode for disabling it. See <a href="Chapter4.html#config-ssh-bug-winadj">section 4.27.3</a>.) 
 </p>
 
 </dd>
@@ -98,7 +98,7 @@ These were used in drafts of what eventually became RFC&nbsp;4345. They have bee
 </dl>
 <h2><a name="sshnames-agent"></a><a name="SG.4"></a>G.4 Agent extension request names</h2>
 <p>
-The SSH agent protocol, which is only specified in an Internet-Draft at the time of writing (<a href="https://tools.ietf.org/html/draft-miller-ssh-agent"><code>draft-miller-ssh-agent</code></a>), defines an extension mechanism. These names can be sent in an <code>SSH_AGENTC_EXTENSION</code> message.
+The SSH agent protocol, which is only specified in an Internet-Draft at the time of writing (<a href="https://datatracker.ietf.org/doc/html/draft-miller-ssh-agent"><code>draft-miller-ssh-agent</code></a>), defines an extension mechanism. These names can be sent in an <code>SSH_AGENTC_EXTENSION</code> message.
 </p>
 <dl><dt>
 <code>add-ppk@putty.projects.tartarus.org</code>
@@ -147,9 +147,7 @@ If set, key's cleartext form is not currently held (so the user will have to sup
 
 </dd>
 </dl>
-<p>
-ersionid PuTTY release 0.77
-</p>
 
-<hr><p>If you want to provide feedback on this manual or on the PuTTY tools themselves, see the <a href="https://www.chiark.greenend.org.uk/~sgtatham/putty/feedback.html">Feedback page</a>.</p><address></address></body>
+<hr><p>If you want to provide feedback on this manual or on the PuTTY tools themselves, see the <a href="https://www.chiark.greenend.org.uk/~sgtatham/putty/feedback.html">Feedback page</a>.</p><address>
+[PuTTY release 0.78]</address></body>
 </html>

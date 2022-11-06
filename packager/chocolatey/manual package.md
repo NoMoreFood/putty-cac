@@ -1,8 +1,8 @@
 # puTTY-CAC-Chocolatey
-Chocolatey package specification for puTTY CAC
+Chocolatey package specification for PuTTY CAC
 
 # How to build?
-* Update the nuspec file in the folder "putty cac"
+* Update the nuspec file
 * Update the URLs and hash values in the "chocolateyinstall.ps1" file in the tools folder
 * Build the package
   * Navigate to package directory

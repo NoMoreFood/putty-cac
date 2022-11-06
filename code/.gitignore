@@ -12,6 +12,7 @@ Win32/
 cmake_install.cmake
 /shipped.txt
 *.dir/
+*.lib
 .dirstamp
 .deps
 .DS_Store
@@ -81,6 +82,7 @@ Makefile
 /doc/*.hlp
 /doc/*.gid
 /doc/*.GID
+/doc/*.chm
 /doc/*.log
 /doc/*.1
 /doc/*.info
@@ -138,3 +140,6 @@ Makefile
 /windows/*.msi
 /windows/*.wixobj
 /windows/*.wixpdb
+!CMakeLists.txt
+!/doc/putty.chm
+!/contrib/**/*.lib

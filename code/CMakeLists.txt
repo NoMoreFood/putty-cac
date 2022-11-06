@@ -5,6 +5,7 @@ enable_language(CXX)
 endif()
 
 include(cmake/setup.cmake)
+
 # Scan the docs directory first, so that when we start calling
 # installed_program(), we'll know if we have man pages available
 add_subdirectory(doc)
@@ -17,6 +18,7 @@ add_library(utils STATIC
   ${GENERATED_COMMIT_C})
 add_dependencies(utils cmake_commit_c)
 add_subdirectory(utils)
+add_subdirectory(stubs)
 
 add_library(logging OBJECT
   logging.c)
@@ -35,7 +37,7 @@ add_library(crypto STATIC
 add_subdirectory(crypto)
 
 add_library(network STATIC
-  stubs/nullplug.c errsock.c logging.c x11disp.c
+  errsock.c logging.c x11disp.c
   proxy/proxy.c
   proxy/http.c
   proxy/socks4.c
@@ -57,7 +59,7 @@ add_library(guiterminal STATIC
   $<TARGET_OBJECTS:logging>)
 
 add_library(noterminal STATIC
-  stubs/noterm.c ldisc.c)
+  stubs/no-term.c ldisc.c)
 
 add_library(all-backends OBJECT
   pinger.c)
@@ -95,6 +97,11 @@ add_executable(test_wildcard
   utils/wildcard.c)
 target_compile_definitions(test_wildcard PRIVATE TEST)
 target_link_libraries(test_wildcard utils ${platform_libraries})
+
+add_executable(test_cert_expr
+  utils/cert-expr.c)
+target_compile_definitions(test_cert_expr PRIVATE TEST)
+target_link_libraries(test_cert_expr utils ${platform_libraries})
 
 add_executable(bidi_gettype
   terminal/bidi_gettype.c)
@@ -137,7 +144,7 @@ installed_program(psftp)
 add_executable(psocks
   ${platform}/psocks.c
   psocks.c
-  stubs/norand.c
+  stubs/no-rand.c
   proxy/nocproxy.c
   proxy/nosshproxy.c
   ssh/portfwd.c)

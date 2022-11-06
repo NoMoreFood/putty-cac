@@ -71,17 +71,18 @@ This manual is copyright 1997-2022 Simon Tatham. All rights reserved. You may di
 <li><a href="Chapter4.html#config-ssh-hostkey">4.19 The Host Keys panel</a></li>
 <li><a href="Chapter4.html#config-ssh-encryption">4.20 The Cipher panel</a></li>
 <li><a href="Chapter4.html#config-ssh-auth">4.21 The Auth panel</a></li>
-<li><a href="Chapter4.html#config-ssh-auth-gssapi">4.22 The GSSAPI panel</a></li>
-<li><a href="Chapter4.html#config-ssh-tty">4.23 The TTY panel</a></li>
-<li><a href="Chapter4.html#config-ssh-x11">4.24 The X11 panel</a></li>
-<li><a href="Chapter4.html#config-ssh-portfwd">4.25 The Tunnels panel</a></li>
-<li><a href="Chapter4.html#config-ssh-bugs">4.26 The Bugs and More Bugs panels</a></li>
-<li><a href="Chapter4.html#config-psusan">4.27 The &#8216;Bare <code>ssh-connection</code>&#8217; protocol</a></li>
-<li><a href="Chapter4.html#config-serial">4.28 The Serial panel</a></li>
-<li><a href="Chapter4.html#config-telnet">4.29 The Telnet panel</a></li>
-<li><a href="Chapter4.html#config-rlogin">4.30 The Rlogin panel</a></li>
-<li><a href="Chapter4.html#config-supdup">4.31 The SUPDUP panel</a></li>
-<li><a href="Chapter4.html#config-file">4.32 Storing configuration in a file</a></li>
+<li><a href="Chapter4.html#config-ssh-auth-creds">4.22 The Credentials panel</a></li>
+<li><a href="Chapter4.html#config-ssh-auth-gssapi">4.23 The GSSAPI panel</a></li>
+<li><a href="Chapter4.html#config-ssh-tty">4.24 The TTY panel</a></li>
+<li><a href="Chapter4.html#config-ssh-x11">4.25 The X11 panel</a></li>
+<li><a href="Chapter4.html#config-ssh-portfwd">4.26 The Tunnels panel</a></li>
+<li><a href="Chapter4.html#config-ssh-bugs">4.27 The Bugs and More Bugs panels</a></li>
+<li><a href="Chapter4.html#config-psusan">4.28 The &#8216;Bare <code>ssh-connection</code>&#8217; protocol</a></li>
+<li><a href="Chapter4.html#config-serial">4.29 The Serial panel</a></li>
+<li><a href="Chapter4.html#config-telnet">4.30 The Telnet panel</a></li>
+<li><a href="Chapter4.html#config-rlogin">4.31 The Rlogin panel</a></li>
+<li><a href="Chapter4.html#config-supdup">4.32 The SUPDUP panel</a></li>
+<li><a href="Chapter4.html#config-file">4.33 Storing configuration in a file</a></li>
 </ul></li>
 <li><a href="Chapter5.html#pscp">Chapter 5: Using PSCP to transfer files securely</a>
 <ul>
@@ -121,23 +122,24 @@ This manual is copyright 1997-2022 Simon Tatham. All rights reserved. You may di
 <ul>
 <li><a href="Chapter10.html#errors-hostkey-absent">10.1 &#8216;The host key is not cached for this server&#8217;</a></li>
 <li><a href="Chapter10.html#errors-hostkey-wrong">10.2 &#8216;WARNING - POTENTIAL SECURITY BREACH!&#8217;</a></li>
-<li><a href="Chapter10.html#errors-ssh-protocol">10.3 &#8216;SSH protocol version 2 required by our configuration but remote only provides (old, insecure) SSH-1&#8217;</a></li>
-<li><a href="Chapter10.html#errors-cipher-warning">10.4 &#8216;The first cipher supported by the server is ... below the configured warning threshold&#8217;</a></li>
-<li><a href="Chapter10.html#errors-toomanyauth">10.5 &#8216;Remote side sent disconnect message type 2 (protocol error): "Too many authentication failures for root"&#8217;</a></li>
-<li><a href="Chapter10.html#errors-memory">10.6 &#8216;Out of memory&#8217;</a></li>
-<li><a href="Chapter10.html#errors-internal">10.7 &#8216;Internal error&#8217;, &#8216;Internal fault&#8217;, &#8216;Assertion failed&#8217;</a></li>
-<li><a href="Chapter10.html#errors-cant-load-key">10.8 &#8216;Unable to use key file&#8217;, &#8216;Couldn't load private key&#8217;, &#8216;Couldn't load this key&#8217;</a></li>
-<li><a href="Chapter10.html#errors-refused">10.9 &#8216;Server refused our key&#8217;, &#8216;Server refused our public key&#8217;, &#8216;Key refused&#8217;</a></li>
-<li><a href="Chapter10.html#errors-access-denied">10.10 &#8216;Access denied&#8217;, &#8216;Authentication refused&#8217;</a></li>
-<li><a href="Chapter10.html#errors-no-auth">10.11 &#8216;No supported authentication methods available&#8217;</a></li>
-<li><a href="Chapter10.html#errors-crc">10.12 &#8216;Incorrect MAC received on packet&#8217; or &#8216;Incorrect CRC received on packet&#8217;</a></li>
-<li><a href="Chapter10.html#errors-garbled">10.13 &#8216;Incoming packet was garbled on decryption&#8217;</a></li>
-<li><a href="Chapter10.html#errors-x11-proxy">10.14 &#8216;PuTTY X11 proxy: <em>various errors</em>&#8217;</a></li>
-<li><a href="Chapter10.html#errors-connaborted">10.15 &#8216;Network error: Software caused connection abort&#8217;</a></li>
-<li><a href="Chapter10.html#errors-connreset">10.16 &#8216;Network error: Connection reset by peer&#8217;</a></li>
-<li><a href="Chapter10.html#errors-connrefused">10.17 &#8216;Network error: Connection refused&#8217;</a></li>
-<li><a href="Chapter10.html#errors-conntimedout">10.18 &#8216;Network error: Connection timed out&#8217;</a></li>
-<li><a href="Chapter10.html#errors-cannotassignaddress">10.19 &#8216;Network error: Cannot assign requested address&#8217;</a></li>
+<li><a href="Chapter10.html#errors-cert-mismatch">10.3 &#8216;This server presented a certified host key which was signed by a different certification authority ...&#8217;</a></li>
+<li><a href="Chapter10.html#errors-ssh-protocol">10.4 &#8216;SSH protocol version 2 required by our configuration but remote only provides (old, insecure) SSH-1&#8217;</a></li>
+<li><a href="Chapter10.html#errors-cipher-warning">10.5 &#8216;The first cipher supported by the server is ... below the configured warning threshold&#8217;</a></li>
+<li><a href="Chapter10.html#errors-toomanyauth">10.6 &#8216;Remote side sent disconnect message type 2 (protocol error): "Too many authentication failures for root"&#8217;</a></li>
+<li><a href="Chapter10.html#errors-memory">10.7 &#8216;Out of memory&#8217;</a></li>
+<li><a href="Chapter10.html#errors-internal">10.8 &#8216;Internal error&#8217;, &#8216;Internal fault&#8217;, &#8216;Assertion failed&#8217;</a></li>
+<li><a href="Chapter10.html#errors-cant-load-key">10.9 &#8216;Unable to use key file&#8217;, &#8216;Couldn't load private key&#8217;, &#8216;Couldn't load this key&#8217;</a></li>
+<li><a href="Chapter10.html#errors-refused">10.10 &#8216;Server refused our key&#8217;, &#8216;Server refused our public key&#8217;, &#8216;Key refused&#8217;</a></li>
+<li><a href="Chapter10.html#errors-access-denied">10.11 &#8216;Access denied&#8217;, &#8216;Authentication refused&#8217;</a></li>
+<li><a href="Chapter10.html#errors-no-auth">10.12 &#8216;No supported authentication methods available&#8217;</a></li>
+<li><a href="Chapter10.html#errors-crc">10.13 &#8216;Incorrect MAC received on packet&#8217; or &#8216;Incorrect CRC received on packet&#8217;</a></li>
+<li><a href="Chapter10.html#errors-garbled">10.14 &#8216;Incoming packet was garbled on decryption&#8217;</a></li>
+<li><a href="Chapter10.html#errors-x11-proxy">10.15 &#8216;PuTTY X11 proxy: <em>various errors</em>&#8217;</a></li>
+<li><a href="Chapter10.html#errors-connaborted">10.16 &#8216;Network error: Software caused connection abort&#8217;</a></li>
+<li><a href="Chapter10.html#errors-connreset">10.17 &#8216;Network error: Connection reset by peer&#8217;</a></li>
+<li><a href="Chapter10.html#errors-connrefused">10.18 &#8216;Network error: Connection refused&#8217;</a></li>
+<li><a href="Chapter10.html#errors-conntimedout">10.19 &#8216;Network error: Connection timed out&#8217;</a></li>
+<li><a href="Chapter10.html#errors-cannotassignaddress">10.20 &#8216;Network error: Cannot assign requested address&#8217;</a></li>
 </ul></li>
 <li><a href="AppendixA.html#faq">Appendix A: PuTTY FAQ</a>
 <ul>
@@ -204,8 +206,19 @@ This manual is copyright 1997-2022 Simon Tatham. All rights reserved. You may di
 <li><a href="AppendixG.html#sshnames-encrypt">G.3 Encryption algorithm names</a></li>
 <li><a href="AppendixG.html#sshnames-agent">G.4 Agent extension request names</a></li>
 </ul></li>
+<li><a href="AppendixH.html#authplugin">Appendix H: PuTTY authentication plugin protocol</a>
+<ul>
+<li><a href="AppendixH.html#authplugin-req">H.1 Requirements</a></li>
+<li><a href="AppendixH.html#authplugin-transport">H.2 Transport and configuration</a></li>
+<li><a href="AppendixH.html#authplugin-formats">H.3 Data formats and marshalling</a></li>
+<li><a href="AppendixH.html#authplugin-version">H.4 Protocol versioning</a></li>
+<li><a href="AppendixH.html#authplugin-overview">H.5 Overview and sequence of events</a></li>
+<li><a href="AppendixH.html#authplugin-messages">H.6 Message formats</a></li>
+<li><a href="AppendixH.html#authplugin-refs">H.7 References</a></li>
+</ul></li>
 <li><a href="IndexPage.html#Index">Index</a></li>
 </ul>
 
-<hr><p>If you want to provide feedback on this manual or on the PuTTY tools themselves, see the <a href="https://www.chiark.greenend.org.uk/~sgtatham/putty/feedback.html">Feedback page</a>.</p><address></address></body>
+<hr><p>If you want to provide feedback on this manual or on the PuTTY tools themselves, see the <a href="https://www.chiark.greenend.org.uk/~sgtatham/putty/feedback.html">Feedback page</a>.</p><address>
+[PuTTY release 0.78]</address></body>
 </html>

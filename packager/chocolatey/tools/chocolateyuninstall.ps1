@@ -1,10 +1,8 @@
-﻿
+﻿$ErrorActionPreference = 'Stop';
 
-
-$ErrorActionPreference = 'Stop';
 $packageArgs = @{
   packageName   = $env:ChocolateyPackageName
-  softwareName  = 'puTTY CAC*'
+  softwareName  = 'PuTTY CAC*'
   fileType      = 'MSI'
   silentArgs    = "/qn /norestart"
   validExitCodes= @(0, 3010, 1605, 1614, 1641)

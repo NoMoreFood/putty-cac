@@ -51,7 +51,7 @@ Once you've got a console window to type into, you can just type <code>pscp</cod
 </p>
 <pre><code>C:\&gt;pscp
 PuTTY Secure Copy client
-Release 0.77
+Release 0.78
 Usage: pscp [options] [user@]host:source target
        pscp [options] source [source...] [user@]host:target
        pscp [options] -ls [user@]host:filespec
@@ -247,7 +247,7 @@ Like PuTTY, PSCP can authenticate using a public key instead of a password. Ther
 Firstly, PSCP can use PuTTY saved sessions in place of hostnames (see <a href="#pscp-usage-basics-host">section 5.2.1.2</a>). So you would do this:
 </p>
 <ul><li>
-Run PuTTY, and create a PuTTY saved session (see <a href="Chapter4.html#config-saving">section 4.1.2</a>) which specifies your private key file (see <a href="Chapter4.html#config-ssh-privkey">section 4.21.9</a>). You will probably also want to specify a username to log in as (see <a href="Chapter4.html#config-username">section 4.15.1</a>).
+Run PuTTY, and create a PuTTY saved session (see <a href="Chapter4.html#config-saving">section 4.1.2</a>) which specifies your private key file (see <a href="Chapter4.html#config-ssh-privkey">section 4.22.1</a>). You will probably also want to specify a username to log in as (see <a href="Chapter4.html#config-username">section 4.15.1</a>).
 </li>
 <li>
 In PSCP, you can now use the name of the session instead of a hostname: type <code>pscp sessionname:file localfile</code>, where <code>sessionname</code> is replaced by the name of your saved session.
@@ -270,5 +270,6 @@ Specify a user and host name to PSCP as normal. PSCP will automatically detect P
 For more general information on public-key authentication, see <a href="Chapter8.html#pubkey">chapter 8</a>.
 </p>
 
-<hr><p>If you want to provide feedback on this manual or on the PuTTY tools themselves, see the <a href="https://www.chiark.greenend.org.uk/~sgtatham/putty/feedback.html">Feedback page</a>.</p><address></address></body>
+<hr><p>If you want to provide feedback on this manual or on the PuTTY tools themselves, see the <a href="https://www.chiark.greenend.org.uk/~sgtatham/putty/feedback.html">Feedback page</a>.</p><address>
+[PuTTY release 0.78]</address></body>
 </html>
