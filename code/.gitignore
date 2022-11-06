@@ -140,6 +140,3 @@ Makefile
 /windows/*.msi
 /windows/*.wixobj
 /windows/*.wixpdb
-!CMakeLists.txt
-!/doc/putty.chm
-!/contrib/**/*.lib
