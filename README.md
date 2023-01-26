@@ -7,6 +7,8 @@ PuTTY CAC is maintained independently from the US Government by the open source 
 
 You can download the latest release of PuTTY CAC here: https://github.com/NoMoreFood/putty-cac/releases
 
+PuTTY CAC source code and binaries are free to use for any purpose. The license can be found here: https://github.com/NoMoreFood/putty-cac/blob/master/code/LICENCE
+
 ## Prerequisites
 * Microsoft Windows 10 or Later
 * For CAPI support, an appropriate Windows smart card mini-driver must be installed. This is typically provided by the smart card manufacturer although many common hardware tokens are supported by OpenSC.
