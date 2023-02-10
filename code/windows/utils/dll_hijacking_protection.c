@@ -25,9 +25,10 @@ void dll_hijacking_protection(void)
 {
 #ifdef PUTTY_CAC
     /* Windows 7 has a bug that prevents loading of smart card libaries if
-     * a non-default search order is used;
+     * a non-default search order is used; also, ActivClient has issues
+     * loading the credential interface on some systems if this is enabled.
      */
-    if (!IsWindows8OrGreater()) return;
+    return;
 #endif // PUTTY_CAC
 
     static HMODULE kernel32_module;
