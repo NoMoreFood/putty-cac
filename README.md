@@ -7,6 +7,8 @@ PuTTY CAC is maintained independently from the US Government by the open source 
 
 You can download the latest release of PuTTY CAC here: https://github.com/NoMoreFood/putty-cac/releases
 
+PuTTY CAC source code and binaries are free to use for any purpose. The license can be found here: https://github.com/NoMoreFood/putty-cac/blob/master/code/LICENCE
+
 ## Prerequisites
 * Microsoft Windows 10 or Later
 * For CAPI support, an appropriate Windows smart card mini-driver must be installed. This is typically provided by the smart card manufacturer although many common hardware tokens are supported by OpenSC.
@@ -42,7 +44,7 @@ PuTTY executables (putty.exe, pageant.exe, psftp.exe) support the following addi
 ### Certificates
 For the purposes of PuTTY CAC, the certificate is simply a convenient way to reference a private/public key pair. If you want to use PuTTY CAC to securely logon to your system and do not have access to a Certificate Authority (CA), the certificate can be self-signed. Conversely, PuTTY CAC can be used in conjunction with managed SSH servers to enforce multifactor authentication. This can be done by ensuring that the OpenSSH authorized_keys file only contains public keys associated with hardware tokens either procedurally or by creating an index of all issued certs and looking them up through OpenSSH directives like AuthorizedKeysCommand.
 ### Federal Information Processing Standards (FIPS) Compliance
-The specific code used to interface with the hardware token utilizes the Microsoft cryptographic libraries which in turn are governed by system-level FIPS settings (see [Microsoft's website](https://docs.microsoft.com/en-us/windows/security/threat-protection/security-policy-settings/system-cryptography-use-fips-compliant-algorithms-for-encryption-hashing-and-signing)).  Similarly, the hardware token that is used for signing authentication challenges is guaranteed to use FIPS compliant algorithms if the hardware key is FIPS certified; see the hardware token's manufacturer website for more information. PuTTY itself utilizes proprietary encryption and hashing one the SSH session is established which has not undergone evaluation for FIPS compliance or certification. 
+The specific code used to interface with the hardware token utilizes the Microsoft cryptographic libraries which in turn are governed by system-level FIPS settings (see [Microsoft's website](https://docs.microsoft.com/en-us/windows/security/threat-protection/security-policy-settings/system-cryptography-use-fips-compliant-algorithms-for-encryption-hashing-and-signing)).  Similarly, the hardware token that is used for signing authentication challenges is guaranteed to use FIPS compliant algorithms if the hardware key is FIPS certified; see the hardware token's manufacturer website for more information. PuTTY itself utilizes proprietary encryption and hashing once the SSH session is established which has not undergone evaluation for FIPS compliance or certification. 
 ## Notes On Building PuTTY CAC
 ### Prerequisites
 * Visual Studio 2022 with C++ Desktop Application Development
