@@ -3,7 +3,6 @@
 #include <windows.h>
 #include <stdio.h>
 #include <malloc.h>
-#include <cryptuiapi.h>
 
 #pragma comment(lib,"crypt32.lib")
 #pragma comment(lib,"credui.lib")
