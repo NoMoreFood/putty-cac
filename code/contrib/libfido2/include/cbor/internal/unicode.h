@@ -22,6 +22,7 @@ struct _cbor_unicode_status {
   uint64_t location;
 };
 
+_CBOR_NODISCARD
 uint64_t _cbor_unicode_codepoint_count(cbor_data source, uint64_t source_length,
                                        struct _cbor_unicode_status* status);
 

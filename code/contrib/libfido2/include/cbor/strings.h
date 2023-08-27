@@ -21,14 +21,15 @@ extern "C" {
  * ============================================================================
  */
 
-/** Returns the length of the underlying string
+/** Returns the length of the underlying string in bytes
  *
- * For definite strings only
+ * There can be fewer unicode character than bytes (see
+ * `cbor_string_codepoint_count`). For definite strings only.
  *
  * @param item[borrow] a definite string
  * @return length of the string. Zero if no chunk has been attached yet
  */
-CBOR_EXPORT size_t cbor_string_length(const cbor_item_t *item);
+_CBOR_NODISCARD CBOR_EXPORT size_t cbor_string_length(const cbor_item_t *item);
 
 /** The number of codepoints in this string
  *
@@ -37,21 +38,24 @@ CBOR_EXPORT size_t cbor_string_length(const cbor_item_t *item);
  * @param item[borrow] A string
  * @return The number of codepoints in this string
  */
-CBOR_EXPORT size_t cbor_string_codepoint_count(const cbor_item_t *item);
+_CBOR_NODISCARD CBOR_EXPORT size_t
+cbor_string_codepoint_count(const cbor_item_t *item);
 
 /** Is the string definite?
  *
  * @param item[borrow] a string
  * @return Is the string definite?
  */
-CBOR_EXPORT bool cbor_string_is_definite(const cbor_item_t *item);
+_CBOR_NODISCARD CBOR_EXPORT bool cbor_string_is_definite(
+    const cbor_item_t *item);
 
 /** Is the string indefinite?
  *
  * @param item[borrow] a string
  * @return Is the string indefinite?
  */
-CBOR_EXPORT bool cbor_string_is_indefinite(const cbor_item_t *item);
+_CBOR_NODISCARD CBOR_EXPORT bool cbor_string_is_indefinite(
+    const cbor_item_t *item);
 
 /** Get the handle to the underlying string
  *
@@ -62,7 +66,8 @@ CBOR_EXPORT bool cbor_string_is_indefinite(const cbor_item_t *item);
  * @return The address of the underlying string. `NULL` if no data have been
  * assigned yet.
  */
-CBOR_EXPORT cbor_mutable_data cbor_string_handle(const cbor_item_t *item);
+_CBOR_NODISCARD CBOR_EXPORT cbor_mutable_data
+cbor_string_handle(const cbor_item_t *item);
 
 /** Set the handle to the underlying string
  *
@@ -90,14 +95,16 @@ CBOR_EXPORT void cbor_string_set_handle(
  * @param item[borrow] A indefinite string
  * @return array of #cbor_string_chunk_count definite strings
  */
-CBOR_EXPORT cbor_item_t **cbor_string_chunks_handle(const cbor_item_t *item);
+_CBOR_NODISCARD CBOR_EXPORT cbor_item_t **cbor_string_chunks_handle(
+    const cbor_item_t *item);
 
 /** Get the number of chunks this string consist of
  *
  * @param item[borrow] A indefinite string
  * @return The chunk count. 0 for freshly created items.
  */
-CBOR_EXPORT size_t cbor_string_chunk_count(const cbor_item_t *item);
+_CBOR_NODISCARD CBOR_EXPORT size_t
+cbor_string_chunk_count(const cbor_item_t *item);
 
 /** Appends a chunk to the string
  *
@@ -110,7 +117,8 @@ CBOR_EXPORT size_t cbor_string_chunk_count(const cbor_item_t *item);
  * @return true on success. false on realloc failure. In that case, the refcount
  * of `chunk` is not increased and the `item` is left intact.
  */
-CBOR_EXPORT bool cbor_string_add_chunk(cbor_item_t *item, cbor_item_t *chunk);
+_CBOR_NODISCARD CBOR_EXPORT bool cbor_string_add_chunk(cbor_item_t *item,
+                                                       cbor_item_t *chunk);
 
 /** Creates a new definite string
  *
@@ -118,7 +126,7 @@ CBOR_EXPORT bool cbor_string_add_chunk(cbor_item_t *item, cbor_item_t *chunk);
  *
  * @return **new** definite string. `NULL` on malloc failure.
  */
-CBOR_EXPORT cbor_item_t *cbor_new_definite_string();
+_CBOR_NODISCARD CBOR_EXPORT cbor_item_t *cbor_new_definite_string(void);
 
 /** Creates a new indefinite string
  *
@@ -126,7 +134,7 @@ CBOR_EXPORT cbor_item_t *cbor_new_definite_string();
  *
  * @return **new** indefinite string. `NULL` on malloc failure.
  */
-CBOR_EXPORT cbor_item_t *cbor_new_indefinite_string();
+_CBOR_NODISCARD CBOR_EXPORT cbor_item_t *cbor_new_indefinite_string(void);
 
 /** Creates a new string and initializes it
  *
@@ -135,7 +143,7 @@ CBOR_EXPORT cbor_item_t *cbor_new_indefinite_string();
  * @param val A null-terminated UTF-8 string
  * @return A **new** string with content `handle`. `NULL` on malloc failure.
  */
-CBOR_EXPORT cbor_item_t *cbor_build_string(const char *val);
+_CBOR_NODISCARD CBOR_EXPORT cbor_item_t *cbor_build_string(const char *val);
 
 /** Creates a new string and initializes it
  *
@@ -144,7 +152,8 @@ CBOR_EXPORT cbor_item_t *cbor_build_string(const char *val);
  * @param val A UTF-8 string, at least \p length long (excluding the null byte)
  * @return A **new** string with content `handle`. `NULL` on malloc failure.
  */
-CBOR_EXPORT cbor_item_t *cbor_build_stringn(const char *val, size_t length);
+_CBOR_NODISCARD CBOR_EXPORT cbor_item_t *cbor_build_stringn(const char *val,
+                                                            size_t length);
 
 #ifdef __cplusplus
 }

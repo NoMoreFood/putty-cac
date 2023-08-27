@@ -177,7 +177,7 @@ If you see one of these messages, it means that the server has refused all the f
 It may be worth checking the Event Log for diagnostic messages from the server giving more detail.
 </p>
 <p>
-This error can be caused by buggy SSH-1 servers that fail to cope with the various strategies we use for camouflaging passwords in transit. Upgrade your server, or use the workarounds described in <a href="Chapter4.html#config-ssh-bug-ignore1">section 4.27.13</a> and possibly <a href="Chapter4.html#config-ssh-bug-plainpw1">section 4.27.14</a>.
+This error can be caused by buggy SSH-1 servers that fail to cope with the various strategies we use for camouflaging passwords in transit. Upgrade your server, or use the workarounds described in <a href="Chapter4.html#config-ssh-bug-ignore1">section 4.27.14</a> and possibly <a href="Chapter4.html#config-ssh-bug-plainpw1">section 4.27.15</a>.
 </p>
 <h2><a name="errors-no-auth"></a><a name="S10.12"></a>10.12 &#8216;No supported authentication methods available&#8217;</h2>
 <p>
@@ -191,7 +191,7 @@ This error occurs when PuTTY decrypts an SSH packet and its checksum is not corr
 In particular, if the network is corrupting data at the TCP level, it may only be obvious with cryptographic protocols such as SSH, which explicitly check the integrity of the transferred data and complain loudly if the checks fail. Corruption of protocols without integrity protection (such as HTTP) will manifest in more subtle failures (such as misdisplayed text or images in a web browser) which may not be noticed.
 </p>
 <p>
-Occasionally this has been caused by server bugs. An example is the bug described at <a href="Chapter4.html#config-ssh-bug-hmac2">section 4.27.10</a>, although you're very unlikely to encounter that one these days.
+Occasionally this has been caused by server bugs. An example is the bug described at <a href="Chapter4.html#config-ssh-bug-hmac2">section 4.27.11</a>, although you're very unlikely to encounter that one these days.
 </p>
 <p>
 In this context MAC stands for <a name="i16"></a>Message Authentication Code. It's a cryptographic term, and it has nothing at all to do with Ethernet MAC (Media Access Control) addresses, or with the Apple computer.
@@ -201,7 +201,7 @@ In this context MAC stands for <a name="i16"></a>Message Authentication Code. It
 This error occurs when PuTTY decrypts an SSH packet and the decrypted data makes no sense. This probably means something has gone wrong in the encryption or decryption process. It's difficult to tell from this error message whether the problem is in the client, in the server, or in between.
 </p>
 <p>
-If you get this error, one thing you could try would be to fiddle with the setting of &#8216;Miscomputes SSH-2 encryption keys&#8217; (see <a href="Chapter4.html#config-ssh-bug-derivekey2">section 4.27.12</a>) or &#8216;Ignores SSH-2 maximum packet size&#8217; (see <a href="Chapter4.html#config-ssh-bug-maxpkt2">section 4.27.5</a>) on the Bugs panel.
+If you get this error, one thing you could try would be to fiddle with the setting of &#8216;Miscomputes SSH-2 encryption keys&#8217; (see <a href="Chapter4.html#config-ssh-bug-derivekey2">section 4.27.13</a>) or &#8216;Ignores SSH-2 maximum packet size&#8217; (see <a href="Chapter4.html#config-ssh-bug-maxpkt2">section 4.27.5</a>) on the Bugs panel.
 </p>
 <h2><a name="errors-x11-proxy"></a><a name="S10.15"></a>10.15 &#8216;PuTTY X11 proxy: <em>various errors</em>&#8217;</h2>
 <p>
@@ -246,6 +246,9 @@ This error means that the network connection PuTTY tried to make to your server 
 <p>
 Check that you are connecting with the correct protocol (SSH, Telnet, etc), and check that the port number is correct. If that fails, consult the administrator of your server.
 </p>
+<p>
+This error can also be caused by a firewall in between you and the server, which rejects the connection and sends back the same type of error packet as the real server would have sent.
+</p>
 <h2><a name="errors-conntimedout"></a><a name="S10.19"></a>10.19 &#8216;Network error: Connection timed out&#8217;</h2>
 <p>
 This error means that the network connection PuTTY tried to make to your server received no response at all from the server. Usually this happens because the server machine is completely isolated from the network, or because it is turned off.
@@ -265,5 +268,5 @@ A common way to provoke this error is to accidentally try to connect to port 0, 
 </p>
 
 <hr><p>If you want to provide feedback on this manual or on the PuTTY tools themselves, see the <a href="https://www.chiark.greenend.org.uk/~sgtatham/putty/feedback.html">Feedback page</a>.</p><address>
-[PuTTY release 0.78]</address></body>
+[PuTTY release 0.79]</address></body>
 </html>

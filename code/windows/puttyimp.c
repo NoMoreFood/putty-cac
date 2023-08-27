@@ -13,7 +13,7 @@
 #include <fido/credman.h>
 
 #pragma comment(lib,"setupapi.lib")
-#pragma comment(lib,"crypto-49.lib")
+#pragma comment(lib,"crypto-50.lib")
 #pragma comment(lib,"fido2.lib")
 #pragma comment(lib,"cbor.lib")
 #pragma comment(lib,"bcrypt.lib")

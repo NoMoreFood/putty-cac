@@ -252,7 +252,7 @@ Press the &#8216;Save private key&#8217; button. PuTTYgen will put up a dialog b
 This file is in PuTTY's native format (<code>*.<a name="i36"></a>PPK</code>); it is the one you will need to tell PuTTY to use for authentication (see <a href="Chapter4.html#config-ssh-privkey">section 4.22.1</a>) or tell Pageant to load (see <a href="Chapter9.html#pageant-mainwin-addkey">section 9.2.2</a>).
 </p>
 <p>
-(You can optionally change some details of the PPK format for your saved key files; see <a href="#puttygen-save-params">section 8.2.13</a>. But The defaults should be fine for most purposes.)
+(You can optionally change some details of the PPK format for your saved key files; see <a href="#puttygen-save-params">section 8.2.13</a>. But the defaults should be fine for most purposes.)
 </p>
 <h3><a name="puttygen-savepub"></a><a name="S8.2.11"></a>8.2.11 Saving your public key to a disk file</h3>
 <p>
@@ -347,7 +347,7 @@ Using the <a name="i46"></a>&#8216;Import&#8217; command from the &#8216;Convers
 PuTTYgen can also <a name="i48"></a>export private keys in OpenSSH format and in <code>ssh.com</code> format. To do so, select one of the &#8216;Export&#8217; options from the &#8216;Conversions&#8217; menu. Exporting a key works exactly like saving it (see <a href="#puttygen-savepriv">section 8.2.10</a>) - you need to have typed your passphrase in beforehand, and you will be warned if you are about to save a key without a passphrase.
 </p>
 <p>
-For OpenSSH there are two options. Modern OpenSSH actually has two formats it uses for storing private keys. &#8216;Export OpenSSH key&#8217; will automatically choose the oldest format supported for the key type, for maximum backward compatibility with older versions of OpenSSH; for newer key types like Ed25519, it will use the newer format as that is the only legal option. If you have some specific reason for wanting to use OpenSSH's newer format even for RSA, DSA, or ECDSA keys, you can choose &#8216;Export OpenSSH key (force new file format)&#8217;.
+For OpenSSH there are two options. Modern OpenSSH actually has two formats it uses for storing private keys: an older (&#8216;<a name="i49"></a>PEM-style&#8217;) format, and a newer &#8216;native&#8217; format with better resistance to passphrase guessing and support for comments. &#8216;Export OpenSSH key&#8217; will automatically choose the oldest format supported for the key type, for maximum backward compatibility with older versions of OpenSSH; for newer key types like Ed25519, it will use the newer format as that is the only legal option. If you have some specific reason for wanting to use OpenSSH's newer format even for RSA, DSA, or ECDSA keys &#8211; for instance, you know your file will only be used by OpenSSH 6.5 or newer (released in 2014), and want the extra security &#8211; you can choose &#8216;Export OpenSSH key (force new file format)&#8217;.
 </p>
 <p>
 Most clients for the older SSH-1 protocol use a standard format for storing private keys on disk. PuTTY uses this format as well; so if you have generated an SSH-1 private key using OpenSSH or <code>ssh.com</code>'s client, you can use it with PuTTY, and vice versa. Hence, the export options are not available if you have generated an SSH-1 key.
@@ -442,14 +442,14 @@ Algorithm to use when displaying key fingerprints. You can select <code>sha256</
 Connect to your SSH server using PuTTY with the SSH protocol. When the connection succeeds you will be prompted for your user name and password to login. Once logged in, you must configure the server to accept your public key for authentication:
 </p>
 <ul><li>
-If your server is <a name="i49"></a>OpenSSH, you should change into the <a name="i50"></a><code>.ssh</code> directory under your home directory, and open the file <a name="i51"></a><code>authorized_keys</code> with your favourite editor. (You may have to create this file, if this is the first key you have put in it.) Then switch to the PuTTYgen window, select all of the text in the &#8216;Public key for pasting into OpenSSH authorized_keys file&#8217; box (see <a href="#puttygen-pastekey">section 8.2.12</a>), and copy it to the clipboard (<code>Ctrl+C</code>). Then, switch back to the PuTTY window and insert the data into the open file, making sure it ends up all on one line. Save the file.
+If your server is <a name="i50"></a>OpenSSH, you should change into the <a name="i51"></a><code>.ssh</code> directory under your home directory, and open the file <a name="i52"></a><code>authorized_keys</code> with your favourite editor. (You may have to create this file, if this is the first key you have put in it.) Then switch to the PuTTYgen window, select all of the text in the &#8216;Public key for pasting into OpenSSH authorized_keys file&#8217; box (see <a href="#puttygen-pastekey">section 8.2.12</a>), and copy it to the clipboard (<code>Ctrl+C</code>). Then, switch back to the PuTTY window and insert the data into the open file, making sure it ends up all on one line. Save the file.
 <p>
 (In very old versions of OpenSSH, SSH-2 keys had to be put in a separate file called <code>authorized_keys2</code>. In all current versions, the same <code>authorized_keys</code> file is used for both SSH-1 and SSH-2 keys.) 
 </p>
 
 </li>
 <li>
-If your server is <a name="i52"></a><code>ssh.com</code>'s product and is using SSH-2, you need to save a <em>public</em> key file from PuTTYgen (see <a href="#puttygen-savepub">section 8.2.11</a>), and copy that into the <a name="i53"></a><code>.ssh2</code> directory on the server. Then you should go into that <code>.ssh2</code> directory, and edit (or create) a file called <code>authorization</code>. In this file you should put a line like <code>Key mykey.pub</code>, with <code>mykey.pub</code> replaced by the name of your key file.
+If your server is <a name="i53"></a><code>ssh.com</code>'s product and is using SSH-2, you need to save a <em>public</em> key file from PuTTYgen (see <a href="#puttygen-savepub">section 8.2.11</a>), and copy that into the <a name="i54"></a><code>.ssh2</code> directory on the server. Then you should go into that <code>.ssh2</code> directory, and edit (or create) a file called <code>authorization</code>. In this file you should put a line like <code>Key mykey.pub</code>, with <code>mykey.pub</code> replaced by the name of your key file.
 </li>
 <li>
 For other SSH server software, you should refer to the manual for that server.
@@ -475,5 +475,5 @@ Load the private key into Pageant (see <a href="Chapter9.html#pageant">chapter 9
 </ul>
 
 <hr><p>If you want to provide feedback on this manual or on the PuTTY tools themselves, see the <a href="https://www.chiark.greenend.org.uk/~sgtatham/putty/feedback.html">Feedback page</a>.</p><address>
-[PuTTY release 0.78]</address></body>
+[PuTTY release 0.79]</address></body>
 </html>
