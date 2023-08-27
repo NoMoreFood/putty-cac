@@ -1,4 +1,4 @@
-/* $OpenBSD: tls1.h,v 1.51 2022/02/05 18:18:18 tb Exp $ */
+/* $OpenBSD: tls1.h,v 1.56 2022/07/17 14:39:09 jsing Exp $ */
 /* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
  *
@@ -159,6 +159,8 @@
 extern "C" {
 #endif
 
+#define OPENSSL_TLS_SECURITY_LEVEL 1
+
 #define TLS1_ALLOW_EXPERIMENTAL_CIPHERSUITES	0
 
 #if defined(LIBRESSL_HAS_TLS1_3) || defined(LIBRESSL_INTERNAL)
@@ -268,6 +270,11 @@ extern "C" {
 #define TLSEXT_TYPE_post_handshake_auth		49
 #define TLSEXT_TYPE_signature_algorithms_cert	50
 #define TLSEXT_TYPE_key_share			51
+#endif
+
+/* ExtensionType value from RFC 9001 section 8.2 */
+#if defined(LIBRESSL_HAS_QUIC) || defined(LIBRESSL_INTERNAL)
+#define TLSEXT_TYPE_quic_transport_parameters	57
 #endif
 
 /*

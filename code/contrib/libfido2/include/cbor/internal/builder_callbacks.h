@@ -26,6 +26,10 @@ struct _cbor_decoder_context {
   struct _cbor_stack *stack;
 };
 
+/** Internal helper: Append item to the top of the stack while handling errors.
+ */
+void _cbor_builder_append(cbor_item_t *item, struct _cbor_decoder_context *ctx);
+
 void cbor_builder_uint8_callback(void *, uint8_t);
 
 void cbor_builder_uint16_callback(void *, uint16_t);

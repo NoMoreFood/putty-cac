@@ -96,6 +96,7 @@
 <li><a href="#faq-xpwontrun">A.7.21 PuTTY fails to start up. Windows claims that &#8216;the application configuration is incorrect&#8217;.</a></li>
 <li><a href="#faq-system32">A.7.22 When I put 32-bit PuTTY in <code>C:\WINDOWS\SYSTEM32</code> on my 64-bit Windows system, &#8216;Duplicate Session&#8217; doesn't work.</a></li>
 <li><a href="#faq-iutf8">A.7.23 After I upgraded PuTTY to 0.68, I can no longer connect to my embedded device or appliance.</a></li>
+<li><a href="#faq-privkey-control-moved">A.7.24 Since 0.78, I can't find where to configure my SSH private key.</a></li>
 </ul></li>
 <li><a href="#faq-secure">A.8 Security questions</a>
 <ul>
@@ -758,6 +759,13 @@ The SSH protocol recently gained a new &#8216;terminal mode&#8217;, <code>IUTF8<
 <p>
 If you think you have such a server, from 0.69 onwards you can disable sending of the <code>IUTF8</code> mode: on the SSH / TTY panel, select <code>IUTF8</code> on the list, select &#8216;Nothing&#8217;, and press &#8216;Set&#8217;. (It's not possible to disable sending this mode in 0.68.)
 </p>
+<h3><a name="faq-privkey-control-moved"></a><a name="QA.7.24"></a>A.7.24 Since 0.78, I can't find where to configure my SSH private key.</h3>
+<p>
+In PuTTY 0.78, the &#8216;<a name="i63"></a>Private key file for authentication&#8217; control, where you specify a <code>.<a name="i64"></a>PPK</code> file for SSH public key authentication, moved to a new &#8216;Credentials&#8217; panel in the configuration dialog. You can find this by opening the &#8216;SSH&#8217; category in the tree view on the left, then opening the &#8216;Auth&#8217; subcategory under that, then clicking on &#8216;Credentials&#8217;. On this page you'll find the &#8216;Browse...&#8217; button you need to select a <code>.PPK</code> file for authentication, as described in <a href="Chapter4.html#config-ssh-privkey">section 4.22.1</a>.
+</p>
+<p>
+(This control had previously been on the &#8216;Auth&#8217; panel since public key authentication was first released in 2002, so many online how-to guides still describe it there. The configuration controls were reorganised to make room for features added in 0.78, such as OpenSSH certificates.)
+</p>
 <h2><a name="faq-secure"></a><a name="SA.8"></a>A.8 Security questions</h2>
 <h3><a name="faq-publicpc"></a><a name="QA.8.1"></a>A.8.1 Is it safe for me to download PuTTY and use it on a public PC?</h3>
 <p>
@@ -766,17 +774,17 @@ It depends on whether you trust that PC. If you don't trust the public PC, don't
 <p>
 If you do trust the PC, then it's probably OK to use PuTTY on it (but if you don't trust the network, then the PuTTY download might be tampered with, so it would be better to carry PuTTY with you on a USB stick).
 </p>
-<h3><a name="faq-cleanup"></a><a name="QA.8.2"></a>A.8.2 What does PuTTY leave on a system? How can I <a name="i63"></a>clean up after it?</h3>
+<h3><a name="faq-cleanup"></a><a name="QA.8.2"></a>A.8.2 What does PuTTY leave on a system? How can I <a name="i65"></a>clean up after it?</h3>
 <p>
 PuTTY will leave some Registry entries, and a random seed file, on the PC (see <a href="#faq-settings">question A.5.2</a>). Windows 7 and up also remember some information about recently launched sessions for the &#8216;jump list&#8217; feature.
 </p>
 <p>
-If you are using PuTTY on a public PC, or somebody else's PC, you might want to clean this information up when you leave. You can do that automatically, by running the command <code>putty -cleanup</code>. See <a href="Chapter3.html#using-cleanup">section 3.11.2</a> in the documentation for more detail. (Note that this only removes settings for the currently logged-in user on <a name="i64"></a>multi-user systems.)
+If you are using PuTTY on a public PC, or somebody else's PC, you might want to clean this information up when you leave. You can do that automatically, by running the command <code>putty -cleanup</code>. See <a href="Chapter3.html#using-cleanup">section 3.11.2</a> in the documentation for more detail. (Note that this only removes settings for the currently logged-in user on <a name="i66"></a>multi-user systems.)
 </p>
 <p>
 If PuTTY was installed from the installer package, it will also appear in &#8216;Add/Remove Programs&#8217;. Current versions of the installer do not offer to remove the above-mentioned items, so if you want them removed you should run <code>putty -cleanup</code> before uninstalling.
 </p>
-<h3><a name="faq-dsa"></a><a name="QA.8.3"></a>A.8.3 How come PuTTY now supports <a name="i65"></a>DSA, when the website used to say how insecure it was?</h3>
+<h3><a name="faq-dsa"></a><a name="QA.8.3"></a>A.8.3 How come PuTTY now supports <a name="i67"></a>DSA, when the website used to say how insecure it was?</h3>
 <p>
 DSA has a major weakness <em>if badly implemented</em>: it relies on a random number generator to far too great an extent. If the random number generator produces a number an attacker can predict, the DSA private key is exposed - meaning that the attacker can log in as you on all systems that accept that key.
 </p>
@@ -790,7 +798,7 @@ The recently added elliptic-curve signature methods are also DSA-style algorithm
 <p>
 Unfortunately not. The <code>VirtualLock()</code> function in the Windows API doesn't do a proper job: it may prevent small pieces of a process's memory from being paged to disk while the process is running, but it doesn't stop the process's memory as a whole from being swapped completely out to disk when the process is long-term inactive. And Pageant spends most of its time inactive.
 </p>
-<h3><a name="faq-windowsstore"></a><a name="QA.8.5"></a>A.8.5 Is the version of PuTTY in the <a name="i66"></a>Microsoft Store legit?</h3>
+<h3><a name="faq-windowsstore"></a><a name="QA.8.5"></a>A.8.5 Is the version of PuTTY in the <a name="i68"></a>Microsoft Store legit?</h3>
 <p>
 The free-of-charge &#8216;PuTTY&#8217; application at <a href="https://apps.microsoft.com/store/detail/putty/XPFNZKSKLBP7RJ">this link</a> is published and maintained by us. The copy there is the latest release, usually updated within a few days of us publishing it on our own website.
 </p>
@@ -871,7 +879,7 @@ Small donations (tens of dollars or tens of euros) will probably be spent on bee
 Yes. For most things, you need not bother asking us explicitly for permission; our licence already grants you permission.
 </p>
 <p>
-See <a href="AppendixB.html#feedback-permission">section B.8</a> for more details.
+See <a href="AppendixB.html#feedback-permission">section B.9</a> for more details.
 </p>
 <h3><a name="faq-indemnity"></a><a name="QA.9.10"></a>A.9.10 Can you sign an agreement indemnifying us against security problems in PuTTY?</h3>
 <p>
@@ -994,7 +1002,7 @@ the checksum that file says the binary should have.
 </li>
 </ul>
 <h2><a name="faq-misc"></a><a name="SA.10"></a>A.10 Miscellaneous questions</h2>
-<h3><a name="faq-openssh"></a><a name="QA.10.1"></a>A.10.1 Is PuTTY a port of <a name="i67"></a>OpenSSH, or based on OpenSSH or OpenSSL?</h3>
+<h3><a name="faq-openssh"></a><a name="QA.10.1"></a>A.10.1 Is PuTTY a port of <a name="i69"></a>OpenSSH, or based on OpenSSH or OpenSSL?</h3>
 <p>
 No, it isn't. PuTTY is almost completely composed of code written from scratch for PuTTY. The only code we share with OpenSSH is the detector for SSH-1 CRC compensation attacks, written by CORE SDI S.A; we share no code at all with OpenSSL.
 </p>
@@ -1015,5 +1023,5 @@ Exactly like the English word &#8216;putty&#8217;, which we pronounce /&#712;p&#
 </p>
 
 <hr><p>If you want to provide feedback on this manual or on the PuTTY tools themselves, see the <a href="https://www.chiark.greenend.org.uk/~sgtatham/putty/feedback.html">Feedback page</a>.</p><address>
-[PuTTY release 0.78]</address></body>
+[PuTTY release 0.79]</address></body>
 </html>

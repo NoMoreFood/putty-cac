@@ -56,9 +56,23 @@ static const uint8_t cbor_patch_version = CBOR_PATCH_VERSION;
       fprintf(stderr, "%s:%d:%s(): " fmt, __FILE__, __LINE__, __func__, \
               __VA_ARGS__);                                             \
   } while (0)
+extern bool _cbor_enable_assert;
+// Like `assert`, but can be dynamically disabled in tests to allow testing
+// invalid behaviors.
+#define CBOR_ASSERT(e) assert(!_cbor_enable_assert || (e))
+#define _CBOR_TEST_DISABLE_ASSERT(block) \
+  do {                                   \
+    _cbor_enable_assert = false;         \
+    block _cbor_enable_assert = true;    \
+  } while (0)
 #else
 #define debug_print(fmt, ...) \
   do {                        \
+  } while (0)
+#define CBOR_ASSERT(e)
+#define _CBOR_TEST_DISABLE_ASSERT(block) \
+  do {                                   \
+    block                                \
   } while (0)
 #endif
 
@@ -67,11 +81,24 @@ static const uint8_t cbor_patch_version = CBOR_PATCH_VERSION;
 
 #ifdef __GNUC__
 #define _CBOR_UNUSED(x) __attribute__((__unused__)) x
+// TODO(https://github.com/PJK/libcbor/issues/247): Prefer [[nodiscard]] if
+// available
+#define _CBOR_NODISCARD __attribute__((warn_unused_result))
 #elif defined(_MSC_VER)
 #define _CBOR_UNUSED(x) __pragma(warning(suppress : 4100 4101)) x
+#define _CBOR_NODISCARD
 #else
 #define _CBOR_UNUSED(x) x
+#define _CBOR_NODISCARD
 #endif
+
+typedef void *(*_cbor_malloc_t)(size_t);
+typedef void *(*_cbor_realloc_t)(void *, size_t);
+typedef void (*_cbor_free_t)(void *);
+
+CBOR_EXPORT extern _cbor_malloc_t _cbor_malloc;
+CBOR_EXPORT extern _cbor_realloc_t _cbor_realloc;
+CBOR_EXPORT extern _cbor_free_t _cbor_free;
 
 // Macro to short-circuit builder functions when memory allocation fails
 #define _CBOR_NOTNULL(cbor_item) \
@@ -85,24 +112,12 @@ static const uint8_t cbor_patch_version = CBOR_PATCH_VERSION;
 #define _CBOR_DEPENDENT_NOTNULL(cbor_item, pointer) \
   do {                                              \
     if (pointer == NULL) {                          \
-      _CBOR_FREE(cbor_item);                        \
+      _cbor_free(cbor_item);                        \
       return NULL;                                  \
     }                                               \
   } while (0)
 
-#if CBOR_CUSTOM_ALLOC
-
-typedef void *(*_cbor_malloc_t)(size_t);
-typedef void *(*_cbor_realloc_t)(void *, size_t);
-typedef void (*_cbor_free_t)(void *);
-
-CBOR_EXPORT extern _cbor_malloc_t _cbor_malloc;
-CBOR_EXPORT extern _cbor_realloc_t _cbor_realloc;
-CBOR_EXPORT extern _cbor_free_t _cbor_free;
-
 /** Sets the memory management routines to use.
- *
- * Only available when `CBOR_CUSTOM_ALLOC` is truthy
  *
  * \rst
  * .. warning:: This function modifies the global state and should therefore be
@@ -123,18 +138,6 @@ CBOR_EXPORT void cbor_set_allocs(_cbor_malloc_t custom_malloc,
                                  _cbor_realloc_t custom_realloc,
                                  _cbor_free_t custom_free);
 
-#define _CBOR_MALLOC _cbor_malloc
-#define _CBOR_REALLOC _cbor_realloc
-#define _CBOR_FREE _cbor_free
-
-#else
-
-#define _CBOR_MALLOC malloc
-#define _CBOR_REALLOC realloc
-#define _CBOR_FREE free
-
-#endif
-
 /*
  * ============================================================================
  * Type manipulation
@@ -146,6 +149,7 @@ CBOR_EXPORT void cbor_set_allocs(_cbor_malloc_t custom_malloc,
  * @param item[borrow]
  * @return The type
  */
+_CBOR_NODISCARD
 CBOR_EXPORT cbor_type cbor_typeof(
     const cbor_item_t *item); /* Will be inlined iff link-time opt is enabled */
 
@@ -155,48 +159,56 @@ CBOR_EXPORT cbor_type cbor_typeof(
  * @param item[borrow] the item
  * @return Is the item an #CBOR_TYPE_UINT?
  */
+_CBOR_NODISCARD
 CBOR_EXPORT bool cbor_isa_uint(const cbor_item_t *item);
 
 /** Does the item have the appropriate major type?
  * @param item[borrow] the item
  * @return Is the item a #CBOR_TYPE_NEGINT?
  */
+_CBOR_NODISCARD
 CBOR_EXPORT bool cbor_isa_negint(const cbor_item_t *item);
 
 /** Does the item have the appropriate major type?
  * @param item[borrow] the item
  * @return Is the item a #CBOR_TYPE_BYTESTRING?
  */
+_CBOR_NODISCARD
 CBOR_EXPORT bool cbor_isa_bytestring(const cbor_item_t *item);
 
 /** Does the item have the appropriate major type?
  * @param item[borrow] the item
  * @return Is the item a #CBOR_TYPE_STRING?
  */
+_CBOR_NODISCARD
 CBOR_EXPORT bool cbor_isa_string(const cbor_item_t *item);
 
 /** Does the item have the appropriate major type?
  * @param item[borrow] the item
  * @return Is the item an #CBOR_TYPE_ARRAY?
  */
+_CBOR_NODISCARD
 CBOR_EXPORT bool cbor_isa_array(const cbor_item_t *item);
 
 /** Does the item have the appropriate major type?
  * @param item[borrow] the item
  * @return Is the item a #CBOR_TYPE_MAP?
  */
+_CBOR_NODISCARD
 CBOR_EXPORT bool cbor_isa_map(const cbor_item_t *item);
 
 /** Does the item have the appropriate major type?
  * @param item[borrow] the item
  * @return Is the item a #CBOR_TYPE_TAG?
  */
+_CBOR_NODISCARD
 CBOR_EXPORT bool cbor_isa_tag(const cbor_item_t *item);
 
 /** Does the item have the appropriate major type?
  * @param item[borrow] the item
  * @return Is the item a #CBOR_TYPE_FLOAT_CTRL?
  */
+_CBOR_NODISCARD
 CBOR_EXPORT bool cbor_isa_float_ctrl(const cbor_item_t *item);
 
 /* Practical types with respect to their semantics (but not tag values) */
@@ -205,18 +217,21 @@ CBOR_EXPORT bool cbor_isa_float_ctrl(const cbor_item_t *item);
  * @param item[borrow] the item
  * @return  Is the item an integer, either positive or negative?
  */
+_CBOR_NODISCARD
 CBOR_EXPORT bool cbor_is_int(const cbor_item_t *item);
 
 /** Is the item an a floating point number?
  * @param item[borrow] the item
  * @return  Is the item a floating point number?
  */
+_CBOR_NODISCARD
 CBOR_EXPORT bool cbor_is_float(const cbor_item_t *item);
 
 /** Is the item an a boolean?
  * @param item[borrow] the item
  * @return  Is the item a boolean?
  */
+_CBOR_NODISCARD
 CBOR_EXPORT bool cbor_is_bool(const cbor_item_t *item);
 
 /** Does this item represent `null`
@@ -229,6 +244,7 @@ CBOR_EXPORT bool cbor_is_bool(const cbor_item_t *item);
  * @param item[borrow] the item
  * @return  Is the item (CBOR logical) null?
  */
+_CBOR_NODISCARD
 CBOR_EXPORT bool cbor_is_null(const cbor_item_t *item);
 
 /** Does this item represent `undefined`
@@ -241,6 +257,7 @@ CBOR_EXPORT bool cbor_is_null(const cbor_item_t *item);
  * @param item[borrow] the item
  * @return Is the item (CBOR logical) undefined?
  */
+_CBOR_NODISCARD
 CBOR_EXPORT bool cbor_is_undef(const cbor_item_t *item);
 
 /*
@@ -285,6 +302,7 @@ CBOR_EXPORT void cbor_intermediate_decref(cbor_item_t *item);
  * @param item[borrow] the item
  * @return the reference count
  */
+_CBOR_NODISCARD
 CBOR_EXPORT size_t cbor_refcount(const cbor_item_t *item);
 
 /** Provides CPP-like move construct
@@ -302,6 +320,7 @@ CBOR_EXPORT size_t cbor_refcount(const cbor_item_t *item);
  * @param item[take] the item
  * @return the item with reference count decreased by one
  */
+_CBOR_NODISCARD
 CBOR_EXPORT cbor_item_t *cbor_move(cbor_item_t *item);
 
 #ifdef __cplusplus

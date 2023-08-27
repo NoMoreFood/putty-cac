@@ -28,6 +28,7 @@ extern "C" {
  * @param item[borrow] a definite bytestring
  * @return length of the binary data. Zero if no chunk has been attached yet
  */
+_CBOR_NODISCARD
 CBOR_EXPORT size_t cbor_bytestring_length(const cbor_item_t *item);
 
 /** Is the byte string definite?
@@ -35,6 +36,7 @@ CBOR_EXPORT size_t cbor_bytestring_length(const cbor_item_t *item);
  * @param item[borrow] a byte string
  * @return Is the byte string definite?
  */
+_CBOR_NODISCARD
 CBOR_EXPORT bool cbor_bytestring_is_definite(const cbor_item_t *item);
 
 /** Is the byte string indefinite?
@@ -42,6 +44,7 @@ CBOR_EXPORT bool cbor_bytestring_is_definite(const cbor_item_t *item);
  * @param item[borrow] a byte string
  * @return Is the byte string indefinite?
  */
+_CBOR_NODISCARD
 CBOR_EXPORT bool cbor_bytestring_is_indefinite(const cbor_item_t *item);
 
 /** Get the handle to the binary data
@@ -53,6 +56,7 @@ CBOR_EXPORT bool cbor_bytestring_is_indefinite(const cbor_item_t *item);
  * @return The address of the binary data. `NULL` if no data have been assigned
  * yet.
  */
+_CBOR_NODISCARD
 CBOR_EXPORT cbor_mutable_data cbor_bytestring_handle(const cbor_item_t *item);
 
 /** Set the handle to the binary data
@@ -74,6 +78,7 @@ CBOR_EXPORT void cbor_bytestring_set_handle(
  * @param item[borrow] A indefinite byte string
  * @return array of #cbor_bytestring_chunk_count definite bytestrings
  */
+_CBOR_NODISCARD
 CBOR_EXPORT cbor_item_t **cbor_bytestring_chunks_handle(
     const cbor_item_t *item);
 
@@ -82,6 +87,7 @@ CBOR_EXPORT cbor_item_t **cbor_bytestring_chunks_handle(
  * @param item[borrow] A indefinite bytestring
  * @return The chunk count. 0 for freshly created items.
  */
+_CBOR_NODISCARD
 CBOR_EXPORT size_t cbor_bytestring_chunk_count(const cbor_item_t *item);
 
 /** Appends a chunk to the bytestring
@@ -95,6 +101,7 @@ CBOR_EXPORT size_t cbor_bytestring_chunk_count(const cbor_item_t *item);
  * @return true on success, false on realloc failure. In that case, the refcount
  * of `chunk` is not increased and the `item` is left intact.
  */
+_CBOR_NODISCARD
 CBOR_EXPORT bool cbor_bytestring_add_chunk(cbor_item_t *item,
                                            cbor_item_t *chunk);
 
@@ -104,7 +111,8 @@ CBOR_EXPORT bool cbor_bytestring_add_chunk(cbor_item_t *item,
  *
  * @return **new** definite bytestring. `NULL` on malloc failure.
  */
-CBOR_EXPORT cbor_item_t *cbor_new_definite_bytestring();
+_CBOR_NODISCARD
+CBOR_EXPORT cbor_item_t *cbor_new_definite_bytestring(void);
 
 /** Creates a new indefinite byte string
  *
@@ -112,7 +120,8 @@ CBOR_EXPORT cbor_item_t *cbor_new_definite_bytestring();
  *
  * @return **new** indefinite bytestring. `NULL` on malloc failure.
  */
-CBOR_EXPORT cbor_item_t *cbor_new_indefinite_bytestring();
+_CBOR_NODISCARD
+CBOR_EXPORT cbor_item_t *cbor_new_indefinite_bytestring(void);
 
 /** Creates a new byte string and initializes it
  *
@@ -123,6 +132,7 @@ CBOR_EXPORT cbor_item_t *cbor_new_indefinite_bytestring();
  * @return A **new** byte string with content `handle`. `NULL` on malloc
  * failure.
  */
+_CBOR_NODISCARD
 CBOR_EXPORT cbor_item_t *cbor_build_bytestring(cbor_data handle, size_t length);
 
 #ifdef __cplusplus

@@ -25,12 +25,13 @@
 <li><a href="#feedback-vulns">B.3 Reporting security vulnerabilities</a></li>
 <li><a href="#feedback-features">B.4 Requesting extra features</a></li>
 <li><a href="#feedback-feature-priority">B.5 Requesting features that have already been requested</a></li>
-<li><a href="#feedback-support">B.6 Support requests</a></li>
-<li><a href="#feedback-webadmin">B.7 Web server administration</a></li>
-<li><a href="#feedback-permission">B.8 Asking permission for things</a></li>
-<li><a href="#feedback-mirrors">B.9 Mirroring the PuTTY web site</a></li>
-<li><a href="#feedback-compliments">B.10 Praise and compliments</a></li>
-<li><a href="#feedback-address">B.11 E-mail address</a></li>
+<li><a href="#feedback-workarounds">B.6 Workarounds for SSH server bugs</a></li>
+<li><a href="#feedback-support">B.7 Support requests</a></li>
+<li><a href="#feedback-webadmin">B.8 Web server administration</a></li>
+<li><a href="#feedback-permission">B.9 Asking permission for things</a></li>
+<li><a href="#feedback-mirrors">B.10 Mirroring the PuTTY web site</a></li>
+<li><a href="#feedback-compliments">B.11 Praise and compliments</a></li>
+<li><a href="#feedback-address">B.12 E-mail address</a></li>
 </ul></li>
 </ul>
 <h1><a name="feedback"></a><a name="AB"></a>Appendix B: <a name="i0"></a>Feedback and <a name="i1"></a>bug reporting</h1>
@@ -45,7 +46,7 @@ This is a guide to providing feedback to the PuTTY development team. It is provi
 The PuTTY development team gets a <em>lot</em> of mail. If you can possibly solve your own problem by reading the manual, reading the FAQ, reading the web site, asking a fellow user, perhaps posting to a newsgroup (see <a href="#feedback-other-fora">section B.1.2</a>), or some other means, then it would make our lives much easier.
 </p>
 <p>
-We get so much e-mail that we literally do not have time to answer it all. We regret this, but there's nothing we can do about it. So if you can <em>possibly</em> avoid sending mail to the PuTTY team, we recommend you do so. In particular, support requests (<a href="#feedback-support">section B.6</a>) are probably better sent to newsgroups, or passed to a local expert if possible.
+We get so much e-mail that we literally do not have time to answer it all. We regret this, but there's nothing we can do about it. So if you can <em>possibly</em> avoid sending mail to the PuTTY team, we recommend you do so. In particular, support requests (<a href="#feedback-support">section B.7</a>) are probably better sent to newsgroups, or passed to a local expert if possible.
 </p>
 <p>
 The PuTTY contact email address is a private <a name="i2"></a>mailing list containing four or five core developers. Don't be put off by it being a mailing list: if you need to send confidential data as part of a bug report, you can trust the people on the list to respect that confidence. Also, the archives aren't publicly available, so you shouldn't be letting yourself in for any spam by sending us mail.
@@ -191,7 +192,26 @@ Offer us money if we do the work sooner rather than later. This sometimes works,
 Offer to help us write the code. This is probably the <em>only</em> way to get a feature implemented quickly, if it's a big one that we don't have time to do ourselves.
 </li>
 </ul>
-<h2><a name="feedback-support"></a><a name="SB.6"></a>B.6 <a name="i6"></a>Support requests</h2>
+<h2><a name="feedback-workarounds"></a><a name="SB.6"></a>B.6 Workarounds for SSH server bugs</h2>
+<p>
+It's normal for SSH implementations to automatically enable workarounds for each other's bugs, using the software version strings that are exchanged at the start of the connection. Typically an SSH client will have a list of server version strings that it believes to have particular bugs, and auto-enable the appropriate set of workarounds when it sees one of those strings. (And servers will have a similar list of workarounds for <em>client</em> software they believe to be buggy.)
+</p>
+<p>
+If you've found a bug in an SSH server, and you'd like us to add an auto-detected workaround for it, our policy is that <strong>the server implementor should fix it first</strong>.
+</p>
+<p>
+If the server implementor has fixed it in the latest version, and can give us a complete description of the version strings that go with the bug, then we're happy to use those version strings as a trigger to automatically enable our workaround (assuming one is possible). We <em>won't</em> accept requests to auto-enable workarounds for an open-ended set of version strings, such as &#8216;any version of FooServer, including future ones not yet released&#8217;.
+</p>
+<p>
+The aim of this policy is to encourage implementors to gradually converge on the actual standardised SSH protocol. If we enable people to continue violating the spec, by installing open-ended workarounds in PuTTY for bugs they're never going to fix, then we're contributing to an ecosystem in which everyone carries on having bugs and everyone else carries on having to work around them.
+</p>
+<p>
+An exception: if an SSH server is no longer maintained <em>at all</em> (e.g. the company that produced it has gone out of business), and every version of it that was ever released has a bug, then that's one situation in which we may be prepared to add a workaround rule that matches all versions of that software. (The aim is to stop implementors from continuing to release software with the bug &#8211; and if they're not releasing it <em>at all</em> any more, then that's already done!)
+</p>
+<p>
+We do recognise that sometimes it will be difficult to get the server maintainer to fix a bug, or even to answer support requests at all. Or it might take them a very long time to get round to doing anything about it. We're not completely unwilling to compromise: we're prepared to add <em>manually enabled</em> workarounds to PuTTY even for bugs that an implementation hasn't fixed yet. We just won't <em>automatically</em> enable the workaround unless the server maintainer has also done their part.
+</p>
+<h2><a name="feedback-support"></a><a name="SB.7"></a>B.7 <a name="i6"></a>Support requests</h2>
 <p>
 If you're trying to make PuTTY do something for you and it isn't working, but you're not sure whether it's a bug or not, then <em>please</em> consider looking for help somewhere else. This is one of the most common types of mail the PuTTY team receives, and we simply don't have time to answer all the questions. Questions of this type include:
 </p>
@@ -211,7 +231,7 @@ If you have successfully made a connection to your server and now need to know w
 <p>
 If you absolutely cannot get a support question answered any other way, you can try mailing it to us, but we can't guarantee to have time to answer it.
 </p>
-<h2><a name="feedback-webadmin"></a><a name="SB.7"></a>B.7 Web server administration</h2>
+<h2><a name="feedback-webadmin"></a><a name="SB.8"></a>B.8 Web server administration</h2>
 <p>
 If the PuTTY <a name="i7"></a>web site is down (Connection Timed Out), please don't bother mailing us to tell us about it. Most of us read our e-mail on the same machines that host the web site, so if those machines are down then we will notice <em>before</em> we read our e-mail. So there's no point telling us our servers are down.
 </p>
@@ -221,7 +241,7 @@ Of course, if the web site has some other error (Connection Refused, 404 Not Fou
 <p>
 If you want to report a problem with our web site, check that you're looking at our <em>real</em> web site and not a mirror. The real web site is at <a href="https://www.chiark.greenend.org.uk/~sgtatham/putty/"><code>https://www.chiark.greenend.org.uk/~sgtatham/putty/</code></a>; if that's not where you're reading this, then don't report the problem to us until you've checked that it's really a problem with the main site. If it's only a problem with the mirror, you should try to contact the administrator of that mirror site first, and only contact us if that doesn't solve the problem (in case we need to remove the mirror from our list).
 </p>
-<h2><a name="feedback-permission"></a><a name="SB.8"></a>B.8 Asking permission for things</h2>
+<h2><a name="feedback-permission"></a><a name="SB.9"></a>B.9 Asking permission for things</h2>
 <p>
 PuTTY is distributed under the MIT Licence (see <a href="AppendixD.html#licence">appendix D</a> for details). This means you can do almost <em>anything</em> you like with our software, our source code, and our documentation. The only things you aren't allowed to do are to remove our copyright notices or the licence text itself, or to hold us legally responsible if something goes wrong.
 </p>
@@ -237,7 +257,7 @@ If you want to use parts of the PuTTY source code in another program, then it mi
 <p>
 If you just want to link to our web site, just go ahead. (It's not clear that we <em>could</em> stop you doing this, even if we wanted to!)
 </p>
-<h2><a name="feedback-mirrors"></a><a name="SB.9"></a>B.9 Mirroring the PuTTY web site</h2>
+<h2><a name="feedback-mirrors"></a><a name="SB.10"></a>B.10 Mirroring the PuTTY web site</h2>
 <p>
 If you want to set up a mirror of the PuTTY website, go ahead and set one up. Please don't bother asking us for permission before setting up a mirror. You already have permission.
 </p>
@@ -253,7 +273,7 @@ Also note that we link to all our mirror sites using the <code>rel="nofollow"</c
 <p>
 If you have technical questions about the process of mirroring, then you might want to mail us before setting up the mirror (see also the <a href="https://www.chiark.greenend.org.uk/~sgtatham/putty/mirrors.html#guidelines">guidelines on the Mirrors page</a>); but if you just want to ask for permission, you don't need to. You already have permission.
 </p>
-<h2><a name="feedback-compliments"></a><a name="SB.10"></a>B.10 Praise and compliments</h2>
+<h2><a name="feedback-compliments"></a><a name="SB.11"></a>B.11 Praise and compliments</h2>
 <p>
 One of the most rewarding things about maintaining free software is getting e-mails that just say &#8216;thanks&#8217;. We are always happy to receive e-mails of this type.
 </p>
@@ -263,11 +283,11 @@ Regrettably we don't have time to answer them all in person. If you mail us a co
 <p>
 To everyone who's ever sent us praise and compliments, in the past and the future: <em>you're welcome</em>!
 </p>
-<h2><a name="feedback-address"></a><a name="SB.11"></a>B.11 E-mail address</h2>
+<h2><a name="feedback-address"></a><a name="SB.12"></a>B.12 E-mail address</h2>
 <p>
 The actual address to mail is <code>&lt;<a href="mailto:putty@projects.tartarus.org">putty@projects.tartarus.org</a>&gt;</code>.
 </p>
 
 <hr><p>If you want to provide feedback on this manual or on the PuTTY tools themselves, see the <a href="https://www.chiark.greenend.org.uk/~sgtatham/putty/feedback.html">Feedback page</a>.</p><address>
-[PuTTY release 0.78]</address></body>
+[PuTTY release 0.79]</address></body>
 </html>

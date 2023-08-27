@@ -223,14 +223,15 @@
 <li><a href="#config-ssh-bug-maxpkt2">4.27.5 &#8216;Ignores SSH-2 maximum packet size&#8217;</a></li>
 <li><a href="#config-ssh-bug-dropstart">4.27.6 &#8216;Discards data sent before its greeting&#8217;</a></li>
 <li><a href="#config-ssh-bug-filter-kexinit">4.27.7 &#8216;Chokes on PuTTY's full <code>KEXINIT</code>&#8217;</a></li>
-<li><a href="#config-ssh-bug-sig">4.27.8 &#8216;Requires padding on SSH-2 RSA signatures&#8217;</a></li>
-<li><a href="#config-ssh-bug-oldgex2">4.27.9 &#8216;Only supports pre-RFC4419 SSH-2 DH GEX&#8217;</a></li>
-<li><a href="#config-ssh-bug-hmac2">4.27.10 &#8216;Miscomputes SSH-2 HMAC keys&#8217;</a></li>
-<li><a href="#config-ssh-bug-pksessid2">4.27.11 &#8216;Misuses the session ID in SSH-2 PK auth&#8217;</a></li>
-<li><a href="#config-ssh-bug-derivekey2">4.27.12 &#8216;Miscomputes SSH-2 encryption keys&#8217;</a></li>
-<li><a href="#config-ssh-bug-ignore1">4.27.13 &#8216;Chokes on SSH-1 ignore messages&#8217;</a></li>
-<li><a href="#config-ssh-bug-plainpw1">4.27.14 &#8216;Refuses all SSH-1 password camouflage&#8217;</a></li>
-<li><a href="#config-ssh-bug-rsa1">4.27.15 &#8216;Chokes on SSH-1 RSA authentication&#8217;</a></li>
+<li><a href="#config-ssh-bug-rsa-sha2-cert-userauth">4.27.8 &#8216;Old RSA/SHA2 cert algorithm naming&#8217;</a></li>
+<li><a href="#config-ssh-bug-sig">4.27.9 &#8216;Requires padding on SSH-2 RSA signatures&#8217;</a></li>
+<li><a href="#config-ssh-bug-oldgex2">4.27.10 &#8216;Only supports pre-RFC4419 SSH-2 DH GEX&#8217;</a></li>
+<li><a href="#config-ssh-bug-hmac2">4.27.11 &#8216;Miscomputes SSH-2 HMAC keys&#8217;</a></li>
+<li><a href="#config-ssh-bug-pksessid2">4.27.12 &#8216;Misuses the session ID in SSH-2 PK auth&#8217;</a></li>
+<li><a href="#config-ssh-bug-derivekey2">4.27.13 &#8216;Miscomputes SSH-2 encryption keys&#8217;</a></li>
+<li><a href="#config-ssh-bug-ignore1">4.27.14 &#8216;Chokes on SSH-1 ignore messages&#8217;</a></li>
+<li><a href="#config-ssh-bug-plainpw1">4.27.15 &#8216;Refuses all SSH-1 password camouflage&#8217;</a></li>
+<li><a href="#config-ssh-bug-rsa1">4.27.16 &#8216;Chokes on SSH-1 RSA authentication&#8217;</a></li>
 </ul></li>
 <li><a href="#config-psusan">4.28 The &#8216;Bare <code>ssh-connection</code>&#8217; protocol</a></li>
 <li><a href="#config-serial">4.29 The Serial panel</a>
@@ -413,14 +414,17 @@ There are a few special features in this box. If you use the <code>&amp;</code> 
 <code>&amp;T</code> will be replaced by the current time, as six digits (HHMMSS) with no punctuation.
 </li>
 <li>
-<code>&amp;H</code> will be replaced by the host name you are connecting to.
+<code>&amp;H</code> will be replaced by the host name you are connecting to (or the serial line, for a serial connection).
 </li>
 <li>
 <code>&amp;P</code> will be replaced by the port number you are connecting to on the target host.
 </li>
 </ul>
 <p>
-For example, if you enter the host name <code>c:\puttylogs\log-&amp;h-&amp;y&amp;m&amp;d-&amp;t.dat</code>, you will end up with files looking like
+(These are all case-insensitive.)
+</p>
+<p>
+For example, if you enter the file name <code>c:\puttylogs\log-&amp;h-&amp;y&amp;m&amp;d-&amp;t.dat</code>, you will end up with files looking like
 </p>
 <pre><code>log-server1.example.com-20010528-110859.dat
 log-unixbox.somewhere.org-20010611-221001.dat
@@ -1314,7 +1318,7 @@ Therefore, you might find that keepalives help connection loss, or you might fin
 Keepalives are only supported in Telnet and SSH; the Rlogin, SUPDUP, and Raw protocols offer no way of implementing them. (For an alternative, see <a href="#config-tcp-keepalives">section 4.14.3</a>.)
 </p>
 <p>
-Note that if you are using SSH-1 and the server has a bug that makes it unable to deal with SSH-1 ignore messages (see <a href="#config-ssh-bug-ignore1">section 4.27.13</a>), enabling keepalives will have no effect.
+Note that if you are using SSH-1 and the server has a bug that makes it unable to deal with SSH-1 ignore messages (see <a href="#config-ssh-bug-ignore1">section 4.27.14</a>), enabling keepalives will have no effect.
 </p>
 <h3><a name="config-nodelay"></a><a name="S4.14.2"></a>4.14.2 &#8216;Disable <a name="i241"></a>Nagle's algorithm&#8217;</h3>
 <p>
@@ -2113,6 +2117,9 @@ If a private key file is specified here with Pageant running, PuTTY will first t
 </p>
 <h3><a name="config-ssh-cert"></a><a name="S4.22.2"></a>4.22.2 &#8216;<a name="i367"></a>Certificate to use with the private key&#8217;</h3>
 <p>
+(This is optional. If you don't know you need it, you can leave this blank.)
+</p>
+<p>
 In some environments, user authentication keys can be signed in turn by a &#8216;certifying authority&#8217; (&#8216;CA&#8217; for short), and user accounts on an SSH server can be configured to automatically trust any key that's certified by the right signature.
 </p>
 <p>
@@ -2403,6 +2410,9 @@ The Bugs and More Bugs panels (there are two because we have so many bug compati
 &#8216;Auto&#8217;: PuTTY will use the server's version number announcement to try to guess whether or not the server has the bug. (This option is not available for bugs that <em>cannot</em> be detected from the server version, e.g. because they must be acted on before the server version is known.)
 </li>
 </ul>
+<p>
+(The PuTTY project has a defined policy about when we're prepared to add auto-detection for a bug workaround. See <a href="AppendixB.html#feedback-workarounds">section B.6</a>.)
+</p>
 <h3><a name="config-ssh-bug-ignore2"></a><a name="S4.27.1"></a>4.27.1 &#8216;Chokes on SSH-2 <a name="i412"></a>ignore messages&#8217;</h3>
 <p>
 An ignore message (SSH_MSG_IGNORE) is a message in the SSH protocol which can be sent from the client to the server, or from the server to the client, at any time. Either side is required to ignore the message whenever it receives it. PuTTY uses ignore messages in SSH-2 to confuse the encrypted data stream and make it harder to cryptanalyse. It also uses ignore messages for connection <a name="i413"></a>keepalives (see <a href="#config-keepalive">section 4.14.1</a>).
@@ -2470,7 +2480,14 @@ A workaround is to enable this flag, which will make PuTTY wait to send <code>KE
 <p>
 This flag is a minor violation of the SSH protocol, because both sides are supposed to send <code>KEXINIT</code> proactively. It still works provided <em>one</em> side sends its <code>KEXINIT</code> without waiting, but if both client and server waited for the other one to speak first, the connection would deadlock. We don't know of any servers that do this, but if there is one, then this flag will make PuTTY unable to speak to them at all.
 </p>
-<h3><a name="config-ssh-bug-sig"></a><a name="S4.27.8"></a>4.27.8 &#8216;Requires padding on SSH-2 <a name="i417"></a>RSA <a name="i418"></a>signatures&#8217;</h3>
+<h3><a name="config-ssh-bug-rsa-sha2-cert-userauth"></a><a name="S4.27.8"></a>4.27.8 &#8216;Old RSA/SHA2 cert algorithm naming&#8217;</h3>
+<p>
+If PuTTY is trying to do SSH-2 user authentication using an RSA key, and the server is using one of the newer SHA-2 based versions of the SSH RSA protocol, and the user's key is also a certificate, then earlier versions of OpenSSH (up to 7.7) disagree with later versions about the right key algorithm string to send in the <code>SSH2_MSG_USERAUTH_REQUEST</code> packet. Modern versions send a string that indicates both the SHA-2 nature and the certificate nature of the key, such as &#8216;<code>rsa-sha2-512-cert-v01@openssh.com</code>&#8217;. Earlier versions would reject that, and insist on seeing &#8216;<code>ssh-rsa-cert-v01@openssh.com</code>&#8217; followed by a SHA-2 based signature.
+</p>
+<p>
+PuTTY should auto-detect the presence of this bug in earlier OpenSSH and adjust to send the right string.
+</p>
+<h3><a name="config-ssh-bug-sig"></a><a name="S4.27.9"></a>4.27.9 &#8216;Requires padding on SSH-2 <a name="i417"></a>RSA <a name="i418"></a>signatures&#8217;</h3>
 <p>
 Versions below 3.3 of <a name="i419"></a>OpenSSH require SSH-2 RSA signatures to be padded with zero bytes to the same length as the RSA key modulus. The SSH-2 specification says that an unpadded signature MUST be accepted, so this is a bug. A typical symptom of this problem is that PuTTY mysteriously fails RSA authentication once in every few hundred attempts, and falls back to passwords.
 </p>
@@ -2480,7 +2497,7 @@ If this bug is detected, PuTTY will pad its signatures in the way OpenSSH expect
 <p>
 This is an SSH-2-specific bug.
 </p>
-<h3><a name="config-ssh-bug-oldgex2"></a><a name="S4.27.9"></a>4.27.9 &#8216;Only supports pre-RFC4419 SSH-2 DH GEX&#8217;</h3>
+<h3><a name="config-ssh-bug-oldgex2"></a><a name="S4.27.10"></a>4.27.10 &#8216;Only supports pre-RFC4419 SSH-2 DH GEX&#8217;</h3>
 <p>
 The SSH key exchange method that uses Diffie-Hellman group exchange was redesigned after its original release, to use a slightly more sophisticated setup message. Almost all SSH implementations switched over to the new version. (PuTTY was one of the last.) A few old servers still only support the old one.
 </p>
@@ -2490,7 +2507,7 @@ If this bug is detected, and the client and server negotiate Diffie-Hellman grou
 <p>
 This is an SSH-2-specific bug.
 </p>
-<h3><a name="config-ssh-bug-hmac2"></a><a name="S4.27.10"></a>4.27.10 &#8216;Miscomputes SSH-2 HMAC keys&#8217;</h3>
+<h3><a name="config-ssh-bug-hmac2"></a><a name="S4.27.11"></a>4.27.11 &#8216;Miscomputes SSH-2 HMAC keys&#8217;</h3>
 <p>
 Versions 2.3.0 and below of the SSH server software from <code>ssh.com</code> compute the keys for their <a name="i420"></a>HMAC <a name="i421"></a>message authentication codes incorrectly. A typical symptom of this problem is that PuTTY dies unexpectedly at the beginning of the session, saying &#8216;Incorrect MAC received on packet&#8217;.
 </p>
@@ -2500,7 +2517,7 @@ If this bug is detected, PuTTY will compute its HMAC keys in the same way as the
 <p>
 This is an SSH-2-specific bug.
 </p>
-<h3><a name="config-ssh-bug-pksessid2"></a><a name="S4.27.11"></a>4.27.11 &#8216;Misuses the <a name="i422"></a>session ID in SSH-2 PK auth&#8217;</h3>
+<h3><a name="config-ssh-bug-pksessid2"></a><a name="S4.27.12"></a>4.27.12 &#8216;Misuses the <a name="i422"></a>session ID in SSH-2 PK auth&#8217;</h3>
 <p>
 Versions below 2.3 of <a name="i423"></a>OpenSSH require SSH-2 <a name="i424"></a>public-key authentication to be done slightly differently: the data to be signed by the client contains the session ID formatted in a different way. If public-key authentication mysteriously does not work but the Event Log (see <a href="Chapter3.html#using-eventlog">section 3.1.3.1</a>) thinks it has successfully sent a signature, it might be worth enabling the workaround for this bug to see if it helps.
 </p>
@@ -2510,7 +2527,7 @@ If this bug is detected, PuTTY will sign data in the way OpenSSH expects. If thi
 <p>
 This is an SSH-2-specific bug.
 </p>
-<h3><a name="config-ssh-bug-derivekey2"></a><a name="S4.27.12"></a>4.27.12 &#8216;Miscomputes SSH-2 <a name="i425"></a>encryption keys&#8217;</h3>
+<h3><a name="config-ssh-bug-derivekey2"></a><a name="S4.27.13"></a>4.27.13 &#8216;Miscomputes SSH-2 <a name="i425"></a>encryption keys&#8217;</h3>
 <p>
 Versions below 2.0.11 of the SSH server software from <a name="i426"></a><code>ssh.com</code> compute the keys for the session encryption incorrectly. This problem can cause various error messages, such as &#8216;Incoming packet was garbled on decryption&#8217;, or possibly even &#8216;Out of memory&#8217;.
 </p>
@@ -2520,16 +2537,16 @@ If this bug is detected, PuTTY will compute its encryption keys in the same way 
 <p>
 This is an SSH-2-specific bug.
 </p>
-<h3><a name="config-ssh-bug-ignore1"></a><a name="S4.27.13"></a>4.27.13 &#8216;Chokes on SSH-1 <a name="i427"></a>ignore messages&#8217;</h3>
+<h3><a name="config-ssh-bug-ignore1"></a><a name="S4.27.14"></a>4.27.14 &#8216;Chokes on SSH-1 <a name="i427"></a>ignore messages&#8217;</h3>
 <p>
 An ignore message (SSH_MSG_IGNORE) is a message in the SSH protocol which can be sent from the client to the server, or from the server to the client, at any time. Either side is required to ignore the message whenever it receives it. PuTTY uses ignore messages to <a name="i428"></a>hide the password packet in SSH-1, so that a listener cannot tell the length of the user's password; it also uses ignore messages for connection <a name="i429"></a>keepalives (see <a href="#config-keepalive">section 4.14.1</a>).
 </p>
 <p>
-If this bug is detected, PuTTY will stop using ignore messages. This means that keepalives will stop working, and PuTTY will have to fall back to a secondary defence against SSH-1 password-length eavesdropping. See <a href="#config-ssh-bug-plainpw1">section 4.27.14</a>. If this bug is enabled when talking to a correct server, the session will succeed, but keepalives will not work and the session might be more vulnerable to eavesdroppers than it could be.
+If this bug is detected, PuTTY will stop using ignore messages. This means that keepalives will stop working, and PuTTY will have to fall back to a secondary defence against SSH-1 password-length eavesdropping. See <a href="#config-ssh-bug-plainpw1">section 4.27.15</a>. If this bug is enabled when talking to a correct server, the session will succeed, but keepalives will not work and the session might be more vulnerable to eavesdroppers than it could be.
 </p>
-<h3><a name="config-ssh-bug-plainpw1"></a><a name="S4.27.14"></a>4.27.14 &#8216;Refuses all SSH-1 <a name="i430"></a>password camouflage&#8217;</h3>
+<h3><a name="config-ssh-bug-plainpw1"></a><a name="S4.27.15"></a>4.27.15 &#8216;Refuses all SSH-1 <a name="i430"></a>password camouflage&#8217;</h3>
 <p>
-When talking to an SSH-1 server which cannot deal with ignore messages (see <a href="#config-ssh-bug-ignore1">section 4.27.13</a>), PuTTY will attempt to disguise the length of the user's password by sending additional padding <em>within</em> the password packet. This is technically a violation of the SSH-1 specification, and so PuTTY will only do it when it cannot use standards-compliant ignore messages as camouflage. In this sense, for a server to refuse to accept a padded password packet is not really a bug, but it does make life inconvenient if the server can also not handle ignore messages.
+When talking to an SSH-1 server which cannot deal with ignore messages (see <a href="#config-ssh-bug-ignore1">section 4.27.14</a>), PuTTY will attempt to disguise the length of the user's password by sending additional padding <em>within</em> the password packet. This is technically a violation of the SSH-1 specification, and so PuTTY will only do it when it cannot use standards-compliant ignore messages as camouflage. In this sense, for a server to refuse to accept a padded password packet is not really a bug, but it does make life inconvenient if the server can also not handle ignore messages.
 </p>
 <p>
 If this &#8216;bug&#8217; is detected, PuTTY will assume that neither ignore messages nor padding are acceptable, and that it thus has no choice but to send the user's password with no form of camouflage, so that an eavesdropping user will be easily able to find out the exact length of the password. If this bug is enabled when talking to a correct server, the session will succeed, but will be more vulnerable to eavesdroppers than it could be.
@@ -2537,7 +2554,7 @@ If this &#8216;bug&#8217; is detected, PuTTY will assume that neither ignore mes
 <p>
 This is an SSH-1-specific bug. SSH-2 is secure against this type of attack.
 </p>
-<h3><a name="config-ssh-bug-rsa1"></a><a name="S4.27.15"></a>4.27.15 &#8216;Chokes on SSH-1 <a name="i431"></a>RSA authentication&#8217;</h3>
+<h3><a name="config-ssh-bug-rsa1"></a><a name="S4.27.16"></a>4.27.16 &#8216;Chokes on SSH-1 <a name="i431"></a>RSA authentication&#8217;</h3>
 <p>
 Some SSH-1 servers cannot deal with RSA authentication messages at all. If <a name="i432"></a>Pageant is running and contains any SSH-1 keys, PuTTY will normally automatically try RSA authentication before falling back to passwords, so these servers will crash when they see the RSA attempt.
 </p>
@@ -2734,7 +2751,7 @@ When **MORE** processing is enabled, the server causes output to pause at the bo
 </p>
 <h3><a name="supdup-scroll"></a><a name="S4.32.4"></a>4.32.4 &#8216;Terminal scrolling&#8217;</h3>
 <p>
-This controls whether the terminal will perform scrolling then the cursor goes below the last line, or if the cursor will return to the first line.
+This controls whether the terminal will perform scrolling when the cursor goes below the last line, or if the cursor will return to the first line.
 </p>
 <h2><a name="config-file"></a><a name="S4.33"></a>4.33 <a name="i464"></a>Storing configuration in a file</h2>
 <p>
@@ -2775,5 +2792,5 @@ You should replace <code>a:\putty.rnd</code> with the location where you want to
 </p>
 
 <hr><p>If you want to provide feedback on this manual or on the PuTTY tools themselves, see the <a href="https://www.chiark.greenend.org.uk/~sgtatham/putty/feedback.html">Feedback page</a>.</p><address>
-[PuTTY release 0.78]</address></body>
+[PuTTY release 0.79]</address></body>
 </html>

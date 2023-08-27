@@ -1,4 +1,4 @@
-/* $OpenBSD: asn1t.h,v 1.19 2022/01/14 08:43:06 tb Exp $ */
+/* $OpenBSD: asn1t.h,v 1.22 2022/09/03 16:01:23 jsing Exp $ */
 /* Written by Dr Stephen N Henson (steve@openssl.org) for the OpenSSL
  * project 2000.
  */
@@ -183,10 +183,6 @@ extern "C" {
 	static const ASN1_AUX tname##_aux = {NULL, 0, 0, 0, cb, 0}; \
 	ASN1_SEQUENCE(tname)
 
-#define ASN1_BROKEN_SEQUENCE(tname) \
-	static const ASN1_AUX tname##_aux = {NULL, ASN1_AFLG_BROKEN, 0, 0, 0, 0}; \
-	ASN1_SEQUENCE(tname)
-
 #define ASN1_SEQUENCE_ref(tname, cb, lck) \
 	static const ASN1_AUX tname##_aux = {NULL, ASN1_AFLG_REFCOUNT, offsetof(tname, references), lck, cb, 0}; \
 	ASN1_SEQUENCE(tname)
@@ -218,8 +214,6 @@ extern "C" {
 		sizeof(tname),\
 		#tname \
 	ASN1_ITEM_end(tname)
-
-#define ASN1_BROKEN_SEQUENCE_END(stname) ASN1_SEQUENCE_END_ref(stname, stname)
 
 #define ASN1_SEQUENCE_END_enc(stname, tname) ASN1_SEQUENCE_END_ref(stname, tname)
 
@@ -351,11 +345,6 @@ extern "C" {
 #define ASN1_EX_TYPE(flags, tag, stname, field, type) { \
 	(flags), (tag), offsetof(stname, field),\
 	#field, ASN1_ITEM_ref(type) }
-
-/* used when the structure is combined with the parent */
-
-#define ASN1_EX_COMBINE(flags, tag, type) { \
-	(flags)|ASN1_TFLG_COMBINE, (tag), 0, NULL, ASN1_ITEM_ref(type) }
 
 /* implicit and explicit helper macros */
 
@@ -570,17 +559,6 @@ struct ASN1_ADB_TABLE_st {
 #define ASN1_TFLG_ADB_INT	(0x1<<9)
 
 /*
- * This flag means a parent structure is passed
- * instead of the field: this is useful is a
- * SEQUENCE is being combined with a CHOICE for
- * example. Since this means the structure and
- * item name will differ we need to use the
- * ASN1_CHOICE_END_name() macro for example.
- */
-
-#define ASN1_TFLG_COMBINE	(0x1<<10)
-
-/*
  * This flag when present in a SEQUENCE OF, SET OF
  * or EXPLICIT causes indefinite length constructed
  * encoding to be used if required.
@@ -761,8 +739,6 @@ typedef struct ASN1_STREAM_ARG_st {
 #define ASN1_AFLG_REFCOUNT	1
 /* Save the encoding of structure (useful for signatures) */
 #define ASN1_AFLG_ENCODING	2
-/* The Sequence length is invalid */
-#define ASN1_AFLG_BROKEN	4
 
 /* operation values for asn1_cb */
 
@@ -906,10 +882,13 @@ extern const ASN1_ITEM ASN1_BOOLEAN_it;
 extern const ASN1_ITEM ASN1_TBOOLEAN_it;
 extern const ASN1_ITEM ASN1_FBOOLEAN_it;
 extern const ASN1_ITEM ASN1_SEQUENCE_it;
-extern const ASN1_ITEM CBIGNUM_it;
 extern const ASN1_ITEM BIGNUM_it;
 extern const ASN1_ITEM LONG_it;
 extern const ASN1_ITEM ZLONG_it;
+
+#ifndef LIBRESSL_INTERNAL
+extern const ASN1_ITEM CBIGNUM_it;
+#endif
 
 DECLARE_STACK_OF(ASN1_VALUE)
 
