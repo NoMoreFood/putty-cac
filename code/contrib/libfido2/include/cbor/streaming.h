@@ -26,7 +26,7 @@ extern "C" {
  * @param callbacks The callback bundle
  * @param context An arbitrary pointer to allow for maintaining context.
  */
-CBOR_EXPORT struct cbor_decoder_result cbor_stream_decode(
+_CBOR_NODISCARD CBOR_EXPORT struct cbor_decoder_result cbor_stream_decode(
     cbor_data source, size_t source_size,
     const struct cbor_callbacks* callbacks, void* context);
 

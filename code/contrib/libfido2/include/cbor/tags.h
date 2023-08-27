@@ -27,21 +27,21 @@ extern "C" {
  * @return **new** tag. Item reference is `NULL`. Returns `NULL` upon
  * 	memory allocation failure
  */
-CBOR_EXPORT cbor_item_t *cbor_new_tag(uint64_t value);
+_CBOR_NODISCARD CBOR_EXPORT cbor_item_t *cbor_new_tag(uint64_t value);
 
 /** Get the tagged item
  *
  * @param item[borrow] A tag
  * @return **incref** the tagged item
  */
-CBOR_EXPORT cbor_item_t *cbor_tag_item(const cbor_item_t *item);
+_CBOR_NODISCARD CBOR_EXPORT cbor_item_t *cbor_tag_item(const cbor_item_t *item);
 
 /** Get tag value
  *
  * @param item[borrow] A tag
  * @return The tag value. Please consult the tag repository
  */
-CBOR_EXPORT uint64_t cbor_tag_value(const cbor_item_t *item);
+_CBOR_NODISCARD CBOR_EXPORT uint64_t cbor_tag_value(const cbor_item_t *item);
 
 /** Set the tagged item
  *
@@ -56,7 +56,8 @@ CBOR_EXPORT void cbor_tag_set_item(cbor_item_t *item, cbor_item_t *tagged_item);
  * @param value Tag value
  * @return **new** tag item
  */
-CBOR_EXPORT cbor_item_t *cbor_build_tag(uint64_t value, cbor_item_t *item);
+_CBOR_NODISCARD CBOR_EXPORT cbor_item_t *cbor_build_tag(uint64_t value,
+                                                        cbor_item_t *item);
 
 #ifdef __cplusplus
 }
