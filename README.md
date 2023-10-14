@@ -18,7 +18,7 @@ PuTTY CAC source code and binaries are free to use for any purpose. The license 
 ## Usage
 You can find a basic set of instructions on the usage of United States Government's ID Management website under the 'SSH Using PuTTY-CAC' section: 
 
-https://playbooks.idmanagement.gov/piv/engineer/ssh/
+[https://playbooks.idmanagement.gov/piv/engineer/ssh/](https://www.idmanagement.gov/implement/scl-ssh/)
 
 ## Command Line Usage
 PuTTY CAC supports the same command line options as PuTTY with some additional, specialized options for PuTTY CAC specifically. 
