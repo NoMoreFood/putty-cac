@@ -1,4 +1,4 @@
-/* $OpenBSD: x509.h,v 1.90 2022/07/12 14:42:50 kn Exp $ */
+/* $OpenBSD: x509.h,v 1.94 2023/03/10 16:43:02 tb Exp $ */
 /* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
  *
@@ -413,6 +413,8 @@ STACK_OF(X509_REVOKED) *X509_CRL_get_REVOKED(X509_CRL *crl);
 void X509_CRL_get0_signature(const X509_CRL *crl, const ASN1_BIT_STRING **psig,
     const X509_ALGOR **palg);
 
+const X509_ALGOR *X509_CRL_get0_tbs_sigalg(const X509_CRL *crl);
+
 int X509_REQ_get_signature_nid(const X509_REQ *req);
 
 void X509_REQ_get0_signature(const X509_REQ *req, const ASN1_BIT_STRING **psig,
@@ -780,6 +782,8 @@ int ASN1_item_sign_ctx(const ASN1_ITEM *it,
 #endif
 
 const STACK_OF(X509_EXTENSION) *X509_get0_extensions(const X509 *x);
+void		X509_get0_uids(const X509 *x, const ASN1_BIT_STRING **piuid,
+		    const ASN1_BIT_STRING **psuid);
 const X509_ALGOR *X509_get0_tbs_sigalg(const X509 *x);
 int 		X509_set_version(X509 *x, long version);
 long		X509_get_version(const X509 *x);
@@ -906,7 +910,7 @@ int 		X509_NAME_get_text_by_NID(X509_NAME *name, int nid,
 int		X509_NAME_get_text_by_OBJ(X509_NAME *name,
 			const ASN1_OBJECT *obj, char *buf,int len);
 
-/* NOTE: you should be passsing -1, not 0 as lastpos.  The functions that use
+/* NOTE: you should be passing -1, not 0 as lastpos.  The functions that use
  * lastpos, search after that position on. */
 int 		X509_NAME_get_index_by_NID(const X509_NAME *name, int nid,
 			int lastpos);

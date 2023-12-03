@@ -1,4 +1,4 @@
-/* $OpenBSD: x509_vfy.h,v 1.54 2022/07/07 13:01:28 tb Exp $ */
+/* $OpenBSD: x509_vfy.h,v 1.58 2023/03/10 16:44:07 tb Exp $ */
 /* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
  *
@@ -212,8 +212,8 @@ void X509_STORE_CTX_set_depth(X509_STORE_CTX *ctx, int depth);
 
 /* Certificate verify flags */
 
-/* Send issuer+subject checks to verify_cb */
-#define	X509_V_FLAG_CB_ISSUER_CHECK		0x1
+/* Deprecated in 1.1.0, has no effect. Various FFI bindings still expose it. */
+#define	X509_V_FLAG_CB_ISSUER_CHECK		0x0
 /* Use check time instead of current time */
 #define	X509_V_FLAG_USE_CHECK_TIME		0x2
 /* Lookup CRLs */
@@ -255,7 +255,7 @@ void X509_STORE_CTX_set_depth(X509_STORE_CTX *ctx, int depth);
 /* Do not check certificate or CRL validity against current time. */
 #define X509_V_FLAG_NO_CHECK_TIME		0x200000
 
-/* Force the use of the legacy certificate verifcation */
+/* Force the use of the legacy certificate verification */
 #define X509_V_FLAG_LEGACY_VERIFY		0x400000
 
 #define X509_VP_FLAG_DEFAULT			0x1
@@ -309,6 +309,15 @@ void X509_STORE_set_verify_cb(X509_STORE *ctx,
     int (*verify_cb)(int, X509_STORE_CTX *));
 #define X509_STORE_set_verify_cb_func(ctx, func) \
     X509_STORE_set_verify_cb((ctx), (func))
+
+typedef int (*X509_STORE_CTX_check_issued_fn)(X509_STORE_CTX *ctx,
+    X509 *subject, X509 *issuer);
+
+X509_STORE_CTX_check_issued_fn X509_STORE_get_check_issued(X509_STORE *store);
+void X509_STORE_set_check_issued(X509_STORE *store,
+    X509_STORE_CTX_check_issued_fn check_issued);
+X509_STORE_CTX_check_issued_fn
+    X509_STORE_CTX_get_check_issued(X509_STORE_CTX *ctx);
 
 X509_STORE_CTX *X509_STORE_CTX_new(void);
 

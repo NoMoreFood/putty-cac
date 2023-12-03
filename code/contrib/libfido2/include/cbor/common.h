@@ -13,6 +13,7 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <stdlib.h>
+
 #include "cbor/cbor_export.h"
 #include "cbor/configuration.h"
 #include "data.h"
@@ -119,6 +120,9 @@ CBOR_EXPORT extern _cbor_free_t _cbor_free;
 
 /** Sets the memory management routines to use.
  *
+ * By default, libcbor will use the standard library `malloc`, `realloc`, and
+ * `free`.
+ *
  * \rst
  * .. warning:: This function modifies the global state and should therefore be
  *  used accordingly. Changing the memory handlers while allocated items exist
@@ -146,7 +150,7 @@ CBOR_EXPORT void cbor_set_allocs(_cbor_malloc_t custom_malloc,
 
 /** Get the type of the item
  *
- * @param item[borrow]
+ * @param item
  * @return The type
  */
 _CBOR_NODISCARD
@@ -156,56 +160,56 @@ CBOR_EXPORT cbor_type cbor_typeof(
 /* Standard item types as described by the RFC */
 
 /** Does the item have the appropriate major type?
- * @param item[borrow] the item
+ * @param item the item
  * @return Is the item an #CBOR_TYPE_UINT?
  */
 _CBOR_NODISCARD
 CBOR_EXPORT bool cbor_isa_uint(const cbor_item_t *item);
 
 /** Does the item have the appropriate major type?
- * @param item[borrow] the item
+ * @param item the item
  * @return Is the item a #CBOR_TYPE_NEGINT?
  */
 _CBOR_NODISCARD
 CBOR_EXPORT bool cbor_isa_negint(const cbor_item_t *item);
 
 /** Does the item have the appropriate major type?
- * @param item[borrow] the item
+ * @param item the item
  * @return Is the item a #CBOR_TYPE_BYTESTRING?
  */
 _CBOR_NODISCARD
 CBOR_EXPORT bool cbor_isa_bytestring(const cbor_item_t *item);
 
 /** Does the item have the appropriate major type?
- * @param item[borrow] the item
+ * @param item the item
  * @return Is the item a #CBOR_TYPE_STRING?
  */
 _CBOR_NODISCARD
 CBOR_EXPORT bool cbor_isa_string(const cbor_item_t *item);
 
 /** Does the item have the appropriate major type?
- * @param item[borrow] the item
+ * @param item the item
  * @return Is the item an #CBOR_TYPE_ARRAY?
  */
 _CBOR_NODISCARD
 CBOR_EXPORT bool cbor_isa_array(const cbor_item_t *item);
 
 /** Does the item have the appropriate major type?
- * @param item[borrow] the item
+ * @param item the item
  * @return Is the item a #CBOR_TYPE_MAP?
  */
 _CBOR_NODISCARD
 CBOR_EXPORT bool cbor_isa_map(const cbor_item_t *item);
 
 /** Does the item have the appropriate major type?
- * @param item[borrow] the item
+ * @param item the item
  * @return Is the item a #CBOR_TYPE_TAG?
  */
 _CBOR_NODISCARD
 CBOR_EXPORT bool cbor_isa_tag(const cbor_item_t *item);
 
 /** Does the item have the appropriate major type?
- * @param item[borrow] the item
+ * @param item the item
  * @return Is the item a #CBOR_TYPE_FLOAT_CTRL?
  */
 _CBOR_NODISCARD
@@ -214,21 +218,21 @@ CBOR_EXPORT bool cbor_isa_float_ctrl(const cbor_item_t *item);
 /* Practical types with respect to their semantics (but not tag values) */
 
 /** Is the item an integer, either positive or negative?
- * @param item[borrow] the item
+ * @param item the item
  * @return  Is the item an integer, either positive or negative?
  */
 _CBOR_NODISCARD
 CBOR_EXPORT bool cbor_is_int(const cbor_item_t *item);
 
 /** Is the item an a floating point number?
- * @param item[borrow] the item
+ * @param item the item
  * @return  Is the item a floating point number?
  */
 _CBOR_NODISCARD
 CBOR_EXPORT bool cbor_is_float(const cbor_item_t *item);
 
 /** Is the item an a boolean?
- * @param item[borrow] the item
+ * @param item the item
  * @return  Is the item a boolean?
  */
 _CBOR_NODISCARD
@@ -241,7 +245,7 @@ CBOR_EXPORT bool cbor_is_bool(const cbor_item_t *item);
  *  null pointer will most likely result in a crash.
  * \endrst
  *
- * @param item[borrow] the item
+ * @param item the item
  * @return  Is the item (CBOR logical) null?
  */
 _CBOR_NODISCARD
@@ -254,7 +258,7 @@ CBOR_EXPORT bool cbor_is_null(const cbor_item_t *item);
  *  C.
  * \endrst
  *
- * @param item[borrow] the item
+ * @param item the item
  * @return Is the item (CBOR logical) undefined?
  */
 _CBOR_NODISCARD
@@ -266,40 +270,45 @@ CBOR_EXPORT bool cbor_is_undef(const cbor_item_t *item);
  * ============================================================================
  */
 
-/** Increases the reference count by one
+/** Increases the item's reference count by one
  *
- * No dependent items are affected.
+ * Constant complexity; items referring to this one or items being referred to
+ * are not updated.
  *
- * @param item[incref] item the item
- * @return the input reference
+ * This function can be used to extend reference counting to client code.
+ *
+ * @param item Reference to an item
+ * @return The input \p item
  */
 CBOR_EXPORT cbor_item_t *cbor_incref(cbor_item_t *item);
 
-/** Decreases the reference count by one, deallocating the item if needed
+/** Decreases the item's reference count by one, deallocating the item if needed
  *
- * In case the item is deallocated, the reference count of any dependent items
- * is adjusted accordingly in a recursive manner.
+ * In case the item is deallocated, the reference count of all items this item
+ * references will also be #cbor_decref 'ed recursively.
  *
- * @param item[take] the item. Set to `NULL` if deallocated
+ * @param item Reference to an item. Will be set to `NULL` if deallocated
  */
 CBOR_EXPORT void cbor_decref(cbor_item_t **item);
 
-/** Decreases the reference count by one, deallocating the item if needed
+/** Decreases the item's reference count by one, deallocating the item if needed
  *
  * Convenience wrapper for #cbor_decref when its set-to-null behavior is not
  * needed
  *
- * @param item[take] the item
+ * @param item Reference to an item
  */
 CBOR_EXPORT void cbor_intermediate_decref(cbor_item_t *item);
 
-/** Get the reference count
+/** Get the item's reference count
  *
  * \rst
  * .. warning:: This does *not* account for transitive references.
  * \endrst
  *
- * @param item[borrow] the item
+ * @todo Add some inline examples for reference counting
+ *
+ * @param item the item
  * @return the reference count
  */
 _CBOR_NODISCARD
@@ -317,7 +326,7 @@ CBOR_EXPORT size_t cbor_refcount(const cbor_item_t *item);
  *  count afterwards, the memory will be leaked.
  * \endrst
  *
- * @param item[take] the item
+ * @param item Reference to an item
  * @return the item with reference count decreased by one
  */
 _CBOR_NODISCARD

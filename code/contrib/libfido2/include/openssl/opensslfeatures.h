@@ -7,6 +7,13 @@
 #define LIBRESSL_HAS_TLS1_3
 #define LIBRESSL_HAS_DTLS1_2
 
+/*
+ * Used for compatibility with compilers lacking __attribute__
+ */
+#if defined(_MSC_VER) && !defined(__clang__) && !defined(__attribute__)
+#define __attribute__(a)
+#endif
+
 #define OPENSSL_THREADS
 
 #define OPENSSL_NO_BUF_FREELISTS
