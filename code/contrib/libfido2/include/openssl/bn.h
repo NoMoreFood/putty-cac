@@ -1,4 +1,4 @@
-/* $OpenBSD: bn.h,v 1.55 2022/07/12 14:42:48 kn Exp $ */
+/* $OpenBSD: bn.h,v 1.57 2022/12/17 15:56:25 jsing Exp $ */
 /* Copyright (C) 1995-1997 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
  *
@@ -137,18 +137,6 @@
 #ifdef  __cplusplus
 extern "C" {
 #endif
-
-/* These preprocessor symbols control various aspects of the bignum headers and
- * library code. They're not defined by any "normal" configuration, as they are
- * intended for development and testing purposes. NB: defining all three can be
- * useful for debugging application code as well as openssl itself.
- *
- * BN_DEBUG - turn on various debugging alterations to the bignum code
- * BN_DEBUG_RAND - uses random poisoning of unused words to trip up
- * mismanagement of bignum internals. You must also define BN_DEBUG.
- */
-/* #define BN_DEBUG */
-/* #define BN_DEBUG_RAND */
 
 #ifndef OPENSSL_SMALL_FOOTPRINT
 #define BN_MUL_COMBA
@@ -341,6 +329,10 @@ int BN_is_one(const BIGNUM *a);
 int BN_is_word(const BIGNUM *a, const BN_ULONG w);
 int BN_is_odd(const BIGNUM *a);
 
+#if defined(LIBRESSL_INTERNAL) || defined(LIBRESSL_NEXT_API)
+void BN_zero(BIGNUM *a);
+int BN_one(BIGNUM *a);
+#else
 #define BN_one(a)	BN_set_word((a), 1)
 
 void BN_zero_ex(BIGNUM *a);
@@ -349,6 +341,7 @@ void BN_zero_ex(BIGNUM *a);
 #define BN_zero(a)	BN_zero_ex(a)
 #else
 #define BN_zero(a)	(BN_set_word((a),0))
+#endif
 #endif
 
 const BIGNUM *BN_value_one(void);

@@ -23,42 +23,42 @@ extern "C" {
 
 /** Extracts the integer value
  *
- * @param item[borrow] positive or negative integer
+ * @param item positive or negative integer
  * @return the value
  */
 _CBOR_NODISCARD CBOR_EXPORT uint8_t cbor_get_uint8(const cbor_item_t *item);
 
 /** Extracts the integer value
  *
- * @param item[borrow] positive or negative integer
+ * @param item positive or negative integer
  * @return the value
  */
 _CBOR_NODISCARD CBOR_EXPORT uint16_t cbor_get_uint16(const cbor_item_t *item);
 
 /** Extracts the integer value
  *
- * @param item[borrow] positive or negative integer
+ * @param item positive or negative integer
  * @return the value
  */
 _CBOR_NODISCARD CBOR_EXPORT uint32_t cbor_get_uint32(const cbor_item_t *item);
 
 /** Extracts the integer value
  *
- * @param item[borrow] positive or negative integer
+ * @param item positive or negative integer
  * @return the value
  */
 _CBOR_NODISCARD CBOR_EXPORT uint64_t cbor_get_uint64(const cbor_item_t *item);
 
 /** Extracts the integer value
  *
- * @param item[borrow] positive or negative integer
+ * @param item positive or negative integer
  * @return the value, extended to `uint64_t`
  */
 _CBOR_NODISCARD CBOR_EXPORT uint64_t cbor_get_int(const cbor_item_t *item);
 
 /** Assigns the integer value
  *
- * @param item[borrow] positive or negative integer item
+ * @param item positive or negative integer item
  * @param value the value to assign. For negative integer, the logical value is
  * `-value - 1`
  */
@@ -66,7 +66,7 @@ CBOR_EXPORT void cbor_set_uint8(cbor_item_t *item, uint8_t value);
 
 /** Assigns the integer value
  *
- * @param item[borrow] positive or negative integer item
+ * @param item positive or negative integer item
  * @param value the value to assign. For negative integer, the logical value is
  * `-value - 1`
  */
@@ -74,7 +74,7 @@ CBOR_EXPORT void cbor_set_uint16(cbor_item_t *item, uint16_t value);
 
 /** Assigns the integer value
  *
- * @param item[borrow] positive or negative integer item
+ * @param item positive or negative integer item
  * @param value the value to assign. For negative integer, the logical value is
  * `-value - 1`
  */
@@ -82,7 +82,7 @@ CBOR_EXPORT void cbor_set_uint32(cbor_item_t *item, uint32_t value);
 
 /** Assigns the integer value
  *
- * @param item[borrow] positive or negative integer item
+ * @param item positive or negative integer item
  * @param value the value to assign. For negative integer, the logical value is
  * `-value - 1`
  */
@@ -90,7 +90,7 @@ CBOR_EXPORT void cbor_set_uint64(cbor_item_t *item, uint64_t value);
 
 /** Queries the integer width
  *
- *  @param item[borrow] positive or negative integer item
+ *  @param item  positive or negative integer item
  *  @return the width
  */
 _CBOR_NODISCARD CBOR_EXPORT cbor_int_width
@@ -100,7 +100,7 @@ cbor_int_get_width(const cbor_item_t *item);
  *
  * The data value is not changed
  *
- * @param item[borrow] positive or negative integer item
+ * @param item positive or negative integer item
  */
 CBOR_EXPORT void cbor_mark_uint(cbor_item_t *item);
 
@@ -108,7 +108,7 @@ CBOR_EXPORT void cbor_mark_uint(cbor_item_t *item);
  *
  * The data value is not changed
  *
- * @param item[borrow] positive or negative integer item
+ * @param item positive or negative integer item
  */
 CBOR_EXPORT void cbor_mark_negint(cbor_item_t *item);
 

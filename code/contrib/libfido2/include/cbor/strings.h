@@ -26,7 +26,7 @@ extern "C" {
  * There can be fewer unicode character than bytes (see
  * `cbor_string_codepoint_count`). For definite strings only.
  *
- * @param item[borrow] a definite string
+ * @param item a definite string
  * @return length of the string. Zero if no chunk has been attached yet
  */
 _CBOR_NODISCARD CBOR_EXPORT size_t cbor_string_length(const cbor_item_t *item);
@@ -35,7 +35,7 @@ _CBOR_NODISCARD CBOR_EXPORT size_t cbor_string_length(const cbor_item_t *item);
  *
  * Might differ from length if there are multibyte ones
  *
- * @param item[borrow] A string
+ * @param item A string
  * @return The number of codepoints in this string
  */
 _CBOR_NODISCARD CBOR_EXPORT size_t
@@ -43,7 +43,7 @@ cbor_string_codepoint_count(const cbor_item_t *item);
 
 /** Is the string definite?
  *
- * @param item[borrow] a string
+ * @param item a string
  * @return Is the string definite?
  */
 _CBOR_NODISCARD CBOR_EXPORT bool cbor_string_is_definite(
@@ -51,7 +51,7 @@ _CBOR_NODISCARD CBOR_EXPORT bool cbor_string_is_definite(
 
 /** Is the string indefinite?
  *
- * @param item[borrow] a string
+ * @param item a string
  * @return Is the string indefinite?
  */
 _CBOR_NODISCARD CBOR_EXPORT bool cbor_string_is_indefinite(
@@ -62,9 +62,9 @@ _CBOR_NODISCARD CBOR_EXPORT bool cbor_string_is_indefinite(
  * Definite items only. Modifying the data is allowed. In that case, the caller
  * takes responsibility for the effect on items this item might be a part of
  *
- * @param item[borrow] A definite string
- * @return The address of the underlying string. `NULL` if no data have been
- * assigned yet.
+ * @param item A definite string
+ * @return The address of the underlying string.
+ * @return `NULL` if no data have been assigned yet.
  */
 _CBOR_NODISCARD CBOR_EXPORT cbor_mutable_data
 cbor_string_handle(const cbor_item_t *item);
@@ -78,7 +78,7 @@ cbor_string_handle(const cbor_item_t *item);
  *  the CBOR item will be left inconsistent.
  * \endrst
  *
- * @param item[borrow] A definite string
+ * @param item A definite string
  * @param data The memory block. The caller gives up the ownership of the block.
  * libcbor will deallocate it when appropriate using its free function
  * @param length Length of the data block
@@ -92,7 +92,7 @@ CBOR_EXPORT void cbor_string_set_handle(
  * Manipulations with the memory block (e.g. sorting it) are allowed, but the
  * validity and the number of chunks must be retained.
  *
- * @param item[borrow] A indefinite string
+ * @param item A indefinite string
  * @return array of #cbor_string_chunk_count definite strings
  */
 _CBOR_NODISCARD CBOR_EXPORT cbor_item_t **cbor_string_chunks_handle(
@@ -100,7 +100,7 @@ _CBOR_NODISCARD CBOR_EXPORT cbor_item_t **cbor_string_chunks_handle(
 
 /** Get the number of chunks this string consist of
  *
- * @param item[borrow] A indefinite string
+ * @param item A indefinite string
  * @return The chunk count. 0 for freshly created items.
  */
 _CBOR_NODISCARD CBOR_EXPORT size_t
@@ -112,10 +112,12 @@ cbor_string_chunk_count(const cbor_item_t *item);
  *
  * May realloc the chunk storage.
  *
- * @param item[borrow] An indefinite string
- * @param item[incref] A definite string
- * @return true on success. false on realloc failure. In that case, the refcount
- * of `chunk` is not increased and the `item` is left intact.
+ * @param item An indefinite string
+ * @param chunk A definite string item. Its reference count will be increased
+ * by one.
+ * @return `true` on success. `false` on memory allocation failure. In that
+ * case, the refcount of @p `chunk` is not increased and the @p `item` is left
+ * intact.
  */
 _CBOR_NODISCARD CBOR_EXPORT bool cbor_string_add_chunk(cbor_item_t *item,
                                                        cbor_item_t *chunk);
@@ -124,7 +126,9 @@ _CBOR_NODISCARD CBOR_EXPORT bool cbor_string_add_chunk(cbor_item_t *item,
  *
  * The handle is initialized to `NULL` and length to 0
  *
- * @return **new** definite string. `NULL` on malloc failure.
+ * @return Reference to the new string item. The item's reference count is
+ * initialized to one.
+ * @return `NULL` if memory allocation fails
  */
 _CBOR_NODISCARD CBOR_EXPORT cbor_item_t *cbor_new_definite_string(void);
 
@@ -132,7 +136,9 @@ _CBOR_NODISCARD CBOR_EXPORT cbor_item_t *cbor_new_definite_string(void);
  *
  * The chunks array is initialized to `NULL` and chunkcount to 0
  *
- * @return **new** indefinite string. `NULL` on malloc failure.
+ * @return Reference to the new string item. The item's reference count is
+ * initialized to one.
+ * @return `NULL` if memory allocation fails
  */
 _CBOR_NODISCARD CBOR_EXPORT cbor_item_t *cbor_new_indefinite_string(void);
 
@@ -141,7 +147,9 @@ _CBOR_NODISCARD CBOR_EXPORT cbor_item_t *cbor_new_indefinite_string(void);
  * The `val` will be copied to a newly allocated block
  *
  * @param val A null-terminated UTF-8 string
- * @return A **new** string with content `handle`. `NULL` on malloc failure.
+ * @return Reference to the new string item. The item's reference count is
+ * initialized to one.
+ * @return `NULL` if memory allocation fails
  */
 _CBOR_NODISCARD CBOR_EXPORT cbor_item_t *cbor_build_string(const char *val);
 
@@ -149,8 +157,12 @@ _CBOR_NODISCARD CBOR_EXPORT cbor_item_t *cbor_build_string(const char *val);
  *
  * The `handle` will be copied to a newly allocated block
  *
- * @param val A UTF-8 string, at least \p length long (excluding the null byte)
- * @return A **new** string with content `handle`. `NULL` on malloc failure.
+ * @param val A UTF-8 string, at least @p `length` long (excluding the null
+ * byte)
+ * @param length Length (in bytes) of the string passed in @p `val`.
+ * @return Reference to the new string item. The item's reference count is
+ * initialized to one.
+ * @return `NULL` if memory allocation fails
  */
 _CBOR_NODISCARD CBOR_EXPORT cbor_item_t *cbor_build_stringn(const char *val,
                                                             size_t length);
