@@ -2,8 +2,8 @@
 TITLE Building PuTTY-CAC
 
 :: version information
-SET VER=0.79
-SET VERN=0.79.0.0
+SET VER=0.79u1
+SET VERN=0.79.0.1
 
 :: setup environment variables based on location of this script
 SET INSTDIR=%~dp0
@@ -41,7 +41,7 @@ IF DEFINED ProgramFiles(x86) SET PX86=%ProgramFiles(x86)%
 
 :: setup paths
 SET PATH=%WINDIR%\system32;%WINDIR%\system32\WindowsPowerShell\v1.0
-SET PATH=%PATH%;%PX86%\Windows Kits\10\bin\10.0.20348.0\x64
+FOR /F "DELIMS=" %%X IN ('DIR "%PX86%\Windows Kits\10\bin\signtool.exe" /B /S /A ^| FINDSTR "\\x64\\"') DO SET PATH=%PATH%;%%~dpX
 SET PATH=%PATH%;%PX86%\Windows Kits\8.1\bin\x64
 SET PATH=%PATH%;%PX86%\WiX Toolset v3.11\bin
 
@@ -56,8 +56,7 @@ signtool sign /sha1 %CERT% /as /fd sha256 /tr %TSAURL% /td sha256 /d %LIBNAME% /
 
 :: copy prereqs from build dir and 'real' installer
 MKDIR "%BASEDIR%\build"
-COPY /Y "%ProgramFiles(x86)%\PuTTY\*.url" "%BASEDIR%\build\"
-COPY /Y "%ProgramFiles%\PuTTY\*.url" "%BASEDIR%\build\"
+COPY /Y "%BASEDIR%\windows\*.url" "%BASEDIR%\build\"
 COPY /Y "%BASEDIR%\windows\*.ico" "%BASEDIR%\build\"
 COPY /Y "%BASEDIR%\windows\README-msi.txt" "%BASEDIR%\build\"
 COPY /Y "%INSTDIR%\*.bmp" "%BASEDIR%\build\"
