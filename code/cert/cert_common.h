@@ -50,7 +50,7 @@ EXTERN int cert_all_certs(LPSTR ** pszCert);
 EXTERN VOID cert_convert_legacy(LPSTR szCert);
 EXTERN LPBYTE cert_get_hash(LPCSTR szAlgo, LPCBYTE pDataToHash, DWORD iDataToHashSize, DWORD * iHashedDataSize, BOOL bPrependDigest);
 EXTERN BOOL cert_capi_delete_key(LPCSTR szCert);
-EXTERN BOOL fido_create_key(LPCSTR szAlgName, LPCSTR szApplication, BOOL bResidentKey, BOOL bUserVerification);
+EXTERN BOOL fido_create_key(LPCSTR szAlgName, LPCSTR szDisplayName, LPCSTR szApplication, BOOL bResidentKey, BOOL bUserVerification);
 EXTERN BOOL fido_delete_key(LPCSTR szCert);
 EXTERN VOID fido_import_keys();
 EXTERN LPSTR fido_import_openssh_key();
