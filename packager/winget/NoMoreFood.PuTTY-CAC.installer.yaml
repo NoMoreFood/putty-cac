@@ -15,16 +15,16 @@ Installers:
   Architecture: x64
   InstallerType: wix
   Scope: machine
-  InstallerSha256: FE10BBA7958B81F3414F64BE8BDC847E58D1D8ED05A08C46724857ED568397FA
+  InstallerSha256: A667E6C6A1D73AD1435B00D539AFBE4E9939470F970955455D2EDEF4079D7E8E
   UpgradeBehavior: install
-  ProductCode: '{802B1405-01F8-4915-B09F-E8E4E63D40FA}'
+  ProductCode: '{241868A4-01F9-4496-AAC0-877931B67B46}'
 - InstallerUrl: https://github.com/NoMoreFood/putty-cac/raw/0.79u1/binaries/puttycac-0.79u1-installer.msi
   InstallerLocale: en-US
   Architecture: x86
   InstallerType: wix
   Scope: machine
-  InstallerSha256: 95266E3D99410CF5B652D743348C1E6507678FBC1A01E554EA304C103E2105F3
+  InstallerSha256: 48A955AC22E765D23B5C931A20C4B0A26DE427B0DBC9D594D572F21C7353D35C
   UpgradeBehavior: install
-  ProductCode: '{8D8BC21F-EEB9-4708-B85B-DE81EC9E2C7D}'
+  ProductCode: '{1E778F5D-ECBF-4143-A932-55C003E3D491}'
 ManifestType: installer
 ManifestVersion: 1.4.0

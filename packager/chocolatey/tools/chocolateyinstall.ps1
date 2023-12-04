@@ -14,9 +14,9 @@ $packageArgs = @{
 
   softwareName  = 'PuTTY CAC*'
 
-  checksum      = '95266E3D99410CF5B652D743348C1E6507678FBC1A01E554EA304C103E2105F3'
+  checksum      = '48A955AC22E765D23B5C931A20C4B0A26DE427B0DBC9D594D572F21C7353D35C'
   checksumType  = 'sha256'
-  checksum64    = 'FE10BBA7958B81F3414F64BE8BDC847E58D1D8ED05A08C46724857ED568397FA'
+  checksum64    = 'A667E6C6A1D73AD1435B00D539AFBE4E9939470F970955455D2EDEF4079D7E8E'
   checksumType64= 'sha256'
 
   silentArgs    = "/qn /norestart /l*v `"$($env:TEMP)\$($packageName).$($env:chocolateyPackageVersion).MsiInstall.log`""
