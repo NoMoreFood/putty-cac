@@ -4,6 +4,8 @@ if(PUTTY_CAC)
 enable_language(CXX)
 endif()
 
+set(CMAKE_C_STANDARD 99)
+
 include(cmake/setup.cmake)
 
 # Scan the docs directory first, so that when we start calling
