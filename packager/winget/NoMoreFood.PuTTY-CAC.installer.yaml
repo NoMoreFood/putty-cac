@@ -1,5 +1,5 @@
 PackageIdentifier: NoMoreFood.PuTTY-CAC
-PackageVersion: 0.79.0.0
+PackageVersion: 0.80.0.0
 Platform:
 - Windows.Desktop
 MinimumOSVersion: 10.0.0.0
@@ -10,21 +10,21 @@ InstallModes:
 FileExtensions:
 - PPK
 Installers:
-- InstallerUrl: https://github.com/NoMoreFood/putty-cac/raw/0.79/binaries/puttycac-64bit-0.79-installer.msi
+- InstallerUrl: https://github.com/NoMoreFood/putty-cac/raw/0.80/binaries/puttycac-64bit-0.80-installer.msi
   InstallerLocale: en-US
   Architecture: x64
   InstallerType: wix
   Scope: machine
-  InstallerSha256: 874C2383DB0A0B3E4B26B99148D9AD0110BBB77111645E3D9AA787BA52BE6590
+  InstallerSha256: 572F071DCCF03891A86312CE10D301AA71AAB0A42D79EAA5B6CA72D4F0258641
   UpgradeBehavior: install
-  ProductCode: '{B8597BEE-A53A-4A7C-B055-1C88F5432418}'
-- InstallerUrl: https://github.com/NoMoreFood/putty-cac/raw/0.79/binaries/puttycac-0.79-installer.msi
+  ProductCode: '{ADC5D359-9B89-465E-A304-FCC6E52BF515}'
+- InstallerUrl: https://github.com/NoMoreFood/putty-cac/raw/0.80/binaries/puttycac-0.80-installer.msi
   InstallerLocale: en-US
   Architecture: x86
   InstallerType: wix
   Scope: machine
-  InstallerSha256: 6A11D19193EB8E5D017C493247FE1CB324492255E8A0480BFC4558886C18AC57
+  InstallerSha256: 26D216E8F78CECBFB2120F4B1888EE90E553B0CBF2F755D8F9D3A498ED11D468
   UpgradeBehavior: install
-  ProductCode: '{F4FFFD76-FB49-4445-B69F-70F1980CAB35}'
+  ProductCode: '{7FCD6E0D-AA3B-42E0-A475-E986C02B86A1}'
 ManifestType: installer
-ManifestVersion: 1.4.0
+ManifestVersion: 1.5.0
