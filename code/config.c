@@ -867,11 +867,12 @@ void cert_event_handler(dlgcontrol* ctrl, dlgparam* dlg, void* data, int event)
 
 struct fido_data {
 	dlgcontrol* fido_create_key_button, * fido_delete_key_button, * fido_import_key_button, * fido_import_ssh_button,
-        * fido_clear_key_button, * fido_algo_combobox, * fido_app_text, * fido_verification_radio, * fido_resident_radio;
+        * fido_clear_key_button, * fido_algo_combobox, * fido_display_text, * fido_app_text, * fido_verification_radio, * fido_resident_radio;
 };
 
 void fido_event_handler(dlgcontrol* ctrl, dlgparam* dlg, void* data, int event)
 {
+
 	Conf* conf = (Conf*)data;
 	struct fido_data* fidod = (struct fido_data*)ctrl->context.p;
 	static const char* szAlgTable[] = {
@@ -929,13 +930,24 @@ void fido_event_handler(dlgcontrol* ctrl, dlgparam* dlg, void* data, int event)
 				L"during creation even though you are typing the correct PIN. Do you wish to continue?",
 				L"FIDO Key Type Warning", MB_SYSTEMMODAL | MB_ICONQUESTION | MB_YESNO) != IDYES) return;
 
+		// display name
+		char* szDisplayName = dlg_editbox_get(fidod->fido_display_text, dlg);
+		if (szDisplayName == NULL || strlen(szDisplayName) == 0) {
+			MessageBoxW(NULL, L"The value provided for display name is not valid. " \
+				L"This value cannot be blank. " \
+				L"Please check this value and try again.",
+				L"FIDO Key Creation Parameters Invalid", MB_SYSTEMMODAL | MB_ICONERROR | MB_OK);
+			return;
+		}
+
 		// sanity check on parameters
 		char* szAppId = dlg_editbox_get(fidod->fido_app_text, dlg);
-		if (strstr(szAppId, "ssh:") != szAppId)
+		if (szAppId == NULL || strstr(szAppId, "ssh:") != szAppId)
 		{
-			MessageBoxW(NULL, L"The value provided for application name " \
-				L"is not valid. Please check these values are try again.",
-				L"FIDO Key Creation Failed", MB_SYSTEMMODAL | MB_ICONERROR | MB_OK);
+			MessageBoxW(NULL, L"The value provided for application name is not valid. " \
+				L"This value must begin for 'ssh:' for compatibility reasons. " \
+				L"Please check this value and try again.",
+				L"FIDO Key Creation Parameters Invalid", MB_SYSTEMMODAL | MB_ICONERROR | MB_OK);
 			return;
 		}
 
@@ -959,7 +971,7 @@ void fido_event_handler(dlgcontrol* ctrl, dlgparam* dlg, void* data, int event)
 		int bVerificationRequired = (dlg_radiobutton_get(fidod->fido_verification_radio, dlg) == 1);
 
 		// attempt to create key
-		if (fido_create_key(szAlgId, szAppId, bResidentKey, bVerificationRequired))
+		if (fido_create_key(szAlgId, szDisplayName, szAppId, bResidentKey, bVerificationRequired))
 		{
 			// alert user of success and ask about assignment
 			if (MessageBoxW(NULL, L"FIDO key creation was successful and has been added to the FIDO cache. " \
@@ -1001,6 +1013,12 @@ void fido_event_handler(dlgcontrol* ctrl, dlgparam* dlg, void* data, int event)
 			dlg_listbox_add(ctrl, dlg, szAlgTable[iIndex]);
 		dlg_listbox_select(ctrl, dlg, 0);
 		dlg_update_done(ctrl, dlg);
+	}
+
+	// default text for display name
+	if (ctrl == fidod->fido_display_text && event == EVENT_REFRESH)
+	{
+		dlg_editbox_set(ctrl, dlg, "SSH FIDO Key");
 	}
 
 	// default text for application name
@@ -3281,7 +3299,7 @@ void setup_config_box(struct controlbox *b, bool midsession,
 			 */
 			ctrl_settitle(b, "Connection/SSH/Certificate/FIDO Tools",
 				"Wizard for managing keys on FIDO tokens");
-			struct fido_data* fidod = (struct fido_data*)ctrl_alloc(b, sizeof(struct cert_data));
+			struct fido_data* fidod = (struct fido_data*)ctrl_alloc(b, sizeof(struct fido_data));
 
 			// section for fido creation
 			s = ctrl_getset(b, "Connection/SSH/Certificate/FIDO Tools", "params", "Creation parameters");
@@ -3290,11 +3308,11 @@ void setup_config_box(struct controlbox *b, bool midsession,
 			fidod->fido_algo_combobox = ctrl_droplist(s, "Key Algorithm:", 't',
 				65, HELPCTX(no_help), fido_event_handler, P(fidod));
 
-			fidod->fido_app_text = ctrl_editbox(s, "Application Name:", NO_SHORTCUT, 64,
+            fidod->fido_app_text = ctrl_editbox(s, "Application Name:", NO_SHORTCUT, 64,
+                HELPCTX(no_help), fido_event_handler, P(fidod), I(0));
+
+			fidod->fido_display_text = ctrl_editbox(s, "Display Name:", NO_SHORTCUT, 64,
 				HELPCTX(no_help), fido_event_handler, P(fidod), I(0));
-			ctrl_text(s, "Application name is used to identify this specific key. " \
-				"It must start with 'ssh:' to ensure compatibility. If you have " \
-				"multiple tokens, you may also want to include text to identify the token.", HELPCTX(no_help));
 
 			fidod->fido_resident_radio = ctrl_radiobuttons(s,
 				"Key type:", 'r', 1, HELPCTX(no_help), fido_event_handler,
@@ -3313,8 +3331,6 @@ void setup_config_box(struct controlbox *b, bool midsession,
 
 			// section for fido imports
 			s = ctrl_getset(b, "Connection/SSH/Certificate/FIDO Tools", "import_params", "Key management");
-			ctrl_text(s, "Use this option to import resident keys from a FIDO token. You must " \
-				"be able to elevate to a local administrator to communicate directly with the token.", HELPCTX(no_help));
 
 			// adjust so we have two columns with a small separation in the middle
 			ctrl_columns(s, 3, 45, 10, 45);
@@ -3334,6 +3350,8 @@ void setup_config_box(struct controlbox *b, bool midsession,
 			fidod->fido_delete_key_button = ctrl_pushbutton(s, "Delete Key...",
 				NO_SHORTCUT, HELPCTX(no_help), fido_event_handler, P(fidod));
 			fidod->fido_delete_key_button->column = 0;
+
+            ctrl_text(s, "Note: The 'Import Keys' function requires elevated local permissions to succeed.", HELPCTX(no_help));
 
 			/*
 			 * The Connection/SSH/CAPI Tools panel.

@@ -24,13 +24,11 @@
 
 // arbitrarily large limits for certain fido buffers
 #define FIDO_MAX_APPID_LEN 256
+#define FIDO_MAX_DISPLAY_LEN 64
 #define FIDO_MAX_CREDID_LEN 128
 #define FIDO_MAX_PUBKEY_LEN 128
 #define FIDO_MAX_USERNAME_LEN 128
 #define FIDO_MAX_BLOB_SIZE 512
-
-// other arbitrary contacts
-#define FIDO_KEY_USERNAME L"PuTTY FIDO User"
 
 // registry key locations for fido
 #define FIDO_REG_PUBKEYS L"Software\\SimonTatham\\PuTTY\\Fido\\PubKeyBlobs"
@@ -448,13 +446,16 @@ DWORD WINAPI WebAuthNAuthenticatorMakeCredentialThread(LPVOID lpParam)
 	return TRUE;
 }
 
-BOOL fido_create_key(LPCSTR szAlgName, LPCSTR szApplication, BOOL bResidentKey, BOOL bUserVerification)
+BOOL fido_create_key(LPCSTR szAlgName, LPCSTR szDisplayName, LPCSTR szApplication, BOOL bResidentKey, BOOL bUserVerification)
 {
 	// sanity check for webauthn support
 	if (!LoadDelayLoadedLibaries()) return FALSE;
 
 	WCHAR szAppIdUnicode[FIDO_MAX_APPID_LEN];
+	WCHAR szAppDisplayUnicode[FIDO_MAX_DISPLAY_LEN];
+
 	if (MultiByteToWideChar(CP_UTF8, 0, szApplication, -1, szAppIdUnicode, _countof(szAppIdUnicode)) == 0) return FALSE;
+	if (MultiByteToWideChar(CP_UTF8, 0, szDisplayName, -1, szAppDisplayUnicode, _countof(szAppDisplayUnicode)) == 0) return FALSE;
 
 	LONG iWebAuthAlt = 0;
 	LONG iSigBytes = 0;
@@ -494,10 +495,10 @@ BOOL fido_create_key(LPCSTR szAlgName, LPCSTR szApplication, BOOL bResidentKey, 
 	tEntityInfo.pwszIcon = NULL;
 
 	WEBAUTHN_USER_ENTITY_INFORMATION tUserInfo = { WEBAUTHN_USER_ENTITY_INFORMATION_CURRENT_VERSION };
-	tUserInfo.pwszDisplayName = FIDO_KEY_USERNAME;
-	tUserInfo.pwszName = FIDO_KEY_USERNAME;
-	tUserInfo.cbId = wcslen(FIDO_KEY_USERNAME) * 2;
-	tUserInfo.pbId = (PBYTE)FIDO_KEY_USERNAME;
+	tUserInfo.pwszDisplayName = szAppDisplayUnicode;
+	tUserInfo.pwszName = szAppDisplayUnicode;
+	tUserInfo.cbId = strlen(szDisplayName);
+	tUserInfo.pbId = (PBYTE)szDisplayName;
 	tUserInfo.pwszIcon = NULL;
 
 	WEBAUTHN_COSE_CREDENTIAL_PARAMETER tCoseParam = { WEBAUTHN_COSE_CREDENTIAL_PARAMETER_CURRENT_VERSION };
