@@ -35,6 +35,7 @@ EXTERN BOOL cert_ignore_expired_certs(DWORD bEnable);
 EXTERN BOOL cert_trusted_certs_only(DWORD bEnable);
 EXTERN BOOL cert_allow_any_cert(DWORD bEnable);
 EXTERN BOOL cert_auto_load_certs(DWORD bEnable);
+EXTERN LPCSTR cert_ignore_cert_name(LPCSTR sValue);
 EXTERN BOOL cert_cmdline_parse(LPCSTR sCommand);
 
 // functions used by putty code 
@@ -50,7 +51,7 @@ EXTERN int cert_all_certs(LPSTR ** pszCert);
 EXTERN VOID cert_convert_legacy(LPSTR szCert);
 EXTERN LPBYTE cert_get_hash(LPCSTR szAlgo, LPCBYTE pDataToHash, DWORD iDataToHashSize, DWORD * iHashedDataSize, BOOL bPrependDigest);
 EXTERN BOOL cert_capi_delete_key(LPCSTR szCert);
-EXTERN BOOL fido_create_key(LPCSTR szAlgName, LPCSTR szApplication, BOOL bResidentKey, BOOL bUserVerification);
+EXTERN BOOL fido_create_key(LPCSTR szAlgName, LPCSTR szDisplayName, LPCSTR szApplication, BOOL bResidentKey, BOOL bUserVerification);
 EXTERN BOOL fido_delete_key(LPCSTR szCert);
 EXTERN VOID fido_import_keys();
 EXTERN LPSTR fido_import_openssh_key();

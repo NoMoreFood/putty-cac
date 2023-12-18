@@ -620,6 +620,25 @@ BOOL cert_check_valid(LPCSTR szIden, PCCERT_CONTEXT pCertContext)
 		if (!bFoundClientAuth && !bFoundSmartCardLogon) return FALSE;
 	}
 
+	// verify any excluded certificates are ignored
+	LPCSTR sIgnoredCertName = cert_ignore_cert_name(NULL);
+	BOOL bIgnoredCertNameMatch = FALSE;
+	if (strlen(sIgnoredCertName) > 0)
+	{
+		DWORD iSize = CertNameToStr(X509_ASN_ENCODING, &pCertContext->pCertInfo->Subject, CERT_X500_NAME_STR, NULL, 0);
+		if (iSize > 0)
+		{
+			LPCSTR sSubjectName = malloc(iSize);
+			if (CertNameToStr(X509_ASN_ENCODING, &pCertContext->pCertInfo->Subject, CERT_X500_NAME_STR, sSubjectName, iSize) == iSize)
+			{
+				bIgnoredCertNameMatch = strstr(_strupr(sSubjectName), _strupr(sIgnoredCertName)) != NULL;
+			}
+			free(sSubjectName);
+		}
+	}
+	free(sIgnoredCertName);
+	if (bIgnoredCertNameMatch) return FALSE;
+
 	// verify only smartcard card eku if requested
 	if (cert_smartcard_certs_only((DWORD)-1))
 	{
@@ -935,6 +954,25 @@ BOOL cert_registry_setting_load(LPCSTR sSetting, DWORD iDefault)
 	else return iDefault;
 }
 
+VOID cert_registry_setting_set_str(LPCSTR sSetting, LPCSTR sValue)
+{
+	RegSetKeyValue(HKEY_CURRENT_USER, PUTTY_REG_POS, sSetting, REG_SZ, sValue, strlen(sValue) + 1);
+}
+
+LPCSTR cert_registry_setting_load_str(LPCSTR sSetting, LPCSTR sDefault)
+{
+	LPCSTR sReturn = NULL;
+	DWORD iReturnSize = 0;
+	if (RegGetValue(HKEY_CURRENT_USER, PUTTY_REG_POS, sSetting,
+			RRF_RT_REG_SZ, NULL, NULL, &iReturnSize) == ERROR_SUCCESS &&
+		RegGetValue(HKEY_CURRENT_USER, PUTTY_REG_POS, sSetting,
+			RRF_RT_REG_SZ, NULL, (sReturn = malloc(iReturnSize)), &iReturnSize) == ERROR_SUCCESS)
+	{
+		return sReturn;
+	}
+	else return _strdup(sDefault);
+}
+
 BOOL cert_trusted_certs_only(DWORD bEnable)
 {
 	const LPSTR sSetting = "TrustedCertsOnly";
@@ -989,6 +1027,13 @@ BOOL cert_auto_load_certs(DWORD bEnable)
 	const LPSTR sSetting = "AutoloadCerts";
 	if (bEnable != -1) cert_registry_setting_set(sSetting, bEnable);
 	return cert_registry_setting_load(sSetting, FALSE);
+}
+
+LPCSTR cert_ignore_cert_name(LPCSTR sValue)
+{
+	const LPSTR sSetting = "IgnoreCertName";
+	if (sValue != NULL) cert_registry_setting_set_str(sSetting, sValue);
+	return cert_registry_setting_load_str(sSetting, "");
 }
 
 BOOL cert_cmdline_parse(LPCSTR sCommand)
