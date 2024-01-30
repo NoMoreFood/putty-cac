@@ -167,7 +167,7 @@ BYTE* cert_capi_sign(struct ssh2_userkey* userkey, LPCBYTE pDataToSign, int iDat
 		{
 			// set pin prompt
 			LPSTR szPin = NULL;
-			if (cert_cache_enabled((DWORD)-1) &&
+			if (cert_cache_enabled(CERT_QUERY) &&
 				(szPin = cert_pin(userkey->comment, FALSE, NULL)) != NULL)
 			{
 				CryptSetProvParam(hCryptProv, (pProviderInfo->dwKeySpec ==
@@ -187,7 +187,7 @@ BYTE* cert_capi_sign(struct ssh2_userkey* userkey, LPCBYTE pDataToSign, int iDat
 				pSig = NULL;
 
 				// add pin to cache if cache is enabled
-				if (cert_cache_enabled((DWORD)-1))
+				if (cert_cache_enabled(CERT_QUERY))
 				{
 					cert_pin(userkey->comment, FALSE, szPin);
 				}
@@ -202,7 +202,7 @@ BYTE* cert_capi_sign(struct ssh2_userkey* userkey, LPCBYTE pDataToSign, int iDat
 		{
 			// set pin prompt
 			WCHAR* szPin = NULL;
-			if (cert_cache_enabled((DWORD)-1) &&
+			if (cert_cache_enabled(CERT_QUERY) &&
 				(szPin = cert_pin(userkey->comment, TRUE, NULL)) != NULL)
 			{
 				DWORD iLength = (1 + wcslen(szPin)) * sizeof(WCHAR);
@@ -232,7 +232,7 @@ BYTE* cert_capi_sign(struct ssh2_userkey* userkey, LPCBYTE pDataToSign, int iDat
 				pSig = NULL;
 
 				// add pin to cache if cache is enabled
-				if (cert_cache_enabled((DWORD)-1))
+				if (cert_cache_enabled(CERT_QUERY))
 				{
 					cert_pin(userkey->comment, TRUE, szPin);
 				}
