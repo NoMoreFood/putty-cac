@@ -2,8 +2,8 @@
 TITLE Building PuTTY-CAC
 
 :: version information
-SET VER=0.80
-SET VERN=0.80.0.0
+SET VER=0.80u1
+SET VERN=0.80.0.1
 
 :: setup environment variables based on location of this script
 SET INSTDIR=%~dp0

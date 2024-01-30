@@ -21,22 +21,34 @@ struct strbuf;
 #endif
 #endif
 
+// enum for setting controls
+typedef enum CERT_SETCMD
+{
+	CERT_UNSET    = 1 << 0,
+	CERT_SET      = 1 << 1,
+	CERT_SETTABLE = 1 << 2,
+	CERT_QUERY    = 1 << 3,
+	CERT_ENFORCED = 1 << 4
+}
+CERT_SETCMD;
+
 // functions used only by the capi and pkcs addon modules
 EXTERN VOID cert_reverse_array(LPBYTE pb, DWORD cb);
 EXTERN BOOL cert_load_cert(LPCSTR szCert, PCERT_CONTEXT * ppCertContext, HCERTSTORE * phCertStore);
 EXTERN BOOL cert_check_valid(LPCSTR szIden, PCCERT_CONTEXT pCertContext);
 EXTERN LPSTR cert_get_cert_thumbprint(LPCSTR szIden, PCCERT_CONTEXT pCertContext);
 EXTERN PVOID cert_pin(LPSTR szCert, BOOL bUnicode, LPVOID szPin);
-EXTERN BOOL cert_save_cert_list_enabled(DWORD bEnable);
-EXTERN BOOL cert_cache_enabled(DWORD bEnable);
-EXTERN BOOL cert_auth_prompting(DWORD bEnable);
-EXTERN BOOL cert_smartcard_certs_only(DWORD bEnable);
-EXTERN BOOL cert_ignore_expired_certs(DWORD bEnable);
-EXTERN BOOL cert_trusted_certs_only(DWORD bEnable);
-EXTERN BOOL cert_allow_any_cert(DWORD bEnable);
-EXTERN BOOL cert_auto_load_certs(DWORD bEnable);
+EXTERN BOOL cert_save_cert_list_enabled(CERT_SETCMD iCommand);
+EXTERN BOOL cert_cache_enabled(CERT_SETCMD iCommand);
+EXTERN BOOL cert_auth_prompting(CERT_SETCMD iCommand);
+EXTERN BOOL cert_smartcard_certs_only(CERT_SETCMD iCommand);
+EXTERN BOOL cert_ignore_expired_certs(CERT_SETCMD iCommand);
+EXTERN BOOL cert_trusted_certs_only(CERT_SETCMD iCommand);
+EXTERN BOOL cert_allow_any_cert(CERT_SETCMD iCommand);
+EXTERN BOOL cert_auto_load_certs(CERT_SETCMD iCommand);
 EXTERN LPCSTR cert_ignore_cert_name(LPCSTR sValue);
 EXTERN BOOL cert_cmdline_parse(LPCSTR sCommand);
+EXTERN DWORD cert_menu_flags(BOOL(*func)(CERT_SETCMD iCommand));
 
 // functions used by putty code 
 EXTERN LPSTR cert_key_string(LPCSTR szCert);

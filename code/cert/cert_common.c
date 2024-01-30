@@ -200,7 +200,7 @@ BOOL cert_test_hash(LPCSTR szCert, DWORD iHashRequest)
 BOOL cert_confirm_signing(LPCSTR sFingerPrint, LPCSTR sComment)
 {
 	// prompt if usage prompting is enabled
-	if (!cert_auth_prompting((DWORD)-1)) return TRUE;
+	if (!cert_auth_prompting(CERT_QUERY)) return TRUE;
 
 	// prompt user
 	BOOL bIsCert = cert_is_certpath(sComment);
@@ -570,7 +570,7 @@ VOID cert_display_cert(LPCSTR szCert, HWND hWnd)
 BOOL cert_check_valid(LPCSTR szIden, PCCERT_CONTEXT pCertContext)
 {
 	// if user has enabled hidden option, just allow the certificate
-	if (cert_allow_any_cert((DWORD)-1))
+	if (cert_allow_any_cert(CERT_QUERY))
 	{
 		return TRUE;
 	}
@@ -640,21 +640,21 @@ BOOL cert_check_valid(LPCSTR szIden, PCCERT_CONTEXT pCertContext)
 	if (bIgnoredCertNameMatch) return FALSE;
 
 	// verify only smartcard card eku if requested
-	if (cert_smartcard_certs_only((DWORD)-1))
+	if (cert_smartcard_certs_only(CERT_QUERY))
 	{
 		if (!bFoundSmartCardLogon) return FALSE;
 	}
 
 	// verify time validity if requested
 	DWORD iFlags = CERT_STORE_TIME_VALIDITY_FLAG;
-	if (cert_ignore_expired_certs((DWORD)-1))
+	if (cert_ignore_expired_certs(CERT_QUERY))
 	{
 		if (CertVerifySubjectCertificateContext(pCertContext, NULL, &iFlags) == TRUE && iFlags != 0)
 			return FALSE;
 	}
 
 	// build and validate certificate chain
-	if (cert_trusted_certs_only((DWORD)-1))
+	if (cert_trusted_certs_only(CERT_QUERY))
 	{
 		// attempt to chain the chain
 		CERT_CHAIN_PARA tChainParams;
@@ -937,21 +937,30 @@ PVOID cert_pin(LPSTR szCert, BOOL bUnicode, LPVOID szPin)
 	return szReturn;
 }
 
-VOID cert_registry_setting_set(LPCSTR sSetting, DWORD iSetting)
+VOID cert_registry_setting_set(LPCSTR sSetting, CERT_SETCMD iCommand)
 {
+	const DWORD iSetting = (iCommand == CERT_SET) ? TRUE : FALSE;
 	RegSetKeyValue(HKEY_CURRENT_USER, PUTTY_REG_POS, sSetting, REG_DWORD, &iSetting, sizeof(DWORD));
 }
 
-BOOL cert_registry_setting_load(LPCSTR sSetting, DWORD iDefault)
+BOOL cert_registry_setting_load(LPCSTR sSetting, DWORD iDefault, CERT_SETCMD bPolicy)
 {
 	DWORD iSetting = 0;
 	DWORD iSettingSize = sizeof(iSetting);
+	if (RegGetValue(HKEY_LOCAL_MACHINE, PUTTY_REG_POS, sSetting,
+		RRF_RT_REG_DWORD, NULL, &iSetting, &iSettingSize) == ERROR_SUCCESS)
+	{
+		if (bPolicy == CERT_ENFORCED) return TRUE;
+		return iSetting;
+	}
+	if (bPolicy == CERT_ENFORCED) return FALSE;
+
 	if (RegGetValue(HKEY_CURRENT_USER, PUTTY_REG_POS, sSetting,
 		RRF_RT_REG_DWORD, NULL, &iSetting, &iSettingSize) == ERROR_SUCCESS)
 	{
 		return iSetting != 0;
 	}
-	else return iDefault;
+	return iDefault;
 }
 
 VOID cert_registry_setting_set_str(LPCSTR sSetting, LPCSTR sValue)
@@ -973,60 +982,67 @@ LPCSTR cert_registry_setting_load_str(LPCSTR sSetting, LPCSTR sDefault)
 	else return _strdup(sDefault);
 }
 
-BOOL cert_trusted_certs_only(DWORD bEnable)
+BOOL cert_trusted_certs_only(CERT_SETCMD iCommand)
 {
 	const LPSTR sSetting = "TrustedCertsOnly";
-	if (bEnable != -1) cert_registry_setting_set(sSetting, bEnable);
-	return cert_registry_setting_load(sSetting, FALSE);
+	if (iCommand & CERT_SETTABLE) cert_registry_setting_set(sSetting, iCommand);
+	return cert_registry_setting_load(sSetting, FALSE, iCommand);
 }
 
-BOOL cert_save_cert_list_enabled(DWORD bEnable)
+BOOL cert_save_cert_list_enabled(CERT_SETCMD iCommand)
 {
 	const LPSTR sSetting = "SaveCertListEnabled";
-	if (bEnable != -1) cert_registry_setting_set(sSetting, bEnable);
-	return cert_registry_setting_load(sSetting, FALSE);
+	if (iCommand & CERT_SETTABLE) cert_registry_setting_set(sSetting, iCommand);
+	return cert_registry_setting_load(sSetting, FALSE, iCommand);
 }
 
-BOOL cert_cache_enabled(DWORD bEnable)
+BOOL cert_cache_enabled(CERT_SETCMD iCommand)
 {
 	const LPSTR sSetting = "ForcePinCaching";
-	if (bEnable != -1) cert_registry_setting_set(sSetting, bEnable);
-	return cert_registry_setting_load(sSetting, FALSE);
+	if (iCommand & CERT_SETTABLE) cert_registry_setting_set(sSetting, iCommand);
+	return cert_registry_setting_load(sSetting, FALSE, iCommand);
 }
 
-BOOL cert_auth_prompting(DWORD bEnable)
+BOOL cert_auth_prompting(CERT_SETCMD iCommand)
 {
 	const LPSTR sSetting = "CertAuthPrompting";
-	if (bEnable != -1) cert_registry_setting_set(sSetting, bEnable);
-	return cert_registry_setting_load(sSetting, FALSE);
+	if (iCommand & CERT_SETTABLE) cert_registry_setting_set(sSetting, iCommand);
+	return cert_registry_setting_load(sSetting, FALSE, iCommand);
 }
 
-BOOL cert_smartcard_certs_only(DWORD bEnable)
+BOOL cert_smartcard_certs_only(CERT_SETCMD iCommand)
 {
 	const LPSTR sSetting = "SmartCardLogonCertsOnly";
-	if (bEnable != -1) cert_registry_setting_set(sSetting, bEnable);
-	return cert_registry_setting_load(sSetting, FALSE);
+	if (iCommand & CERT_SETTABLE) cert_registry_setting_set(sSetting, iCommand);
+	return cert_registry_setting_load(sSetting, FALSE, iCommand);
 }
 
-BOOL cert_ignore_expired_certs(DWORD bEnable)
+BOOL cert_ignore_expired_certs(CERT_SETCMD iCommand)
 {
 	const LPSTR sSetting = "IgnoreExpiredCerts";
-	if (bEnable != -1) cert_registry_setting_set(sSetting, bEnable);
-	return cert_registry_setting_load(sSetting, FALSE);
+	if (iCommand & CERT_SETTABLE) cert_registry_setting_set(sSetting, iCommand);
+	return cert_registry_setting_load(sSetting, FALSE, iCommand);
 }
 
-BOOL cert_allow_any_cert(DWORD bEnable)
+BOOL cert_allow_any_cert(CERT_SETCMD iCommand)
 {
 	const LPSTR sSetting = "AllowAnyCert";
-	if (bEnable != -1) cert_registry_setting_set(sSetting, bEnable);
-	return cert_registry_setting_load(sSetting, FALSE);
+	if (iCommand & CERT_SETTABLE) cert_registry_setting_set(sSetting, iCommand);
+	return cert_registry_setting_load(sSetting, FALSE, iCommand);
 }
 
-BOOL cert_auto_load_certs(DWORD bEnable)
+BOOL cert_auto_load_certs(CERT_SETCMD iCommand)
 {
 	const LPSTR sSetting = "AutoloadCerts";
-	if (bEnable != -1) cert_registry_setting_set(sSetting, bEnable);
-	return cert_registry_setting_load(sSetting, FALSE);
+	if (iCommand & CERT_SETTABLE) cert_registry_setting_set(sSetting, iCommand);
+	return cert_registry_setting_load(sSetting, FALSE, iCommand);
+}
+
+DWORD cert_menu_flags(BOOL(*func)(CERT_SETCMD iCommand))
+{
+	DWORD flags = func(CERT_QUERY) ? MF_CHECKED : MF_UNCHECKED;
+	flags |= func(CERT_ENFORCED) ? MF_GRAYED : MF_ENABLED;
+	return flags;
 }
 
 LPCSTR cert_ignore_cert_name(LPCSTR sValue)
@@ -1040,35 +1056,35 @@ BOOL cert_cmdline_parse(LPCSTR sCommand)
 {
 	if (!strcmp(sCommand, "-autoload") || !strcmp(sCommand, "-autoloadoff"))
 	{
-		cert_auto_load_certs((!strcmp(sCommand, "-autoload")) ? 1 : 0);
+		cert_auto_load_certs((!strcmp(sCommand, "-autoload")) ? CERT_SET : CERT_UNSET);
 	}
 	else if (!strcmp(sCommand, "-savecertlist") || !strcmp(sCommand, "-savecertlistoff"))
 	{
-		cert_save_cert_list_enabled((!strcmp(sCommand, "-savecertlist")) ? 1 : 0);
+		cert_save_cert_list_enabled((!strcmp(sCommand, "-savecertlist")) ? CERT_SET : CERT_UNSET);
 	}
 	else if (!strcmp(sCommand, "-forcepincache") || !strcmp(sCommand, "-forcepincacheoff"))
 	{
-		cert_cache_enabled((!strcmp(sCommand, "-forcepincache")) ? 1 : 0);
+		cert_cache_enabled((!strcmp(sCommand, "-forcepincache")) ? CERT_SET : CERT_UNSET);
 	}
 	else if (!strcmp(sCommand, "-certauthprompting") || !strcmp(sCommand, "-certauthpromptingoff"))
 	{
-		cert_auth_prompting((!strcmp(sCommand, "-certauthprompting")) ? 1 : 0);
+		cert_auth_prompting((!strcmp(sCommand, "-certauthprompting")) ? CERT_SET : CERT_UNSET);
 	}
 	else if (!strcmp(sCommand, "-smartcardlogoncertsonly") || !strcmp(sCommand, "-smartcardlogoncertsonlyoff"))
 	{
-		cert_smartcard_certs_only((!strcmp(sCommand, "-smartcardlogoncertsonly")) ? 1 : 0);
+		cert_smartcard_certs_only((!strcmp(sCommand, "-smartcardlogoncertsonly")) ? CERT_SET : CERT_UNSET);
 	}
 	else if (!strcmp(sCommand, "-trustedcertsonly") || !strcmp(sCommand, "-trustedcertsonlyoff"))
 	{
-		cert_trusted_certs_only((!strcmp(sCommand, "-trustedcertsonly")) ? 1 : 0);
+		cert_trusted_certs_only((!strcmp(sCommand, "-trustedcertsonly")) ? CERT_SET : CERT_UNSET);
 	}
 	else if (!strcmp(sCommand, "-ignoreexpiredcerts") || !strcmp(sCommand, "-ignoreexpiredcertsoff"))
 	{
-		cert_ignore_expired_certs((!strcmp(sCommand, "-ignoreexpiredcerts")) ? 1 : 0);
+		cert_ignore_expired_certs((!strcmp(sCommand, "-ignoreexpiredcerts")) ? CERT_SET : CERT_UNSET);
 	}
 	else if (!strcmp(sCommand, "-allowanycert") || !strcmp(sCommand, "-allowanycertoff"))
 	{
-		cert_allow_any_cert((!strcmp(sCommand, "-allowanycert")) ? 1 : 0);
+		cert_allow_any_cert((!strcmp(sCommand, "-allowanycert")) ? CERT_SET : CERT_UNSET);
 	}
 	else
 	{
