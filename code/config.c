@@ -1058,19 +1058,19 @@ void capi_event_handler(dlgcontrol* ctrl, dlgparam* dlg, void* data, int event)
 
 	// handle certificate filter - ignore expired
 	if (ctrl == capid->capi_no_expired_checkbox && event == EVENT_REFRESH)
-		dlg_checkbox_set(ctrl, dlg, cert_ignore_expired_certs(-1));
+		dlg_checkbox_set(ctrl, dlg, cert_ignore_expired_certs(CERT_QUERY));
 	if (ctrl == capid->capi_no_expired_checkbox && event == EVENT_VALCHANGE)
 		cert_ignore_expired_certs(dlg_checkbox_get(ctrl, dlg));
 
 	// handle certificate filter - smartcard only expired
 	if (ctrl == capid->capi_smartcard_only_checkbox && event == EVENT_REFRESH)
-		dlg_checkbox_set(ctrl, dlg, cert_smartcard_certs_only(-1));
+		dlg_checkbox_set(ctrl, dlg, cert_smartcard_certs_only(CERT_QUERY));
 	if (ctrl == capid->capi_smartcard_only_checkbox && event == EVENT_VALCHANGE)
 		cert_smartcard_certs_only(dlg_checkbox_get(ctrl, dlg));
 
 	// handle certificate filter - trusted only
 	if (ctrl == capid->capi_trusted_certs_checkbox && event == EVENT_REFRESH)
-		dlg_checkbox_set(ctrl, dlg, cert_trusted_certs_only(-1));
+		dlg_checkbox_set(ctrl, dlg, cert_trusted_certs_only(CERT_QUERY));
 	if (ctrl == capid->capi_trusted_certs_checkbox && event == EVENT_VALCHANGE)
 		cert_trusted_certs_only(dlg_checkbox_get(ctrl, dlg));
 
@@ -3392,17 +3392,26 @@ void setup_config_box(struct controlbox *b, bool midsession,
 			ctrl_text(s, "Use these options to filter the certificates shown in " \
 				"PuTTY and Pageant certificate selection dialog boxes.", HELPCTX(no_help));
 
-			capid->capi_trusted_certs_checkbox = ctrl_checkbox(s, "Only Trusted",
-				NO_SHORTCUT, HELPCTX(no_help), capi_event_handler, P(capid));
-			capid->capi_trusted_certs_checkbox->column = 0;
+            if (!cert_trusted_certs_only(CERT_ENFORCED))
+            {
+                capid->capi_trusted_certs_checkbox = ctrl_checkbox(s, "Only Trusted",
+                    NO_SHORTCUT, HELPCTX(no_help), capi_event_handler, P(capid));
+                capid->capi_trusted_certs_checkbox->column = 0;
+            }
 
-			capid->capi_smartcard_only_checkbox = ctrl_checkbox(s, "Only Smart Card",
-				NO_SHORTCUT, HELPCTX(no_help), capi_event_handler, P(capid));
-			capid->capi_smartcard_only_checkbox->column = 0;
+            if (!cert_smartcard_certs_only(CERT_ENFORCED))
+            {
+                capid->capi_smartcard_only_checkbox = ctrl_checkbox(s, "Only Smart Card",
+                    NO_SHORTCUT, HELPCTX(no_help), capi_event_handler, P(capid));
+                capid->capi_smartcard_only_checkbox->column = 0;
+            }
 
-			capid->capi_no_expired_checkbox = ctrl_checkbox(s, "Not Expired",
-				NO_SHORTCUT, HELPCTX(no_help), capi_event_handler, P(capid));
-			capid->capi_no_expired_checkbox->column = 2;
+            if (!cert_ignore_expired_certs(CERT_ENFORCED))
+            {
+                capid->capi_no_expired_checkbox = ctrl_checkbox(s, "Not Expired",
+                    NO_SHORTCUT, HELPCTX(no_help), capi_event_handler, P(capid));
+                capid->capi_no_expired_checkbox->column = 2;
+            }
 
 			// selection for other options filter
 			s = ctrl_getset(b, "Connection/SSH/Certificate/CAPI Tools", "other_params", "Other options");
