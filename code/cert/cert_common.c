@@ -855,7 +855,7 @@ LPBYTE cert_get_hash(LPCSTR szAlgo, LPCBYTE pDataToHash, DWORD iDataToHashSize, 
 	return pHashData;
 }
 
-PVOID cert_pin(LPSTR szCert, BOOL bUnicode, LPVOID szPin)
+PVOID cert_pin(LPSTR szCert, BOOL bWide, LPVOID szPin)
 {
 	typedef struct CACHE_ITEM
 	{
@@ -863,7 +863,7 @@ PVOID cert_pin(LPSTR szCert, BOOL bUnicode, LPVOID szPin)
 		LPSTR szCert;
 		VOID* szPin;
 		DWORD iLength;
-		BOOL bUnicode;
+		BOOL bWide;
 		DWORD iSize;
 	}
 	CACHE_ITEM;
@@ -873,7 +873,7 @@ PVOID cert_pin(LPSTR szCert, BOOL bUnicode, LPVOID szPin)
 	// attempt to locate the item in the pin cache
 	for (CACHE_ITEM* hCurItem = PinCacheList; hCurItem != NULL; hCurItem = hCurItem->NextItem)
 	{
-		if (strcmp(hCurItem->szCert, szCert) == 0)
+		if (strcmp(hCurItem->szCert, szCert) == 0 && hCurItem->bWide == bWide)
 		{
 			VOID* pEncrypted = memcpy(malloc(hCurItem->iLength), hCurItem->szPin, hCurItem->iLength);
 			CryptUnprotectMemory(pEncrypted, hCurItem->iLength, CRYPTPROTECTMEMORY_SAME_PROCESS);
@@ -885,9 +885,9 @@ PVOID cert_pin(LPSTR szCert, BOOL bUnicode, LPVOID szPin)
 	if (szPin != NULL)
 	{
 		// determine length of storage (round up to block size)
-		DWORD iLength = ((bUnicode) ? sizeof(WCHAR) : sizeof(CHAR)) *
-			(1 + ((bUnicode) ? wcslen(szPin) : strlen(szPin)));
-		DWORD iCryptLength = CRYPTPROTECTMEMORY_BLOCK_SIZE *
+		const DWORD iLength = ((bWide) ? sizeof(WCHAR) : sizeof(CHAR)) *
+			(1 + ((bWide) ? wcslen(szPin) : strlen(szPin)));
+		const DWORD iCryptLength = CRYPTPROTECTMEMORY_BLOCK_SIZE *
 			((iLength / CRYPTPROTECTMEMORY_BLOCK_SIZE) + 1);
 		VOID* pEncrypted = memcpy(malloc(iCryptLength), szPin, iLength);
 
@@ -900,9 +900,10 @@ PVOID cert_pin(LPSTR szCert, BOOL bUnicode, LPVOID szPin)
 		hItem->szCert = _strdup(szCert);
 		hItem->szPin = pEncrypted;
 		hItem->iLength = iCryptLength;
-		hItem->bUnicode = bUnicode;
+		hItem->bWide = bWide;
 		hItem->NextItem = PinCacheList;
 		PinCacheList = hItem;
+		MessageBoxW(NULL, L"Added PIN To Cache!", L"Message", MB_OK);
 		return NULL;
 	}
 
@@ -922,15 +923,17 @@ PVOID cert_pin(LPSTR szCert, BOOL bUnicode, LPVOID szPin)
 	}
 
 	PVOID szReturn = NULL;
-	if (bUnicode)
+	if (bWide)
 	{
 		szReturn = _wcsdup(szPassword);
 	}
 	else
 	{
-		CHAR szPasswordAscii[CREDUI_MAX_PASSWORD_LENGTH + 1] = "";
-		WideCharToMultiByte(CP_ACP, 0, szPassword, -1, szPasswordAscii, sizeof(szPasswordAscii), NULL, NULL);
-		szReturn = _strdup(szPasswordAscii);
+		CHAR szPasswordUtf8[CREDUI_MAX_PASSWORD_LENGTH + 1] = "";
+		if (WideCharToMultiByte(CP_UTF8, 0, szPassword, -1, szPasswordUtf8, sizeof(szPasswordUtf8), NULL, NULL) > 0)
+		{
+			szReturn = _strdup(szPasswordUtf8);
+		}
 	}
 
 	SecureZeroMemory(szPassword, sizeof(szPassword));

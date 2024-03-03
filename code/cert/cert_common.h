@@ -62,6 +62,7 @@ EXTERN VOID cert_display_cert(LPCSTR szCert, HWND hWnd);
 EXTERN int cert_all_certs(LPSTR ** pszCert);
 EXTERN VOID cert_convert_legacy(LPSTR szCert);
 EXTERN LPBYTE cert_get_hash(LPCSTR szAlgo, LPCBYTE pDataToHash, DWORD iDataToHashSize, DWORD * iHashedDataSize, BOOL bPrependDigest);
+EXTERN PVOID cert_pin(LPSTR szCert, BOOL bWide, LPVOID szPin);
 EXTERN BOOL cert_capi_delete_key(LPCSTR szCert);
 EXTERN BOOL fido_create_key(LPCSTR szAlgName, LPCSTR szDisplayName, LPCSTR szApplication, BOOL bResidentKey, BOOL bUserVerification);
 EXTERN BOOL fido_delete_key(LPCSTR szCert);
