@@ -24,7 +24,7 @@ void cert_capi_load_cert(LPCSTR szCert, PCCERT_CONTEXT* ppCertCtx, HCERTSTORE* p
 		return;
 	}
 
-	// more forward in the cert string to just have the cert hash
+	// move forward in the cert string to just have the cert hash
 	LPCSTR szThumb = &szCert[IDEN_CAPI_SIZE];
 
 	// convert the sha1 string from hex to binary 
