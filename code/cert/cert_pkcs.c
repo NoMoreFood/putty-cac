@@ -207,7 +207,7 @@ BYTE * cert_pkcs_sign(struct ssh2_userkey * userkey, LPCBYTE pDataToSign, int iD
 		}
 
 		// login to the card to unlock the private key
-		if (pFunctionList->C_Login(hSession, CKU_USER, (CK_UTF8CHAR_PTR)szPin, strlen(szPin)) != CKR_OK)
+		if (pFunctionList->C_Login(hSession, CKU_USER, (CK_UTF8CHAR_PTR)szPin, _mbstrlen(szPin)) != CKR_OK)
 		{
 			// error
 			SecureZeroMemory(szPin, strlen(szPin));
@@ -217,8 +217,13 @@ BYTE * cert_pkcs_sign(struct ssh2_userkey * userkey, LPCBYTE pDataToSign, int iD
 			return NULL;
 		}
 
+		// add to pin cache if enabled
+		if (cert_cache_enabled(CERT_QUERY))
+		{
+			cert_pin(userkey->comment, FALSE, szPin);
+		}
+
 		// cleanup creds
-		cert_pin(userkey->comment, FALSE, szPin);
 		SecureZeroMemory(szPin, strlen(szPin));
 		free(szPin);
 
@@ -432,6 +437,10 @@ HCERTSTORE cert_pkcs_get_cert_store()
 	CK_FUNCTION_LIST_PTR pFunctionList = cert_pkcs_load_library(tFileNameInfo.lpstrFile);
 	if (pFunctionList == NULL) return NULL;
 
+	// workaround for opensc behavior to force detection
+	CK_ULONG iSlotCountTmp = 0;
+	pFunctionList->C_GetSlotList(CK_TRUE, NULL, &iSlotCountTmp);
+
 	// get slots -- assume a safe maximum
 	CK_SLOT_ID pSlotList[32];
 	CK_ULONG iSlotCount = _countof(pSlotList);
@@ -593,6 +602,10 @@ void pkcs_lookup_token_cert(LPCSTR szCert, CK_SESSION_HANDLE_PTR phSession, CK_O
 		CryptStringToBinary(&szCert[IDEN_PKCS_SIZE], SHA1_HEX_SIZE, CRYPT_STRING_HEXRAW,
 			cryptHashBlob.pbData, &cryptHashBlob.cbData, NULL, NULL);
 	}
+
+	// workaround for opensc behavior to force detection
+	CK_ULONG iSlotCountTmp = 32;
+	pFunctionList->C_GetSlotList(CK_TRUE, NULL, &iSlotCountTmp);
 
 	// get slots -- assume a safe maximum
 	CK_SLOT_ID pSlotList[32];
