@@ -903,7 +903,6 @@ PVOID cert_pin(LPSTR szCert, BOOL bWide, LPVOID szPin)
 		hItem->bWide = bWide;
 		hItem->NextItem = PinCacheList;
 		PinCacheList = hItem;
-		MessageBoxW(NULL, L"Added PIN To Cache!", L"Message", MB_OK);
 		return NULL;
 	}
 
