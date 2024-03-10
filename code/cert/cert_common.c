@@ -912,6 +912,7 @@ PVOID cert_pin(LPSTR szCert, BOOL bWide, LPVOID szPin)
 	tCredInfo.cbSize = sizeof(tCredInfo);
 	tCredInfo.pszCaptionText = L"PuTTY Authentication";
 	tCredInfo.pszMessageText = L"Please Enter Your Smart Card Credentials";
+	tCredInfo.hwndParent = GetDesktopWindow();
 	WCHAR szUserName[CREDUI_MAX_USERNAME_LENGTH + 1] = L"<Using Smart Card>";
 	WCHAR szPassword[CREDUI_MAX_PASSWORD_LENGTH + 1] = L"";
 	if (CredUIPromptForCredentialsW(&tCredInfo, L"Smart Card", NULL, 0, szUserName,
