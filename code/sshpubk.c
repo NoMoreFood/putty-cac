@@ -1960,7 +1960,6 @@ int key_type_s(BinarySource *src)
 int key_type(const Filename *filename)
 {
 #ifdef PUTTY_CAC
-	cert_convert_legacy(filename->path);
 	if (cert_is_certpath(filename->path)) {
 		return SSH_KEYTYPE_SSH2;
 	}

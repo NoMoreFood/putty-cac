@@ -707,40 +707,6 @@ int cert_all_certs(LPSTR** pszCert)
 	return (int)iCertNum;
 }
 
-VOID cert_convert_legacy(LPSTR szCert)
-{
-	// sanity check
-	if (szCert == NULL)
-	{
-		return;
-	}
-
-	// advance string pass 'CAPI:' if already present
-	LPSTR sCompare = szCert;
-	if (strstr(szCert, "CAPI:") == szCert)
-	{
-		sCompare = &szCert[IDEN_CAPI_SIZE];
-	}
-
-	// search for 'User\MY\' and replace with 'CAPI:'
-	LPSTR szIdenLegacyUsr = "User\\MY\\";
-	if (strstr(sCompare, szIdenLegacyUsr) == sCompare)
-	{
-		strcpy(szCert, IDEN_CAPI);
-		strcpy(&szCert[IDEN_CAPI_SIZE], &sCompare[strlen(szIdenLegacyUsr)]);
-		_strlwr(&szCert[IDEN_CAPI_SIZE]);
-	}
-
-	// search for 'Machine\MY\' and replace with 'CAPI:'
-	LPSTR szIdenLegacySys = "Machine\\MY\\";
-	if (strstr(sCompare, szIdenLegacySys) == sCompare)
-	{
-		strcpy(szCert, IDEN_CAPI);
-		strcpy(&szCert[IDEN_CAPI_SIZE], &sCompare[strlen(szIdenLegacySys)]);
-		_strlwr(&szCert[IDEN_CAPI_SIZE]);
-	}
-}
-
 LPBYTE cert_get_hash(LPCSTR szAlgo, LPCBYTE pDataToHash, DWORD iDataToHashSize, DWORD* iHashedDataSize, BOOL bRequestDigest)
 {
 	const BYTE OID_SHA1[] = {
