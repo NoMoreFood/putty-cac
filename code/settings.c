@@ -1076,7 +1076,6 @@ void load_open_settings(settings_r *sesskey, Conf *conf)
 
 	// convert certificate identifiers from old format
 	char * certid = conf_get_str(conf, CONF_cert_fingerprint);
-	cert_convert_legacy(certid);
 	conf_set_str(conf, CONF_cert_fingerprint, certid);
 #endif // PUTTY_CAC
     gppb(sesskey, "BackspaceIsDelete", true, conf, CONF_bksp_is_delete);
