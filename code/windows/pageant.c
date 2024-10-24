@@ -799,6 +799,7 @@ static INT_PTR CALLBACK KeyListProc(HWND hwnd, UINT msg,
             {
                 // replace the comment with the subject name
                 LPSTR subjectname = cert_subject_string(disp->comment->s);
+                if (subjectname == NULL) return 0;
                 TabbedTextOut(di->hDC, di->rcItem.left + r.right + colpos_comment,
                     di->rcItem.top, subjectname, strlen(subjectname), 0, NULL, 0);
                 sfree(subjectname); 
