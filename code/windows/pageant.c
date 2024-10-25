@@ -799,9 +799,12 @@ static INT_PTR CALLBACK KeyListProc(HWND hwnd, UINT msg,
             {
                 // replace the comment with the subject name
                 LPSTR subjectname = cert_subject_string(disp->comment->s);
-                TabbedTextOut(di->hDC, di->rcItem.left + r.right + colpos_comment,
-                    di->rcItem.top, subjectname, strlen(subjectname), 0, NULL, 0);
-                sfree(subjectname); 
+                if (subjectname != NULL)
+                {
+                    TabbedTextOut(di->hDC, di->rcItem.left + r.right + colpos_comment,
+                        di->rcItem.top, subjectname, strlen(subjectname), 0, NULL, 0);
+                    sfree(subjectname);
+                }
             }
             else
 #endif // PUTTY_CAC
