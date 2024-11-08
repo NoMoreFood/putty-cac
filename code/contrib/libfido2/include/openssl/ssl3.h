@@ -1,4 +1,4 @@
-/* $OpenBSD: ssl3.h,v 1.57 2021/09/10 14:49:13 tb Exp $ */
+/* $OpenBSD: ssl3.h,v 1.60 2024/03/02 11:47:41 tb Exp $ */
 /* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
  *
@@ -314,21 +314,7 @@ extern "C" {
 #define TLS1_HB_REQUEST		1
 #define TLS1_HB_RESPONSE	2
 
-#define SSL3_CT_RSA_SIGN			1
-#define SSL3_CT_DSS_SIGN			2
-#define SSL3_CT_RSA_FIXED_DH			3
-#define SSL3_CT_DSS_FIXED_DH			4
-#define SSL3_CT_RSA_EPHEMERAL_DH		5
-#define SSL3_CT_DSS_EPHEMERAL_DH		6
-#define SSL3_CT_FORTEZZA_DMS			20
-/* SSL3_CT_NUMBER is used to size arrays and it must be large
- * enough to contain all of the cert types defined either for
- * SSLv3 and TLSv1.
- */
-#define SSL3_CT_NUMBER			13
-
 #define SSL3_FLAGS_NO_RENEGOTIATE_CIPHERS	0x0001
-#define TLS1_FLAGS_SKIP_CERT_VERIFY		0x0010
 #define TLS1_FLAGS_FREEZE_TRANSCRIPT		0x0020
 #define SSL3_FLAGS_CCS_OK			0x0080
 
