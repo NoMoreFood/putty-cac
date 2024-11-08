@@ -1,4 +1,4 @@
-/* $OpenBSD: rsa.h,v 1.58 2022/07/12 14:42:50 kn Exp $ */
+/* $OpenBSD: rsa.h,v 1.65 2023/07/28 10:05:16 tb Exp $ */
 /* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
  *
@@ -66,11 +66,10 @@
 #ifndef OPENSSL_NO_BIO
 #include <openssl/bio.h>
 #endif
-#include <openssl/crypto.h>
-#include <openssl/ossl_typ.h>
-#ifndef OPENSSL_NO_DEPRECATED
 #include <openssl/bn.h>
-#endif
+#include <openssl/crypto.h>
+
+#include <openssl/ossl_typ.h>
 
 #ifdef OPENSSL_NO_RSA
 #error RSA is disabled.
@@ -226,6 +225,7 @@ typedef struct rsa_oaep_params_st {
 #define RSA_SSLV23_PADDING	2
 #define RSA_NO_PADDING		3
 #define RSA_PKCS1_OAEP_PADDING	4
+/* rust-openssl and erlang expose this and salt even uses it. */
 #define RSA_X931_PADDING	5
 /* EVP_PKEY_ only */
 #define RSA_PKCS1_PSS_PADDING	6
@@ -240,11 +240,12 @@ RSA *RSA_new_method(ENGINE *engine);
 int RSA_bits(const RSA *rsa);
 int RSA_size(const RSA *rsa);
 
-/* Deprecated version */
-#ifndef OPENSSL_NO_DEPRECATED
+/*
+ * Wrapped in OPENSSL_NO_DEPRECATED in 0.9.8. Still used for libressl bindings
+ * in rust-openssl.
+ */
 RSA *RSA_generate_key(int bits, unsigned long e,
     void (*callback)(int, int, void *), void *cb_arg);
-#endif /* !defined(OPENSSL_NO_DEPRECATED) */
 
 /* New version */
 int RSA_generate_key_ex(RSA *rsa, int bits, BIGNUM *e, BN_GENCB *cb);
@@ -320,7 +321,6 @@ int RSA_verify_ASN1_OCTET_STRING(int type, const unsigned char *m,
 
 int RSA_blinding_on(RSA *rsa, BN_CTX *ctx);
 void RSA_blinding_off(RSA *rsa);
-BN_BLINDING *RSA_setup_blinding(RSA *rsa, BN_CTX *ctx);
 
 int RSA_padding_add_PKCS1_type_1(unsigned char *to, int tlen,
     const unsigned char *f, int fl);
@@ -348,11 +348,6 @@ int RSA_padding_add_none(unsigned char *to, int tlen,
     const unsigned char *f, int fl);
 int RSA_padding_check_none(unsigned char *to, int tlen,
     const unsigned char *f, int fl, int rsa_len);
-int RSA_padding_add_X931(unsigned char *to, int tlen,
-    const unsigned char *f, int fl);
-int RSA_padding_check_X931(unsigned char *to, int tlen,
-    const unsigned char *f, int fl, int rsa_len);
-int RSA_X931_hash_id(int nid);
 
 int RSA_verify_PKCS1_PSS(RSA *rsa, const unsigned char *mHash,
     const EVP_MD *Hash, const unsigned char *EM, int sLen);

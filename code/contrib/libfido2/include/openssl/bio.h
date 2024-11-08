@@ -1,4 +1,4 @@
-/* $OpenBSD: bio.h,v 1.56 2022/09/11 17:26:03 tb Exp $ */
+/* $OpenBSD: bio.h,v 1.63 2024/03/02 09:22:41 tb Exp $ */
 /* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
  *
@@ -371,11 +371,6 @@ int BIO_meth_set_callback_ctrl(BIO_METHOD *biom,
 #define BIO_C_RESET_READ_REQUEST		147
 #define BIO_C_SET_MD_CTX			148
 
-#define BIO_C_SET_PREFIX			149
-#define BIO_C_GET_PREFIX			150
-#define BIO_C_SET_SUFFIX			151
-#define BIO_C_GET_SUFFIX			152
-
 #define BIO_C_SET_EX_ARG			153
 #define BIO_C_GET_EX_ARG			154
 
@@ -529,32 +524,16 @@ int BIO_ctrl_reset_read_request(BIO *b);
 /* void BIO_set_ex_free_func(BIO *bio,int idx,void (*cb)()); */
 int BIO_set_ex_data(BIO *bio, int idx, void *data);
 void *BIO_get_ex_data(BIO *bio, int idx);
-int
-BIO_get_ex_new_index(long argl, void *argp, CRYPTO_EX_new *new_func,
-CRYPTO_EX_dup *dup_func, CRYPTO_EX_free *free_func);
+int BIO_get_ex_new_index(long argl, void *argp, CRYPTO_EX_new *new_func,
+    CRYPTO_EX_dup *dup_func, CRYPTO_EX_free *free_func);
 unsigned long BIO_number_read(BIO *bio);
 unsigned long BIO_number_written(BIO *bio);
-
-/* For BIO_f_asn1() */
-int
-BIO_asn1_set_prefix(BIO *b, asn1_ps_func *prefix,
-asn1_ps_func *prefix_free);
-int
-BIO_asn1_get_prefix(BIO *b, asn1_ps_func **pprefix,
-asn1_ps_func **pprefix_free);
-int
-BIO_asn1_set_suffix(BIO *b, asn1_ps_func *suffix,
-asn1_ps_func *suffix_free);
-int
-BIO_asn1_get_suffix(BIO *b, asn1_ps_func **psuffix,
-asn1_ps_func **psuffix_free);
 
 int BIO_get_new_index(void);
 const BIO_METHOD *BIO_s_file(void);
 BIO *BIO_new_file(const char *filename, const char *mode);
 BIO *BIO_new_fp(FILE *stream, int close_flag);
 BIO	*BIO_new(const BIO_METHOD *type);
-int	BIO_set(BIO *a, const BIO_METHOD *type);
 int	BIO_free(BIO *a);
 int	BIO_up_ref(BIO *bio);
 void	*BIO_get_data(BIO *a);
@@ -619,16 +598,10 @@ int BIO_dgram_non_fatal_error(int _error);
 
 int BIO_fd_should_retry(int i);
 int BIO_fd_non_fatal_error(int _error);
-int
-BIO_dump_cb(int (*cb)(const void *data, size_t len, void *u),
-void *u, const char *s, int len);
-int
-BIO_dump_indent_cb(int (*cb)(const void *data, size_t len, void *u),
-void *u, const char *s, int len, int indent);
+
 int BIO_dump(BIO *b, const char *bytes, int len);
 int BIO_dump_indent(BIO *b, const char *bytes, int len, int indent);
-int BIO_dump_fp(FILE *fp, const char *s, int len);
-int BIO_dump_indent_fp(FILE *fp, const char *s, int len, int indent);
+
 struct hostent *BIO_gethostbyname(const char *name);
 /* We might want a thread-safe interface too:
  * struct hostent *BIO_gethostbyname_r(const char *name,
@@ -655,9 +628,8 @@ BIO *BIO_new_fd(int fd, int close_flag);
 BIO *BIO_new_connect(const char *host_port);
 BIO *BIO_new_accept(const char *host_port);
 
-int
-BIO_new_bio_pair(BIO **bio1, size_t writebuf1,
-BIO **bio2, size_t writebuf2);
+int BIO_new_bio_pair(BIO **bio1, size_t writebuf1,
+    BIO **bio2, size_t writebuf2);
 /* If successful, returns 1 and in *bio1, *bio2 two BIO pair endpoints.
  * Otherwise returns 0 and sets *bio1 and *bio2 to NULL.
  * Size 0 uses default value.
@@ -667,36 +639,13 @@ void BIO_copy_next_retry(BIO *b);
 
 /*long BIO_ghbn_ctrl(int cmd,int iarg,char *parg);*/
 
-#ifdef __MINGW_PRINTF_FORMAT
-int
-BIO_printf(BIO *bio, const char *format, ...)
-	__attribute__((__format__(__MINGW_PRINTF_FORMAT, 2, 3), __nonnull__(2)));
-int
-BIO_vprintf(BIO *bio, const char *format, va_list args)
-	__attribute__((__format__(__MINGW_PRINTF_FORMAT, 2, 0), __nonnull__(2)));
-int
-BIO_snprintf(char *buf, size_t n, const char *format, ...)
-	__attribute__((__deprecated__, __format__(__MINGW_PRINTF_FORMAT, 3, 4),
-	    __nonnull__(3)));
-int
-BIO_vsnprintf(char *buf, size_t n, const char *format, va_list args)
-	__attribute__((__deprecated__, __format__(__MINGW_PRINTF_FORMAT, 3, 0),
-	    __nonnull__(3)));
-#else
-int
-BIO_printf(BIO *bio, const char *format, ...)
+/* Needed for libressl-portable. */
+#ifndef __MINGW_PRINTF_FORMAT
+int BIO_printf(BIO *bio, const char *format, ...)
 	__attribute__((__format__(__printf__, 2, 3), __nonnull__(2)));
-int
-BIO_vprintf(BIO *bio, const char *format, va_list args)
-	__attribute__((__format__(__printf__, 2, 0), __nonnull__(2)));
-int
-BIO_snprintf(char *buf, size_t n, const char *format, ...)
-	__attribute__((__deprecated__, __format__(__printf__, 3, 4),
-	    __nonnull__(3)));
-int
-BIO_vsnprintf(char *buf, size_t n, const char *format, va_list args)
-	__attribute__((__deprecated__, __format__(__printf__, 3, 0),
-	    __nonnull__(3)));
+#else
+int BIO_printf(BIO *bio, const char *format, ...)
+	__attribute__((__format__(__MINGW_PRINTF_FORMAT, 2, 3), __nonnull__(2)));
 #endif
 
 void ERR_load_BIO_strings(void);

@@ -1,4 +1,4 @@
-/* $OpenBSD: objects.h,v 1.21 2022/11/13 14:03:13 tb Exp $ */
+/* $OpenBSD: objects.h,v 1.29 2024/03/02 09:51:36 tb Exp $ */
 /* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
  *
@@ -71,15 +71,9 @@
 #define	OBJ_NAME_TYPE_UNDEF		0x00
 #define	OBJ_NAME_TYPE_MD_METH		0x01
 #define	OBJ_NAME_TYPE_CIPHER_METH	0x02
-#define	OBJ_NAME_TYPE_PKEY_METH		0x03
-#define	OBJ_NAME_TYPE_COMP_METH		0x04
-#define	OBJ_NAME_TYPE_NUM		0x05
+#define	OBJ_NAME_TYPE_NUM		0x03
 
 #define	OBJ_NAME_ALIAS			0x8000
-
-#define OBJ_BSEARCH_VALUE_ON_NOMATCH		0x01
-#define OBJ_BSEARCH_FIRST_VALUE_ON_MATCH	0x02
-
 
 #ifdef  __cplusplus
 extern "C" {
@@ -89,20 +83,9 @@ typedef struct obj_name_st {
 	int type;
 	int alias;
 	const char *name;
-	const char *data;
+	const void *data;
 } OBJ_NAME;
 
-#define		OBJ_create_and_add_object(a,b,c) OBJ_create(a,b,c)
-
-
-int OBJ_NAME_init(void);
-int OBJ_NAME_new_index(unsigned long (*hash_func)(const char *),
-    int (*cmp_func)(const char *, const char *),
-    void (*free_func)(const char *, int, const char *));
-const char *OBJ_NAME_get(const char *name, int type);
-int OBJ_NAME_add(const char *name, int type, const char *data);
-int OBJ_NAME_remove(const char *name, int type);
-void OBJ_NAME_cleanup(int type); /* -1 for everything */
 void OBJ_NAME_do_all(int type, void (*fn)(const OBJ_NAME *, void *arg),
     void *arg);
 void OBJ_NAME_do_all_sorted(int type, void (*fn)(const OBJ_NAME *, void *arg),
@@ -120,16 +103,7 @@ int		OBJ_ln2nid(const char *s);
 int		OBJ_sn2nid(const char *s);
 int		OBJ_cmp(const ASN1_OBJECT *a, const ASN1_OBJECT *b);
 
-#if defined(LIBRESSL_INTERNAL)
-const void *	OBJ_bsearch_(const void *key, const void *base, int num,
-		    int size, int (*cmp)(const void *, const void *));
-const void *	OBJ_bsearch_ex_(const void *key, const void *base, int num,
-		    int size, int (*cmp)(const void *, const void *),
-		    int flags);
-#endif
-
 int		OBJ_new_nid(int num);
-int		OBJ_add_object(const ASN1_OBJECT *obj);
 int		OBJ_create(const char *oid, const char *sn, const char *ln);
 void		OBJ_cleanup(void);
 int		OBJ_create_objects(BIO *in);
@@ -139,13 +113,6 @@ const unsigned char *OBJ_get0_data(const ASN1_OBJECT *obj);
 
 int OBJ_find_sigid_algs(int signid, int *pdig_nid, int *ppkey_nid);
 int OBJ_find_sigid_by_algs(int *psignid, int dig_nid, int pkey_nid);
-int OBJ_add_sigid(int signid, int dig_id, int pkey_id);
-void OBJ_sigid_free(void);
-
-#if defined(LIBRESSL_CRYPTO_INTERNAL)
-extern int obj_cleanup_defer;
-void check_defer(int nid);
-#endif
 
 void ERR_load_OBJ_strings(void);
 

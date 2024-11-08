@@ -1,4 +1,4 @@
-/* $OpenBSD: x509v3.h,v 1.16 2022/11/07 19:42:24 schwarze Exp $ */
+/* $OpenBSD: x509v3.h,v 1.29 2024/03/02 10:43:52 tb Exp $ */
 /* Written by Dr Stephen N Henson (steve@openssl.org) for the OpenSSL
  * project 1999.
  */
@@ -95,49 +95,49 @@ typedef void * (*X509V3_EXT_R2I)(const struct v3_ext_method *method,
 /* V3 extension structure */
 
 struct v3_ext_method {
-int ext_nid;
-int ext_flags;
-/* If this is set the following four fields are ignored */
-ASN1_ITEM_EXP *it;
-/* Old style ASN1 calls */
-X509V3_EXT_NEW ext_new;
-X509V3_EXT_FREE ext_free;
-X509V3_EXT_D2I d2i;
-X509V3_EXT_I2D i2d;
+	int ext_nid;
+	int ext_flags;
+	/* If this is set the following four fields are ignored */
+	ASN1_ITEM_EXP *it;
+	/* Old style ASN1 calls */
+	X509V3_EXT_NEW ext_new;
+	X509V3_EXT_FREE ext_free;
+	X509V3_EXT_D2I d2i;
+	X509V3_EXT_I2D i2d;
 
-/* The following pair is used for string extensions */
-X509V3_EXT_I2S i2s;
-X509V3_EXT_S2I s2i;
+	/* The following pair is used for string extensions */
+	X509V3_EXT_I2S i2s;
+	X509V3_EXT_S2I s2i;
 
-/* The following pair is used for multi-valued extensions */
-X509V3_EXT_I2V i2v;
-X509V3_EXT_V2I v2i;
+	/* The following pair is used for multi-valued extensions */
+	X509V3_EXT_I2V i2v;
+	X509V3_EXT_V2I v2i;
 
-/* The following are used for raw extensions */
-X509V3_EXT_I2R i2r;
-X509V3_EXT_R2I r2i;
+	/* The following are used for raw extensions */
+	X509V3_EXT_I2R i2r;
+	X509V3_EXT_R2I r2i;
 
-void *usr_data;	/* Any extension specific data */
+	void *usr_data;	/* Any extension specific data */
 };
 
 typedef struct X509V3_CONF_METHOD_st {
-char *(*get_string)(void *db, const char *section, const char *value);
-STACK_OF(CONF_VALUE) *(*get_section)(void *db, const char *section);
-void (*free_string)(void *db, char *string);
-void (*free_section)(void *db, STACK_OF(CONF_VALUE) *section);
+	char *(*get_string)(void *db, const char *section, const char *value);
+	STACK_OF(CONF_VALUE) *(*get_section)(void *db, const char *section);
+	void (*free_string)(void *db, char *string);
+	void (*free_section)(void *db, STACK_OF(CONF_VALUE) *section);
 } X509V3_CONF_METHOD;
 
 /* Context specific info */
 struct v3_ext_ctx {
-#define CTX_TEST 0x1
-int flags;
-X509 *issuer_cert;
-X509 *subject_cert;
-X509_REQ *subject_req;
-X509_CRL *crl;
-X509V3_CONF_METHOD *db_meth;
-void *db;
-/* Maybe more here */
+	#define CTX_TEST 0x1
+	int flags;
+	X509 *issuer_cert;
+	X509 *subject_cert;
+	X509_REQ *subject_req;
+	X509_CRL *crl;
+	X509V3_CONF_METHOD *db_meth;
+	void *db;
+	/* Maybe more here */
 };
 
 typedef struct v3_ext_method X509V3_EXT_METHOD;
@@ -152,19 +152,19 @@ DECLARE_STACK_OF(X509V3_EXT_METHOD)
 typedef BIT_STRING_BITNAME ENUMERATED_NAMES;
 
 typedef struct BASIC_CONSTRAINTS_st {
-int ca;
-ASN1_INTEGER *pathlen;
+	int ca;
+	ASN1_INTEGER *pathlen;
 } BASIC_CONSTRAINTS;
 
 
 typedef struct PKEY_USAGE_PERIOD_st {
-ASN1_GENERALIZEDTIME *notBefore;
-ASN1_GENERALIZEDTIME *notAfter;
+	ASN1_GENERALIZEDTIME *notBefore;
+	ASN1_GENERALIZEDTIME *notAfter;
 } PKEY_USAGE_PERIOD;
 
 typedef struct otherName_st {
-ASN1_OBJECT *type_id;
-ASN1_TYPE *value;
+	ASN1_OBJECT *type_id;
+	ASN1_TYPE *value;
 } OTHERNAME;
 
 typedef struct EDIPartyName_st {
@@ -174,36 +174,35 @@ typedef struct EDIPartyName_st {
 
 typedef struct GENERAL_NAME_st {
 
-#define GEN_OTHERNAME	0
-#define GEN_EMAIL	1
-#define GEN_DNS		2
-#define GEN_X400	3
-#define GEN_DIRNAME	4
-#define GEN_EDIPARTY	5
-#define GEN_URI		6
-#define GEN_IPADD	7
-#define GEN_RID		8
+	#define GEN_OTHERNAME	0
+	#define GEN_EMAIL	1
+	#define GEN_DNS		2
+	#define GEN_X400	3
+	#define GEN_DIRNAME	4
+	#define GEN_EDIPARTY	5
+	#define GEN_URI		6
+	#define GEN_IPADD	7
+	#define GEN_RID		8
 
-int type;
-union {
-	char *ptr;
-	OTHERNAME *otherName; /* otherName */
-	ASN1_IA5STRING *rfc822Name;
-	ASN1_IA5STRING *dNSName;
-	ASN1_TYPE *x400Address;
-	X509_NAME *directoryName;
-	EDIPARTYNAME *ediPartyName;
-	ASN1_IA5STRING *uniformResourceIdentifier;
-	ASN1_OCTET_STRING *iPAddress;
-	ASN1_OBJECT *registeredID;
+	int type;
+	union {
+		char *ptr;
+		OTHERNAME *otherName; /* otherName */
+		ASN1_IA5STRING *rfc822Name;
+		ASN1_IA5STRING *dNSName;
+		ASN1_STRING *x400Address;
+		X509_NAME *directoryName;
+		EDIPARTYNAME *ediPartyName;
+		ASN1_IA5STRING *uniformResourceIdentifier;
+		ASN1_OCTET_STRING *iPAddress;
+		ASN1_OBJECT *registeredID;
 
-	/* Old names */
-	ASN1_OCTET_STRING *ip; /* iPAddress */
-	X509_NAME *dirn;		/* dirn */
-	ASN1_IA5STRING *ia5;/* rfc822Name, dNSName, uniformResourceIdentifier */
-	ASN1_OBJECT *rid; /* registeredID */
-	ASN1_TYPE *other; /* x400Address */
-} d;
+		/* Old names */
+		ASN1_OCTET_STRING *ip; /* iPAddress */
+		X509_NAME *dirn;		/* dirn */
+		ASN1_IA5STRING *ia5; /* rfc822Name, dNSName, uniformResourceIdentifier */
+		ASN1_OBJECT *rid; /* registeredID */
+	} d;
 } GENERAL_NAME;
 
 typedef struct ACCESS_DESCRIPTION_st {
@@ -223,13 +222,13 @@ DECLARE_STACK_OF(GENERAL_NAMES)
 DECLARE_STACK_OF(ACCESS_DESCRIPTION)
 
 typedef struct DIST_POINT_NAME_st {
-int type;
-union {
-	GENERAL_NAMES *fullname;
-	STACK_OF(X509_NAME_ENTRY) *relativename;
-} name;
-/* If relativename then this contains the full distribution point name */
-X509_NAME *dpname;
+	int type;
+	union {
+		GENERAL_NAMES *fullname;
+		STACK_OF(X509_NAME_ENTRY) *relativename;
+	} name;
+	/* If relativename then this contains the full distribution point name */
+	X509_NAME *dpname;
 } DIST_POINT_NAME;
 /* All existing reasons */
 #define CRLDP_ALL_REASONS	0x807f
@@ -247,10 +246,10 @@ X509_NAME *dpname;
 #define CRL_REASON_AA_COMPROMISE		10
 
 struct DIST_POINT_st {
-DIST_POINT_NAME	*distpoint;
-ASN1_BIT_STRING *reasons;
-GENERAL_NAMES *CRLissuer;
-int dp_reasons;
+	DIST_POINT_NAME	*distpoint;
+	ASN1_BIT_STRING *reasons;
+	GENERAL_NAMES *CRLissuer;
+	int dp_reasons;
 };
 
 typedef STACK_OF(DIST_POINT) CRL_DIST_POINTS;
@@ -258,24 +257,10 @@ typedef STACK_OF(DIST_POINT) CRL_DIST_POINTS;
 DECLARE_STACK_OF(DIST_POINT)
 
 struct AUTHORITY_KEYID_st {
-ASN1_OCTET_STRING *keyid;
-GENERAL_NAMES *issuer;
-ASN1_INTEGER *serial;
+	ASN1_OCTET_STRING *keyid;
+	GENERAL_NAMES *issuer;
+	ASN1_INTEGER *serial;
 };
-
-/* Strong extranet structures */
-
-typedef struct SXNET_ID_st {
-	ASN1_INTEGER *zone;
-	ASN1_OCTET_STRING *user;
-} SXNETID;
-
-DECLARE_STACK_OF(SXNETID)
-
-typedef struct SXNET_st {
-	ASN1_INTEGER *version;
-	STACK_OF(SXNETID) *ids;
-} SXNET;
 
 typedef struct NOTICEREF_st {
 	ASN1_STRING *organization;
@@ -333,28 +318,6 @@ typedef struct POLICY_CONSTRAINTS_st {
 	ASN1_INTEGER *requireExplicitPolicy;
 	ASN1_INTEGER *inhibitPolicyMapping;
 } POLICY_CONSTRAINTS;
-
-/* Proxy certificate structures, see RFC 3820 */
-typedef struct PROXY_POLICY_st {
-	ASN1_OBJECT *policyLanguage;
-	ASN1_OCTET_STRING *policy;
-} PROXY_POLICY;
-
-typedef struct PROXY_CERT_INFO_EXTENSION_st {
-	ASN1_INTEGER *pcPathLengthConstraint;
-	PROXY_POLICY *proxyPolicy;
-} PROXY_CERT_INFO_EXTENSION;
-
-PROXY_POLICY *PROXY_POLICY_new(void);
-void PROXY_POLICY_free(PROXY_POLICY *a);
-PROXY_POLICY *d2i_PROXY_POLICY(PROXY_POLICY **a, const unsigned char **in, long len);
-int i2d_PROXY_POLICY(PROXY_POLICY *a, unsigned char **out);
-extern const ASN1_ITEM PROXY_POLICY_it;
-PROXY_CERT_INFO_EXTENSION *PROXY_CERT_INFO_EXTENSION_new(void);
-void PROXY_CERT_INFO_EXTENSION_free(PROXY_CERT_INFO_EXTENSION *a);
-PROXY_CERT_INFO_EXTENSION *d2i_PROXY_CERT_INFO_EXTENSION(PROXY_CERT_INFO_EXTENSION **a, const unsigned char **in, long len);
-int i2d_PROXY_CERT_INFO_EXTENSION(PROXY_CERT_INFO_EXTENSION *a, unsigned char **out);
-extern const ASN1_ITEM PROXY_CERT_INFO_EXTENSION_it;
 
 struct ISSUING_DIST_POINT_st {
 	DIST_POINT_NAME *distpoint;
@@ -420,7 +383,9 @@ struct ISSUING_DIST_POINT_st {
 #define EXFLAG_INVALID		0x0080
 #define EXFLAG_SET		0x0100
 #define EXFLAG_CRITICAL		0x0200
+#if !defined(LIBRESSL_INTERNAL)
 #define EXFLAG_PROXY		0x0400
+#endif
 #define EXFLAG_INVALID_POLICY	0x0800
 #define EXFLAG_FRESHEST		0x1000
 #define EXFLAG_SS               0x2000	/* Self signed. */
@@ -457,16 +422,7 @@ struct ISSUING_DIST_POINT_st {
 #define X509_PURPOSE_DYNAMIC	0x1
 #define X509_PURPOSE_DYNAMIC_NAME	0x2
 
-typedef struct x509_purpose_st {
-	int purpose;
-	int trust;		/* Default trust ID */
-	int flags;
-	int (*check_purpose)(const struct x509_purpose_st *,
-				const X509 *, int);
-	char *name;
-	char *sname;
-	void *usr_data;
-} X509_PURPOSE;
+typedef struct x509_purpose_st X509_PURPOSE;
 
 #define X509_PURPOSE_SSL_CLIENT		1
 #define X509_PURPOSE_SSL_SERVER		2
@@ -511,28 +467,6 @@ void BASIC_CONSTRAINTS_free(BASIC_CONSTRAINTS *a);
 BASIC_CONSTRAINTS *d2i_BASIC_CONSTRAINTS(BASIC_CONSTRAINTS **a, const unsigned char **in, long len);
 int i2d_BASIC_CONSTRAINTS(BASIC_CONSTRAINTS *a, unsigned char **out);
 extern const ASN1_ITEM BASIC_CONSTRAINTS_it;
-
-SXNET *SXNET_new(void);
-void SXNET_free(SXNET *a);
-SXNET *d2i_SXNET(SXNET **a, const unsigned char **in, long len);
-int i2d_SXNET(SXNET *a, unsigned char **out);
-extern const ASN1_ITEM SXNET_it;
-SXNETID *SXNETID_new(void);
-void SXNETID_free(SXNETID *a);
-SXNETID *d2i_SXNETID(SXNETID **a, const unsigned char **in, long len);
-int i2d_SXNETID(SXNETID *a, unsigned char **out);
-extern const ASN1_ITEM SXNETID_it;
-
-int SXNET_add_id_asc(SXNET **psx, const char *zone, const char *user,
-    int userlen);
-int SXNET_add_id_ulong(SXNET **psx, unsigned long lzone, const char *user,
-    int userlen);
-int SXNET_add_id_INTEGER(SXNET **psx, ASN1_INTEGER *izone, const char *user,
-    int userlen);
-
-ASN1_OCTET_STRING *SXNET_get_id_asc(SXNET *sx, const char *zone);
-ASN1_OCTET_STRING *SXNET_get_id_ulong(SXNET *sx, unsigned long lzone);
-ASN1_OCTET_STRING *SXNET_get_id_INTEGER(SXNET *sx, ASN1_INTEGER *zone);
 
 AUTHORITY_KEYID *AUTHORITY_KEYID_new(void);
 void AUTHORITY_KEYID_free(AUTHORITY_KEYID *a);
@@ -750,10 +684,6 @@ ASN1_INTEGER *s2i_ASN1_INTEGER(X509V3_EXT_METHOD *meth, const char *value);
 char *i2s_ASN1_ENUMERATED(X509V3_EXT_METHOD *meth, const ASN1_ENUMERATED *aint);
 char *i2s_ASN1_ENUMERATED_TABLE(X509V3_EXT_METHOD *meth,
     const ASN1_ENUMERATED *aint);
-int X509V3_EXT_add(X509V3_EXT_METHOD *ext);
-int X509V3_EXT_add_list(X509V3_EXT_METHOD *extlist);
-int X509V3_EXT_add_alias(int nid_to, int nid_from);
-void X509V3_EXT_cleanup(void);
 
 const X509V3_EXT_METHOD *X509V3_EXT_get(X509_EXTENSION *ext);
 const X509V3_EXT_METHOD *X509V3_EXT_get_nid(int nid);
@@ -781,20 +711,14 @@ int X509V3_extensions_print(BIO *out, const char *title,
 int X509_check_ca(X509 *x);
 int X509_check_purpose(X509 *x, int id, int ca);
 int X509_supported_extension(X509_EXTENSION *ex);
-int X509_PURPOSE_set(int *p, int purpose);
 int X509_check_issued(X509 *issuer, X509 *subject);
 int X509_check_akid(X509 *issuer, AUTHORITY_KEYID *akid);
+
 int X509_PURPOSE_get_count(void);
-X509_PURPOSE * X509_PURPOSE_get0(int idx);
+const X509_PURPOSE *X509_PURPOSE_get0(int idx);
 int X509_PURPOSE_get_by_sname(const char *sname);
-int X509_PURPOSE_get_by_id(int id);
-int X509_PURPOSE_add(int id, int trust, int flags,
-			int (*ck)(const X509_PURPOSE *, const X509 *, int),
-			const char *name, const char *sname, void *arg);
-char *X509_PURPOSE_get0_name(const X509_PURPOSE *xp);
-char *X509_PURPOSE_get0_sname(const X509_PURPOSE *xp);
-int X509_PURPOSE_get_trust(const X509_PURPOSE *xp);
-void X509_PURPOSE_cleanup(void);
+const char *X509_PURPOSE_get0_name(const X509_PURPOSE *xp);
+const char *X509_PURPOSE_get0_sname(const X509_PURPOSE *xp);
 int X509_PURPOSE_get_id(const X509_PURPOSE *);
 uint32_t X509_get_extension_flags(X509 *x);
 uint32_t X509_get_key_usage(X509 *x);
@@ -839,9 +763,6 @@ ASN1_OCTET_STRING *a2i_IPADDRESS_NC(const char *ipasc);
 int a2i_ipadd(unsigned char *ipout, const char *ipasc);
 int X509V3_NAME_from_section(X509_NAME *nm, STACK_OF(CONF_VALUE)*dn_sk,
 						unsigned long chtype);
-
-void X509_POLICY_NODE_print(BIO *out, X509_POLICY_NODE *node, int indent);
-DECLARE_STACK_OF(X509_POLICY_NODE)
 
 #ifndef OPENSSL_NO_RFC3779
 typedef struct ASRange_st {
