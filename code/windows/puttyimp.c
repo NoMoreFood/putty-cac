@@ -13,7 +13,7 @@
 #include <fido/credman.h>
 
 #pragma comment(lib,"setupapi.lib")
-#pragma comment(lib,"crypto-50.lib")
+#pragma comment(lib,"crypto.lib")
 #pragma comment(lib,"fido2.lib")
 #pragma comment(lib,"cbor.lib")
 #pragma comment(lib,"bcrypt.lib")
@@ -21,6 +21,7 @@
 #pragma comment(lib,"Hid.lib")
 #pragma comment(lib,"ws2_32.lib")
 #pragma comment(lib,"credui.lib")
+#pragma comment(lib,"advapi32.lib")
 
 // preliminary support
 #ifndef COSE_ES384

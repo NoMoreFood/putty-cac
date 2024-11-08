@@ -1,4 +1,4 @@
-/* $OpenBSD: err.h,v 1.28 2022/08/29 06:49:24 jsing Exp $ */
+/* $OpenBSD: err.h,v 1.33 2024/03/02 10:32:26 tb Exp $ */
 /* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
  *
@@ -143,16 +143,6 @@ extern "C" {
 #define ERR_FLAG_MARK		0x01
 
 #define ERR_NUM_ERRORS	16
-typedef struct err_state_st {
-	CRYPTO_THREADID tid;
-	int err_flags[ERR_NUM_ERRORS];
-	unsigned long err_buffer[ERR_NUM_ERRORS];
-	char *err_data[ERR_NUM_ERRORS];
-	int err_data_flags[ERR_NUM_ERRORS];
-	const char *err_file[ERR_NUM_ERRORS];
-	int err_line[ERR_NUM_ERRORS];
-	int top, bottom;
-} ERR_STATE;
 
 /* library */
 #define ERR_LIB_NONE		1
@@ -388,37 +378,20 @@ void ERR_asprintf_error_data(char * format, ...);
 void ERR_add_error_data(int num, ...);
 void ERR_add_error_vdata(int num, va_list args);
 #endif
-void ERR_load_strings(int lib, ERR_STRING_DATA str[]);
-void ERR_unload_strings(int lib, ERR_STRING_DATA str[]);
+void ERR_load_strings(int lib, ERR_STRING_DATA *str);
+void ERR_unload_strings(int lib, ERR_STRING_DATA *str);
 void ERR_load_ERR_strings(void);
 void ERR_load_crypto_strings(void);
 void ERR_free_strings(void);
 
 void ERR_remove_thread_state(const CRYPTO_THREADID *tid);
-#ifndef OPENSSL_NO_DEPRECATED
-void ERR_remove_state(unsigned long pid); /* if zero we look it up */
-#endif
-ERR_STATE *ERR_get_state(void);
-
-#ifndef OPENSSL_NO_LHASH
-LHASH_OF(ERR_STRING_DATA) *ERR_get_string_table(void);
-LHASH_OF(ERR_STATE) *ERR_get_err_state_table(void);
-void ERR_release_err_state_table(LHASH_OF(ERR_STATE) **hash);
-#endif
+/* Wrapped in OPENSSL_NO_DEPRECATED in 0.9.8. Still used in 2023. */
+void ERR_remove_state(unsigned long pid);
 
 int ERR_get_next_error_library(void);
 
 int ERR_set_mark(void);
 int ERR_pop_to_mark(void);
-
-/* Already defined in ossl_typ.h */
-/* typedef struct st_ERR_FNS ERR_FNS; */
-/* An application can use this function and provide the return value to loaded
- * modules that should use the application's ERR state/functionality */
-const ERR_FNS *ERR_get_implementation(void);
-/* A loaded module should call this function prior to any ERR operations using
- * the application's "ERR_FNS". */
-int ERR_set_implementation(const ERR_FNS *fns);
 
 #ifdef	__cplusplus
 }

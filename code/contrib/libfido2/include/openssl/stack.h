@@ -1,4 +1,4 @@
-/* $OpenBSD: stack.h,v 1.9 2014/06/12 15:49:30 deraadt Exp $ */
+/* $OpenBSD: stack.h,v 1.11 2024/03/02 11:20:36 tb Exp $ */
 /* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
  *
@@ -63,14 +63,7 @@
 extern "C" {
 #endif
 
-typedef struct stack_st {
-	int num;
-	char **data;
-	int sorted;
-
-	int num_alloc;
-	int (*comp)(const void *, const void *);
-} _STACK;  /* Use STACK_OF(...) instead */
+typedef struct stack_st _STACK;
 
 #define M_sk_num(sk)		((sk) ? (sk)->num:-1)
 #define M_sk_value(sk,n)	((sk) ? (sk)->data[n] : NULL)
@@ -88,7 +81,6 @@ int sk_insert(_STACK *sk, void *data, int where);
 void *sk_delete(_STACK *st, int loc);
 void *sk_delete_ptr(_STACK *st, void *p);
 int sk_find(_STACK *st, void *data);
-int sk_find_ex(_STACK *st, void *data);
 int sk_push(_STACK *st, void *data);
 int sk_unshift(_STACK *st, void *data);
 void *sk_shift(_STACK *st);
