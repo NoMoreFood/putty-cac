@@ -74,6 +74,7 @@
 <li><a href="#config-features-charset">4.6.9 Disabling remote character set configuration</a></li>
 <li><a href="#config-features-shaping">4.6.10 Disabling Arabic text shaping</a></li>
 <li><a href="#config-features-bidi">4.6.11 Disabling bidirectional text display</a></li>
+<li><a href="#config-features-bracketedpaste">4.6.12 Disabling bracketed paste mode</a></li>
 </ul></li>
 <li><a href="#config-window">4.7 The Window panel</a>
 <ul>
@@ -886,17 +887,30 @@ If you are using full-screen software which was not expecting this to happen (es
 <p>
 You may also find you need to disable Arabic text shaping; see <a href="#config-features-shaping">section 4.6.10</a>.
 </p>
+<h3><a name="config-features-bracketedpaste"></a><a name="S4.6.12"></a>4.6.12 Disabling <a name="i116"></a>bracketed paste mode</h3>
+<p>
+By default, when you paste text into the terminal window, it's sent to the server as terminal input, exactly as if you'd typed the same text into the terminal window using the keyboard (except that it's all sent at once, much faster than you could type it).
+</p>
+<p>
+However, a terminal application can change that, by asking the terminal to enable &#8216;bracketed paste mode&#8217;. In this mode, pasted data is marked in the input stream, by sending a special control sequence before the paste, and another one at the end.
+</p>
+<p>
+A terminal application can use this information to treat pasted data differently from keyboard input. For example, a terminal-based text editor can treat the input as literal data, even if some of its characters would normally trigger special editor functions. A shell can treat pasted input as less trusted, in case another application somehow sneaked a malicious shell command into your clipboard: modern versions of <code>bash</code> will highlight pasted data on the command line, and not run it until you've confirmed it by pressing Return, even if the pasted data contained a newline character.
+</p>
+<p>
+In edge cases, it's possible that bracketed paste mode introduces bigger problems than the ones it solves. So you can use this checkbox to turn it off completely. If you do that, then PuTTY will always send your paste data exactly as if it had been typed at the keyboard, whether or not the server asked for bracketed paste mode.
+</p>
 <h2><a name="config-window"></a><a name="S4.7"></a>4.7 The Window panel</h2>
 <p>
-The Window configuration panel allows you to control aspects of the <a name="i116"></a>PuTTY window.
+The Window configuration panel allows you to control aspects of the <a name="i117"></a>PuTTY window.
 </p>
-<h3><a name="config-winsize"></a><a name="S4.7.1"></a>4.7.1 Setting the <a name="i117"></a>size of the PuTTY window</h3>
+<h3><a name="config-winsize"></a><a name="S4.7.1"></a>4.7.1 Setting the <a name="i118"></a>size of the PuTTY window</h3>
 <p>
-The &#8216;<a name="i118"></a>Columns&#8217; and &#8216;<a name="i119"></a>Rows&#8217; boxes let you set the PuTTY window to a precise size. Of course you can also <a name="i120"></a>drag the window to a new size while a session is running.
+The &#8216;<a name="i119"></a>Columns&#8217; and &#8216;<a name="i120"></a>Rows&#8217; boxes let you set the PuTTY window to a precise size. Of course you can also <a name="i121"></a>drag the window to a new size while a session is running.
 </p>
 <h3><a name="config-winsizelock"></a><a name="S4.7.2"></a>4.7.2 What to do when the window is resized</h3>
 <p>
-These options allow you to control what happens when the user tries to <a name="i121"></a>resize the PuTTY window using its window furniture.
+These options allow you to control what happens when the user tries to <a name="i122"></a>resize the PuTTY window using its window furniture.
 </p>
 <p>
 There are four options here:
@@ -905,21 +919,21 @@ There are four options here:
 &#8216;Change the number of rows and columns&#8217;: the font size will not change. (This is the default.)
 </li>
 <li>
-&#8216;Change the size of the font&#8217;: the number of rows and columns in the terminal will stay the same, and the <a name="i122"></a>font size will change.
+&#8216;Change the size of the font&#8217;: the number of rows and columns in the terminal will stay the same, and the <a name="i123"></a>font size will change.
 </li>
 <li>
-&#8216;Change font size when maximised&#8217;: when the window is resized, the number of rows and columns will change, <em>except</em> when the window is <a name="i123"></a>maximised (or restored), when the font size will change. (In this mode, holding down the Alt key while resizing will also cause the font size to change.)
+&#8216;Change font size when maximised&#8217;: when the window is resized, the number of rows and columns will change, <em>except</em> when the window is <a name="i124"></a>maximised (or restored), when the font size will change. (In this mode, holding down the Alt key while resizing will also cause the font size to change.)
 </li>
 <li>
 &#8216;Forbid resizing completely&#8217;: the terminal will refuse to be resized at all.
 </li>
 </ul>
-<h3><a name="config-scrollback"></a><a name="S4.7.3"></a>4.7.3 Controlling <a name="i124"></a>scrollback</h3>
+<h3><a name="config-scrollback"></a><a name="S4.7.3"></a>4.7.3 Controlling <a name="i125"></a>scrollback</h3>
 <p>
 These options let you configure the way PuTTY keeps text after it scrolls off the top of the screen (see <a href="Chapter3.html#using-scrollback">section 3.1.2</a>).
 </p>
 <p>
-The &#8216;Lines of scrollback&#8217; box lets you configure how many lines of text PuTTY keeps. The &#8216;Display scrollbar&#8217; options allow you to hide the <a name="i125"></a>scrollbar (although you can still view the scrollback using the keyboard as described in <a href="Chapter3.html#using-scrollback">section 3.1.2</a>). You can separately configure whether the scrollbar is shown in <a name="i126"></a>full-screen mode and in normal modes.
+The &#8216;Lines of scrollback&#8217; box lets you configure how many lines of text PuTTY keeps. The &#8216;Display scrollbar&#8217; options allow you to hide the <a name="i126"></a>scrollbar (although you can still view the scrollback using the keyboard as described in <a href="Chapter3.html#using-scrollback">section 3.1.2</a>). You can separately configure whether the scrollbar is shown in <a name="i127"></a>full-screen mode and in normal modes.
 </p>
 <p>
 If you are viewing part of the scrollback when the server sends more text to PuTTY, the screen will revert to showing the current terminal contents. You can disable this behaviour by turning off &#8216;Reset scrollback on display activity&#8217;. You can also make the screen revert when you press a key, by turning on &#8216;Reset scrollback on keypress&#8217;.
@@ -929,37 +943,37 @@ If you are viewing part of the scrollback when the server sends more text to PuT
 When this option is enabled, the contents of the terminal screen will be pushed into the scrollback when a server-side application clears the screen, so that your scrollback will contain a better record of what was on your screen in the past.
 </p>
 <p>
-If the application switches to the <a name="i127"></a>alternate screen (see <a href="#config-features-altscreen">section 4.6.4</a> for more about this), then the contents of the primary screen will be visible in the scrollback until the application switches back again.
+If the application switches to the <a name="i128"></a>alternate screen (see <a href="#config-features-altscreen">section 4.6.4</a> for more about this), then the contents of the primary screen will be visible in the scrollback until the application switches back again.
 </p>
 <p>
 This option is enabled by default.
 </p>
 <h2><a name="config-appearance"></a><a name="S4.8"></a>4.8 The Appearance panel</h2>
 <p>
-The Appearance configuration panel allows you to control aspects of the appearance of <a name="i128"></a>PuTTY's window.
+The Appearance configuration panel allows you to control aspects of the appearance of <a name="i129"></a>PuTTY's window.
 </p>
-<h3><a name="config-cursor"></a><a name="S4.8.1"></a>4.8.1 Controlling the appearance of the <a name="i129"></a>cursor</h3>
+<h3><a name="config-cursor"></a><a name="S4.8.1"></a>4.8.1 Controlling the appearance of the <a name="i130"></a>cursor</h3>
 <p>
 The &#8216;Cursor appearance&#8217; option lets you configure the cursor to be a block, an underline, or a vertical line. A block cursor becomes an empty box when the window loses focus; an underline or a vertical line becomes dotted.
 </p>
 <p>
-The &#8216;<a name="i130"></a>Cursor blinks&#8217; option makes the cursor blink on and off. This works in any of the cursor modes.
+The &#8216;<a name="i131"></a>Cursor blinks&#8217; option makes the cursor blink on and off. This works in any of the cursor modes.
 </p>
-<h3><a name="config-font"></a><a name="S4.8.2"></a>4.8.2 Controlling the <a name="i131"></a>font used in the terminal window</h3>
+<h3><a name="config-font"></a><a name="S4.8.2"></a>4.8.2 Controlling the <a name="i132"></a>font used in the terminal window</h3>
 <p>
-This option allows you to choose what font, in what <a name="i132"></a>size, the PuTTY terminal window uses to display the text in the session.
+This option allows you to choose what font, in what <a name="i133"></a>size, the PuTTY terminal window uses to display the text in the session.
 </p>
 <p>
 By default, you will be offered a choice from all the fixed-width fonts installed on the system, since VT100-style terminal handling expects a fixed-width font. If you tick the box marked &#8216;Allow selection of variable-pitch fonts&#8217;, however, PuTTY will offer variable-width fonts as well: if you select one of these, the font will be coerced into fixed-size character cells, which will probably not look very good (but can work OK with some fonts).
 </p>
-<h3><a name="config-mouseptr"></a><a name="S4.8.3"></a>4.8.3 &#8216;Hide <a name="i133"></a>mouse pointer when typing in window&#8217;</h3>
+<h3><a name="config-mouseptr"></a><a name="S4.8.3"></a>4.8.3 &#8216;Hide <a name="i134"></a>mouse pointer when typing in window&#8217;</h3>
 <p>
 If you enable this option, the mouse pointer will disappear if the PuTTY window is selected and you press a key. This way, it will not obscure any of the text in the window while you work in your session. As soon as you move the mouse, the pointer will reappear.
 </p>
 <p>
 This option is disabled by default, so the mouse pointer remains visible at all times.
 </p>
-<h3><a name="config-winborder"></a><a name="S4.8.4"></a>4.8.4 Controlling the <a name="i134"></a>window border</h3>
+<h3><a name="config-winborder"></a><a name="S4.8.4"></a>4.8.4 Controlling the <a name="i135"></a>window border</h3>
 <p>
 PuTTY allows you to configure the appearance of the window border to some extent.
 </p>
@@ -971,57 +985,57 @@ You can also configure a completely blank gap between the text in the window and
 </p>
 <h2><a name="config-behaviour"></a><a name="S4.9"></a>4.9 The Behaviour panel</h2>
 <p>
-The Behaviour configuration panel allows you to control aspects of the behaviour of <a name="i135"></a>PuTTY's window.
+The Behaviour configuration panel allows you to control aspects of the behaviour of <a name="i136"></a>PuTTY's window.
 </p>
-<h3><a name="config-title"></a><a name="S4.9.1"></a>4.9.1 Controlling the <a name="i136"></a>window title</h3>
+<h3><a name="config-title"></a><a name="S4.9.1"></a>4.9.1 Controlling the <a name="i137"></a>window title</h3>
 <p>
-The &#8216;Window title&#8217; edit box allows you to set the title of the PuTTY window. By default the window title will contain the <a name="i137"></a>host name followed by &#8216;PuTTY&#8217;, for example <code>server1.example.com - PuTTY</code>. If you want a different window title, this is where to set it.
-</p>
-<p>
-PuTTY allows the server to send <code>xterm</code> <a name="i138"></a>control sequences which modify the title of the window in mid-session (unless this is disabled - see <a href="#config-features-retitle">section 4.6.5</a>); the title string set here is therefore only the <em>initial</em> window title.
+The &#8216;Window title&#8217; edit box allows you to set the title of the PuTTY window. By default the window title will contain the <a name="i138"></a>host name followed by &#8216;PuTTY&#8217;, for example <code>server1.example.com - PuTTY</code>. If you want a different window title, this is where to set it.
 </p>
 <p>
-As well as the <em>window</em> title, there is also an <code>xterm</code> sequence to modify the <a name="i139"></a>title of the window's <em>icon</em>. This makes sense in a windowing system where the window becomes an icon when minimised, such as Windows 3.1 or most X Window System setups; but in the Windows 95-like user interface it isn't as applicable.
+PuTTY allows the server to send <code>xterm</code> <a name="i139"></a>control sequences which modify the title of the window in mid-session (unless this is disabled - see <a href="#config-features-retitle">section 4.6.5</a>); the title string set here is therefore only the <em>initial</em> window title.
 </p>
 <p>
-By default, PuTTY only uses the server-supplied <em>window</em> title, and ignores the icon title entirely. If for some reason you want to see both titles, check the box marked &#8216;Separate window and icon titles&#8217;. If you do this, PuTTY's window title and Taskbar <a name="i140"></a>caption will change into the server-supplied icon title if you <a name="i141"></a>minimise the PuTTY window, and change back to the server-supplied window title if you restore it. (If the server has not bothered to supply a window or icon title, none of this will happen.)
+As well as the <em>window</em> title, there is also an <code>xterm</code> sequence to modify the <a name="i140"></a>title of the window's <em>icon</em>. This makes sense in a windowing system where the window becomes an icon when minimised, such as Windows 3.1 or most X Window System setups; but in the Windows 95-like user interface it isn't as applicable.
 </p>
-<h3><a name="config-warnonclose"></a><a name="S4.9.2"></a>4.9.2 &#8216;Warn before <a name="i142"></a>closing window&#8217;</h3>
 <p>
-If you press the <a name="i143"></a>Close button in a PuTTY window that contains a running session, PuTTY will put up a warning window asking if you really meant to close the window. A window whose session has already terminated can always be closed without a warning.
+By default, PuTTY only uses the server-supplied <em>window</em> title, and ignores the icon title entirely. If for some reason you want to see both titles, check the box marked &#8216;Separate window and icon titles&#8217;. If you do this, PuTTY's window title and Taskbar <a name="i141"></a>caption will change into the server-supplied icon title if you <a name="i142"></a>minimise the PuTTY window, and change back to the server-supplied window title if you restore it. (If the server has not bothered to supply a window or icon title, none of this will happen.)
+</p>
+<h3><a name="config-warnonclose"></a><a name="S4.9.2"></a>4.9.2 &#8216;Warn before <a name="i143"></a>closing window&#8217;</h3>
+<p>
+If you press the <a name="i144"></a>Close button in a PuTTY window that contains a running session, PuTTY will put up a warning window asking if you really meant to close the window. A window whose session has already terminated can always be closed without a warning.
 </p>
 <p>
 If you want to be able to close a window quickly, you can disable the &#8216;Warn before closing window&#8217; option.
 </p>
-<h3><a name="config-altf4"></a><a name="S4.9.3"></a>4.9.3 &#8216;Window closes on <a name="i144"></a>ALT-F4&#8217;</h3>
+<h3><a name="config-altf4"></a><a name="S4.9.3"></a>4.9.3 &#8216;Window closes on <a name="i145"></a>ALT-F4&#8217;</h3>
 <p>
-By default, pressing ALT-F4 causes the <a name="i145"></a>window to close (or a warning box to appear; see <a href="#config-warnonclose">section 4.9.2</a>). If you disable the &#8216;Window closes on ALT-F4&#8217; option, then pressing ALT-F4 will simply send a key sequence to the server.
+By default, pressing ALT-F4 causes the <a name="i146"></a>window to close (or a warning box to appear; see <a href="#config-warnonclose">section 4.9.2</a>). If you disable the &#8216;Window closes on ALT-F4&#8217; option, then pressing ALT-F4 will simply send a key sequence to the server.
 </p>
-<h3><a name="config-altspace"></a><a name="S4.9.4"></a>4.9.4 &#8216;<a name="i146"></a>System menu appears on <a name="i147"></a>ALT-Space&#8217;</h3>
+<h3><a name="config-altspace"></a><a name="S4.9.4"></a>4.9.4 &#8216;<a name="i147"></a>System menu appears on <a name="i148"></a>ALT-Space&#8217;</h3>
 <p>
 If this option is enabled, then pressing ALT-Space will bring up the PuTTY window's menu, like clicking on the top left corner. If it is disabled, then pressing ALT-Space will just send <code>ESC SPACE</code> to the server.
 </p>
 <p>
-Some <a name="i148"></a>accessibility programs for Windows may need this option enabling to be able to control PuTTY's window successfully. For instance, <a name="i149"></a>Dragon NaturallySpeaking requires it both to open the system menu via voice, and to close, minimise, maximise and restore the window.
+Some <a name="i149"></a>accessibility programs for Windows may need this option enabling to be able to control PuTTY's window successfully. For instance, <a name="i150"></a>Dragon NaturallySpeaking requires it both to open the system menu via voice, and to close, minimise, maximise and restore the window.
 </p>
-<h3><a name="config-altonly"></a><a name="S4.9.5"></a>4.9.5 &#8216;<a name="i150"></a>System menu appears on <a name="i151"></a>Alt alone&#8217;</h3>
+<h3><a name="config-altonly"></a><a name="S4.9.5"></a>4.9.5 &#8216;<a name="i151"></a>System menu appears on <a name="i152"></a>Alt alone&#8217;</h3>
 <p>
 If this option is enabled, then pressing and releasing ALT will bring up the PuTTY window's menu, like clicking on the top left corner. If it is disabled, then pressing and releasing ALT will have no effect.
 </p>
-<h3><a name="config-alwaysontop"></a><a name="S4.9.6"></a>4.9.6 &#8216;Ensure window is <a name="i152"></a>always on top&#8217;</h3>
+<h3><a name="config-alwaysontop"></a><a name="S4.9.6"></a>4.9.6 &#8216;Ensure window is <a name="i153"></a>always on top&#8217;</h3>
 <p>
 If this option is enabled, the PuTTY window will stay on top of all other windows.
 </p>
-<h3><a name="config-fullscreen"></a><a name="S4.9.7"></a>4.9.7 &#8216;<a name="i153"></a>Full screen on Alt-Enter&#8217;</h3>
+<h3><a name="config-fullscreen"></a><a name="S4.9.7"></a>4.9.7 &#8216;<a name="i154"></a>Full screen on Alt-Enter&#8217;</h3>
 <p>
 If this option is enabled, then pressing Alt-Enter will cause the PuTTY window to become full-screen. Pressing Alt-Enter again will restore the previous window size.
 </p>
 <p>
-The full-screen feature is also available from the <a name="i154"></a>System menu, even when it is configured not to be available on the Alt-Enter key. See <a href="Chapter3.html#using-fullscreen">section 3.1.3.7</a>.
+The full-screen feature is also available from the <a name="i155"></a>System menu, even when it is configured not to be available on the Alt-Enter key. See <a href="Chapter3.html#using-fullscreen">section 3.1.3.7</a>.
 </p>
 <h2><a name="config-translation"></a><a name="S4.10"></a>4.10 The Translation panel</h2>
 <p>
-The Translation configuration panel allows you to control the translation between the <a name="i155"></a>character set understood by the server and the character set understood by PuTTY.
+The Translation configuration panel allows you to control the translation between the <a name="i156"></a>character set understood by the server and the character set understood by PuTTY.
 </p>
 <h3><a name="config-charset"></a><a name="S4.10.1"></a>4.10.1 Controlling character set translation</h3>
 <p>
@@ -1031,47 +1045,47 @@ During an interactive session, PuTTY receives a stream of 8-bit bytes from the s
 There are a lot of character sets to choose from. The &#8216;Remote character set&#8217; option lets you select one.
 </p>
 <p>
-By default PuTTY will use the <a name="i156"></a>UTF-8 encoding of <a name="i157"></a>Unicode, which can represent pretty much any character; data coming from the server is interpreted as UTF-8, and keystrokes are sent UTF-8 encoded. This is what most modern distributions of Linux will expect by default. However, if this is wrong for your server, you can select a different character set using this control.
+By default PuTTY will use the <a name="i157"></a>UTF-8 encoding of <a name="i158"></a>Unicode, which can represent pretty much any character; data coming from the server is interpreted as UTF-8, and keystrokes are sent UTF-8 encoded. This is what most modern distributions of Linux will expect by default. However, if this is wrong for your server, you can select a different character set using this control.
 </p>
 <p>
 A few other notable character sets are:
 </p>
 <ul><li>
-The <a name="i158"></a>ISO-8859 series are all standard character sets that include various accented characters appropriate for different sets of languages.
+The <a name="i159"></a>ISO-8859 series are all standard character sets that include various accented characters appropriate for different sets of languages.
 </li>
 <li>
-The <a name="i159"></a>Win125x series are defined by Microsoft, for similar purposes. In particular Win1252 is almost equivalent to ISO-8859-1, but contains a few extra characters such as matched quotes and the Euro symbol.
+The <a name="i160"></a>Win125x series are defined by Microsoft, for similar purposes. In particular Win1252 is almost equivalent to ISO-8859-1, but contains a few extra characters such as matched quotes and the Euro symbol.
 </li>
 <li>
-If you want the old IBM PC character set with block graphics and line-drawing characters, you can select &#8216;<a name="i160"></a>CP437&#8217;.
+If you want the old IBM PC character set with block graphics and line-drawing characters, you can select &#8216;<a name="i161"></a>CP437&#8217;.
 </li>
 </ul>
 <p>
-If you need support for a numeric <a name="i161"></a>code page which is not listed in the drop-down list, such as code page 866, then you can try entering its name manually (<a name="i162"></a><code>CP866</code> for example) in the list box. If the underlying version of Windows has the appropriate translation table installed, PuTTY will use it.
+If you need support for a numeric <a name="i162"></a>code page which is not listed in the drop-down list, such as code page 866, then you can try entering its name manually (<a name="i163"></a><code>CP866</code> for example) in the list box. If the underlying version of Windows has the appropriate translation table installed, PuTTY will use it.
 </p>
-<h3><a name="config-cjk-ambig-wide"></a><a name="S4.10.2"></a>4.10.2 &#8216;Treat <a name="i163"></a>CJK ambiguous characters as wide&#8217;</h3>
+<h3><a name="config-cjk-ambig-wide"></a><a name="S4.10.2"></a>4.10.2 &#8216;Treat <a name="i164"></a>CJK ambiguous characters as wide&#8217;</h3>
 <p>
-There are <a name="i164"></a>some Unicode characters whose <a name="i165"></a>width is not well-defined. In most contexts, such characters should be treated as single-width for the purposes of <a name="i166"></a>wrapping and so on; however, in some CJK contexts, they are better treated as double-width for historical reasons, and some server-side applications may expect them to be displayed as such. Setting this option will cause PuTTY to take the double-width interpretation.
+There are <a name="i165"></a>some Unicode characters whose <a name="i166"></a>width is not well-defined. In most contexts, such characters should be treated as single-width for the purposes of <a name="i167"></a>wrapping and so on; however, in some CJK contexts, they are better treated as double-width for historical reasons, and some server-side applications may expect them to be displayed as such. Setting this option will cause PuTTY to take the double-width interpretation.
 </p>
 <p>
 If you use legacy CJK applications, and you find your lines are wrapping in the wrong places, or you are having other display problems, you might want to play with this setting.
 </p>
 <p>
-This option only has any effect in <a name="i167"></a>UTF-8 mode (see <a href="#config-charset">section 4.10.1</a>).
+This option only has any effect in <a name="i168"></a>UTF-8 mode (see <a href="#config-charset">section 4.10.1</a>).
 </p>
-<h3><a name="config-cyr"></a><a name="S4.10.3"></a>4.10.3 &#8216;<a name="i168"></a>Caps Lock acts as <a name="i169"></a>Cyrillic switch&#8217;</h3>
+<h3><a name="config-cyr"></a><a name="S4.10.3"></a>4.10.3 &#8216;<a name="i169"></a>Caps Lock acts as <a name="i170"></a>Cyrillic switch&#8217;</h3>
 <p>
-This feature allows you to switch between a US/UK keyboard layout and a Cyrillic keyboard layout by using the Caps Lock key, if you need to type (for example) <a name="i170"></a>Russian and English side by side in the same document.
+This feature allows you to switch between a US/UK keyboard layout and a Cyrillic keyboard layout by using the Caps Lock key, if you need to type (for example) <a name="i171"></a>Russian and English side by side in the same document.
 </p>
 <p>
 Currently this feature is not expected to work properly if your native keyboard layout is not US or UK.
 </p>
-<h3><a name="config-linedraw"></a><a name="S4.10.4"></a>4.10.4 Controlling display of <a name="i171"></a>line-drawing characters</h3>
+<h3><a name="config-linedraw"></a><a name="S4.10.4"></a>4.10.4 Controlling display of <a name="i172"></a>line-drawing characters</h3>
 <p>
-VT100-series terminals allow the server to send <a name="i172"></a>control sequences that shift temporarily into a separate character set for drawing simple lines and boxes. However, there are a variety of ways in which PuTTY can attempt to find appropriate characters, and the right one to use depends on the locally configured <a name="i173"></a>font. In general you should probably try lots of options until you find one that your particular font supports.
+VT100-series terminals allow the server to send <a name="i173"></a>control sequences that shift temporarily into a separate character set for drawing simple lines and boxes. However, there are a variety of ways in which PuTTY can attempt to find appropriate characters, and the right one to use depends on the locally configured <a name="i174"></a>font. In general you should probably try lots of options until you find one that your particular font supports.
 </p>
 <ul><li>
-&#8216;Use Unicode line drawing code points&#8217; tries to use the box characters that are present in <a name="i174"></a>Unicode. For good Unicode-supporting fonts this is probably the most reliable and functional option.
+&#8216;Use Unicode line drawing code points&#8217; tries to use the box characters that are present in <a name="i175"></a>Unicode. For good Unicode-supporting fonts this is probably the most reliable and functional option.
 </li>
 <li>
 &#8216;Poor man's line drawing&#8217; assumes that the font <em>cannot</em> generate the line and box characters at all, so it will use the <code>+</code>, <code>-</code> and <code>|</code> characters to draw approximations to boxes. You should use this option if none of the other options works.
@@ -1086,9 +1100,9 @@ VT100-series terminals allow the server to send <a name="i172"></a>control seque
 &#8216;Use font in OEM mode only&#8217; is more reliable than that, but can miss out other characters from the main character set.
 </li>
 </ul>
-<h3><a name="config-linedrawpaste"></a><a name="S4.10.5"></a>4.10.5 Controlling <a name="i175"></a>copy and paste of line drawing characters</h3>
+<h3><a name="config-linedrawpaste"></a><a name="S4.10.5"></a>4.10.5 Controlling <a name="i176"></a>copy and paste of line drawing characters</h3>
 <p>
-By default, when you copy and paste a piece of the PuTTY screen that contains VT100 line and box drawing characters, PuTTY will paste them in the form they appear on the screen: either <a name="i176"></a>Unicode line drawing code points, or the &#8216;poor man's&#8217; line-drawing characters <code>+</code>, <code>-</code> and <code>|</code>. The checkbox &#8216;Copy and paste VT100 line drawing chars as lqqqk&#8217; disables this feature, so line-drawing characters will be pasted as the <a name="i177"></a>ASCII characters that were printed to produce them. This will typically mean they come out mostly as <code>q</code> and <code>x</code>, with a scattering of <code>jklmntuvw</code> at the corners. This might be useful if you were trying to recreate the same box layout in another program, for example.
+By default, when you copy and paste a piece of the PuTTY screen that contains VT100 line and box drawing characters, PuTTY will paste them in the form they appear on the screen: either <a name="i177"></a>Unicode line drawing code points, or the &#8216;poor man's&#8217; line-drawing characters <code>+</code>, <code>-</code> and <code>|</code>. The checkbox &#8216;Copy and paste VT100 line drawing chars as lqqqk&#8217; disables this feature, so line-drawing characters will be pasted as the <a name="i178"></a>ASCII characters that were printed to produce them. This will typically mean they come out mostly as <code>q</code> and <code>x</code>, with a scattering of <code>jklmntuvw</code> at the corners. This might be useful if you were trying to recreate the same box layout in another program, for example.
 </p>
 <p>
 Note that this option only applies to line-drawing characters which <em>were</em> printed by using the VT100 mechanism. Line-drawing characters that were received as Unicode code points will paste as Unicode always.
@@ -1108,27 +1122,27 @@ However, not all applications will see it that way. Even UTF-8 terminal users wi
 </p>
 <h2><a name="config-selection"></a><a name="S4.11"></a>4.11 The Selection panel</h2>
 <p>
-The Selection panel allows you to control the way <a name="i178"></a>copy and paste work in the PuTTY window.
+The Selection panel allows you to control the way <a name="i179"></a>copy and paste work in the PuTTY window.
 </p>
 <h3><a name="config-mouse"></a><a name="S4.11.1"></a>4.11.1 Changing the actions of the mouse buttons</h3>
 <p>
-PuTTY's copy and paste mechanism is by default modelled on the Unix <a name="i179"></a><code>xterm</code> application. The X Window System uses a three-button mouse, and the convention in that system is that the <a name="i180"></a>left button <a name="i181"></a>selects, the <a name="i182"></a>right button extends an existing selection, and the <a name="i183"></a>middle button pastes.
+PuTTY's copy and paste mechanism is by default modelled on the Unix <a name="i180"></a><code>xterm</code> application. The X Window System uses a three-button mouse, and the convention in that system is that the <a name="i181"></a>left button <a name="i182"></a>selects, the <a name="i183"></a>right button extends an existing selection, and the <a name="i184"></a>middle button pastes.
 </p>
 <p>
-Windows often only has two mouse buttons, so when run on Windows, PuTTY is configurable. In PuTTY's default configuration (&#8216;Compromise&#8217;), the <em>right</em> button pastes, and the <em>middle</em> button (if you have one) <a name="i184"></a>extends a selection.
+Windows often only has two mouse buttons, so when run on Windows, PuTTY is configurable. In PuTTY's default configuration (&#8216;Compromise&#8217;), the <em>right</em> button pastes, and the <em>middle</em> button (if you have one) <a name="i185"></a>extends a selection.
 </p>
 <p>
-If you have a <a name="i185"></a>three-button mouse and you are already used to the <code>xterm</code> arrangement, you can select it using the &#8216;Action of mouse buttons&#8217; control.
+If you have a <a name="i186"></a>three-button mouse and you are already used to the <code>xterm</code> arrangement, you can select it using the &#8216;Action of mouse buttons&#8217; control.
 </p>
 <p>
-Alternatively, with the &#8216;Windows&#8217; option selected, the middle button extends, and the right button brings up a <a name="i186"></a>context menu (on which one of the options is &#8216;Paste&#8217;). (This context menu is always available by holding down Ctrl and right-clicking, regardless of the setting of this option.)
+Alternatively, with the &#8216;Windows&#8217; option selected, the middle button extends, and the right button brings up a <a name="i187"></a>context menu (on which one of the options is &#8216;Paste&#8217;). (This context menu is always available by holding down Ctrl and right-clicking, regardless of the setting of this option.)
 </p>
 <p>
 (When PuTTY itself is running on Unix, it follows the X Window System convention.)
 </p>
 <h3><a name="config-mouseshift"></a><a name="S4.11.2"></a>4.11.2 &#8216;Shift overrides application's use of mouse&#8217;</h3>
 <p>
-PuTTY allows the server to send <a name="i187"></a>control codes that let it <a name="i188"></a>take over the mouse and use it for purposes other than <a name="i189"></a>copy and paste. Applications which use this feature include the text-mode web browser <code>links</code>, the Usenet newsreader <code>trn</code> version 4, and the file manager <code>mc</code> (Midnight Commander).
+PuTTY allows the server to send <a name="i188"></a>control codes that let it <a name="i189"></a>take over the mouse and use it for purposes other than <a name="i190"></a>copy and paste. Applications which use this feature include the text-mode web browser <code>links</code>, the Usenet newsreader <code>trn</code> version 4, and the file manager <code>mc</code> (Midnight Commander).
 </p>
 <p>
 When running one of these applications, pressing the mouse buttons no longer performs copy and paste. If you do need to copy and paste, you can still do so if you hold down Shift while you do your mouse clicks.
@@ -1144,7 +1158,7 @@ If you want to prevent the application from taking over the mouse at all, you ca
 As described in <a href="Chapter3.html#using-selection">section 3.1.1</a>, PuTTY has two modes of selecting text to be copied to the clipboard. In the default mode (&#8216;Normal&#8217;), dragging the mouse from point A to point B selects to the end of the line containing A, all the lines in between, and from the very beginning of the line containing B. In the other mode (&#8216;Rectangular block&#8217;), dragging the mouse between two points defines a rectangle, and everything within that rectangle is copied.
 </p>
 <p>
-Normally, you have to hold down Alt while dragging the mouse to select a rectangular block. Using the &#8216;Default selection mode&#8217; control, you can set <a name="i190"></a>rectangular selection as the default, and then you have to hold down Alt to get the <em>normal</em> behaviour.
+Normally, you have to hold down Alt while dragging the mouse to select a rectangular block. Using the &#8216;Default selection mode&#8217; control, you can set <a name="i191"></a>rectangular selection as the default, and then you have to hold down Alt to get the <em>normal</em> behaviour.
 </p>
 <h3><a name="config-clipboards"></a><a name="S4.11.4"></a>4.11.4 Assigning copy and paste actions to clipboards</h3>
 <p>
@@ -1154,10 +1168,10 @@ Here you can configure which clipboard(s) are written or read by PuTTY's various
 Most platforms, including Windows, have a single system clipboard. On these platforms, PuTTY provides a second clipboard-like facility by permitting you to paste the text you last selected in <em>this window</em>, whether or not it is currently also in the system clipboard. This is not enabled by default.
 </p>
 <p>
-The X Window System (which underlies most Unix graphical interfaces) provides multiple clipboards (or &#8216;<a name="i191"></a>selections&#8217;), and many applications support more than one of them by a different user interface mechanism. When PuTTY itself is running on Unix, it has more configurability relating to these selections.
+The X Window System (which underlies most Unix graphical interfaces) provides multiple clipboards (or &#8216;<a name="i192"></a>selections&#8217;), and many applications support more than one of them by a different user interface mechanism. When PuTTY itself is running on Unix, it has more configurability relating to these selections.
 </p>
 <p>
-The two most commonly used selections are called &#8216;<a name="i192"></a><code>PRIMARY</code>&#8217; and &#8216;<a name="i193"></a><code>CLIPBOARD</code>&#8217;; in applications supporting both, the usual behaviour is that <code>PRIMARY</code> is used by mouse-only actions (selecting text automatically copies it to <code>PRIMARY</code>, and <a name="i194"></a>middle-clicking pastes from <code>PRIMARY</code>), whereas <code>CLIPBOARD</code> is used by explicit Copy and Paste menu items or keypresses such as <a name="i195"></a>Ctrl-C and <a name="i196"></a>Ctrl-V.
+The two most commonly used selections are called &#8216;<a name="i193"></a><code>PRIMARY</code>&#8217; and &#8216;<a name="i194"></a><code>CLIPBOARD</code>&#8217;; in applications supporting both, the usual behaviour is that <code>PRIMARY</code> is used by mouse-only actions (selecting text automatically copies it to <code>PRIMARY</code>, and <a name="i195"></a>middle-clicking pastes from <code>PRIMARY</code>), whereas <code>CLIPBOARD</code> is used by explicit Copy and Paste menu items or keypresses such as <a name="i196"></a>Ctrl-C and <a name="i197"></a>Ctrl-V.
 </p>
 <h4><a name="config-selection-autocopy"></a><a name="S4.11.4.1"></a>4.11.4.1 &#8216;Auto-copy selected text&#8217;</h4>
 <p>
@@ -1168,19 +1182,19 @@ On X, the wording of this option is changed slightly so that &#8216;<code>CLIPBO
 </p>
 <h4><a name="config-selection-clipactions"></a><a name="S4.11.4.2"></a>4.11.4.2 Choosing a clipboard for UI actions</h4>
 <p>
-PuTTY has three user-interface actions which can be configured to paste into the terminal (not counting menu items). You can click whichever mouse button (if any) is configured to paste (see <a href="#config-mouse">section 4.11.1</a>); you can press <a name="i197"></a>Shift-Ins; or you can press <a name="i198"></a>Ctrl-Shift-V, although that action is not enabled by default.
+PuTTY has three user-interface actions which can be configured to paste into the terminal (not counting menu items). You can click whichever mouse button (if any) is configured to paste (see <a href="#config-mouse">section 4.11.1</a>); you can press <a name="i198"></a>Shift-Ins; or you can press <a name="i199"></a>Ctrl-Shift-V, although that action is not enabled by default.
 </p>
 <p>
-You can configure which of the available clipboards each of these actions pastes from (including turning the paste action off completely). On platforms with a single system clipboard (such as Windows), the available options are to paste from that clipboard or to paste from PuTTY's internal memory of the <a name="i199"></a>last selected text within that window. On X, the standard options are <code>CLIPBOARD</code> or <code>PRIMARY</code>.
+You can configure which of the available clipboards each of these actions pastes from (including turning the paste action off completely). On platforms with a single system clipboard (such as Windows), the available options are to paste from that clipboard or to paste from PuTTY's internal memory of the <a name="i200"></a>last selected text within that window. On X, the standard options are <code>CLIPBOARD</code> or <code>PRIMARY</code>.
 </p>
 <p>
 (<code>PRIMARY</code> is conceptually similar in that it <em>also</em> refers to the last selected text &#8211; just across all applications instead of just this window.)
 </p>
 <p>
-The two keyboard options each come with a corresponding key to copy <em>to</em> the same clipboard. Whatever you configure Shift-Ins to paste from, <a name="i200"></a>Ctrl-Ins will copy to the same location; similarly, <a name="i201"></a>Ctrl-Shift-C will copy to whatever Ctrl-Shift-V pastes from.
+The two keyboard options each come with a corresponding key to copy <em>to</em> the same clipboard. Whatever you configure Shift-Ins to paste from, <a name="i201"></a>Ctrl-Ins will copy to the same location; similarly, <a name="i202"></a>Ctrl-Shift-C will copy to whatever Ctrl-Shift-V pastes from.
 </p>
 <p>
-On X, you can also enter a selection name of your choice. For example, there is a rarely-used standard selection called &#8216;<a name="i202"></a><code>SECONDARY</code>&#8217;, which Emacs (for example) can work with if you hold down the Meta key while dragging to select or clicking to paste; if you configure a PuTTY keyboard action to access this clipboard, then you can interoperate with other applications' use of it. Another thing you could do would be to invent a clipboard name yourself, to create a special clipboard shared <em>only</em> between instances of PuTTY, or between just instances configured in that particular way.
+On X, you can also enter a selection name of your choice. For example, there is a rarely-used standard selection called &#8216;<a name="i203"></a><code>SECONDARY</code>&#8217;, which Emacs (for example) can work with if you hold down the Meta key while dragging to select or clicking to paste; if you configure a PuTTY keyboard action to access this clipboard, then you can interoperate with other applications' use of it. Another thing you could do would be to invent a clipboard name yourself, to create a special clipboard shared <em>only</em> between instances of PuTTY, or between just instances configured in that particular way.
 </p>
 <h3><a name="config-paste-ctrl-char"></a><a name="S4.11.5"></a>4.11.5 &#8216;Permit control characters in pasted text&#8217;</h3>
 <p>
@@ -1198,19 +1212,19 @@ The Copy configuration panel controls behaviour specifically related to copying 
 </p>
 <h3><a name="config-charclasses"></a><a name="S4.12.1"></a>4.12.1 Character classes</h3>
 <p>
-PuTTY will <a name="i203"></a>select a word at a time in the terminal window if you <a name="i204"></a>double-click to begin the drag. This section allows you to control precisely what is considered to be a word.
+PuTTY will <a name="i204"></a>select a word at a time in the terminal window if you <a name="i205"></a>double-click to begin the drag. This section allows you to control precisely what is considered to be a word.
 </p>
 <p>
 Each character is given a <em>class</em>, which is a small number (typically 0, 1 or 2). PuTTY considers a single word to be any number of adjacent characters in the same class. So by modifying the assignment of characters to classes, you can modify the word-by-word selection behaviour.
 </p>
 <p>
-In the default configuration, the <a name="i205"></a>character classes are:
+In the default configuration, the <a name="i206"></a>character classes are:
 </p>
 <ul><li>
-Class 0 contains <a name="i206"></a>white space and control characters.
+Class 0 contains <a name="i207"></a>white space and control characters.
 </li>
 <li>
-Class 1 contains most <a name="i207"></a>punctuation.
+Class 1 contains most <a name="i208"></a>punctuation.
 </li>
 <li>
 Class 2 contains letters, numbers and a few pieces of punctuation (the double quote, minus sign, period, forward slash and underscore).
@@ -1226,32 +1240,32 @@ In order to adjust these assignments, you start by selecting a group of characte
 This mechanism currently only covers ASCII characters, because it isn't feasible to expand the list to cover the whole of Unicode.
 </p>
 <p>
-Character class definitions can be modified by <a name="i208"></a>control sequences sent by the server. This configuration option controls the <em>default</em> state, which will be restored when you reset the terminal (see <a href="Chapter3.html#reset-terminal">section 3.1.3.6</a>). However, if you modify this option in mid-session using &#8216;Change Settings&#8217;, it will take effect immediately.
+Character class definitions can be modified by <a name="i209"></a>control sequences sent by the server. This configuration option controls the <em>default</em> state, which will be restored when you reset the terminal (see <a href="Chapter3.html#reset-terminal">section 3.1.3.6</a>). However, if you modify this option in mid-session using &#8216;Change Settings&#8217;, it will take effect immediately.
 </p>
-<h3><a name="config-rtfcopy"></a><a name="S4.12.2"></a>4.12.2 Copying in <a name="i209"></a>Rich Text Format</h3>
+<h3><a name="config-rtfcopy"></a><a name="S4.12.2"></a>4.12.2 Copying in <a name="i210"></a>Rich Text Format</h3>
 <p>
-If you enable &#8216;Copy to clipboard in RTF as well as plain text&#8217;, PuTTY will write formatting information to the clipboard as well as the actual text you copy. The effect of this is that if you paste into (say) a word processor, the text will appear in the word processor in the same <a name="i210"></a>font, <a name="i211"></a>colour, and style (e.g. bold, underline) PuTTY was using to display it.
+If you enable &#8216;Copy to clipboard in RTF as well as plain text&#8217;, PuTTY will write formatting information to the clipboard as well as the actual text you copy. The effect of this is that if you paste into (say) a word processor, the text will appear in the word processor in the same <a name="i211"></a>font, <a name="i212"></a>colour, and style (e.g. bold, underline) PuTTY was using to display it.
 </p>
 <p>
 This option can easily be inconvenient, so by default it is disabled.
 </p>
 <h2><a name="config-colours"></a><a name="S4.13"></a>4.13 The Colours panel</h2>
 <p>
-The Colours panel allows you to control PuTTY's use of <a name="i212"></a>colour.
+The Colours panel allows you to control PuTTY's use of <a name="i213"></a>colour.
 </p>
-<h3><a name="config-ansicolour"></a><a name="S4.13.1"></a>4.13.1 &#8216;Allow terminal to specify <a name="i213"></a>ANSI colours&#8217;</h3>
+<h3><a name="config-ansicolour"></a><a name="S4.13.1"></a>4.13.1 &#8216;Allow terminal to specify <a name="i214"></a>ANSI colours&#8217;</h3>
 <p>
-This option is enabled by default. If it is disabled, PuTTY will ignore any <a name="i214"></a>control sequences sent by the server to request coloured text.
+This option is enabled by default. If it is disabled, PuTTY will ignore any <a name="i215"></a>control sequences sent by the server to request coloured text.
 </p>
 <p>
 If you have a particularly garish application, you might want to turn this option off and make PuTTY only use the default foreground and background colours.
 </p>
-<h3><a name="config-xtermcolour"></a><a name="S4.13.2"></a>4.13.2 &#8216;Allow terminal to use xterm <a name="i215"></a>256-colour mode&#8217;</h3>
+<h3><a name="config-xtermcolour"></a><a name="S4.13.2"></a>4.13.2 &#8216;Allow terminal to use xterm <a name="i216"></a>256-colour mode&#8217;</h3>
 <p>
 This option is enabled by default. If it is disabled, PuTTY will ignore any control sequences sent by the server which use the extended 256-colour mode supported by recent versions of <code>xterm</code>.
 </p>
 <p>
-If you have an application which is supposed to use 256-colour mode and it isn't working, you may find you need to tell your server that your terminal supports 256 colours. On Unix, you do this by ensuring that the setting of <a name="i216"></a><code>TERM</code> describes a 256-colour-capable terminal. You can check this using a command such as <code>infocmp</code>:
+If you have an application which is supposed to use 256-colour mode and it isn't working, you may find you need to tell your server that your terminal supports 256 colours. On Unix, you do this by ensuring that the setting of <a name="i217"></a><code>TERM</code> describes a 256-colour-capable terminal. You can check this using a command such as <code>infocmp</code>:
 </p>
 <pre><code>$ infocmp | grep colors
         <b>colors#256</b>, cols#80, it#8, lines#24, pairs#256,
@@ -1265,51 +1279,51 @@ This option is enabled by default. If it is disabled, PuTTY will ignore any cont
 </p>
 <h3><a name="config-boldcolour"></a><a name="S4.13.4"></a>4.13.4 &#8216;Indicate bolded text by changing...&#8217;</h3>
 <p>
-When the server sends a <a name="i217"></a>control sequence indicating that some text should be displayed in <a name="i218"></a>bold, PuTTY can handle this in several ways. It can either change the <a name="i219"></a>font for a bold version, or use the same font in a brighter colour, or it can do both (brighten the colour <em>and</em> embolden the font). This control lets you choose which.
+When the server sends a <a name="i218"></a>control sequence indicating that some text should be displayed in <a name="i219"></a>bold, PuTTY can handle this in several ways. It can either change the <a name="i220"></a>font for a bold version, or use the same font in a brighter colour, or it can do both (brighten the colour <em>and</em> embolden the font). This control lets you choose which.
 </p>
 <p>
 By default bold is indicated by colour, so non-bold text is displayed in light grey and bold text is displayed in bright white (and similarly in other colours). If you change the setting to &#8216;The font&#8217; box, bold and non-bold text will be displayed in the same colour, and instead the font will change to indicate the difference. If you select &#8216;Both&#8217;, the font and the colour will both change.
 </p>
 <p>
-Some applications rely on &#8216;<a name="i220"></a>bold black&#8217; being distinguishable from a black background; if you choose &#8216;The font&#8217;, their text may become invisible.
+Some applications rely on &#8216;<a name="i221"></a>bold black&#8217; being distinguishable from a black background; if you choose &#8216;The font&#8217;, their text may become invisible.
 </p>
-<h3><a name="config-logpalette"></a><a name="S4.13.5"></a>4.13.5 &#8216;Attempt to use <a name="i221"></a>logical palettes&#8217;</h3>
+<h3><a name="config-logpalette"></a><a name="S4.13.5"></a>4.13.5 &#8216;Attempt to use <a name="i222"></a>logical palettes&#8217;</h3>
 <p>
-Logical palettes are a mechanism by which a Windows application running on an <a name="i222"></a>8-bit colour display can select precisely the colours it wants instead of going with the Windows standard defaults.
+Logical palettes are a mechanism by which a Windows application running on an <a name="i223"></a>8-bit colour display can select precisely the colours it wants instead of going with the Windows standard defaults.
 </p>
 <p>
 If you are not getting the colours you ask for on an 8-bit display, you can try enabling this option. However, be warned that it's never worked very well.
 </p>
-<h3><a name="config-syscolour"></a><a name="S4.13.6"></a>4.13.6 &#8216;Use <a name="i223"></a>system colours&#8217;</h3>
+<h3><a name="config-syscolour"></a><a name="S4.13.6"></a>4.13.6 &#8216;Use <a name="i224"></a>system colours&#8217;</h3>
 <p>
-Enabling this option will cause PuTTY to ignore the configured colours for <a name="i224"></a><a name="i225"></a>&#8216;Default Background/Foreground&#8217; and <a name="i226"></a>&#8216;Cursor Colour/Text&#8217; (see <a href="#config-colourcfg">section 4.13.7</a>), instead going with the system-wide defaults.
+Enabling this option will cause PuTTY to ignore the configured colours for <a name="i225"></a><a name="i226"></a>&#8216;Default Background/Foreground&#8217; and <a name="i227"></a>&#8216;Cursor Colour/Text&#8217; (see <a href="#config-colourcfg">section 4.13.7</a>), instead going with the system-wide defaults.
 </p>
 <p>
-Note that non-bold and <a name="i227"></a>bold text will be the same colour if this option is enabled. You might want to change to indicating bold text by font changes (see <a href="#config-boldcolour">section 4.13.4</a>).
+Note that non-bold and <a name="i228"></a>bold text will be the same colour if this option is enabled. You might want to change to indicating bold text by font changes (see <a href="#config-boldcolour">section 4.13.4</a>).
 </p>
-<h3><a name="config-colourcfg"></a><a name="S4.13.7"></a>4.13.7 Adjusting the colours in the <a name="i228"></a>terminal window</h3>
+<h3><a name="config-colourcfg"></a><a name="S4.13.7"></a>4.13.7 Adjusting the colours in the <a name="i229"></a>terminal window</h3>
 <p>
-The main colour control allows you to specify exactly what colours things should be displayed in. To modify one of the PuTTY colours, use the list box to select which colour you want to modify. The <a name="i229"></a>RGB values for that colour will appear on the right-hand side of the list box. Now, if you press the &#8216;Modify&#8217; button, you will be presented with a colour selector, in which you can choose a new colour to go in place of the old one. (You may also edit the RGB values directly in the edit boxes, if you wish; each value is an integer from 0 to 255.)
+The main colour control allows you to specify exactly what colours things should be displayed in. To modify one of the PuTTY colours, use the list box to select which colour you want to modify. The <a name="i230"></a>RGB values for that colour will appear on the right-hand side of the list box. Now, if you press the &#8216;Modify&#8217; button, you will be presented with a colour selector, in which you can choose a new colour to go in place of the old one. (You may also edit the RGB values directly in the edit boxes, if you wish; each value is an integer from 0 to 255.)
 </p>
 <p>
-PuTTY allows you to set the <a name="i230"></a>cursor colour, the <a name="i231"></a>default foreground and <a name="i232"></a>background, and the precise shades of all the <a name="i233"></a>ANSI configurable colours (black, red, green, yellow, blue, magenta, cyan, and white). You can also modify the precise shades used for the <a name="i234"></a>bold versions of these colours; these are used to display bold text if you have chosen to indicate that by colour (see <a href="#config-boldcolour">section 4.13.4</a>), and can also be used if the server asks specifically to use them. (Note that &#8216;Default Bold Background&#8217; is <em>not</em> the background colour used for bold text; it is only used if the server specifically asks for a bold background.)
+PuTTY allows you to set the <a name="i231"></a>cursor colour, the <a name="i232"></a>default foreground and <a name="i233"></a>background, and the precise shades of all the <a name="i234"></a>ANSI configurable colours (black, red, green, yellow, blue, magenta, cyan, and white). You can also modify the precise shades used for the <a name="i235"></a>bold versions of these colours; these are used to display bold text if you have chosen to indicate that by colour (see <a href="#config-boldcolour">section 4.13.4</a>), and can also be used if the server asks specifically to use them. (Note that &#8216;Default Bold Background&#8217; is <em>not</em> the background colour used for bold text; it is only used if the server specifically asks for a bold background.)
 </p>
 <h2><a name="config-connection"></a><a name="S4.14"></a>4.14 The Connection panel</h2>
 <p>
-The Connection panel allows you to configure options that apply to more than one type of <a name="i235"></a>connection.
+The Connection panel allows you to configure options that apply to more than one type of <a name="i236"></a>connection.
 </p>
-<h3><a name="config-keepalive"></a><a name="S4.14.1"></a>4.14.1 Using <a name="i236"></a>keepalives to prevent disconnection</h3>
+<h3><a name="config-keepalive"></a><a name="S4.14.1"></a>4.14.1 Using <a name="i237"></a>keepalives to prevent disconnection</h3>
 <p>
 If you find your sessions are closing unexpectedly (most often with &#8216;Connection reset by peer&#8217;) after they have been idle for a while, you might want to try using this option.
 </p>
 <p>
-Some network <a name="i237"></a>routers and <a name="i238"></a>firewalls need to keep track of all connections through them. Usually, these firewalls will assume a connection is dead if no data is transferred in either direction after a certain time interval. This can cause PuTTY sessions to be unexpectedly closed by the firewall if no traffic is seen in the session for some time.
+Some network <a name="i238"></a>routers and <a name="i239"></a>firewalls need to keep track of all connections through them. Usually, these firewalls will assume a connection is dead if no data is transferred in either direction after a certain time interval. This can cause PuTTY sessions to be unexpectedly closed by the firewall if no traffic is seen in the session for some time.
 </p>
 <p>
-The keepalive option (&#8216;Seconds between keepalives&#8217;) allows you to configure PuTTY to send data through the session at regular intervals, in a way that does not disrupt the actual terminal session. If you find your firewall is cutting <a name="i239"></a>idle connections off, you can try entering a non-zero value in this field. The value is measured in seconds; so, for example, if your firewall cuts connections off after ten minutes then you might want to enter 300 seconds (5 minutes) in the box.
+The keepalive option (&#8216;Seconds between keepalives&#8217;) allows you to configure PuTTY to send data through the session at regular intervals, in a way that does not disrupt the actual terminal session. If you find your firewall is cutting <a name="i240"></a>idle connections off, you can try entering a non-zero value in this field. The value is measured in seconds; so, for example, if your firewall cuts connections off after ten minutes then you might want to enter 300 seconds (5 minutes) in the box.
 </p>
 <p>
-Note that keepalives are not always helpful. They help if you have a firewall which drops your connection after an idle period; but if the network between you and the server suffers from <a name="i240"></a>breaks in connectivity then keepalives can actually make things worse. If a session is idle, and connectivity is temporarily lost between the endpoints, but the connectivity is restored before either side tries to send anything, then there will be no problem - neither endpoint will notice that anything was wrong. However, if one side does send something during the break, it will repeatedly try to re-send, and eventually give up and abandon the connection. Then when connectivity is restored, the other side will find that the first side doesn't believe there is an open connection any more. Keepalives can make this sort of problem worse, because they increase the probability that PuTTY will attempt to send data during a break in connectivity. (Other types of periodic network activity can cause this behaviour; in particular, SSH-2 re-keys can have this effect. See <a href="#config-ssh-kex-rekey">section 4.18.2</a>.)
+Note that keepalives are not always helpful. They help if you have a firewall which drops your connection after an idle period; but if the network between you and the server suffers from <a name="i241"></a>breaks in connectivity then keepalives can actually make things worse. If a session is idle, and connectivity is temporarily lost between the endpoints, but the connectivity is restored before either side tries to send anything, then there will be no problem - neither endpoint will notice that anything was wrong. However, if one side does send something during the break, it will repeatedly try to re-send, and eventually give up and abandon the connection. Then when connectivity is restored, the other side will find that the first side doesn't believe there is an open connection any more. Keepalives can make this sort of problem worse, because they increase the probability that PuTTY will attempt to send data during a break in connectivity. (Other types of periodic network activity can cause this behaviour; in particular, SSH-2 re-keys can have this effect. See <a href="#config-ssh-kex-rekey">section 4.18.2</a>.)
 </p>
 <p>
 Therefore, you might find that keepalives help connection loss, or you might find they make it worse, depending on what <em>kind</em> of network problems you have between you and the server.
@@ -1320,14 +1334,14 @@ Keepalives are only supported in Telnet and SSH; the Rlogin, SUPDUP, and Raw pro
 <p>
 Note that if you are using SSH-1 and the server has a bug that makes it unable to deal with SSH-1 ignore messages (see <a href="#config-ssh-bug-ignore1">section 4.27.14</a>), enabling keepalives will have no effect.
 </p>
-<h3><a name="config-nodelay"></a><a name="S4.14.2"></a>4.14.2 &#8216;Disable <a name="i241"></a>Nagle's algorithm&#8217;</h3>
+<h3><a name="config-nodelay"></a><a name="S4.14.2"></a>4.14.2 &#8216;Disable <a name="i242"></a>Nagle's algorithm&#8217;</h3>
 <p>
-Nagle's algorithm is a detail of TCP/IP implementations that tries to minimise the number of small data packets sent down a network connection. With Nagle's algorithm enabled, PuTTY's <a name="i242"></a>bandwidth usage will be slightly more efficient; with it disabled, you may find you get a faster response to your keystrokes when connecting to some types of server.
+Nagle's algorithm is a detail of TCP/IP implementations that tries to minimise the number of small data packets sent down a network connection. With Nagle's algorithm enabled, PuTTY's <a name="i243"></a>bandwidth usage will be slightly more efficient; with it disabled, you may find you get a faster response to your keystrokes when connecting to some types of server.
 </p>
 <p>
-The Nagle algorithm is disabled by default for <a name="i243"></a>interactive connections.
+The Nagle algorithm is disabled by default for <a name="i244"></a>interactive connections.
 </p>
-<h3><a name="config-tcp-keepalives"></a><a name="S4.14.3"></a>4.14.3 &#8216;Enable <a name="i244"></a>TCP keepalives&#8217;</h3>
+<h3><a name="config-tcp-keepalives"></a><a name="S4.14.3"></a>4.14.3 &#8216;Enable <a name="i245"></a>TCP keepalives&#8217;</h3>
 <p>
 <em>NOTE:</em> TCP keepalives should not be confused with the application-level keepalives described in <a href="#config-keepalive">section 4.14.1</a>. If in doubt, you probably want application-level keepalives; TCP keepalives are provided for completeness.
 </p>
@@ -1345,22 +1359,22 @@ If the operating system does not receive a response to a keepalive, it may send 
 </li>
 </ul>
 <p>
-TCP keepalives may be more useful for ensuring that <a name="i245"></a>half-open connections are terminated than for keeping a connection alive.
+TCP keepalives may be more useful for ensuring that <a name="i246"></a>half-open connections are terminated than for keeping a connection alive.
 </p>
 <p>
 TCP keepalives are disabled by default.
 </p>
-<h3><a name="config-address-family"></a><a name="S4.14.4"></a>4.14.4 &#8216;<a name="i246"></a>Internet protocol version&#8217;</h3>
+<h3><a name="config-address-family"></a><a name="S4.14.4"></a>4.14.4 &#8216;<a name="i247"></a>Internet protocol version&#8217;</h3>
 <p>
-This option allows the user to select between the old and new Internet protocols and addressing schemes (<a name="i247"></a>IPv4 and <a name="i248"></a>IPv6). The selected protocol will be used for most outgoing network connections (including connections to <a name="i249"></a>proxies); however, tunnels have their own configuration, for which see <a href="#config-ssh-portfwd-address-family">section 4.26.2</a>.
+This option allows the user to select between the old and new Internet protocols and addressing schemes (<a name="i248"></a>IPv4 and <a name="i249"></a>IPv6). The selected protocol will be used for most outgoing network connections (including connections to <a name="i250"></a>proxies); however, tunnels have their own configuration, for which see <a href="#config-ssh-portfwd-address-family">section 4.26.2</a>.
 </p>
 <p>
-The default setting is &#8216;Auto&#8217;, which means PuTTY will do something sensible and try to guess which protocol you wanted. (If you specify a literal <a name="i250"></a>Internet address, it will use whichever protocol that address implies. If you provide a <a name="i251"></a>hostname, it will see what kinds of address exist for that hostname; it will use IPv6 if there is an IPv6 address available, and fall back to IPv4 if not.)
+The default setting is &#8216;Auto&#8217;, which means PuTTY will do something sensible and try to guess which protocol you wanted. (If you specify a literal <a name="i251"></a>Internet address, it will use whichever protocol that address implies. If you provide a <a name="i252"></a>hostname, it will see what kinds of address exist for that hostname; it will use IPv6 if there is an IPv6 address available, and fall back to IPv4 if not.)
 </p>
 <p>
 If you need to force PuTTY to use a particular protocol, you can explicitly set this to &#8216;IPv4&#8217; or &#8216;IPv6&#8217;.
 </p>
-<h3><a name="config-loghost"></a><a name="S4.14.5"></a>4.14.5 <a name="i252"></a>&#8216;Logical name of remote host&#8217;</h3>
+<h3><a name="config-loghost"></a><a name="S4.14.5"></a>4.14.5 <a name="i253"></a>&#8216;Logical name of remote host&#8217;</h3>
 <p>
 This allows you to tell PuTTY that the host it will really end up connecting to is different from where it thinks it is making a network connection.
 </p>
@@ -1368,7 +1382,7 @@ This allows you to tell PuTTY that the host it will really end up connecting to 
 You might use this, for instance, if you had set up an SSH port forwarding in one PuTTY session so that connections to some arbitrary port (say, <code>localhost</code> port 10022) were forwarded to a second machine's SSH port (say, <code>foovax</code> port 22), and then started a second PuTTY connecting to the forwarded port.
 </p>
 <p>
-In normal usage, the second PuTTY will access the <a name="i253"></a>host key cache under the host name and port it actually connected to (i.e. <code>localhost</code> port 10022 in this example). Using the logical host name option, however, you can configure the second PuTTY to cache the host key under the name of the host <em>you</em> know that it's <em>really</em> going to end up talking to (here <code>foovax</code>).
+In normal usage, the second PuTTY will access the <a name="i254"></a>host key cache under the host name and port it actually connected to (i.e. <code>localhost</code> port 10022 in this example). Using the logical host name option, however, you can configure the second PuTTY to cache the host key under the name of the host <em>you</em> know that it's <em>really</em> going to end up talking to (here <code>foovax</code>).
 </p>
 <p>
 This can be useful if you expect to connect to the same actual server through many different channels (perhaps because your port forwarding arrangements keep changing): by consistently setting the logical host name, you can arrange that PuTTY will not keep asking you to reconfirm its host key. Conversely, if you expect to use the same local port number for port forwardings to lots of different servers, you probably didn't want any particular server's host key cached under that local port number. (For this latter case, you could instead explicitly configure host keys in the relevant sessions; see <a href="#config-ssh-kex-manual-hostkeys">section 4.19.3</a>.)
@@ -1386,7 +1400,7 @@ The Data panel allows you to configure various pieces of data which can be sent 
 <p>
 Each option on this panel applies to more than one protocol. Options which apply to only one protocol appear on that protocol's configuration panels.
 </p>
-<h3><a name="config-username"></a><a name="S4.15.1"></a>4.15.1 &#8216;<a name="i254"></a>Auto-login username&#8217;</h3>
+<h3><a name="config-username"></a><a name="S4.15.1"></a>4.15.1 &#8216;<a name="i255"></a>Auto-login username&#8217;</h3>
 <p>
 All three of the SSH, Telnet, and Rlogin protocols allow you to specify what user name you want to log in as, without having to type it explicitly every time. (Some Telnet servers don't support this.)
 </p>
@@ -1398,27 +1412,27 @@ In this box you can type that user name.
 When the previous box (<a href="#config-username">section 4.15.1</a>) is left blank, by default, PuTTY will prompt for a username at the time you make a connection.
 </p>
 <p>
-In some environments, such as the networks of large organisations implementing <a name="i255"></a>single sign-on, a more sensible default may be to use the name of the user logged in to the local operating system (if any); this is particularly likely to be useful with <a name="i256"></a>GSSAPI key exchange and user authentication (see <a href="#config-ssh-auth-gssapi">section 4.23</a> and <a href="#config-ssh-gssapi-kex">section 4.18.1.1</a>). This control allows you to change the default behaviour.
+In some environments, such as the networks of large organisations implementing <a name="i256"></a>single sign-on, a more sensible default may be to use the name of the user logged in to the local operating system (if any); this is particularly likely to be useful with <a name="i257"></a>GSSAPI key exchange and user authentication (see <a href="#config-ssh-auth-gssapi">section 4.23</a> and <a href="#config-ssh-gssapi-kex">section 4.18.1.1</a>). This control allows you to change the default behaviour.
 </p>
 <p>
 The current system username is displayed in the dialog as a convenience. It is not saved in the configuration; if a saved session is later used by a different user, that user's name will be used.
 </p>
-<h3><a name="config-termtype"></a><a name="S4.15.3"></a>4.15.3 &#8216;<a name="i257"></a>Terminal-type string&#8217;</h3>
+<h3><a name="config-termtype"></a><a name="S4.15.3"></a>4.15.3 &#8216;<a name="i258"></a>Terminal-type string&#8217;</h3>
 <p>
-Most servers you might connect to with PuTTY are designed to be connected to from lots of different types of terminal. In order to send the right <a name="i258"></a>control sequences to each one, the server will need to know what type of terminal it is dealing with. Therefore, each of the SSH, Telnet, and Rlogin protocols allow a text string to be sent down the connection describing the terminal. On a <a name="i259"></a>Unix server, this selects an entry from the <a name="i260"></a><code>termcap</code> or <a name="i261"></a><code>terminfo</code> database that tells applications what <a name="i262"></a>control sequences to send to the terminal, and what character sequences to expect the <a name="i263"></a>keyboard to generate.
+Most servers you might connect to with PuTTY are designed to be connected to from lots of different types of terminal. In order to send the right <a name="i259"></a>control sequences to each one, the server will need to know what type of terminal it is dealing with. Therefore, each of the SSH, Telnet, and Rlogin protocols allow a text string to be sent down the connection describing the terminal. On a <a name="i260"></a>Unix server, this selects an entry from the <a name="i261"></a><code>termcap</code> or <a name="i262"></a><code>terminfo</code> database that tells applications what <a name="i263"></a>control sequences to send to the terminal, and what character sequences to expect the <a name="i264"></a>keyboard to generate.
 </p>
 <p>
-PuTTY attempts to emulate the Unix <a name="i264"></a><code>xterm</code> program, and by default it reflects this by sending <code>xterm</code> as a terminal-type string. If you find this is not doing what you want - perhaps the remote system reports &#8216;Unknown terminal type&#8217; - you could try setting this to something different, such as <a name="i265"></a><code>vt220</code>.
+PuTTY attempts to emulate the Unix <a name="i265"></a><code>xterm</code> program, and by default it reflects this by sending <code>xterm</code> as a terminal-type string. If you find this is not doing what you want - perhaps the remote system reports &#8216;Unknown terminal type&#8217; - you could try setting this to something different, such as <a name="i266"></a><code>vt220</code>.
 </p>
 <p>
 If you're not sure whether a problem is due to the terminal type setting or not, you probably need to consult the manual for your application or your server.
 </p>
-<h3><a name="config-termspeed"></a><a name="S4.15.4"></a>4.15.4 &#8216;<a name="i266"></a>Terminal speeds&#8217;</h3>
+<h3><a name="config-termspeed"></a><a name="S4.15.4"></a>4.15.4 &#8216;<a name="i267"></a>Terminal speeds&#8217;</h3>
 <p>
 The Telnet, Rlogin, and SSH protocols allow the client to specify terminal speeds to the server.
 </p>
 <p>
-This parameter does <em>not</em> affect the actual speed of the connection, which is always &#8216;as fast as possible&#8217;; it is just a hint that is sometimes used by server software to modify its behaviour. For instance, if a slow speed is indicated, the server may switch to a less <a name="i267"></a>bandwidth-hungry display mode.
+This parameter does <em>not</em> affect the actual speed of the connection, which is always &#8216;as fast as possible&#8217;; it is just a hint that is sometimes used by server software to modify its behaviour. For instance, if a slow speed is indicated, the server may switch to a less <a name="i268"></a>bandwidth-hungry display mode.
 </p>
 <p>
 The value is usually meaningless in a network environment, but PuTTY lets you configure it, in case you find the server is reacting badly to the default value.
@@ -1429,12 +1443,12 @@ The format is a pair of numbers separated by a comma, for instance, <code>38400,
 <p>
 This option has no effect on Raw connections.
 </p>
-<h3><a name="config-environ"></a><a name="S4.15.5"></a>4.15.5 Setting <a name="i268"></a>environment variables on the server</h3>
+<h3><a name="config-environ"></a><a name="S4.15.5"></a>4.15.5 Setting <a name="i269"></a>environment variables on the server</h3>
 <p>
 The Telnet protocol provides a means for the client to pass environment variables to the server. Many Telnet servers have stopped supporting this feature due to security flaws, but PuTTY still supports it for the benefit of any servers which have found other ways around the security problems than just disabling the whole mechanism.
 </p>
 <p>
-Version 2 of the SSH protocol also provides a similar mechanism, which is easier to implement without security flaws. Newer <a name="i269"></a>SSH-2 servers are more likely to support it than older ones.
+Version 2 of the SSH protocol also provides a similar mechanism, which is easier to implement without security flaws. Newer <a name="i270"></a>SSH-2 servers are more likely to support it than older ones.
 </p>
 <p>
 This configuration data is not used in the SSH-1, rlogin or raw protocols.
@@ -1444,7 +1458,7 @@ To add an environment variable to the list transmitted down the connection, you 
 </p>
 <h2><a name="config-proxy"></a><a name="S4.16"></a>4.16 The Proxy panel</h2>
 <p>
-The <a name="i270"></a>Proxy panel allows you to configure PuTTY to use various types of proxy in order to make its network connections. The settings in this panel affect the primary network connection forming your PuTTY session, and also any extra connections made as a result of SSH <a name="i271"></a>port forwarding (see <a href="Chapter3.html#using-port-forwarding">section 3.5</a>).
+The <a name="i271"></a>Proxy panel allows you to configure PuTTY to use various types of proxy in order to make its network connections. The settings in this panel affect the primary network connection forming your PuTTY session, and also any extra connections made as a result of SSH <a name="i272"></a>port forwarding (see <a href="Chapter3.html#using-port-forwarding">section 3.5</a>).
 </p>
 <p>
 Note that unlike some software (such as web browsers), PuTTY does not attempt to automatically determine whether to use a proxy and (if so) which one to use for a given destination. If you need to use a proxy, it must always be explicitly configured.
@@ -1454,16 +1468,16 @@ Note that unlike some software (such as web browsers), PuTTY does not attempt to
 The &#8216;Proxy type&#8217; drop-down allows you to configure what type of proxy you want PuTTY to use for its network connections. The default setting is &#8216;None&#8217;; in this mode no proxy is used for any connection.
 </p>
 <ul><li>
-Selecting <a name="i272"></a>&#8216;HTTP CONNECT&#8217; allows you to proxy your connections through a web server supporting the HTTP <code>CONNECT</code> command, as documented in <a href="https://www.rfc-editor.org/rfc/rfc2817">RFC 2817</a>.
+Selecting <a name="i273"></a>&#8216;HTTP CONNECT&#8217; allows you to proxy your connections through a web server supporting the HTTP <code>CONNECT</code> command, as documented in <a href="https://www.rfc-editor.org/rfc/rfc2817">RFC 2817</a>.
 </li>
 <li>
-Selecting &#8216;SOCKS 4&#8217; or &#8216;SOCKS 5&#8217; allows you to proxy your connections through a <a name="i273"></a>SOCKS server.
+Selecting &#8216;SOCKS 4&#8217; or &#8216;SOCKS 5&#8217; allows you to proxy your connections through a <a name="i274"></a>SOCKS server.
 </li>
 <li>
-Many firewalls implement a less formal type of proxy in which a user can make a Telnet or TCP connection directly to the firewall machine and enter a command such as <code>connect myhost.com 22</code> to connect through to an external host. Selecting <a name="i274"></a>&#8216;Telnet&#8217; allows you to tell PuTTY to use this type of proxy, with the precise command specified as described in <a href="#config-proxy-command">section 4.16.5</a>.
+Many firewalls implement a less formal type of proxy in which a user can make a Telnet or TCP connection directly to the firewall machine and enter a command such as <code>connect myhost.com 22</code> to connect through to an external host. Selecting <a name="i275"></a>&#8216;Telnet&#8217; allows you to tell PuTTY to use this type of proxy, with the precise command specified as described in <a href="#config-proxy-command">section 4.16.5</a>.
 </li>
 <li>
-There are several ways to use a SSH server as a proxy. All of these cause PuTTY to make a secondary SSH connection to the proxy host (sometimes called a &#8216;<a name="i275"></a>jump host&#8217; in this context).
+There are several ways to use a SSH server as a proxy. All of these cause PuTTY to make a secondary SSH connection to the proxy host (sometimes called a &#8216;<a name="i276"></a>jump host&#8217; in this context).
 <p>
 The &#8216;Proxy hostname&#8217; field will be interpreted as the name of a PuTTY saved session if one exists, or a hostname if not. This allows multi-hop jump paths, if the referenced saved session is itself configured to use an SSH proxy; and it allows combining SSH and non-SSH proxying.
 </p>
@@ -1474,13 +1488,13 @@ The &#8216;Proxy hostname&#8217; field will be interpreted as the name of a PuTT
 &#8216;SSH to proxy and execute a command&#8217; causes PuTTY to run an arbitrary remote command on the proxy SSH server and use that command's standard input and output streams to run the primary connection over. The remote command line is specified as described in <a href="#config-proxy-command">section 4.16.5</a>.
 </li>
 <li>
-&#8216;SSH to proxy and invoke a subsystem&#8217; is similar but causes PuTTY to start an SSH &#8216;<a name="i276"></a>subsystem&#8217; rather than an ordinary command line. This might be useful with a specially set up SSH proxy server. 
+&#8216;SSH to proxy and invoke a subsystem&#8217; is similar but causes PuTTY to start an SSH &#8216;<a name="i277"></a>subsystem&#8217; rather than an ordinary command line. This might be useful with a specially set up SSH proxy server. 
 </li>
 </ul>
 
 </li>
 <li>
-Selecting <a name="i277"></a>&#8216;Local&#8217; allows you to specify an arbitrary command on the local machine to act as a proxy. When the session is started, instead of creating a TCP connection, PuTTY runs the command (specified in <a href="#config-proxy-command">section 4.16.5</a>), and uses its standard input and output streams.
+Selecting <a name="i278"></a>&#8216;Local&#8217; allows you to specify an arbitrary command on the local machine to act as a proxy. When the session is started, instead of creating a TCP connection, PuTTY runs the command (specified in <a href="#config-proxy-command">section 4.16.5</a>), and uses its standard input and output streams.
 <p>
 This could be used, for instance, to talk to some kind of network proxy that PuTTY does not natively support; or you could tunnel a connection over something other than TCP/IP entirely.
 </p>
@@ -1513,14 +1527,14 @@ This excludes any host with an IP address starting with 192.168.88 from proxying
 This excludes both of the above ranges at once.
 </p>
 <p>
-Connections to the local host (the host name <a name="i278"></a><code>localhost</code>, and any <a name="i279"></a>loopback IP address) are never proxied, even if the proxy exclude list does not explicitly contain them. It is very unlikely that this behaviour would ever cause problems, but if it does you can change it by enabling &#8216;Consider proxying local host connections&#8217;.
+Connections to the local host (the host name <a name="i279"></a><code>localhost</code>, and any <a name="i280"></a>loopback IP address) are never proxied, even if the proxy exclude list does not explicitly contain them. It is very unlikely that this behaviour would ever cause problems, but if it does you can change it by enabling &#8216;Consider proxying local host connections&#8217;.
 </p>
 <p>
-Note that if you are doing <a name="i280"></a>DNS at the proxy (see <a href="#config-proxy-dns">section 4.16.3</a>), you should make sure that your proxy exclusion settings do not depend on knowing the IP address of a host. If the name is passed on to the proxy without PuTTY looking it up, it will never know the IP address and cannot check it against your list.
+Note that if you are doing <a name="i281"></a>DNS at the proxy (see <a href="#config-proxy-dns">section 4.16.3</a>), you should make sure that your proxy exclusion settings do not depend on knowing the IP address of a host. If the name is passed on to the proxy without PuTTY looking it up, it will never know the IP address and cannot check it against your list.
 </p>
-<h3><a name="config-proxy-dns"></a><a name="S4.16.3"></a>4.16.3 <a name="i281"></a><a name="i282"></a>Name resolution when using a proxy</h3>
+<h3><a name="config-proxy-dns"></a><a name="S4.16.3"></a>4.16.3 <a name="i282"></a><a name="i283"></a>Name resolution when using a proxy</h3>
 <p>
-If you are using a proxy to access a private network, it can make a difference whether <a name="i283"></a>DNS name resolution is performed by PuTTY itself (on the client machine) or performed by the proxy.
+If you are using a proxy to access a private network, it can make a difference whether <a name="i284"></a>DNS name resolution is performed by PuTTY itself (on the client machine) or performed by the proxy.
 </p>
 <p>
 The &#8216;Do DNS name lookup at proxy end&#8217; configuration option allows you to control this. If you set it to &#8216;No&#8217;, PuTTY will always do its own DNS, and will always pass an IP address to the proxy. If you set it to &#8216;Yes&#8217;, PuTTY will always pass host names straight to the proxy without trying to look them up first.
@@ -1537,12 +1551,12 @@ The original SOCKS 4 protocol does not support proxy-side DNS. There is a protoc
 <p>
 If you want to avoid PuTTY making <em>any</em> DNS query related to your destination host name (for example, because your local DNS resolver is very slow to return a negative response in that situation), then as well as setting this control to &#8216;Yes&#8217;, you may also need to turn off GSSAPI authentication and GSSAPI key exchange in SSH (see <a href="#config-ssh-auth-gssapi">section 4.23</a> and <a href="#config-ssh-gssapi-kex">section 4.18.1.1</a> respectively). This is because GSSAPI setup also involves a DNS query for the destination host name, and that query is performed by the separate GSSAPI library, so PuTTY can't override or reconfigure it.
 </p>
-<h3><a name="config-proxy-auth"></a><a name="S4.16.4"></a>4.16.4 <a name="i284"></a>Username and <a name="i285"></a>password</h3>
+<h3><a name="config-proxy-auth"></a><a name="S4.16.4"></a>4.16.4 <a name="i285"></a>Username and <a name="i286"></a>password</h3>
 <p>
-You can enter a username and a password in the &#8216;Username&#8217; and &#8216;Password&#8217; boxes, which will be used if your proxy requires <a name="i286"></a>authentication.
+You can enter a username and a password in the &#8216;Username&#8217; and &#8216;Password&#8217; boxes, which will be used if your proxy requires <a name="i287"></a>authentication.
 </p>
 <p>
-<a name="i287"></a>Note that if you save your session, the proxy password will be saved in plain text, so anyone who can access your PuTTY configuration data will be able to discover it.
+<a name="i288"></a>Note that if you save your session, the proxy password will be saved in plain text, so anyone who can access your PuTTY configuration data will be able to discover it.
 </p>
 <p>
 If PuTTY discovers that it needs a proxy username or password and you have not specified one here, PuTTY will prompt for it interactively in the terminal window.
@@ -1553,10 +1567,10 @@ Authentication is not fully supported for all forms of proxy:
 <ul><li>
 Username and password authentication is supported for HTTP proxies and SOCKS 5 proxies.
 <ul><li>
-With SOCKS 5, authentication is via <a name="i288"></a>CHAP if the proxy supports it (this is not supported in <a name="i289"></a>PuTTYtel); otherwise the password is sent to the proxy in <a name="i290"></a>plain text.
+With SOCKS 5, authentication is via <a name="i289"></a>CHAP if the proxy supports it (this is not supported in <a name="i290"></a>PuTTYtel); otherwise the password is sent to the proxy in <a name="i291"></a>plain text.
 </li>
 <li>
-With HTTP proxying, authentication is via &#8216;<a name="i291"></a>HTTP Digest&#8217; if possible (again, not supported in PuTTYtel), or &#8216;<a name="i292"></a>HTTP Basic&#8217;. In the latter case, the password is sent to the proxy in <a name="i293"></a>plain text.
+With HTTP proxying, authentication is via &#8216;<a name="i292"></a>HTTP Digest&#8217; if possible (again, not supported in PuTTYtel), or &#8216;<a name="i293"></a>HTTP Basic&#8217;. In the latter case, the password is sent to the proxy in <a name="i294"></a>plain text.
 </li>
 </ul>
 
@@ -1573,10 +1587,10 @@ You can specify a way to include a username and password in the Telnet/Local pro
 </ul>
 <h3><a name="config-proxy-command"></a><a name="S4.16.5"></a>4.16.5 Specifying the Telnet, SSH, or Local proxy command</h3>
 <p>
-If you are using the <a name="i294"></a>Telnet proxy type, the usual command required by the firewall's Telnet server is <code>connect</code>, followed by a host name and a port number. If your proxy needs a different command, you can enter an alternative in the &#8216;Command to send to proxy&#8217; box.
+If you are using the <a name="i295"></a>Telnet proxy type, the usual command required by the firewall's Telnet server is <code>connect</code>, followed by a host name and a port number. If your proxy needs a different command, you can enter an alternative in the &#8216;Command to send to proxy&#8217; box.
 </p>
 <p>
-If you are using the <a name="i295"></a>Local proxy type, the local command to run is specified here.
+If you are using the <a name="i296"></a>Local proxy type, the local command to run is specified here.
 </p>
 <p>
 If you are using the &#8216;SSH to proxy and execute a command&#8217; type, the command to run on the SSH proxy server is specified here. Similarly, if you are using &#8216;SSH to proxy and invoke a subsystem&#8217;, the subsystem name is constructed as specified here.
@@ -1595,7 +1609,7 @@ If a Telnet proxy server prompts for a username and password before commands can
 <p>
 This will send your username and password as the first two lines to the proxy, followed by a command to connect to the desired host and port. Note that if you do not include the <code>%user</code> or <code>%pass</code> tokens in the Telnet command, then anything specified in &#8216;Username&#8217; and &#8216;Password&#8217; configuration fields will be ignored.
 </p>
-<h3><a name="config-proxy-logging"></a><a name="S4.16.6"></a>4.16.6 Controlling <a name="i296"></a>proxy logging</h3>
+<h3><a name="config-proxy-logging"></a><a name="S4.16.6"></a>4.16.6 Controlling <a name="i297"></a>proxy logging</h3>
 <p>
 Often the proxy interaction has its own diagnostic output; this is particularly the case for local proxy commands.
 </p>
@@ -1607,21 +1621,21 @@ By default (&#8216;No&#8217;), proxy diagnostics are only sent to the Event Log;
 </p>
 <h2><a name="config-ssh"></a><a name="S4.17"></a>4.17 The SSH panel</h2>
 <p>
-The <a name="i297"></a>SSH panel allows you to configure options that only apply to SSH sessions.
+The <a name="i298"></a>SSH panel allows you to configure options that only apply to SSH sessions.
 </p>
 <h3><a name="config-command"></a><a name="S4.17.1"></a>4.17.1 Executing a specific command on the server</h3>
 <p>
-In SSH, you don't have to run a general shell session on the server. Instead, you can choose to run a single specific command (such as a mail user agent, for example). If you want to do this, enter the command in the &#8216;<a name="i298"></a>Remote command&#8217; box.
+In SSH, you don't have to run a general shell session on the server. Instead, you can choose to run a single specific command (such as a mail user agent, for example). If you want to do this, enter the command in the &#8216;<a name="i299"></a>Remote command&#8217; box.
 </p>
 <p>
 Note that most servers will close the session after executing the command.
 </p>
-<h3><a name="config-ssh-noshell"></a><a name="S4.17.2"></a>4.17.2 &#8216;Don't start a <a name="i299"></a>shell or <a name="i300"></a>command at all&#8217;</h3>
+<h3><a name="config-ssh-noshell"></a><a name="S4.17.2"></a>4.17.2 &#8216;Don't start a <a name="i300"></a>shell or <a name="i301"></a>command at all&#8217;</h3>
 <p>
-If you tick this box, PuTTY will not attempt to run a shell or command after connecting to the remote server. You might want to use this option if you are only using the SSH connection for <a name="i301"></a>port forwarding, and your user account on the server does not have the ability to run a shell.
+If you tick this box, PuTTY will not attempt to run a shell or command after connecting to the remote server. You might want to use this option if you are only using the SSH connection for <a name="i302"></a>port forwarding, and your user account on the server does not have the ability to run a shell.
 </p>
 <p>
-This feature is only available in <a name="i302"></a>SSH protocol version 2 (since the version 1 protocol assumes you will always want to run a shell).
+This feature is only available in <a name="i303"></a>SSH protocol version 2 (since the version 1 protocol assumes you will always want to run a shell).
 </p>
 <p>
 This feature can also be enabled using the <code>-N</code> command-line option; see <a href="Chapter3.html#using-cmdline-noshell">section 3.11.3.13</a>.
@@ -1629,13 +1643,13 @@ This feature can also be enabled using the <code>-N</code> command-line option; 
 <p>
 If you use this feature in Plink, you will not be able to terminate the Plink process by any graceful means; the only way to kill it will be by pressing Control-C or sending a kill signal from another program.
 </p>
-<h3><a name="config-ssh-comp"></a><a name="S4.17.3"></a>4.17.3 &#8216;Enable <a name="i303"></a>compression&#8217;</h3>
+<h3><a name="config-ssh-comp"></a><a name="S4.17.3"></a>4.17.3 &#8216;Enable <a name="i304"></a>compression&#8217;</h3>
 <p>
-This enables data compression in the SSH connection: data sent by the server is compressed before sending, and decompressed at the client end. Likewise, data sent by PuTTY to the server is compressed first and the server decompresses it at the other end. This can help make the most of a low-<a name="i304"></a>bandwidth connection.
+This enables data compression in the SSH connection: data sent by the server is compressed before sending, and decompressed at the client end. Likewise, data sent by PuTTY to the server is compressed first and the server decompresses it at the other end. This can help make the most of a low-<a name="i305"></a>bandwidth connection.
 </p>
-<h3><a name="config-ssh-prot"></a><a name="S4.17.4"></a>4.17.4 &#8216;<a name="i305"></a>SSH protocol version&#8217;</h3>
+<h3><a name="config-ssh-prot"></a><a name="S4.17.4"></a>4.17.4 &#8216;<a name="i306"></a>SSH protocol version&#8217;</h3>
 <p>
-This allows you to select whether to use <a name="i306"></a>SSH protocol version 2 or the older <a name="i307"></a>version 1.
+This allows you to select whether to use <a name="i307"></a>SSH protocol version 2 or the older <a name="i308"></a>version 1.
 </p>
 <p>
 You should normally leave this at the default of &#8216;2&#8217;. As well as having fewer features, the older SSH-1 protocol is no longer developed, has many known cryptographic weaknesses, and is generally not considered to be secure. PuTTY's protocol 1 implementation is provided mainly for compatibility, and is no longer being enhanced.
@@ -1679,10 +1693,10 @@ It is possible to test programmatically for the existence of a live upstream usi
 </p>
 <h2><a name="config-ssh-kex"></a><a name="S4.18"></a>4.18 The Kex panel</h2>
 <p>
-The Kex panel (short for &#8216;<a name="i308"></a>key exchange&#8217;) allows you to configure options related to SSH-2 key exchange.
+The Kex panel (short for &#8216;<a name="i309"></a>key exchange&#8217;) allows you to configure options related to SSH-2 key exchange.
 </p>
 <p>
-Key exchange occurs at the start of an SSH connection (and occasionally thereafter); it establishes a <a name="i309"></a>shared secret that is used as the basis for all of SSH's security features. It is therefore very important for the security of the connection that the key exchange is secure.
+Key exchange occurs at the start of an SSH connection (and occasionally thereafter); it establishes a <a name="i310"></a>shared secret that is used as the basis for all of SSH's security features. It is therefore very important for the security of the connection that the key exchange is secure.
 </p>
 <p>
 Key exchange is a cryptographically intensive process; if either the client or the server is a relatively slow machine, the slower methods may take several tens of seconds to complete.
@@ -1696,7 +1710,7 @@ If you don't understand what any of this means, it's safe to leave these setting
 <p>
 This entire panel is only relevant to SSH protocol version 2; none of these settings affect SSH-1 at all.
 </p>
-<h3><a name="config-ssh-kex-order"></a><a name="S4.18.1"></a>4.18.1 <a name="i310"></a>Key exchange algorithm selection</h3>
+<h3><a name="config-ssh-kex-order"></a><a name="S4.18.1"></a>4.18.1 <a name="i311"></a>Key exchange algorithm selection</h3>
 <p>
 PuTTY supports a variety of SSH-2 key exchange methods, and allows you to choose which one you prefer to use; configuration is similar to cipher selection (see <a href="#config-ssh-encryption">section 4.20</a>).
 </p>
@@ -1704,13 +1718,13 @@ PuTTY supports a variety of SSH-2 key exchange methods, and allows you to choose
 PuTTY currently supports the following key exchange methods:
 </p>
 <ul><li>
-&#8216;NTRU Prime / Curve25519 hybrid&#8217;: &#8216;<a name="i311"></a>Streamlined NTRU Prime&#8217; is a lattice-based algorithm intended to resist <a name="i312"></a>quantum attacks. In this key exchange method, it is run in parallel with a conventional Curve25519-based method (one of those included in &#8216;ECDH&#8217;), in such a way that it should be no <em>less</em> secure than that commonly-used method, and hopefully also resistant to a new class of attacks.
+&#8216;NTRU Prime / Curve25519 hybrid&#8217;: &#8216;<a name="i312"></a>Streamlined NTRU Prime&#8217; is a lattice-based algorithm intended to resist <a name="i313"></a>quantum attacks. In this key exchange method, it is run in parallel with a conventional Curve25519-based method (one of those included in &#8216;ECDH&#8217;), in such a way that it should be no <em>less</em> secure than that commonly-used method, and hopefully also resistant to a new class of attacks.
 </li>
 <li>
-&#8216;<a name="i313"></a>ECDH&#8217;: elliptic curve Diffie-Hellman key exchange, with a variety of standard curves and hash algorithms.
+&#8216;<a name="i314"></a>ECDH&#8217;: elliptic curve Diffie-Hellman key exchange, with a variety of standard curves and hash algorithms.
 </li>
 <li>
-The original form of <a name="i314"></a>Diffie-Hellman key exchange, with a variety of well-known groups and hashes:
+The original form of <a name="i315"></a>Diffie-Hellman key exchange, with a variety of well-known groups and hashes:
 <ul><li>
 &#8216;Group 18&#8217;, a well-known 8192-bit group, used with the SHA-512 hash function.
 </li>
@@ -1733,10 +1747,10 @@ The original form of <a name="i314"></a>Diffie-Hellman key exchange, with a vari
 
 </li>
 <li>
-&#8216;Diffie-Hellman <a name="i315"></a>group exchange&#8217;: with this method, instead of using a fixed group, PuTTY requests that the server suggest a group to use for a subsequent Diffie-Hellman key exchange; the server can avoid groups known to be weak, and possibly invent new ones over time, without any changes required to PuTTY's configuration. This key exchange method uses the SHA-256 hash or, if the server doesn't support that, SHA-1.
+&#8216;Diffie-Hellman <a name="i316"></a>group exchange&#8217;: with this method, instead of using a fixed group, PuTTY requests that the server suggest a group to use for a subsequent Diffie-Hellman key exchange; the server can avoid groups known to be weak, and possibly invent new ones over time, without any changes required to PuTTY's configuration. This key exchange method uses the SHA-256 hash or, if the server doesn't support that, SHA-1.
 </li>
 <li>
-&#8216;<a name="i316"></a>RSA-based key exchange&#8217;: this requires much less computational effort on the part of the client, and somewhat less on the part of the server, than Diffie-Hellman key exchange.
+&#8216;<a name="i317"></a>RSA-based key exchange&#8217;: this requires much less computational effort on the part of the client, and somewhat less on the part of the server, than Diffie-Hellman key exchange.
 </li>
 <li>
 &#8216;GSSAPI key exchange&#8217;: see <a href="#config-ssh-gssapi-kex">section 4.18.1.1</a>.
@@ -1753,7 +1767,7 @@ PuTTY supports a set of key exchange methods that also incorporates GSSAPI-based
 PuTTY can only perform the GSSAPI-authenticated key exchange methods when using Kerberos V5, and not other GSSAPI mechanisms. If the user running PuTTY has current Kerberos V5 credentials, then PuTTY will select the GSSAPI key exchange methods in preference to any of the ordinary SSH key exchange methods configured in the preference list. There's a GSSAPI-based equivalent to most of the ordinary methods listed in <a href="#config-ssh-kex-order">section 4.18.1</a>; server support determines which one will be used. (PuTTY's preference order for GSSAPI-authenticated key exchange methods is fixed, not controlled by the preference list.)
 </p>
 <p>
-The advantage of doing GSSAPI authentication as part of the SSH key exchange is apparent when you are using credential delegation (see <a href="#config-ssh-auth-gssapi-delegation">section 4.23.1</a>). The SSH key exchange can be repeated later in the session, and this allows your Kerberos V5 credentials (which are typically short-lived) to be automatically re-delegated to the server when they are refreshed on the client. (This feature is commonly referred to as &#8216;<a name="i317"></a>cascading credentials&#8217;.)
+The advantage of doing GSSAPI authentication as part of the SSH key exchange is apparent when you are using credential delegation (see <a href="#config-ssh-auth-gssapi-delegation">section 4.23.1</a>). The SSH key exchange can be repeated later in the session, and this allows your Kerberos V5 credentials (which are typically short-lived) to be automatically re-delegated to the server when they are refreshed on the client. (This feature is commonly referred to as &#8216;<a name="i318"></a>cascading credentials&#8217;.)
 </p>
 <p>
 If your server doesn't support GSSAPI key exchange, it may still support GSSAPI in the SSH user authentication phase. This will still let you log in using your Kerberos credentials, but will only allow you to delegate the credentials that are active at the beginning of the session; they can't be refreshed automatically later, in a long-running session. See <a href="#config-ssh-auth-gssapi">section 4.23</a> for how to control GSSAPI user authentication in PuTTY.
@@ -1761,7 +1775,7 @@ If your server doesn't support GSSAPI key exchange, it may still support GSSAPI 
 <p>
 Another effect of GSSAPI key exchange is that it replaces the usual SSH mechanism of permanent host keys described in <a href="Chapter2.html#gs-hostkey">section 2.2</a>. So if you use this method, then you won't be asked any interactive questions about whether to accept the server's host key. Instead, the Kerberos exchange will verify the identity of the host you connect to, at the same time as verifying your identity to it.
 </p>
-<h3><a name="config-ssh-kex-rekey"></a><a name="S4.18.2"></a>4.18.2 <a name="i318"></a>Repeat key exchange</h3>
+<h3><a name="config-ssh-kex-rekey"></a><a name="S4.18.2"></a>4.18.2 <a name="i319"></a>Repeat key exchange</h3>
 <p>
 If the session key negotiated at connection startup is used too much or for too long, it may become feasible to mount attacks against the SSH connection. Therefore, the SSH-2 protocol specifies that a new key exchange should take place every so often; this can be initiated by either the client or the server.
 </p>
@@ -1776,7 +1790,7 @@ These options control how often PuTTY will initiate a repeat key exchange (&#821
 </li>
 </ul>
 <p>
-You might have a need to disable time-based rekeys completely for the same reasons that <a name="i319"></a>keepalives aren't always helpful. If you anticipate suffering a network dropout of several hours in the middle of an SSH connection, but were not actually planning to send <em>data</em> down that connection during those hours, then an attempted rekey in the middle of the dropout will probably cause the connection to be abandoned, whereas if rekeys are disabled then the connection should in principle survive (in the absence of interfering <a name="i320"></a>firewalls). See <a href="#config-keepalive">section 4.14.1</a> for more discussion of these issues; for these purposes, rekeys have much the same properties as keepalives. (Except that rekeys have cryptographic value in themselves, so you should bear that in mind when deciding whether to turn them off.) Note, however, the the SSH <em>server</em> can still initiate rekeys.
+You might have a need to disable time-based rekeys completely for the same reasons that <a name="i320"></a>keepalives aren't always helpful. If you anticipate suffering a network dropout of several hours in the middle of an SSH connection, but were not actually planning to send <em>data</em> down that connection during those hours, then an attempted rekey in the middle of the dropout will probably cause the connection to be abandoned, whereas if rekeys are disabled then the connection should in principle survive (in the absence of interfering <a name="i321"></a>firewalls). See <a href="#config-keepalive">section 4.14.1</a> for more discussion of these issues; for these purposes, rekeys have much the same properties as keepalives. (Except that rekeys have cryptographic value in themselves, so you should bear that in mind when deciding whether to turn them off.) Note, however, the the SSH <em>server</em> can still initiate rekeys.
 </p>
 <ul><li>
 &#8216;Minutes between GSSAPI checks&#8217;, if you're using GSSAPI key exchange, specifies how often the GSSAPI credential cache is checked to see whether new tickets are available for delegation, or current ones are near expiration. If forwarding of GSSAPI credentials is enabled, PuTTY will try to rekey as necessary to keep the delegated credentials from expiring. Frequent checks are recommended; rekeying only happens when needed.
@@ -1800,11 +1814,11 @@ As well as specifying a value in bytes, the following shorthand can be used:
 </li>
 </ul>
 <p>
-Disabling data-based rekeys entirely is a bad idea. The <a name="i321"></a>integrity, and to a lesser extent, <a name="i322"></a>confidentiality of the SSH-2 protocol depend in part on rekeys occurring before a 32-bit packet sequence number wraps around. Unlike time-based rekeys, data-based rekeys won't occur when the SSH connection is idle, so they shouldn't cause the same problems. The SSH-1 protocol, incidentally, has even weaker integrity protection than SSH-2 without rekeys.
+Disabling data-based rekeys entirely is a bad idea. The <a name="i322"></a>integrity, and to a lesser extent, <a name="i323"></a>confidentiality of the SSH-2 protocol depend in part on rekeys occurring before a 32-bit packet sequence number wraps around. Unlike time-based rekeys, data-based rekeys won't occur when the SSH connection is idle, so they shouldn't cause the same problems. The SSH-1 protocol, incidentally, has even weaker integrity protection than SSH-2 without rekeys.
 </p>
 <h2><a name="config-ssh-hostkey"></a><a name="S4.19"></a>4.19 The Host Keys panel</h2>
 <p>
-The Host Keys panel allows you to configure options related to <a name="i323"></a>host key management.
+The Host Keys panel allows you to configure options related to <a name="i324"></a>host key management.
 </p>
 <p>
 Host keys are used to prove the server's identity, and assure you that the server is not being spoofed (either by a man-in-the-middle attack or by completely replacing it on the network). See <a href="Chapter2.html#gs-hostkey">section 2.2</a> for a basic introduction to host keys.
@@ -1812,7 +1826,7 @@ Host keys are used to prove the server's identity, and assure you that the serve
 <p>
 Much of this panel is only relevant to SSH protocol version 2; SSH-1 only supports one type of host key.
 </p>
-<h3><a name="config-ssh-hostkey-order"></a><a name="S4.19.1"></a>4.19.1 <a name="i324"></a>Host key type selection</h3>
+<h3><a name="config-ssh-hostkey-order"></a><a name="S4.19.1"></a>4.19.1 <a name="i325"></a>Host key type selection</h3>
 <p>
 PuTTY supports a variety of SSH-2 host key types, and allows you to choose which one you prefer to use to identify the server. Configuration is similar to cipher selection (see <a href="#config-ssh-encryption">section 4.20</a>).
 </p>
@@ -1820,19 +1834,19 @@ PuTTY supports a variety of SSH-2 host key types, and allows you to choose which
 PuTTY currently supports the following host key types:
 </p>
 <ul><li>
-&#8216;<a name="i325"></a>Ed25519&#8217;: <a name="i326"></a>Edwards-curve DSA using a twisted Edwards curve with modulus <code>2^255-19</code>.
+&#8216;<a name="i326"></a>Ed25519&#8217;: <a name="i327"></a>Edwards-curve DSA using a twisted Edwards curve with modulus <code>2^255-19</code>.
 </li>
 <li>
-&#8216;<a name="i327"></a>Ed448&#8217;: another <a name="i328"></a>Edwards-curve DSA type, using a larger elliptic curve with a 448-bit instead of 255-bit modulus (so it has a higher security level than Ed25519).
+&#8216;<a name="i328"></a>Ed448&#8217;: another <a name="i329"></a>Edwards-curve DSA type, using a larger elliptic curve with a 448-bit instead of 255-bit modulus (so it has a higher security level than Ed25519).
 </li>
 <li>
-&#8216;ECDSA&#8217;: <a name="i329"></a>elliptic curve <a name="i330"></a>DSA using one of the <a name="i331"></a>NIST-standardised elliptic curves.
+&#8216;ECDSA&#8217;: <a name="i330"></a>elliptic curve <a name="i331"></a>DSA using one of the <a name="i332"></a>NIST-standardised elliptic curves.
 </li>
 <li>
-&#8216;DSA&#8217;: straightforward <a name="i332"></a>DSA using modular exponentiation.
+&#8216;DSA&#8217;: straightforward <a name="i333"></a>DSA using modular exponentiation.
 </li>
 <li>
-&#8216;RSA&#8217;: the ordinary <a name="i333"></a>RSA algorithm.
+&#8216;RSA&#8217;: the ordinary <a name="i334"></a>RSA algorithm.
 </li>
 </ul>
 <p>
@@ -1857,7 +1871,7 @@ However, on the other hand, it can leak information to a listener in the network
 <p>
 For this reason, this policy is configurable. By turning this checkbox off, you can reset PuTTY to always use the exact order of host key algorithms configured in the preference list described in <a href="#config-ssh-hostkey-order">section 4.19.1</a>, so that a listener will find out nothing about what keys you had stored.
 </p>
-<h3><a name="config-ssh-kex-manual-hostkeys"></a><a name="S4.19.3"></a>4.19.3 <a name="i334"></a>Manually configuring host keys</h3>
+<h3><a name="config-ssh-kex-manual-hostkeys"></a><a name="S4.19.3"></a>4.19.3 <a name="i335"></a>Manually configuring host keys</h3>
 <p>
 In some situations, if PuTTY's automated host key management is not doing what you need, you might need to manually configure PuTTY to accept a specific host key, or one of a specific set of host keys.
 </p>
@@ -1877,22 +1891,22 @@ To configure manual host keys via the GUI, enter some text describing the host k
 The text describing a host key can be in one of the following formats:
 </p>
 <ul><li>
-An <a name="i335"></a>SHA-256-based host key fingerprint of the form displayed in PuTTY's Event Log and host key dialog boxes, i.e. &#8216;<code>SHA256:</code>&#8217; followed by 43 case-sensitive characters.
+An <a name="i336"></a>SHA-256-based host key fingerprint of the form displayed in PuTTY's Event Log and host key dialog boxes, i.e. &#8216;<code>SHA256:</code>&#8217; followed by 43 case-sensitive characters.
 </li>
 <li>
-An <a name="i336"></a>MD5-based host key fingerprint, i.e. sixteen 2-digit hex numbers separated by colons, optionally preceded by the prefix &#8216;<code>MD5:</code>&#8217;. (The case of the characters does not matter.)
+An <a name="i337"></a>MD5-based host key fingerprint, i.e. sixteen 2-digit hex numbers separated by colons, optionally preceded by the prefix &#8216;<code>MD5:</code>&#8217;. (The case of the characters does not matter.)
 </li>
 <li>
 A base64-encoded blob describing an SSH-2 public key in OpenSSH's one-line public key format. How you acquire a public key in this format is server-dependent; on an OpenSSH server it can typically be found in a location like <code>/etc/ssh/ssh_host_rsa_key.pub</code>.
 </li>
 </ul>
 <p>
-If this box contains at least one host key or fingerprint when PuTTY makes an SSH connection, then PuTTY's automated host key management is completely bypassed: the connection will be permitted if and only if the host key presented by the server is one of the keys listed in this box, and the <a name="i337"></a>host key store in the Registry will be neither read <em>nor written</em>, unless you explicitly do so.
+If this box contains at least one host key or fingerprint when PuTTY makes an SSH connection, then PuTTY's automated host key management is completely bypassed: the connection will be permitted if and only if the host key presented by the server is one of the keys listed in this box, and the <a name="i338"></a>host key store in the Registry will be neither read <em>nor written</em>, unless you explicitly do so.
 </p>
 <p>
 If the box is empty (as it usually is), then PuTTY's automated host key management will work as normal.
 </p>
-<h3><a name="config-ssh-kex-cert"></a><a name="S4.19.4"></a>4.19.4 Configuring PuTTY to accept host <a name="i338"></a>certificates</h3>
+<h3><a name="config-ssh-kex-cert"></a><a name="S4.19.4"></a>4.19.4 Configuring PuTTY to accept host <a name="i339"></a>certificates</h3>
 <p>
 In some environments, the SSH host keys for a lot of servers will all be signed in turn by a central &#8216;certification authority&#8217; (&#8216;CA&#8217; for short). This simplifies host key configuration for users, because if they configure their SSH client to accept host keys certified by that CA, then they don't need to individually confirm each host key the first time they connect to that server.
 </p>
@@ -1970,28 +1984,28 @@ RSA keys can be used to generate signatures with a choice of secure hash functio
 </p>
 <h2><a name="config-ssh-encryption"></a><a name="S4.20"></a>4.20 The Cipher panel</h2>
 <p>
-PuTTY supports a variety of different <a name="i339"></a>encryption algorithms, and allows you to choose which one you prefer to use. You can do this by dragging the algorithms up and down in the list box (or moving them using the Up and Down buttons) to specify a preference order. When you make an SSH connection, PuTTY will search down the list from the top until it finds an algorithm supported by the server, and then use that.
+PuTTY supports a variety of different <a name="i340"></a>encryption algorithms, and allows you to choose which one you prefer to use. You can do this by dragging the algorithms up and down in the list box (or moving them using the Up and Down buttons) to specify a preference order. When you make an SSH connection, PuTTY will search down the list from the top until it finds an algorithm supported by the server, and then use that.
 </p>
 <p>
 PuTTY currently supports the following algorithms:
 </p>
 <ul><li>
-<a name="i340"></a>ChaCha20-Poly1305, a combined cipher and <a name="i341"></a>MAC (SSH-2 only)
+<a name="i341"></a>ChaCha20-Poly1305, a combined cipher and <a name="i342"></a>MAC (SSH-2 only)
 </li>
 <li>
-<a name="i342"></a>AES (Rijndael) - 256, 192, or 128-bit SDCTR or CBC, or 256 or 128-bit GCM (SSH-2 only)
+<a name="i343"></a>AES (Rijndael) - 256, 192, or 128-bit SDCTR or CBC, or 256 or 128-bit GCM (SSH-2 only)
 </li>
 <li>
-<a name="i343"></a>Arcfour (RC4) - 256 or 128-bit stream cipher (SSH-2 only)
+<a name="i344"></a>Arcfour (RC4) - 256 or 128-bit stream cipher (SSH-2 only)
 </li>
 <li>
-<a name="i344"></a>Blowfish - 256-bit SDCTR (SSH-2 only) or 128-bit CBC
+<a name="i345"></a>Blowfish - 256-bit SDCTR (SSH-2 only) or 128-bit CBC
 </li>
 <li>
-<a name="i345"></a>Triple-DES - 168-bit SDCTR (SSH-2 only) or CBC
+<a name="i346"></a>Triple-DES - 168-bit SDCTR (SSH-2 only) or CBC
 </li>
 <li>
-<a name="i346"></a>Single-DES - 56-bit CBC (see below for SSH-2)
+<a name="i347"></a>Single-DES - 56-bit CBC (see below for SSH-2)
 </li>
 </ul>
 <p>
@@ -2013,11 +2027,11 @@ Single-DES is not recommended in the SSH-2 protocol standards, but one or two se
 </p>
 <h2><a name="config-ssh-auth"></a><a name="S4.21"></a>4.21 The Auth panel</h2>
 <p>
-The Auth panel allows you to configure <a name="i347"></a>authentication options for SSH sessions.
+The Auth panel allows you to configure <a name="i348"></a>authentication options for SSH sessions.
 </p>
 <h3><a name="config-ssh-banner"></a><a name="S4.21.1"></a>4.21.1 &#8216;Display pre-authentication banner&#8217;</h3>
 <p>
-SSH-2 servers can provide a message for clients to display to the prospective user before the user logs in; this is sometimes known as a pre-authentication &#8216;<a name="i348"></a>banner&#8217;. Typically this is used to provide information about the server and legal notices.
+SSH-2 servers can provide a message for clients to display to the prospective user before the user logs in; this is sometimes known as a pre-authentication &#8216;<a name="i349"></a>banner&#8217;. Typically this is used to provide information about the server and legal notices.
 </p>
 <p>
 By default, PuTTY displays this message before prompting for a password or similar credentials (although, unfortunately, not before prompting for a login name, due to the nature of the protocol design). By unchecking this option, display of the banner can be suppressed entirely.
@@ -2067,33 +2081,33 @@ This option can also be controlled using the <code>-noagent</code> command-line 
 <p>
 See <a href="Chapter9.html#pageant">chapter 9</a> for more information about Pageant in general.
 </p>
-<h3><a name="config-ssh-tis"></a><a name="S4.21.5"></a>4.21.5 &#8216;Attempt <a name="i349"></a>TIS or <a name="i350"></a>CryptoCard authentication&#8217;</h3>
+<h3><a name="config-ssh-tis"></a><a name="S4.21.5"></a>4.21.5 &#8216;Attempt <a name="i350"></a>TIS or <a name="i351"></a>CryptoCard authentication&#8217;</h3>
 <p>
-TIS and CryptoCard authentication are (despite their names) generic forms of simple <a name="i351"></a>challenge/response authentication available in SSH protocol version 1 only. You might use them if you were using <a name="i352"></a>S/Key <a name="i353"></a>one-time passwords, for example, or if you had a physical <a name="i354"></a>security token that generated responses to authentication challenges. They can even be used to prompt for simple passwords.
+TIS and CryptoCard authentication are (despite their names) generic forms of simple <a name="i352"></a>challenge/response authentication available in SSH protocol version 1 only. You might use them if you were using <a name="i353"></a>S/Key <a name="i354"></a>one-time passwords, for example, or if you had a physical <a name="i355"></a>security token that generated responses to authentication challenges. They can even be used to prompt for simple passwords.
 </p>
 <p>
 With this switch enabled, PuTTY will attempt these forms of authentication if the server is willing to try them. You will be presented with a challenge string (which may be different every time) and must supply the correct response in order to log in. If your server supports this, you should talk to your system administrator about precisely what form these challenges and responses take.
 </p>
-<h3><a name="config-ssh-ki"></a><a name="S4.21.6"></a>4.21.6 &#8216;Attempt <a name="i355"></a>keyboard-interactive authentication&#8217;</h3>
+<h3><a name="config-ssh-ki"></a><a name="S4.21.6"></a>4.21.6 &#8216;Attempt <a name="i356"></a>keyboard-interactive authentication&#8217;</h3>
 <p>
-The SSH-2 equivalent of TIS authentication is called &#8216;keyboard-interactive&#8217;. It is a flexible authentication method using an arbitrary sequence of requests and responses; so it is not only useful for <a name="i356"></a>challenge/response mechanisms such as <a name="i357"></a>S/Key, but it can also be used for (for example) asking the user for a <a name="i358"></a>new password when the old one has expired.
+The SSH-2 equivalent of TIS authentication is called &#8216;keyboard-interactive&#8217;. It is a flexible authentication method using an arbitrary sequence of requests and responses; so it is not only useful for <a name="i357"></a>challenge/response mechanisms such as <a name="i358"></a>S/Key, but it can also be used for (for example) asking the user for a <a name="i359"></a>new password when the old one has expired.
 </p>
 <p>
 PuTTY leaves this option enabled by default, but supplies a switch to turn it off in case you should have trouble with it.
 </p>
-<h3><a name="config-ssh-agentfwd"></a><a name="S4.21.7"></a>4.21.7 &#8216;Allow <a name="i359"></a>agent forwarding&#8217;</h3>
+<h3><a name="config-ssh-agentfwd"></a><a name="S4.21.7"></a>4.21.7 &#8216;Allow <a name="i360"></a>agent forwarding&#8217;</h3>
 <p>
-This option allows the SSH server to open forwarded connections back to your local copy of <a name="i360"></a>Pageant. If you are not running Pageant, this option will do nothing.
+This option allows the SSH server to open forwarded connections back to your local copy of <a name="i361"></a>Pageant. If you are not running Pageant, this option will do nothing.
 </p>
 <p>
 See <a href="Chapter9.html#pageant">chapter 9</a> for general information on Pageant, and <a href="Chapter9.html#pageant-forward">section 9.4</a> for information on agent forwarding. Note that there is a security risk involved with enabling this option; see <a href="Chapter9.html#pageant-security">section 9.6</a> for details.
 </p>
-<h3><a name="config-ssh-changeuser"></a><a name="S4.21.8"></a>4.21.8 &#8216;Allow attempted <a name="i361"></a>changes of username in SSH-2&#8217;</h3>
+<h3><a name="config-ssh-changeuser"></a><a name="S4.21.8"></a>4.21.8 &#8216;Allow attempted <a name="i362"></a>changes of username in SSH-2&#8217;</h3>
 <p>
 In the SSH-1 protocol, it is impossible to change username after failing to authenticate. So if you mis-type your username at the PuTTY &#8216;login as:&#8217; prompt, you will not be able to change it except by restarting PuTTY.
 </p>
 <p>
-The SSH-2 protocol <em>does</em> allow changes of username, in principle, but does not make it mandatory for SSH-2 servers to accept them. In particular, <a name="i362"></a>OpenSSH does not accept a change of username; once you have sent one username, it will reject attempts to try to authenticate as another user. (Depending on the version of OpenSSH, it may quietly return failure for all login attempts, or it may send an error message.)
+The SSH-2 protocol <em>does</em> allow changes of username, in principle, but does not make it mandatory for SSH-2 servers to accept them. In particular, <a name="i363"></a>OpenSSH does not accept a change of username; once you have sent one username, it will reject attempts to try to authenticate as another user. (Depending on the version of OpenSSH, it may quietly return failure for all login attempts, or it may send an error message.)
 </p>
 <p>
 For this reason, PuTTY will by default not prompt you for your username more than once, in case the server complains. If you know your server can cope with it, you can enable the &#8216;Allow attempted changes of username&#8217; option to modify PuTTY's behaviour.
@@ -2102,20 +2116,20 @@ For this reason, PuTTY will by default not prompt you for your username more tha
 <p>
 This subpane of the Auth panel contains configuration options that specify actual <em>credentials</em> to present to the server: key files and certificates.
 </p>
-<h3><a name="config-ssh-privkey"></a><a name="S4.22.1"></a>4.22.1 &#8216;<a name="i363"></a>Private key file for authentication&#8217;</h3>
+<h3><a name="config-ssh-privkey"></a><a name="S4.22.1"></a>4.22.1 &#8216;<a name="i364"></a>Private key file for authentication&#8217;</h3>
 <p>
-This box is where you enter the name of your private key file if you are using <a name="i364"></a>public key authentication. See <a href="Chapter8.html#pubkey">chapter 8</a> for information about public key authentication in SSH.
+This box is where you enter the name of your private key file if you are using <a name="i365"></a>public key authentication. See <a href="Chapter8.html#pubkey">chapter 8</a> for information about public key authentication in SSH.
 </p>
 <p>
-This key must be in PuTTY's native format (<code>*.<a name="i365"></a>PPK</code>). If you have a private key in another format that you want to use with PuTTY, see <a href="Chapter8.html#puttygen-conversions">section 8.2.15</a>.
+This key must be in PuTTY's native format (<code>*.<a name="i366"></a>PPK</code>). If you have a private key in another format that you want to use with PuTTY, see <a href="Chapter8.html#puttygen-conversions">section 8.2.15</a>.
 </p>
 <p>
-You can use the authentication agent <a name="i366"></a>Pageant so that you do not need to explicitly configure a key here; see <a href="Chapter9.html#pageant">chapter 9</a>.
+You can use the authentication agent <a name="i367"></a>Pageant so that you do not need to explicitly configure a key here; see <a href="Chapter9.html#pageant">chapter 9</a>.
 </p>
 <p>
 If a private key file is specified here with Pageant running, PuTTY will first try asking Pageant to authenticate with that key, and ignore any other keys Pageant may have. If that fails, PuTTY will ask for a passphrase as normal. You can also specify a <em>public</em> key file in this case (in RFC 4716 or OpenSSH format), as that's sufficient to identify the key to Pageant, but of course if Pageant isn't present PuTTY can't fall back to using this file itself.
 </p>
-<h3><a name="config-ssh-cert"></a><a name="S4.22.2"></a>4.22.2 &#8216;<a name="i367"></a>Certificate to use with the private key&#8217;</h3>
+<h3><a name="config-ssh-cert"></a><a name="S4.22.2"></a>4.22.2 &#8216;<a name="i368"></a>Certificate to use with the private key&#8217;</h3>
 <p>
 (This is optional. If you don't know you need it, you can leave this blank.)
 </p>
@@ -2134,7 +2148,7 @@ To do this, enter the pathname of the certificate file into the &#8216;Certifica
 <p>
 When this setting is configured, PuTTY will honour it no matter whether the private key is found in a file, or loaded into Pageant.
 </p>
-<h3><a name="config-ssh-authplugin"></a><a name="S4.22.3"></a>4.22.3 &#8216;<a name="i368"></a>Plugin to provide authentication responses&#8217;</h3>
+<h3><a name="config-ssh-authplugin"></a><a name="S4.22.3"></a>4.22.3 &#8216;<a name="i369"></a>Plugin to provide authentication responses&#8217;</h3>
 <p>
 An SSH server can use the &#8216;keyboard-interactive&#8217; protocol to present a series of arbitrary questions and answers. Sometimes this is used for ordinary passwords, but sometimes the server will use the same mechanism for something more complicated, such as a one-time password system.
 </p>
@@ -2147,9 +2161,9 @@ If you have been provided with a plugin of this type, you can configure it here,
 <p>
 (If you want to <em>write</em> a plugin of this type, see <a href="AppendixH.html#authplugin">appendix H</a> for the full specification of how the plugin is expected to behave.)
 </p>
-<h2><a name="config-ssh-auth-gssapi"></a><a name="S4.23"></a>4.23 The <a name="i369"></a>GSSAPI panel</h2>
+<h2><a name="config-ssh-auth-gssapi"></a><a name="S4.23"></a>4.23 The <a name="i370"></a>GSSAPI panel</h2>
 <p>
-The &#8216;GSSAPI&#8217; subpanel of the &#8216;Auth&#8217; panel controls the use of GSSAPI authentication. This is a mechanism which delegates the authentication exchange to a library elsewhere on the client machine, which in principle can authenticate in many different ways but in practice is usually used with the <a name="i370"></a>Kerberos <a name="i371"></a>single sign-on protocol to implement <a name="i372"></a>passwordless login.
+The &#8216;GSSAPI&#8217; subpanel of the &#8216;Auth&#8217; panel controls the use of GSSAPI authentication. This is a mechanism which delegates the authentication exchange to a library elsewhere on the client machine, which in principle can authenticate in many different ways but in practice is usually used with the <a name="i371"></a>Kerberos <a name="i372"></a>single sign-on protocol to implement <a name="i373"></a>passwordless login.
 </p>
 <p>
 GSSAPI authentication is only available in the SSH-2 protocol.
@@ -2168,7 +2182,7 @@ If both of those checkboxes are disabled, PuTTY will not try any form of GSSAPI 
 </p>
 <h3><a name="config-ssh-auth-gssapi-delegation"></a><a name="S4.23.1"></a>4.23.1 &#8216;Allow GSSAPI credential delegation&#8217;</h3>
 <p>
-<a name="i373"></a>GSSAPI credential delegation is a mechanism for passing on your Kerberos (or other) identity to the session on the SSH server. If you enable this option, then not only will PuTTY be able to log in automatically to a server that accepts your Kerberos credentials, but also you will be able to connect out from that server to other Kerberos-supporting services and use the same credentials just as automatically.
+<a name="i374"></a>GSSAPI credential delegation is a mechanism for passing on your Kerberos (or other) identity to the session on the SSH server. If you enable this option, then not only will PuTTY be able to log in automatically to a server that accepts your Kerberos credentials, but also you will be able to connect out from that server to other Kerberos-supporting services and use the same credentials just as automatically.
 </p>
 <p>
 (This option is the Kerberos analogue of SSH agent forwarding; see <a href="Chapter9.html#pageant-forward">section 9.4</a> for some information on that.)
@@ -2184,26 +2198,26 @@ If your connection is not using GSSAPI key exchange, it is possible for the dele
 GSSAPI is a mechanism which allows more than one authentication method to be accessed through the same interface. Therefore, more than one authentication library may exist on your system which can be accessed using GSSAPI.
 </p>
 <p>
-PuTTY contains native support for a few well-known such libraries (including Windows' <a name="i374"></a>SSPI), and will look for all of them on your system and use whichever it finds. If more than one exists on your system and you need to use a specific one, you can adjust the order in which it will search using this preference list control.
+PuTTY contains native support for a few well-known such libraries (including Windows' <a name="i375"></a>SSPI), and will look for all of them on your system and use whichever it finds. If more than one exists on your system and you need to use a specific one, you can adjust the order in which it will search using this preference list control.
 </p>
 <p>
 One of the options in the preference list is to use a user-specified GSSAPI library. If the library you want to use is not mentioned by name in PuTTY's list of options, you can enter its full pathname in the &#8216;User-supplied GSSAPI library path&#8217; field, and move the &#8216;User-supplied GSSAPI library&#8217; option in the preference list to make sure it is selected before anything else.
 </p>
 <p>
-On Windows, such libraries are files with a <a name="i375"></a><code>.dll</code> extension, and must have been built in the same way as the PuTTY executable you're running; if you have a 32-bit DLL, you must run a 32-bit version of PuTTY, and the same with 64-bit (see <a href="AppendixA.html#faq-32bit-64bit">question A.6.10</a>). On Unix, shared libraries generally have a <code>.so</code> extension.
+On Windows, such libraries are files with a <a name="i376"></a><code>.dll</code> extension, and must have been built in the same way as the PuTTY executable you're running; if you have a 32-bit DLL, you must run a 32-bit version of PuTTY, and the same with 64-bit (see <a href="AppendixA.html#faq-32bit-64bit">question A.6.10</a>). On Unix, shared libraries generally have a <code>.so</code> extension.
 </p>
 <h2><a name="config-ssh-tty"></a><a name="S4.24"></a>4.24 The TTY panel</h2>
 <p>
 The TTY panel lets you configure the remote pseudo-terminal.
 </p>
-<h3><a name="config-ssh-pty"></a><a name="S4.24.1"></a>4.24.1 <a name="i376"></a>&#8216;Don't allocate a pseudo-terminal&#8217;</h3>
+<h3><a name="config-ssh-pty"></a><a name="S4.24.1"></a>4.24.1 <a name="i377"></a>&#8216;Don't allocate a pseudo-terminal&#8217;</h3>
 <p>
-When connecting to a <a name="i377"></a>Unix system, most <a name="i378"></a>interactive shell sessions are run in a <em>pseudo-terminal</em>, which allows the Unix system to pretend it's talking to a real physical terminal device but allows the SSH server to catch all the data coming from that fake device and send it back to the client.
+When connecting to a <a name="i378"></a>Unix system, most <a name="i379"></a>interactive shell sessions are run in a <em>pseudo-terminal</em>, which allows the Unix system to pretend it's talking to a real physical terminal device but allows the SSH server to catch all the data coming from that fake device and send it back to the client.
 </p>
 <p>
 Occasionally you might find you have a need to run a session <em>not</em> in a pseudo-terminal. In PuTTY, this is generally only useful for very specialist purposes; although in Plink (see <a href="Chapter7.html#plink">chapter 7</a>) it is the usual way of working.
 </p>
-<h3><a name="config-ttymodes"></a><a name="S4.24.2"></a>4.24.2 Sending <a name="i379"></a>terminal modes</h3>
+<h3><a name="config-ttymodes"></a><a name="S4.24.2"></a>4.24.2 Sending <a name="i380"></a>terminal modes</h3>
 <p>
 The SSH protocol allows the client to send &#8216;terminal modes&#8217; for the remote pseudo-terminal. These usually control the server's expectation of the local terminal's behaviour.
 </p>
@@ -2234,26 +2248,26 @@ If a value is specified, it will be sent to the server under all circumstances. 
 By default, all of the available modes are listed as &#8216;Auto&#8217;, which should do the right thing in most circumstances.
 </p>
 <p>
-The precise effect of each setting, if any, is up to the server. Their names come from <a name="i380"></a>POSIX and other Unix systems, and they are most likely to have a useful effect on such systems. (These are the same settings that can usually be changed using the <a name="i381"></a><code>stty</code> command once logged in to such servers.)
+The precise effect of each setting, if any, is up to the server. Their names come from <a name="i381"></a>POSIX and other Unix systems, and they are most likely to have a useful effect on such systems. (These are the same settings that can usually be changed using the <a name="i382"></a><code>stty</code> command once logged in to such servers.)
 </p>
 <p>
 Some notable modes are described below; for fuller explanations, see your server documentation.
 </p>
 <ul><li>
-<a name="i382"></a><code>ERASE</code> is the character that when typed by the user will delete one space to the left. When set to &#8216;Auto&#8217; (the default setting), this follows the setting of the local Backspace key in PuTTY (see <a href="#config-backspace">section 4.4.1</a>).
+<a name="i383"></a><code>ERASE</code> is the character that when typed by the user will delete one space to the left. When set to &#8216;Auto&#8217; (the default setting), this follows the setting of the local Backspace key in PuTTY (see <a href="#config-backspace">section 4.4.1</a>).
 <p>
-This and other <a name="i383"></a>special characters are specified using <code>^C</code> notation for Ctrl-C, and so on. Use <code>^&lt;27&gt;</code> or <code>^&lt;0x1B&gt;</code> to specify a character numerically, and <code>^~</code> to get a literal <code>^</code>. Other non-control characters are denoted by themselves. Leaving the box entirely blank indicates that <em>no</em> character should be assigned to the specified function, although this may not be supported by all servers. 
+This and other <a name="i384"></a>special characters are specified using <code>^C</code> notation for Ctrl-C, and so on. Use <code>^&lt;27&gt;</code> or <code>^&lt;0x1B&gt;</code> to specify a character numerically, and <code>^~</code> to get a literal <code>^</code>. Other non-control characters are denoted by themselves. Leaving the box entirely blank indicates that <em>no</em> character should be assigned to the specified function, although this may not be supported by all servers. 
 </p>
 
 </li>
 <li>
-<a name="i384"></a><code>QUIT</code> is a special character that usually forcefully ends the current process on the server (<code>SIGQUIT</code>). On many servers its default setting is Ctrl-backslash (<code>^\</code>), which is easy to accidentally invoke on many keyboards. If this is getting in your way, you may want to change it to another character or turn it off entirely.
+<a name="i385"></a><code>QUIT</code> is a special character that usually forcefully ends the current process on the server (<code>SIGQUIT</code>). On many servers its default setting is Ctrl-backslash (<code>^\</code>), which is easy to accidentally invoke on many keyboards. If this is getting in your way, you may want to change it to another character or turn it off entirely.
 </li>
 <li>
 Boolean modes such as <code>ECHO</code> and <code>ICANON</code> can be specified in PuTTY in a variety of ways, such as <code>true</code>/<code>false</code>, <code>yes</code>/<code>no</code>, and <code>0</code>/<code>1</code>. (Explicitly specifying a value of <code>no</code> is different from not sending the mode at all.)
 </li>
 <li>
-The boolean mode <a name="i385"></a><code>IUTF8</code> signals to the server whether the terminal character set is <a name="i386"></a>UTF-8 or not, for purposes such as basic line editing; if this is set incorrectly, the backspace key may erase the wrong amount of text, for instance. However, simply setting this is not usually sufficient for the server to use UTF-8; POSIX servers will generally also require the locale to be set (by some server-dependent means), although many newer installations default to UTF-8. Also, since this mode was added to the SSH protocol much later than the others, many servers (particularly older servers) do not honour this mode sent over SSH; indeed, a few poorly-written servers object to its mere presence, so you may find you need to set it to not be sent at all. When set to &#8216;Auto&#8217;, this follows the local configured character set (see <a href="#config-charset">section 4.10.1</a>).
+The boolean mode <a name="i386"></a><code>IUTF8</code> signals to the server whether the terminal character set is <a name="i387"></a>UTF-8 or not, for purposes such as basic line editing; if this is set incorrectly, the backspace key may erase the wrong amount of text, for instance. However, simply setting this is not usually sufficient for the server to use UTF-8; POSIX servers will generally also require the locale to be set (by some server-dependent means), although many newer installations default to UTF-8. Also, since this mode was added to the SSH protocol much later than the others, many servers (particularly older servers) do not honour this mode sent over SSH; indeed, a few poorly-written servers object to its mere presence, so you may find you need to set it to not be sent at all. When set to &#8216;Auto&#8217;, this follows the local configured character set (see <a href="#config-charset">section 4.10.1</a>).
 </li>
 <li>
 Terminal speeds are configured elsewhere; see <a href="#config-termspeed">section 4.15.4</a>.
@@ -2261,10 +2275,10 @@ Terminal speeds are configured elsewhere; see <a href="#config-termspeed">sectio
 </ul>
 <h2><a name="config-ssh-x11"></a><a name="S4.25"></a>4.25 The X11 panel</h2>
 <p>
-The X11 panel allows you to configure <a name="i387"></a>forwarding of X11 over an SSH connection.
+The X11 panel allows you to configure <a name="i388"></a>forwarding of X11 over an SSH connection.
 </p>
 <p>
-If your server lets you run X Window System <a name="i388"></a>graphical applications, X11 forwarding allows you to securely give those applications access to a local X display on your PC.
+If your server lets you run X Window System <a name="i389"></a>graphical applications, X11 forwarding allows you to securely give those applications access to a local X display on your PC.
 </p>
 <p>
 To enable X11 forwarding, check the &#8216;Enable X11 forwarding&#8217; box. If your X display is somewhere unusual, you will need to enter its location in the &#8216;X display location&#8217; box; if this is left blank, PuTTY will try to find a sensible default in the environment, or use the primary local display (<code>:0</code>) if that fails.
@@ -2272,15 +2286,15 @@ To enable X11 forwarding, check the &#8216;Enable X11 forwarding&#8217; box. If 
 <p>
 See <a href="Chapter3.html#using-x-forwarding">section 3.4</a> for more information about X11 forwarding.
 </p>
-<h3><a name="config-ssh-x11auth"></a><a name="S4.25.1"></a>4.25.1 Remote <a name="i389"></a>X11 authentication</h3>
+<h3><a name="config-ssh-x11auth"></a><a name="S4.25.1"></a>4.25.1 Remote <a name="i390"></a>X11 authentication</h3>
 <p>
 If you are using X11 forwarding, the virtual X server created on the SSH server machine will be protected by authorisation data. This data is invented, and checked, by PuTTY.
 </p>
 <p>
-The usual authorisation method used for this is called <a name="i390"></a><code>MIT-MAGIC-COOKIE-1</code>. This is a simple password-style protocol: the X client sends some cookie data to the server, and the server checks that it matches the real cookie. The cookie data is sent over an unencrypted X11 connection; so if you allow a client on a third machine to access the virtual X server, then the cookie will be sent in the clear.
+The usual authorisation method used for this is called <a name="i391"></a><code>MIT-MAGIC-COOKIE-1</code>. This is a simple password-style protocol: the X client sends some cookie data to the server, and the server checks that it matches the real cookie. The cookie data is sent over an unencrypted X11 connection; so if you allow a client on a third machine to access the virtual X server, then the cookie will be sent in the clear.
 </p>
 <p>
-PuTTY offers the alternative protocol <a name="i391"></a><code>XDM-AUTHORIZATION-1</code>. This is a cryptographically authenticated protocol: the data sent by the X client is different every time, and it depends on the IP address and port of the client's end of the connection and is also stamped with the current time. So an eavesdropper who captures an <code>XDM-AUTHORIZATION-1</code> string cannot immediately re-use it for their own X connection.
+PuTTY offers the alternative protocol <a name="i392"></a><code>XDM-AUTHORIZATION-1</code>. This is a cryptographically authenticated protocol: the data sent by the X client is different every time, and it depends on the IP address and port of the client's end of the connection and is also stamped with the current time. So an eavesdropper who captures an <code>XDM-AUTHORIZATION-1</code> string cannot immediately re-use it for their own X connection.
 </p>
 <p>
 PuTTY's support for <code>XDM-AUTHORIZATION-1</code> is a somewhat experimental feature, and may encounter several problems:
@@ -2308,12 +2322,12 @@ Some Windows X servers do not require this: they do authorisation by simpler mea
 <p>
 One way in which this data might be made available is for the X server to store it somewhere in a file which has the same format as the Unix <code>.Xauthority</code> file. If this is how your Windows X server works, then you can tell PuTTY where to find this file by configuring this option. By default, PuTTY will not attempt to find any authorisation for your local display.
 </p>
-<h2><a name="config-ssh-portfwd"></a><a name="S4.26"></a>4.26 <a name="i392"></a>The Tunnels panel</h2>
+<h2><a name="config-ssh-portfwd"></a><a name="S4.26"></a>4.26 <a name="i393"></a>The Tunnels panel</h2>
 <p>
 The Tunnels panel allows you to configure tunnelling of arbitrary connection types through an SSH connection.
 </p>
 <p>
-Port forwarding allows you to tunnel other types of <a name="i393"></a>network connection down an SSH session. See <a href="Chapter3.html#using-port-forwarding">section 3.5</a> for a general discussion of port forwarding and how it works.
+Port forwarding allows you to tunnel other types of <a name="i394"></a>network connection down an SSH session. See <a href="Chapter3.html#using-port-forwarding">section 3.5</a> for a general discussion of port forwarding and how it works.
 </p>
 <p>
 The port forwarding section in the Tunnels panel shows a list of all the port forwardings that PuTTY will try to set up when it connects to the server. By default no port forwardings are set up, so this list is empty.
@@ -2322,13 +2336,13 @@ The port forwarding section in the Tunnels panel shows a list of all the port fo
 To add a port forwarding:
 </p>
 <ul><li>
-Set one of the &#8216;Local&#8217; or &#8216;Remote&#8217; radio buttons, depending on whether you want to <a name="i394"></a>forward a local port to a remote destination (&#8216;Local&#8217;) or <a name="i395"></a>forward a remote port to a local destination (&#8216;Remote&#8217;). Alternatively, select &#8216;Dynamic&#8217; if you want PuTTY to <a name="i396"></a>provide a local SOCKS 4/4A/5 proxy on a local port (note that this proxy only supports TCP connections; the SSH protocol does not support forwarding <a name="i397"></a>UDP).
+Set one of the &#8216;Local&#8217; or &#8216;Remote&#8217; radio buttons, depending on whether you want to <a name="i395"></a>forward a local port to a remote destination (&#8216;Local&#8217;) or <a name="i396"></a>forward a remote port to a local destination (&#8216;Remote&#8217;). Alternatively, select &#8216;Dynamic&#8217; if you want PuTTY to <a name="i397"></a>provide a local SOCKS 4/4A/5 proxy on a local port (note that this proxy only supports TCP connections; the SSH protocol does not support forwarding <a name="i398"></a>UDP).
 </li>
 <li>
-Enter a source <a name="i398"></a>port number into the &#8216;Source port&#8217; box. For local forwardings, PuTTY will listen on this port of your PC. For remote forwardings, your SSH server will listen on this port of the remote machine. Note that most servers will not allow you to listen on <a name="i399"></a>port numbers less than 1024.
+Enter a source <a name="i399"></a>port number into the &#8216;Source port&#8217; box. For local forwardings, PuTTY will listen on this port of your PC. For remote forwardings, your SSH server will listen on this port of the remote machine. Note that most servers will not allow you to listen on <a name="i400"></a>port numbers less than 1024.
 </li>
 <li>
-If you have selected &#8216;Local&#8217; or &#8216;Remote&#8217; (this step is not needed with &#8216;Dynamic&#8217;), enter a hostname and port number separated by a colon, in the &#8216;Destination&#8217; box. Connections received on the source port will be directed to this destination. For example, to connect to a POP-3 server, you might enter <code>popserver.example.com:110</code>. (If you need to enter a literal <a name="i400"></a>IPv6 address, enclose it in square brackets, for instance &#8216;<code>[::1]:2200</code>&#8217;.)
+If you have selected &#8216;Local&#8217; or &#8216;Remote&#8217; (this step is not needed with &#8216;Dynamic&#8217;), enter a hostname and port number separated by a colon, in the &#8216;Destination&#8217; box. Connections received on the source port will be directed to this destination. For example, to connect to a POP-3 server, you might enter <code>popserver.example.com:110</code>. (If you need to enter a literal <a name="i401"></a>IPv6 address, enclose it in square brackets, for instance &#8216;<code>[::1]:2200</code>&#8217;.)
 </li>
 <li>
 Click the &#8216;Add&#8217; button. Your forwarding details should appear in the list box.
@@ -2338,19 +2352,19 @@ Click the &#8216;Add&#8217; button. Your forwarding details should appear in the
 To remove a port forwarding, simply select its details in the list box, and click the &#8216;Remove&#8217; button.
 </p>
 <p>
-In the &#8216;Source port&#8217; box, you can also optionally enter an <a name="i401"></a>IP address to listen on, by specifying (for instance) <code>127.0.0.5:79</code>. See <a href="Chapter3.html#using-port-forwarding">section 3.5</a> for more information on how this works and its restrictions.
+In the &#8216;Source port&#8217; box, you can also optionally enter an <a name="i402"></a>IP address to listen on, by specifying (for instance) <code>127.0.0.5:79</code>. See <a href="Chapter3.html#using-port-forwarding">section 3.5</a> for more information on how this works and its restrictions.
 </p>
 <p>
-In place of port numbers, you can enter <a name="i402"></a>service names, if they are known to the local system. For instance, in the &#8216;Destination&#8217; box, you could enter <code>popserver.example.com:pop3</code>.
+In place of port numbers, you can enter <a name="i403"></a>service names, if they are known to the local system. For instance, in the &#8216;Destination&#8217; box, you could enter <code>popserver.example.com:pop3</code>.
 </p>
 <p>
-You can <a name="i403"></a>modify the currently active set of port forwardings in mid-session using &#8216;Change Settings&#8217; (see <a href="Chapter3.html#using-changesettings">section 3.1.3.4</a>). If you delete a local or dynamic port forwarding in mid-session, PuTTY will stop listening for connections on that port, so it can be re-used by another program. If you delete a remote port forwarding, note that:
+You can <a name="i404"></a>modify the currently active set of port forwardings in mid-session using &#8216;Change Settings&#8217; (see <a href="Chapter3.html#using-changesettings">section 3.1.3.4</a>). If you delete a local or dynamic port forwarding in mid-session, PuTTY will stop listening for connections on that port, so it can be re-used by another program. If you delete a remote port forwarding, note that:
 </p>
 <ul><li>
 The SSH-1 protocol contains no mechanism for asking the server to stop listening on a remote port.
 </li>
 <li>
-The SSH-2 protocol does contain such a mechanism, but not all SSH servers support it. (In particular, <a name="i404"></a>OpenSSH does not support it in any version earlier than 3.9.)
+The SSH-2 protocol does contain such a mechanism, but not all SSH servers support it. (In particular, <a name="i405"></a>OpenSSH does not support it in any version earlier than 3.9.)
 </li>
 </ul>
 <p>
@@ -2364,18 +2378,18 @@ If the connection you are forwarding over SSH is itself a second SSH connection 
 </p>
 <h3><a name="config-ssh-portfwd-localhost"></a><a name="S4.26.1"></a>4.26.1 Controlling the visibility of forwarded ports</h3>
 <p>
-The source port for a forwarded connection usually does not accept connections from any machine except the <a name="i405"></a>SSH client or server machine itself (for local and remote forwardings respectively). There are controls in the Tunnels panel to change this:
+The source port for a forwarded connection usually does not accept connections from any machine except the <a name="i406"></a>SSH client or server machine itself (for local and remote forwardings respectively). There are controls in the Tunnels panel to change this:
 </p>
 <ul><li>
 The &#8216;Local ports accept connections from other hosts&#8217; option allows you to set up local-to-remote port forwardings in such a way that machines other than your client PC can connect to the forwarded port. (This also applies to dynamic SOCKS forwarding.)
 </li>
 <li>
-The &#8216;Remote ports do the same&#8217; option does the same thing for remote-to-local port forwardings (so that machines other than the SSH server machine can connect to the forwarded port.) Note that this feature is only available in the SSH-2 protocol, and not all SSH-2 servers support it (<a name="i406"></a>OpenSSH 3.0 does not, for example).
+The &#8216;Remote ports do the same&#8217; option does the same thing for remote-to-local port forwardings (so that machines other than the SSH server machine can connect to the forwarded port.) Note that this feature is only available in the SSH-2 protocol, and not all SSH-2 servers support it (<a name="i407"></a>OpenSSH 3.0 does not, for example).
 </li>
 </ul>
-<h3><a name="config-ssh-portfwd-address-family"></a><a name="S4.26.2"></a>4.26.2 Selecting <a name="i407"></a>Internet protocol version for forwarded ports</h3>
+<h3><a name="config-ssh-portfwd-address-family"></a><a name="S4.26.2"></a>4.26.2 Selecting <a name="i408"></a>Internet protocol version for forwarded ports</h3>
 <p>
-This switch allows you to select a specific Internet protocol (<a name="i408"></a>IPv4 or <a name="i409"></a>IPv6) for the local end of a forwarded port. By default, it is set on &#8216;Auto&#8217;, which means that:
+This switch allows you to select a specific Internet protocol (<a name="i409"></a>IPv4 or <a name="i410"></a>IPv6) for the local end of a forwarded port. By default, it is set on &#8216;Auto&#8217;, which means that:
 </p>
 <ul><li>
 for a local-to-remote port forwarding, PuTTY will listen for incoming connections in both IPv4 and (if available) IPv6
@@ -2388,9 +2402,9 @@ for a remote-to-local port forwarding, PuTTY will choose a sensible protocol for
 This overrides the general Internet protocol version preference on the Connection panel (see <a href="#config-address-family">section 4.14.4</a>).
 </p>
 <p>
-Note that some operating systems may listen for incoming connections in IPv4 even if you specifically asked for IPv6, because their IPv4 and IPv6 protocol stacks are linked together. Apparently <a name="i410"></a>Linux does this, and Windows does not. So if you're running PuTTY on Windows and you tick &#8216;IPv6&#8217; for a local or dynamic port forwarding, it will <em>only</em> be usable by connecting to it using IPv6; whereas if you do the same on Linux, you can also use it with IPv4. However, ticking &#8216;Auto&#8217; should always give you a port which you can connect to using either protocol.
+Note that some operating systems may listen for incoming connections in IPv4 even if you specifically asked for IPv6, because their IPv4 and IPv6 protocol stacks are linked together. Apparently <a name="i411"></a>Linux does this, and Windows does not. So if you're running PuTTY on Windows and you tick &#8216;IPv6&#8217; for a local or dynamic port forwarding, it will <em>only</em> be usable by connecting to it using IPv6; whereas if you do the same on Linux, you can also use it with IPv4. However, ticking &#8216;Auto&#8217; should always give you a port which you can connect to using either protocol.
 </p>
-<h2><a name="config-ssh-bugs"></a><a name="S4.27"></a>4.27 <a name="i411"></a>The Bugs and More Bugs panels</h2>
+<h2><a name="config-ssh-bugs"></a><a name="S4.27"></a>4.27 <a name="i412"></a>The Bugs and More Bugs panels</h2>
 <p>
 Not all SSH servers work properly. Various existing servers have bugs in them, which can make it impossible for a client to talk to them unless it knows about the bug and works around it.
 </p>
@@ -2413,16 +2427,16 @@ The Bugs and More Bugs panels (there are two because we have so many bug compati
 <p>
 (The PuTTY project has a defined policy about when we're prepared to add auto-detection for a bug workaround. See <a href="AppendixB.html#feedback-workarounds">section B.6</a>.)
 </p>
-<h3><a name="config-ssh-bug-ignore2"></a><a name="S4.27.1"></a>4.27.1 &#8216;Chokes on SSH-2 <a name="i412"></a>ignore messages&#8217;</h3>
+<h3><a name="config-ssh-bug-ignore2"></a><a name="S4.27.1"></a>4.27.1 &#8216;Chokes on SSH-2 <a name="i413"></a>ignore messages&#8217;</h3>
 <p>
-An ignore message (SSH_MSG_IGNORE) is a message in the SSH protocol which can be sent from the client to the server, or from the server to the client, at any time. Either side is required to ignore the message whenever it receives it. PuTTY uses ignore messages in SSH-2 to confuse the encrypted data stream and make it harder to cryptanalyse. It also uses ignore messages for connection <a name="i413"></a>keepalives (see <a href="#config-keepalive">section 4.14.1</a>).
+An ignore message (SSH_MSG_IGNORE) is a message in the SSH protocol which can be sent from the client to the server, or from the server to the client, at any time. Either side is required to ignore the message whenever it receives it. PuTTY uses ignore messages in SSH-2 to confuse the encrypted data stream and make it harder to cryptanalyse. It also uses ignore messages for connection <a name="i414"></a>keepalives (see <a href="#config-keepalive">section 4.14.1</a>).
 </p>
 <p>
 If it believes the server to have this bug, PuTTY will stop using ignore messages. If this bug is enabled when talking to a correct server, the session will succeed, but keepalives will not work and the session might be less cryptographically secure than it could be.
 </p>
 <h3><a name="config-ssh-bug-rekey"></a><a name="S4.27.2"></a>4.27.2 &#8216;Handles SSH-2 key re-exchange badly&#8217;</h3>
 <p>
-Some SSH servers cannot cope with <a name="i414"></a>repeat key exchange at all, and will ignore attempts by the client to start one. Since PuTTY pauses the session while performing a repeat key exchange, the effect of this would be to cause the session to hang after an hour (unless you have your rekey timeout set differently; see <a href="#config-ssh-kex-rekey">section 4.18.2</a> for more about rekeys). Other, very old, SSH servers handle repeat key exchange even more badly, and disconnect upon receiving a repeat key exchange request.
+Some SSH servers cannot cope with <a name="i415"></a>repeat key exchange at all, and will ignore attempts by the client to start one. Since PuTTY pauses the session while performing a repeat key exchange, the effect of this would be to cause the session to hang after an hour (unless you have your rekey timeout set differently; see <a href="#config-ssh-kex-rekey">section 4.18.2</a> for more about rekeys). Other, very old, SSH servers handle repeat key exchange even more badly, and disconnect upon receiving a repeat key exchange request.
 </p>
 <p>
 If this bug is detected, PuTTY will never initiate a repeat key exchange. If this bug is enabled when talking to a correct server, the session should still function, but may be less secure than you would expect.
@@ -2447,12 +2461,12 @@ Discussion on the <code>ietf-ssh</code> mailing list in April 2014 formed a clea
 <p>
 Because PuTTY sends channel requests with the &#8216;want reply&#8217; flag throughout channels' lifetime (see <a href="#config-ssh-bug-winadj">section 4.27.3</a>), it's possible that when connecting to such a server it might receive a reply to a request after it thinks the channel has entirely closed, and terminate with an error along the lines of &#8216;Received <code>SSH2_MSG_CHANNEL_FAILURE</code> for nonexistent channel 256&#8217;.
 </p>
-<h3><a name="config-ssh-bug-maxpkt2"></a><a name="S4.27.5"></a>4.27.5 &#8216;Ignores SSH-2 <a name="i415"></a>maximum packet size&#8217;</h3>
+<h3><a name="config-ssh-bug-maxpkt2"></a><a name="S4.27.5"></a>4.27.5 &#8216;Ignores SSH-2 <a name="i416"></a>maximum packet size&#8217;</h3>
 <p>
 When an SSH-2 channel is set up, each end announces the maximum size of data packet that it is willing to receive for that channel. Some servers ignore PuTTY's announcement and send packets larger than PuTTY is willing to accept, causing it to report &#8216;Incoming packet was garbled on decryption&#8217;.
 </p>
 <p>
-If this bug is detected, PuTTY never allows the channel's <a name="i416"></a>flow-control window to grow large enough to allow the server to send an over-sized packet. If this bug is enabled when talking to a correct server, the session will work correctly, but download performance will be less than it could be.
+If this bug is detected, PuTTY never allows the channel's <a name="i417"></a>flow-control window to grow large enough to allow the server to send an over-sized packet. If this bug is enabled when talking to a correct server, the session will work correctly, but download performance will be less than it could be.
 </p>
 <h3><a name="config-ssh-bug-dropstart"></a><a name="S4.27.6"></a>4.27.6 &#8216;Discards data sent before its greeting&#8217;</h3>
 <p>
@@ -2487,9 +2501,9 @@ If PuTTY is trying to do SSH-2 user authentication using an RSA key, and the ser
 <p>
 PuTTY should auto-detect the presence of this bug in earlier OpenSSH and adjust to send the right string.
 </p>
-<h3><a name="config-ssh-bug-sig"></a><a name="S4.27.9"></a>4.27.9 &#8216;Requires padding on SSH-2 <a name="i417"></a>RSA <a name="i418"></a>signatures&#8217;</h3>
+<h3><a name="config-ssh-bug-sig"></a><a name="S4.27.9"></a>4.27.9 &#8216;Requires padding on SSH-2 <a name="i418"></a>RSA <a name="i419"></a>signatures&#8217;</h3>
 <p>
-Versions below 3.3 of <a name="i419"></a>OpenSSH require SSH-2 RSA signatures to be padded with zero bytes to the same length as the RSA key modulus. The SSH-2 specification says that an unpadded signature MUST be accepted, so this is a bug. A typical symptom of this problem is that PuTTY mysteriously fails RSA authentication once in every few hundred attempts, and falls back to passwords.
+Versions below 3.3 of <a name="i420"></a>OpenSSH require SSH-2 RSA signatures to be padded with zero bytes to the same length as the RSA key modulus. The SSH-2 specification says that an unpadded signature MUST be accepted, so this is a bug. A typical symptom of this problem is that PuTTY mysteriously fails RSA authentication once in every few hundred attempts, and falls back to passwords.
 </p>
 <p>
 If this bug is detected, PuTTY will pad its signatures in the way OpenSSH expects. If this bug is enabled when talking to a correct server, it is likely that no damage will be done, since correct servers usually still accept padded signatures because they're used to talking to OpenSSH.
@@ -2509,7 +2523,7 @@ This is an SSH-2-specific bug.
 </p>
 <h3><a name="config-ssh-bug-hmac2"></a><a name="S4.27.11"></a>4.27.11 &#8216;Miscomputes SSH-2 HMAC keys&#8217;</h3>
 <p>
-Versions 2.3.0 and below of the SSH server software from <code>ssh.com</code> compute the keys for their <a name="i420"></a>HMAC <a name="i421"></a>message authentication codes incorrectly. A typical symptom of this problem is that PuTTY dies unexpectedly at the beginning of the session, saying &#8216;Incorrect MAC received on packet&#8217;.
+Versions 2.3.0 and below of the SSH server software from <code>ssh.com</code> compute the keys for their <a name="i421"></a>HMAC <a name="i422"></a>message authentication codes incorrectly. A typical symptom of this problem is that PuTTY dies unexpectedly at the beginning of the session, saying &#8216;Incorrect MAC received on packet&#8217;.
 </p>
 <p>
 If this bug is detected, PuTTY will compute its HMAC keys in the same way as the buggy server, so that communication will still be possible. If this bug is enabled when talking to a correct server, communication will fail.
@@ -2517,9 +2531,9 @@ If this bug is detected, PuTTY will compute its HMAC keys in the same way as the
 <p>
 This is an SSH-2-specific bug.
 </p>
-<h3><a name="config-ssh-bug-pksessid2"></a><a name="S4.27.12"></a>4.27.12 &#8216;Misuses the <a name="i422"></a>session ID in SSH-2 PK auth&#8217;</h3>
+<h3><a name="config-ssh-bug-pksessid2"></a><a name="S4.27.12"></a>4.27.12 &#8216;Misuses the <a name="i423"></a>session ID in SSH-2 PK auth&#8217;</h3>
 <p>
-Versions below 2.3 of <a name="i423"></a>OpenSSH require SSH-2 <a name="i424"></a>public-key authentication to be done slightly differently: the data to be signed by the client contains the session ID formatted in a different way. If public-key authentication mysteriously does not work but the Event Log (see <a href="Chapter3.html#using-eventlog">section 3.1.3.1</a>) thinks it has successfully sent a signature, it might be worth enabling the workaround for this bug to see if it helps.
+Versions below 2.3 of <a name="i424"></a>OpenSSH require SSH-2 <a name="i425"></a>public-key authentication to be done slightly differently: the data to be signed by the client contains the session ID formatted in a different way. If public-key authentication mysteriously does not work but the Event Log (see <a href="Chapter3.html#using-eventlog">section 3.1.3.1</a>) thinks it has successfully sent a signature, it might be worth enabling the workaround for this bug to see if it helps.
 </p>
 <p>
 If this bug is detected, PuTTY will sign data in the way OpenSSH expects. If this bug is enabled when talking to a correct server, SSH-2 public-key authentication will fail.
@@ -2527,9 +2541,9 @@ If this bug is detected, PuTTY will sign data in the way OpenSSH expects. If thi
 <p>
 This is an SSH-2-specific bug.
 </p>
-<h3><a name="config-ssh-bug-derivekey2"></a><a name="S4.27.13"></a>4.27.13 &#8216;Miscomputes SSH-2 <a name="i425"></a>encryption keys&#8217;</h3>
+<h3><a name="config-ssh-bug-derivekey2"></a><a name="S4.27.13"></a>4.27.13 &#8216;Miscomputes SSH-2 <a name="i426"></a>encryption keys&#8217;</h3>
 <p>
-Versions below 2.0.11 of the SSH server software from <a name="i426"></a><code>ssh.com</code> compute the keys for the session encryption incorrectly. This problem can cause various error messages, such as &#8216;Incoming packet was garbled on decryption&#8217;, or possibly even &#8216;Out of memory&#8217;.
+Versions below 2.0.11 of the SSH server software from <a name="i427"></a><code>ssh.com</code> compute the keys for the session encryption incorrectly. This problem can cause various error messages, such as &#8216;Incoming packet was garbled on decryption&#8217;, or possibly even &#8216;Out of memory&#8217;.
 </p>
 <p>
 If this bug is detected, PuTTY will compute its encryption keys in the same way as the buggy server, so that communication will still be possible. If this bug is enabled when talking to a correct server, communication will fail.
@@ -2537,14 +2551,14 @@ If this bug is detected, PuTTY will compute its encryption keys in the same way 
 <p>
 This is an SSH-2-specific bug.
 </p>
-<h3><a name="config-ssh-bug-ignore1"></a><a name="S4.27.14"></a>4.27.14 &#8216;Chokes on SSH-1 <a name="i427"></a>ignore messages&#8217;</h3>
+<h3><a name="config-ssh-bug-ignore1"></a><a name="S4.27.14"></a>4.27.14 &#8216;Chokes on SSH-1 <a name="i428"></a>ignore messages&#8217;</h3>
 <p>
-An ignore message (SSH_MSG_IGNORE) is a message in the SSH protocol which can be sent from the client to the server, or from the server to the client, at any time. Either side is required to ignore the message whenever it receives it. PuTTY uses ignore messages to <a name="i428"></a>hide the password packet in SSH-1, so that a listener cannot tell the length of the user's password; it also uses ignore messages for connection <a name="i429"></a>keepalives (see <a href="#config-keepalive">section 4.14.1</a>).
+An ignore message (SSH_MSG_IGNORE) is a message in the SSH protocol which can be sent from the client to the server, or from the server to the client, at any time. Either side is required to ignore the message whenever it receives it. PuTTY uses ignore messages to <a name="i429"></a>hide the password packet in SSH-1, so that a listener cannot tell the length of the user's password; it also uses ignore messages for connection <a name="i430"></a>keepalives (see <a href="#config-keepalive">section 4.14.1</a>).
 </p>
 <p>
 If this bug is detected, PuTTY will stop using ignore messages. This means that keepalives will stop working, and PuTTY will have to fall back to a secondary defence against SSH-1 password-length eavesdropping. See <a href="#config-ssh-bug-plainpw1">section 4.27.15</a>. If this bug is enabled when talking to a correct server, the session will succeed, but keepalives will not work and the session might be more vulnerable to eavesdroppers than it could be.
 </p>
-<h3><a name="config-ssh-bug-plainpw1"></a><a name="S4.27.15"></a>4.27.15 &#8216;Refuses all SSH-1 <a name="i430"></a>password camouflage&#8217;</h3>
+<h3><a name="config-ssh-bug-plainpw1"></a><a name="S4.27.15"></a>4.27.15 &#8216;Refuses all SSH-1 <a name="i431"></a>password camouflage&#8217;</h3>
 <p>
 When talking to an SSH-1 server which cannot deal with ignore messages (see <a href="#config-ssh-bug-ignore1">section 4.27.14</a>), PuTTY will attempt to disguise the length of the user's password by sending additional padding <em>within</em> the password packet. This is technically a violation of the SSH-1 specification, and so PuTTY will only do it when it cannot use standards-compliant ignore messages as camouflage. In this sense, for a server to refuse to accept a padded password packet is not really a bug, but it does make life inconvenient if the server can also not handle ignore messages.
 </p>
@@ -2554,9 +2568,9 @@ If this &#8216;bug&#8217; is detected, PuTTY will assume that neither ignore mes
 <p>
 This is an SSH-1-specific bug. SSH-2 is secure against this type of attack.
 </p>
-<h3><a name="config-ssh-bug-rsa1"></a><a name="S4.27.16"></a>4.27.16 &#8216;Chokes on SSH-1 <a name="i431"></a>RSA authentication&#8217;</h3>
+<h3><a name="config-ssh-bug-rsa1"></a><a name="S4.27.16"></a>4.27.16 &#8216;Chokes on SSH-1 <a name="i432"></a>RSA authentication&#8217;</h3>
 <p>
-Some SSH-1 servers cannot deal with RSA authentication messages at all. If <a name="i432"></a>Pageant is running and contains any SSH-1 keys, PuTTY will normally automatically try RSA authentication before falling back to passwords, so these servers will crash when they see the RSA attempt.
+Some SSH-1 servers cannot deal with RSA authentication messages at all. If <a name="i433"></a>Pageant is running and contains any SSH-1 keys, PuTTY will normally automatically try RSA authentication before falling back to passwords, so these servers will crash when they see the RSA attempt.
 </p>
 <p>
 If this bug is detected, PuTTY will go straight to password authentication. If this bug is enabled when talking to a correct server, the session will succeed, but of course RSA authentication will be impossible.
@@ -2564,7 +2578,7 @@ If this bug is detected, PuTTY will go straight to password authentication. If t
 <p>
 This is an SSH-1-specific bug.
 </p>
-<h2><a name="config-psusan"></a><a name="S4.28"></a>4.28 The &#8216;Bare <a name="i433"></a><code>ssh-connection</code>&#8217; protocol</h2>
+<h2><a name="config-psusan"></a><a name="S4.28"></a>4.28 The &#8216;Bare <a name="i434"></a><code>ssh-connection</code>&#8217; protocol</h2>
 <p>
 In addition to SSH itself, PuTTY also supports a second protocol that is derived from SSH. It's listed in the PuTTY GUI under the name &#8216;Bare <code>ssh-connection</code>&#8217;.
 </p>
@@ -2578,7 +2592,7 @@ It is therefore <strong>completely unsuited to any network connection</strong>. 
 The purpose of this protocol is for various specialist circumstances in which the &#8216;connection&#8217; is not over a real network, but is a pipe or IPC channel between different processes running on the <em>same</em> computer. In these contexts, the operating system will already have guaranteed that each of the two communicating processes is owned by the expected user (so that no authentication is necessary), and that the communications channel cannot be tapped by a hostile user on the same machine (so that no cryptography is necessary either). Examples of possible uses involve communicating with a strongly separated context such as the inside of a container, or a VM, or a different network namespace.
 </p>
 <p>
-Explicit support for this protocol is new in PuTTY 0.75. As of 2021-04, the only known server for the bare <code>ssh-connection</code> protocol is the Unix program &#8216;<a name="i434"></a><code>psusan</code>&#8217; that is also part of the PuTTY tool suite.
+Explicit support for this protocol is new in PuTTY 0.75. As of 2021-04, the only known server for the bare <code>ssh-connection</code> protocol is the Unix program &#8216;<a name="i435"></a><code>psusan</code>&#8217; that is also part of the PuTTY tool suite.
 </p>
 <p>
 (However, this protocol is also the same one used between instances of PuTTY to implement connection sharing: see <a href="#config-ssh-sharing">section 4.17.5</a>. In fact, in the Unix version of PuTTY, when a sharing upstream records &#8216;Sharing this connection at [pathname]&#8217; in the Event Log, it's possible to connect another instance of PuTTY directly to that Unix socket, by entering its pathname in the host name box and selecting &#8216;Bare <code>ssh-connection</code>&#8217; as the protocol!)
@@ -2591,14 +2605,14 @@ I repeat, <strong>DON'T TRY TO USE THIS PROTOCOL FOR NETWORK CONNECTIONS!</stron
 </p>
 <h2><a name="config-serial"></a><a name="S4.29"></a>4.29 The Serial panel</h2>
 <p>
-The <a name="i435"></a>Serial panel allows you to configure options that only apply when PuTTY is connecting to a local <a name="i436"></a><a name="i437"></a>serial line.
+The <a name="i436"></a>Serial panel allows you to configure options that only apply when PuTTY is connecting to a local <a name="i437"></a><a name="i438"></a>serial line.
 </p>
 <h3><a name="config-serial-line"></a><a name="S4.29.1"></a>4.29.1 Selecting a serial line to connect to</h3>
 <p>
 The &#8216;Serial line to connect to&#8217; box allows you to choose which serial line you want PuTTY to talk to, if your computer has more than one serial port.
 </p>
 <p>
-On Windows, the first serial line is called <a name="i438"></a><code>COM1</code>, and if there is a second it is called <code>COM2</code>, and so on.
+On Windows, the first serial line is called <a name="i439"></a><code>COM1</code>, and if there is a second it is called <code>COM2</code>, and so on.
 </p>
 <p>
 This configuration setting is also visible on the Session panel, where it replaces the &#8216;Host Name&#8217; box (see <a href="#config-hostname">section 4.1.1</a>) if the connection type is set to &#8216;Serial&#8217;.
@@ -2655,21 +2669,21 @@ The &#8216;Flow control&#8217; box allows you to choose what type of flow contro
 &#8216;DSR/DTR&#8217;: flow control is done using the DSR and DTR wires on the serial line.
 </li>
 </ul>
-<h2><a name="config-telnet"></a><a name="S4.30"></a>4.30 The <a name="i439"></a>Telnet panel</h2>
+<h2><a name="config-telnet"></a><a name="S4.30"></a>4.30 The <a name="i440"></a>Telnet panel</h2>
 <p>
 The Telnet panel allows you to configure options that only apply to Telnet sessions.
 </p>
 <h3><a name="config-oldenviron"></a><a name="S4.30.1"></a>4.30.1 &#8216;Handling of OLD_ENVIRON ambiguity&#8217;</h3>
 <p>
-The original Telnet mechanism for passing <a name="i440"></a>environment variables was badly specified. At the time the standard (RFC 1408) was written, BSD telnet implementations were already supporting the feature, and the intention of the standard was to describe the behaviour the BSD implementations were already using.
+The original Telnet mechanism for passing <a name="i441"></a>environment variables was badly specified. At the time the standard (RFC 1408) was written, BSD telnet implementations were already supporting the feature, and the intention of the standard was to describe the behaviour the BSD implementations were already using.
 </p>
 <p>
-Sadly there was a typing error in the standard when it was issued, and two vital function codes were specified the wrong way round. BSD implementations did not change, and the standard was not corrected. Therefore, it's possible you might find either <a name="i441"></a>BSD or <a name="i442"></a>RFC-compliant implementations out there. This switch allows you to choose which one PuTTY claims to be.
+Sadly there was a typing error in the standard when it was issued, and two vital function codes were specified the wrong way round. BSD implementations did not change, and the standard was not corrected. Therefore, it's possible you might find either <a name="i442"></a>BSD or <a name="i443"></a>RFC-compliant implementations out there. This switch allows you to choose which one PuTTY claims to be.
 </p>
 <p>
-The problem was solved by issuing a second standard, defining a new Telnet mechanism called <a name="i443"></a><code>NEW_ENVIRON</code>, which behaved exactly like the original <a name="i444"></a><code>OLD_ENVIRON</code> but was not encumbered by existing implementations. Most Telnet servers now support this, and it's unambiguous. This feature should only be needed if you have trouble passing environment variables to quite an old server.
+The problem was solved by issuing a second standard, defining a new Telnet mechanism called <a name="i444"></a><code>NEW_ENVIRON</code>, which behaved exactly like the original <a name="i445"></a><code>OLD_ENVIRON</code> but was not encumbered by existing implementations. Most Telnet servers now support this, and it's unambiguous. This feature should only be needed if you have trouble passing environment variables to quite an old server.
 </p>
-<h3><a name="config-ptelnet"></a><a name="S4.30.2"></a>4.30.2 Passive and active <a name="i445"></a>Telnet negotiation modes</h3>
+<h3><a name="config-ptelnet"></a><a name="S4.30.2"></a>4.30.2 Passive and active <a name="i446"></a>Telnet negotiation modes</h3>
 <p>
 In a Telnet connection, there are two types of data passed between the client and the server: actual text, and <em>negotiations</em> about which Telnet extra features to use.
 </p>
@@ -2677,60 +2691,60 @@ In a Telnet connection, there are two types of data passed between the client an
 PuTTY can use two different strategies for negotiation:
 </p>
 <ul><li>
-In <a name="i446"></a><em>active</em> mode, PuTTY starts to send negotiations as soon as the connection is opened.
+In <a name="i447"></a><em>active</em> mode, PuTTY starts to send negotiations as soon as the connection is opened.
 </li>
 <li>
-In <a name="i447"></a><em>passive</em> mode, PuTTY will wait to negotiate until it sees a negotiation from the server.
+In <a name="i448"></a><em>passive</em> mode, PuTTY will wait to negotiate until it sees a negotiation from the server.
 </li>
 </ul>
 <p>
 The obvious disadvantage of passive mode is that if the server is also operating in a passive mode, then negotiation will never begin at all. For this reason PuTTY defaults to active mode.
 </p>
 <p>
-However, sometimes passive mode is required in order to successfully get through certain types of firewall and <a name="i448"></a>Telnet proxy server. If you have confusing trouble with a <a name="i449"></a>firewall, you could try enabling passive mode to see if it helps.
+However, sometimes passive mode is required in order to successfully get through certain types of firewall and <a name="i449"></a>Telnet proxy server. If you have confusing trouble with a <a name="i450"></a>firewall, you could try enabling passive mode to see if it helps.
 </p>
-<h3><a name="config-telnetkey"></a><a name="S4.30.3"></a>4.30.3 &#8216;Keyboard sends <a name="i450"></a>Telnet special commands&#8217;</h3>
+<h3><a name="config-telnetkey"></a><a name="S4.30.3"></a>4.30.3 &#8216;Keyboard sends <a name="i451"></a>Telnet special commands&#8217;</h3>
 <p>
 If this box is checked, several key sequences will have their normal actions modified:
 </p>
 <ul><li>
-the Backspace key on the keyboard will send the <a name="i451"></a>Telnet special backspace code;
+the Backspace key on the keyboard will send the <a name="i452"></a>Telnet special backspace code;
 </li>
 <li>
-Control-C will send the Telnet special <a name="i452"></a>Interrupt Process code;
+Control-C will send the Telnet special <a name="i453"></a>Interrupt Process code;
 </li>
 <li>
-Control-Z will send the Telnet special <a name="i453"></a>Suspend Process code.
+Control-Z will send the Telnet special <a name="i454"></a>Suspend Process code.
 </li>
 </ul>
 <p>
 You probably shouldn't enable this unless you know what you're doing.
 </p>
-<h3><a name="config-telnetnl"></a><a name="S4.30.4"></a>4.30.4 &#8216;Return key sends <a name="i454"></a>Telnet New Line instead of ^M&#8217;</h3>
+<h3><a name="config-telnetnl"></a><a name="S4.30.4"></a>4.30.4 &#8216;Return key sends <a name="i455"></a>Telnet New Line instead of ^M&#8217;</h3>
 <p>
-Unlike most other remote login protocols, the Telnet protocol has a special &#8216;<a name="i455"></a>new line&#8217; code that is not the same as the usual line endings of Control-M or Control-J. By default, PuTTY sends the Telnet New Line code when you press Return, instead of sending Control-M as it does in most other protocols.
+Unlike most other remote login protocols, the Telnet protocol has a special &#8216;<a name="i456"></a>new line&#8217; code that is not the same as the usual line endings of Control-M or Control-J. By default, PuTTY sends the Telnet New Line code when you press Return, instead of sending Control-M as it does in most other protocols.
 </p>
 <p>
 Most Unix-style Telnet servers don't mind whether they receive Telnet New Line or Control-M; some servers do expect New Line, and some servers prefer to see ^M. If you are seeing surprising behaviour when you press Return in a Telnet session, you might try turning this option off to see if it helps.
 </p>
 <h2><a name="config-rlogin"></a><a name="S4.31"></a>4.31 The Rlogin panel</h2>
 <p>
-The <a name="i456"></a>Rlogin panel allows you to configure options that only apply to Rlogin sessions.
+The <a name="i457"></a>Rlogin panel allows you to configure options that only apply to Rlogin sessions.
 </p>
-<h3><a name="config-rlogin-localuser"></a><a name="S4.31.1"></a>4.31.1 <a name="i457"></a>&#8216;Local username&#8217;</h3>
+<h3><a name="config-rlogin-localuser"></a><a name="S4.31.1"></a>4.31.1 <a name="i458"></a>&#8216;Local username&#8217;</h3>
 <p>
-Rlogin allows an automated (password-free) form of login by means of a file called <a name="i458"></a><code>.rhosts</code> on the server. You put a line in your <code>.rhosts</code> file saying something like <code>jbloggs@pc1.example.com</code>, and then when you make an Rlogin connection the client transmits the username of the user running the Rlogin client. The server checks the username and hostname against <code>.rhosts</code>, and if they match it <a name="i459"></a>does not ask for a password.
-</p>
-<p>
-This only works because Unix systems contain a safeguard to stop a user from pretending to be another user in an Rlogin connection. Rlogin connections have to come from <a name="i460"></a>port numbers below 1024, and Unix systems prohibit this to unprivileged processes; so when the server sees a connection from a low-numbered port, it assumes the client end of the connection is held by a privileged (and therefore trusted) process, so it believes the claim of who the user is.
+Rlogin allows an automated (password-free) form of login by means of a file called <a name="i459"></a><code>.rhosts</code> on the server. You put a line in your <code>.rhosts</code> file saying something like <code>jbloggs@pc1.example.com</code>, and then when you make an Rlogin connection the client transmits the username of the user running the Rlogin client. The server checks the username and hostname against <code>.rhosts</code>, and if they match it <a name="i460"></a>does not ask for a password.
 </p>
 <p>
-Windows does not have this restriction: <em>any</em> user can initiate an outgoing connection from a low-numbered port. Hence, the Rlogin <code>.rhosts</code> mechanism is completely useless for securely distinguishing several different users on a Windows machine. If you have a <code>.rhosts</code> entry pointing at a Windows PC, you should assume that <em>anyone</em> using that PC can <a name="i461"></a>spoof your username in an Rlogin connection and access your account on the server.
+This only works because Unix systems contain a safeguard to stop a user from pretending to be another user in an Rlogin connection. Rlogin connections have to come from <a name="i461"></a>port numbers below 1024, and Unix systems prohibit this to unprivileged processes; so when the server sees a connection from a low-numbered port, it assumes the client end of the connection is held by a privileged (and therefore trusted) process, so it believes the claim of who the user is.
 </p>
 <p>
-The &#8216;Local username&#8217; control allows you to specify what user name PuTTY should claim you have, in case it doesn't match your <a name="i462"></a>Windows user name (or in case you didn't bother to set up a Windows user name).
+Windows does not have this restriction: <em>any</em> user can initiate an outgoing connection from a low-numbered port. Hence, the Rlogin <code>.rhosts</code> mechanism is completely useless for securely distinguishing several different users on a Windows machine. If you have a <code>.rhosts</code> entry pointing at a Windows PC, you should assume that <em>anyone</em> using that PC can <a name="i462"></a>spoof your username in an Rlogin connection and access your account on the server.
 </p>
-<h2><a name="config-supdup"></a><a name="S4.32"></a>4.32 The <a name="i463"></a>SUPDUP panel</h2>
+<p>
+The &#8216;Local username&#8217; control allows you to specify what user name PuTTY should claim you have, in case it doesn't match your <a name="i463"></a>Windows user name (or in case you didn't bother to set up a Windows user name).
+</p>
+<h2><a name="config-supdup"></a><a name="S4.32"></a>4.32 The <a name="i464"></a>SUPDUP panel</h2>
 <p>
 The SUPDUP panel allows you to configure options that only apply to SUPDUP sessions. See <a href="Chapter3.html#using-supdup">section 3.10</a> for more about the SUPDUP protocol.
 </p>
@@ -2753,9 +2767,9 @@ When **MORE** processing is enabled, the server causes output to pause at the bo
 <p>
 This controls whether the terminal will perform scrolling when the cursor goes below the last line, or if the cursor will return to the first line.
 </p>
-<h2><a name="config-file"></a><a name="S4.33"></a>4.33 <a name="i464"></a>Storing configuration in a file</h2>
+<h2><a name="config-file"></a><a name="S4.33"></a>4.33 <a name="i465"></a>Storing configuration in a file</h2>
 <p>
-PuTTY does not currently support storing its configuration in a file instead of the <a name="i465"></a>Registry. However, you can work around this with a couple of <a name="i466"></a>batch files.
+PuTTY does not currently support storing its configuration in a file instead of the <a name="i466"></a>Registry. However, you can work around this with a couple of <a name="i467"></a>batch files.
 </p>
 <p>
 You will need a file called (say) <code>PUTTY.BAT</code> which imports the contents of a file into the Registry, then runs PuTTY, exports the contents of the Registry back into the file, and deletes the Registry entries. This can all be done using the Regedit command line options, so it's all automatic. Here is what you need in <code>PUTTY.BAT</code>:
@@ -2792,5 +2806,5 @@ You should replace <code>a:\putty.rnd</code> with the location where you want to
 </p>
 
 <hr><p>If you want to provide feedback on this manual or on the PuTTY tools themselves, see the <a href="https://www.chiark.greenend.org.uk/~sgtatham/putty/feedback.html">Feedback page</a>.</p><address>
-[PuTTY release 0.81]</address></body>
+[PuTTY release 0.82]</address></body>
 </html>

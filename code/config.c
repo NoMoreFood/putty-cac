@@ -125,11 +125,19 @@ void conf_editbox_handler(dlgcontrol *ctrl, dlgparam *dlg,
 
     if (type->type == EDIT_STR) {
         if (event == EVENT_REFRESH) {
-            char *field = conf_get_str(conf, key);
-            dlg_editbox_set(ctrl, dlg, field);
+            bool utf8;
+            char *field = conf_get_str_ambi(conf, key, &utf8);
+            if (utf8)
+                dlg_editbox_set_utf8(ctrl, dlg, field);
+            else
+                dlg_editbox_set(ctrl, dlg, field);
         } else if (event == EVENT_VALCHANGE) {
-            char *field = dlg_editbox_get(ctrl, dlg);
-            conf_set_str(conf, key, field);
+            char *field = dlg_editbox_get_utf8(ctrl, dlg);
+            if (!conf_try_set_utf8(conf, key, field)) {
+                sfree(field);
+                field = dlg_editbox_get(ctrl, dlg);
+                conf_set_str(conf, key, field);
+            }
             sfree(field);
         }
     } else {
@@ -807,7 +815,7 @@ void cert_event_handler(dlgcontrol* ctrl, dlgparam* dlg, void* data, int event)
 		char* szCert = conf_get_str(conf, CONF_cert_fingerprint);
 		char* szKeyString = cert_key_string(szCert);
 		if (szKeyString == NULL) return;
-        write_aclip(CLIP_SYSTEM, szKeyString, strlen(szKeyString), true);
+        write_aclip(NULL, CLIP_SYSTEM, szKeyString, strlen(szKeyString));
 		sfree(szKeyString);
 	}
 
@@ -2571,6 +2579,9 @@ void setup_config_box(struct controlbox *b, bool midsession,
     ctrl_checkbox(s, "Disable bidirectional text display",
                   'd', HELPCTX(features_bidi), conf_checkbox_handler,
                   I(CONF_no_bidi));
+    ctrl_checkbox(s, "Disable bracketed paste mode",
+                  'p', HELPCTX(features_bracketed_paste), conf_checkbox_handler,
+                  I(CONF_no_bracketed_paste));
 
     /*
      * The Window panel.
@@ -2629,9 +2640,9 @@ void setup_config_box(struct controlbox *b, bool midsession,
                       HELPCTX(appearance_cursor),
                       conf_radiobutton_handler,
                       I(CONF_cursor_type),
-                      "Block", 'l', I(0),
-                      "Underline", 'u', I(1),
-                      "Vertical line", 'v', I(2));
+                      "Block", 'l', I(CURSOR_BLOCK),
+                      "Underline", 'u', I(CURSOR_UNDERLINE),
+                      "Vertical line", 'v', I(CURSOR_VERTICAL_LINE));
     ctrl_checkbox(s, "Cursor blinks", 'b',
                   HELPCTX(appearance_cursor),
                   conf_checkbox_handler, I(CONF_blink_cur));
@@ -2801,9 +2812,9 @@ void setup_config_box(struct controlbox *b, bool midsession,
     ctrl_radiobuttons(s, "Indicate bolded text by changing:", 'b', 3,
                       HELPCTX(colours_bold),
                       conf_radiobutton_handler, I(CONF_bold_style),
-                      "The font", I(1),
-                      "The colour", I(2),
-                      "Both", I(3));
+                      "The font", I(BOLD_STYLE_FONT),
+                      "The colour", I(BOLD_STYLE_COLOUR),
+                      "Both", I(BOLD_STYLE_FONT | BOLD_STYLE_COLOUR));
 
     str = dupprintf("Adjust the precise colours %s displays", appname);
     s = ctrl_getset(b, "Window/Colours", "adjust", str);

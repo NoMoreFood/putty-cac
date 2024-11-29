@@ -9,8 +9,8 @@ void pgp_fingerprints_msgbox(HWND owner)
 {
     message_box(
         owner,
-        "These are the fingerprints of the PuTTY PGP Master Keys. They can\n"
-        "be used to establish a trust path from this executable to another\n"
+        "These are the fingerprints of the PuTTY PGP Master Keys. They can "
+        "be used to establish a trust path from this executable to another "
         "one. See the manual for more information.\n"
         "(Note: these fingerprints have nothing to do with SSH!)\n"
         "\n"
@@ -21,5 +21,5 @@ void pgp_fingerprints_msgbox(HWND owner)
         ", " PGP_PREV_MASTER_KEY_DETAILS "):\n"
         "  " PGP_PREV_MASTER_KEY_FP,
         "PGP fingerprints", MB_ICONINFORMATION | MB_OK,
-        HELPCTXID(pgp_fingerprints));
+        false, HELPCTXID(pgp_fingerprints));
 }
