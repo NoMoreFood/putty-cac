@@ -44,19 +44,25 @@ char *buildinfo(const char *newline)
      * cases, two different compiler versions have the same _MSC_VER
      * value, and have to be distinguished by _MSC_FULL_VER.
      */
+#elif _MSC_VER == 1942
+    put_fmt(buf, " 2022 (17.12)");
+#elif _MSC_VER == 1941
+    put_fmt(buf, " 2022 (17.11)");
+#elif _MSC_VER == 1940
+    put_fmt(buf, " 2022 (17.10)");
 #elif _MSC_VER == 1939
     put_fmt(buf, " 2022 (17.9)");
 #elif _MSC_VER == 1938
-    put_fmt(buf, " 2022 (17.8)");	 
+    put_fmt(buf, " 2022 (17.8)");
 #elif _MSC_VER == 1937
     put_fmt(buf, " 2022 (17.7)");
-#elif _MSC_VER == 1935
+#elif _MSC_VER == 1936
     put_fmt(buf, " 2022 (17.6)");
 #elif _MSC_VER == 1935
-    put_fmt(buf, " 2022 (17.5)");	
+    put_fmt(buf, " 2022 (17.5)");
 #elif _MSC_VER == 1934
     put_fmt(buf, " 2022 (17.4)");
-#elif _MSC_VER == 1933
+#elif _MSC_VER == 1932
     put_fmt(buf, " 2022 (17.3)");
 #elif _MSC_VER == 1932
     put_fmt(buf, " 2022 (17.2)");
