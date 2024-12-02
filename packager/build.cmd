@@ -3,8 +3,8 @@ TITLE Building PuTTY-CAC
 SETLOCAL ENABLEDELAYEDEXPANSION
  
 :: version information
-SET VER=0.82
-SET VERN=0.82.0.0
+SET VER=0.82u1
+SET VERN=0.82.0.1
 
 :: setup environment variables based on location of this script
 SET INSTDIR=%~dp0
@@ -64,10 +64,10 @@ COPY /Y "%INSTDIR%\*.bmp" "%BASEDIR%\build\"
 
 :: do the build
 PUSHD "%BASEDIR%\build"
-FOR %%A IN (arm arm64 x86 x64) DO (
+FOR %%A IN (Arm Arm64 x86 x64) DO (
   IF /I "%%A" EQU "ARM64" SET WIN64=yes
   IF /I "%%A" EQU "X64" SET WIN64=yes
-  candle -arch %%A -dWin64=!WIN64! -dBuilddir="%BINDIR%\%%A\\" -dDllOk=Yes -dRealPlatform=x86 -dWinver="%VERN%" -dPUTTY_CAC=1 -dPuttytextver="PuTTY CAC %VERN%" "%BASEDIR%\windows\installer.wxs"
+  candle -arch %%A -dWin64=!WIN64! -dBuilddir="%BINDIR%\%%A\\" -dDllOk=Yes -dRealPlatform=%%A -dWinver="%VERN%" -dPUTTY_CAC=1 -dPuttytextver="PuTTY CAC %VERN%" "%BASEDIR%\windows\installer.wxs"
   light -ext WixUIExtension -ext WixUtilExtension -sval installer.wixobj -o "%BINDIR%\puttycac-%VER%-%%A.msi"
 )
 POPD
