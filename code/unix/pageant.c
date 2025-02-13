@@ -1313,6 +1313,8 @@ int main(int argc, char **argv)
     const char *symlink_path = NULL;
     FILE *logfp = NULL;
 
+    enable_dit();
+
     progname = argv[0];
 
     /*

@@ -296,6 +296,7 @@ int main(int argc, char **argv)
     const struct BackendVtable *vt;
 
     dll_hijacking_protection();
+    enable_dit();
 
     /*
      * Initialise port and protocol to sensible defaults. (These

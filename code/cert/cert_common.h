@@ -26,9 +26,8 @@ typedef enum CERT_SETCMD
 {
 	CERT_UNSET    = 1 << 0,
 	CERT_SET      = 1 << 1,
-	CERT_SETTABLE = 1 << 2,
-	CERT_QUERY    = 1 << 3,
-	CERT_ENFORCED = 1 << 4
+	CERT_QUERY    = 1 << 2,
+	CERT_ENFORCED = 1 << 3
 }
 CERT_SETCMD;
 

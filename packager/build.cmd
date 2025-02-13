@@ -3,8 +3,8 @@ TITLE Building PuTTY-CAC
 SETLOCAL ENABLEDELAYEDEXPANSION
  
 :: version information
-SET VER=0.82u1
-SET VERN=0.82.0.1
+SET VER=0.83
+SET VERN=0.83.0.0
 
 :: setup environment variables based on location of this script
 SET INSTDIR=%~dp0

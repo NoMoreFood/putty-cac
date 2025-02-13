@@ -2,13 +2,13 @@
 <package xmlns="http://schemas.microsoft.com/packaging/2015/06/nuspec.xsd">
   <metadata>
     <id>putty-cac</id>
-    <version>0.82.0.1</version>
+    <version>0.83.0.0</version>
     <packageSourceUrl>https://github.com/NoMoreFood/putty-cac</packageSourceUrl>
     <owners>NoMoreFood</owners>
     <title>PuTTY-CAC</title>
     <authors>Robert de Bath, Joris van Rantwijk, Delian Delchev, Andreas Schultz, Jeroen Massar, Wez Furlong, Nicolas Barry, Justin Bradford, Ben Harris, Malcolm Smith, Ahmad Khalifa, Markus Kuhn, Colin Watson, Christopher Staite, Lorenz Diener, Christian Brabandt, Jeff Smith, Pavel Kryukov, Maxim Kuznetsov, Svyatoslav Kuzmich, Nico Williams, Viktor Dukhovni, Daniel Risacher, Joshua Dantzler, Bryan Berns, and CORE SDI S.A.</authors>
     <projectUrl>https://github.com/NoMoreFood/putty-cac/releases</projectUrl>
-    <copyright>1997-2023 Simon Tatham</copyright>
+    <copyright>1997-2025 Simon Tatham</copyright>
     <iconUrl>https://github.com/NoMoreFood/putty-cac/raw/master/packager/chocolatey/PuTTY_icon_128px.png</iconUrl>
     <licenseUrl>https://raw.githubusercontent.com/NoMoreFood/putty-cac/master/code/LICENCE</licenseUrl>
     <requireLicenseAcceptance>false</requireLicenseAcceptance>
