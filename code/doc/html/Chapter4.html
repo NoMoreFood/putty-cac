@@ -1721,10 +1721,13 @@ PuTTY currently supports the following key exchange methods:
 &#8216;NTRU Prime / Curve25519 hybrid&#8217;: &#8216;<a name="i312"></a>Streamlined NTRU Prime&#8217; is a lattice-based algorithm intended to resist <a name="i313"></a>quantum attacks. In this key exchange method, it is run in parallel with a conventional Curve25519-based method (one of those included in &#8216;ECDH&#8217;), in such a way that it should be no <em>less</em> secure than that commonly-used method, and hopefully also resistant to a new class of attacks.
 </li>
 <li>
-&#8216;<a name="i314"></a>ECDH&#8217;: elliptic curve Diffie-Hellman key exchange, with a variety of standard curves and hash algorithms.
+&#8216;ML-KEM / Curve25519 hybrid&#8217; and &#8216;ML-KEM NIST ECDH hybrid&#8217;: similar hybrid constructs of <a name="i314"></a>ML-KEM, another lattice-based key exchange method intended to be <a name="i315"></a>quantum-resistant. In the former, ML-KEM is hybridised with Curve25519; in the latter, with NIST P384 or P256.
 </li>
 <li>
-The original form of <a name="i315"></a>Diffie-Hellman key exchange, with a variety of well-known groups and hashes:
+&#8216;<a name="i316"></a>ECDH&#8217;: elliptic curve Diffie-Hellman key exchange, with a variety of standard curves and hash algorithms.
+</li>
+<li>
+The original form of <a name="i317"></a>Diffie-Hellman key exchange, with a variety of well-known groups and hashes:
 <ul><li>
 &#8216;Group 18&#8217;, a well-known 8192-bit group, used with the SHA-512 hash function.
 </li>
@@ -1747,10 +1750,10 @@ The original form of <a name="i315"></a>Diffie-Hellman key exchange, with a vari
 
 </li>
 <li>
-&#8216;Diffie-Hellman <a name="i316"></a>group exchange&#8217;: with this method, instead of using a fixed group, PuTTY requests that the server suggest a group to use for a subsequent Diffie-Hellman key exchange; the server can avoid groups known to be weak, and possibly invent new ones over time, without any changes required to PuTTY's configuration. This key exchange method uses the SHA-256 hash or, if the server doesn't support that, SHA-1.
+&#8216;Diffie-Hellman <a name="i318"></a>group exchange&#8217;: with this method, instead of using a fixed group, PuTTY requests that the server suggest a group to use for a subsequent Diffie-Hellman key exchange; the server can avoid groups known to be weak, and possibly invent new ones over time, without any changes required to PuTTY's configuration. This key exchange method uses the SHA-256 hash or, if the server doesn't support that, SHA-1.
 </li>
 <li>
-&#8216;<a name="i317"></a>RSA-based key exchange&#8217;: this requires much less computational effort on the part of the client, and somewhat less on the part of the server, than Diffie-Hellman key exchange.
+&#8216;<a name="i319"></a>RSA-based key exchange&#8217;: this requires much less computational effort on the part of the client, and somewhat less on the part of the server, than Diffie-Hellman key exchange.
 </li>
 <li>
 &#8216;GSSAPI key exchange&#8217;: see <a href="#config-ssh-gssapi-kex">section 4.18.1.1</a>.
@@ -1767,7 +1770,7 @@ PuTTY supports a set of key exchange methods that also incorporates GSSAPI-based
 PuTTY can only perform the GSSAPI-authenticated key exchange methods when using Kerberos V5, and not other GSSAPI mechanisms. If the user running PuTTY has current Kerberos V5 credentials, then PuTTY will select the GSSAPI key exchange methods in preference to any of the ordinary SSH key exchange methods configured in the preference list. There's a GSSAPI-based equivalent to most of the ordinary methods listed in <a href="#config-ssh-kex-order">section 4.18.1</a>; server support determines which one will be used. (PuTTY's preference order for GSSAPI-authenticated key exchange methods is fixed, not controlled by the preference list.)
 </p>
 <p>
-The advantage of doing GSSAPI authentication as part of the SSH key exchange is apparent when you are using credential delegation (see <a href="#config-ssh-auth-gssapi-delegation">section 4.23.1</a>). The SSH key exchange can be repeated later in the session, and this allows your Kerberos V5 credentials (which are typically short-lived) to be automatically re-delegated to the server when they are refreshed on the client. (This feature is commonly referred to as &#8216;<a name="i318"></a>cascading credentials&#8217;.)
+The advantage of doing GSSAPI authentication as part of the SSH key exchange is apparent when you are using credential delegation (see <a href="#config-ssh-auth-gssapi-delegation">section 4.23.1</a>). The SSH key exchange can be repeated later in the session, and this allows your Kerberos V5 credentials (which are typically short-lived) to be automatically re-delegated to the server when they are refreshed on the client. (This feature is commonly referred to as &#8216;<a name="i320"></a>cascading credentials&#8217;.)
 </p>
 <p>
 If your server doesn't support GSSAPI key exchange, it may still support GSSAPI in the SSH user authentication phase. This will still let you log in using your Kerberos credentials, but will only allow you to delegate the credentials that are active at the beginning of the session; they can't be refreshed automatically later, in a long-running session. See <a href="#config-ssh-auth-gssapi">section 4.23</a> for how to control GSSAPI user authentication in PuTTY.
@@ -1775,7 +1778,7 @@ If your server doesn't support GSSAPI key exchange, it may still support GSSAPI 
 <p>
 Another effect of GSSAPI key exchange is that it replaces the usual SSH mechanism of permanent host keys described in <a href="Chapter2.html#gs-hostkey">section 2.2</a>. So if you use this method, then you won't be asked any interactive questions about whether to accept the server's host key. Instead, the Kerberos exchange will verify the identity of the host you connect to, at the same time as verifying your identity to it.
 </p>
-<h3><a name="config-ssh-kex-rekey"></a><a name="S4.18.2"></a>4.18.2 <a name="i319"></a>Repeat key exchange</h3>
+<h3><a name="config-ssh-kex-rekey"></a><a name="S4.18.2"></a>4.18.2 <a name="i321"></a>Repeat key exchange</h3>
 <p>
 If the session key negotiated at connection startup is used too much or for too long, it may become feasible to mount attacks against the SSH connection. Therefore, the SSH-2 protocol specifies that a new key exchange should take place every so often; this can be initiated by either the client or the server.
 </p>
@@ -1790,7 +1793,7 @@ These options control how often PuTTY will initiate a repeat key exchange (&#821
 </li>
 </ul>
 <p>
-You might have a need to disable time-based rekeys completely for the same reasons that <a name="i320"></a>keepalives aren't always helpful. If you anticipate suffering a network dropout of several hours in the middle of an SSH connection, but were not actually planning to send <em>data</em> down that connection during those hours, then an attempted rekey in the middle of the dropout will probably cause the connection to be abandoned, whereas if rekeys are disabled then the connection should in principle survive (in the absence of interfering <a name="i321"></a>firewalls). See <a href="#config-keepalive">section 4.14.1</a> for more discussion of these issues; for these purposes, rekeys have much the same properties as keepalives. (Except that rekeys have cryptographic value in themselves, so you should bear that in mind when deciding whether to turn them off.) Note, however, the the SSH <em>server</em> can still initiate rekeys.
+You might have a need to disable time-based rekeys completely for the same reasons that <a name="i322"></a>keepalives aren't always helpful. If you anticipate suffering a network dropout of several hours in the middle of an SSH connection, but were not actually planning to send <em>data</em> down that connection during those hours, then an attempted rekey in the middle of the dropout will probably cause the connection to be abandoned, whereas if rekeys are disabled then the connection should in principle survive (in the absence of interfering <a name="i323"></a>firewalls). See <a href="#config-keepalive">section 4.14.1</a> for more discussion of these issues; for these purposes, rekeys have much the same properties as keepalives. (Except that rekeys have cryptographic value in themselves, so you should bear that in mind when deciding whether to turn them off.) Note, however, the the SSH <em>server</em> can still initiate rekeys.
 </p>
 <ul><li>
 &#8216;Minutes between GSSAPI checks&#8217;, if you're using GSSAPI key exchange, specifies how often the GSSAPI credential cache is checked to see whether new tickets are available for delegation, or current ones are near expiration. If forwarding of GSSAPI credentials is enabled, PuTTY will try to rekey as necessary to keep the delegated credentials from expiring. Frequent checks are recommended; rekeying only happens when needed.
@@ -1814,11 +1817,11 @@ As well as specifying a value in bytes, the following shorthand can be used:
 </li>
 </ul>
 <p>
-Disabling data-based rekeys entirely is a bad idea. The <a name="i322"></a>integrity, and to a lesser extent, <a name="i323"></a>confidentiality of the SSH-2 protocol depend in part on rekeys occurring before a 32-bit packet sequence number wraps around. Unlike time-based rekeys, data-based rekeys won't occur when the SSH connection is idle, so they shouldn't cause the same problems. The SSH-1 protocol, incidentally, has even weaker integrity protection than SSH-2 without rekeys.
+Disabling data-based rekeys entirely is a bad idea. The <a name="i324"></a>integrity, and to a lesser extent, <a name="i325"></a>confidentiality of the SSH-2 protocol depend in part on rekeys occurring before a 32-bit packet sequence number wraps around. Unlike time-based rekeys, data-based rekeys won't occur when the SSH connection is idle, so they shouldn't cause the same problems. The SSH-1 protocol, incidentally, has even weaker integrity protection than SSH-2 without rekeys.
 </p>
 <h2><a name="config-ssh-hostkey"></a><a name="S4.19"></a>4.19 The Host Keys panel</h2>
 <p>
-The Host Keys panel allows you to configure options related to <a name="i324"></a>host key management.
+The Host Keys panel allows you to configure options related to <a name="i326"></a>host key management.
 </p>
 <p>
 Host keys are used to prove the server's identity, and assure you that the server is not being spoofed (either by a man-in-the-middle attack or by completely replacing it on the network). See <a href="Chapter2.html#gs-hostkey">section 2.2</a> for a basic introduction to host keys.
@@ -1826,7 +1829,7 @@ Host keys are used to prove the server's identity, and assure you that the serve
 <p>
 Much of this panel is only relevant to SSH protocol version 2; SSH-1 only supports one type of host key.
 </p>
-<h3><a name="config-ssh-hostkey-order"></a><a name="S4.19.1"></a>4.19.1 <a name="i325"></a>Host key type selection</h3>
+<h3><a name="config-ssh-hostkey-order"></a><a name="S4.19.1"></a>4.19.1 <a name="i327"></a>Host key type selection</h3>
 <p>
 PuTTY supports a variety of SSH-2 host key types, and allows you to choose which one you prefer to use to identify the server. Configuration is similar to cipher selection (see <a href="#config-ssh-encryption">section 4.20</a>).
 </p>
@@ -1834,19 +1837,19 @@ PuTTY supports a variety of SSH-2 host key types, and allows you to choose which
 PuTTY currently supports the following host key types:
 </p>
 <ul><li>
-&#8216;<a name="i326"></a>Ed25519&#8217;: <a name="i327"></a>Edwards-curve DSA using a twisted Edwards curve with modulus <code>2^255-19</code>.
+&#8216;<a name="i328"></a>Ed25519&#8217;: <a name="i329"></a>Edwards-curve DSA using a twisted Edwards curve with modulus <code>2^255-19</code>.
 </li>
 <li>
-&#8216;<a name="i328"></a>Ed448&#8217;: another <a name="i329"></a>Edwards-curve DSA type, using a larger elliptic curve with a 448-bit instead of 255-bit modulus (so it has a higher security level than Ed25519).
+&#8216;<a name="i330"></a>Ed448&#8217;: another <a name="i331"></a>Edwards-curve DSA type, using a larger elliptic curve with a 448-bit instead of 255-bit modulus (so it has a higher security level than Ed25519).
 </li>
 <li>
-&#8216;ECDSA&#8217;: <a name="i330"></a>elliptic curve <a name="i331"></a>DSA using one of the <a name="i332"></a>NIST-standardised elliptic curves.
+&#8216;ECDSA&#8217;: <a name="i332"></a>elliptic curve <a name="i333"></a>DSA using one of the <a name="i334"></a>NIST-standardised elliptic curves.
 </li>
 <li>
-&#8216;DSA&#8217;: straightforward <a name="i333"></a>DSA using modular exponentiation.
+&#8216;DSA&#8217;: straightforward <a name="i335"></a>DSA using modular exponentiation.
 </li>
 <li>
-&#8216;RSA&#8217;: the ordinary <a name="i334"></a>RSA algorithm.
+&#8216;RSA&#8217;: the ordinary <a name="i336"></a>RSA algorithm.
 </li>
 </ul>
 <p>
@@ -1871,7 +1874,7 @@ However, on the other hand, it can leak information to a listener in the network
 <p>
 For this reason, this policy is configurable. By turning this checkbox off, you can reset PuTTY to always use the exact order of host key algorithms configured in the preference list described in <a href="#config-ssh-hostkey-order">section 4.19.1</a>, so that a listener will find out nothing about what keys you had stored.
 </p>
-<h3><a name="config-ssh-kex-manual-hostkeys"></a><a name="S4.19.3"></a>4.19.3 <a name="i335"></a>Manually configuring host keys</h3>
+<h3><a name="config-ssh-kex-manual-hostkeys"></a><a name="S4.19.3"></a>4.19.3 <a name="i337"></a>Manually configuring host keys</h3>
 <p>
 In some situations, if PuTTY's automated host key management is not doing what you need, you might need to manually configure PuTTY to accept a specific host key, or one of a specific set of host keys.
 </p>
@@ -1891,22 +1894,22 @@ To configure manual host keys via the GUI, enter some text describing the host k
 The text describing a host key can be in one of the following formats:
 </p>
 <ul><li>
-An <a name="i336"></a>SHA-256-based host key fingerprint of the form displayed in PuTTY's Event Log and host key dialog boxes, i.e. &#8216;<code>SHA256:</code>&#8217; followed by 43 case-sensitive characters.
+An <a name="i338"></a>SHA-256-based host key fingerprint of the form displayed in PuTTY's Event Log and host key dialog boxes, i.e. &#8216;<code>SHA256:</code>&#8217; followed by 43 case-sensitive characters.
 </li>
 <li>
-An <a name="i337"></a>MD5-based host key fingerprint, i.e. sixteen 2-digit hex numbers separated by colons, optionally preceded by the prefix &#8216;<code>MD5:</code>&#8217;. (The case of the characters does not matter.)
+An <a name="i339"></a>MD5-based host key fingerprint, i.e. sixteen 2-digit hex numbers separated by colons, optionally preceded by the prefix &#8216;<code>MD5:</code>&#8217;. (The case of the characters does not matter.)
 </li>
 <li>
 A base64-encoded blob describing an SSH-2 public key in OpenSSH's one-line public key format. How you acquire a public key in this format is server-dependent; on an OpenSSH server it can typically be found in a location like <code>/etc/ssh/ssh_host_rsa_key.pub</code>.
 </li>
 </ul>
 <p>
-If this box contains at least one host key or fingerprint when PuTTY makes an SSH connection, then PuTTY's automated host key management is completely bypassed: the connection will be permitted if and only if the host key presented by the server is one of the keys listed in this box, and the <a name="i338"></a>host key store in the Registry will be neither read <em>nor written</em>, unless you explicitly do so.
+If this box contains at least one host key or fingerprint when PuTTY makes an SSH connection, then PuTTY's automated host key management is completely bypassed: the connection will be permitted if and only if the host key presented by the server is one of the keys listed in this box, and the <a name="i340"></a>host key store in the Registry will be neither read <em>nor written</em>, unless you explicitly do so.
 </p>
 <p>
 If the box is empty (as it usually is), then PuTTY's automated host key management will work as normal.
 </p>
-<h3><a name="config-ssh-kex-cert"></a><a name="S4.19.4"></a>4.19.4 Configuring PuTTY to accept host <a name="i339"></a>certificates</h3>
+<h3><a name="config-ssh-kex-cert"></a><a name="S4.19.4"></a>4.19.4 Configuring PuTTY to accept host <a name="i341"></a>certificates</h3>
 <p>
 In some environments, the SSH host keys for a lot of servers will all be signed in turn by a central &#8216;certification authority&#8217; (&#8216;CA&#8217; for short). This simplifies host key configuration for users, because if they configure their SSH client to accept host keys certified by that CA, then they don't need to individually confirm each host key the first time they connect to that server.
 </p>
@@ -1984,28 +1987,28 @@ RSA keys can be used to generate signatures with a choice of secure hash functio
 </p>
 <h2><a name="config-ssh-encryption"></a><a name="S4.20"></a>4.20 The Cipher panel</h2>
 <p>
-PuTTY supports a variety of different <a name="i340"></a>encryption algorithms, and allows you to choose which one you prefer to use. You can do this by dragging the algorithms up and down in the list box (or moving them using the Up and Down buttons) to specify a preference order. When you make an SSH connection, PuTTY will search down the list from the top until it finds an algorithm supported by the server, and then use that.
+PuTTY supports a variety of different <a name="i342"></a>encryption algorithms, and allows you to choose which one you prefer to use. You can do this by dragging the algorithms up and down in the list box (or moving them using the Up and Down buttons) to specify a preference order. When you make an SSH connection, PuTTY will search down the list from the top until it finds an algorithm supported by the server, and then use that.
 </p>
 <p>
 PuTTY currently supports the following algorithms:
 </p>
 <ul><li>
-<a name="i341"></a>ChaCha20-Poly1305, a combined cipher and <a name="i342"></a>MAC (SSH-2 only)
+<a name="i343"></a>ChaCha20-Poly1305, a combined cipher and <a name="i344"></a>MAC (SSH-2 only)
 </li>
 <li>
-<a name="i343"></a>AES (Rijndael) - 256, 192, or 128-bit SDCTR or CBC, or 256 or 128-bit GCM (SSH-2 only)
+<a name="i345"></a>AES (Rijndael) - 256, 192, or 128-bit SDCTR or CBC, or 256 or 128-bit GCM (SSH-2 only)
 </li>
 <li>
-<a name="i344"></a>Arcfour (RC4) - 256 or 128-bit stream cipher (SSH-2 only)
+<a name="i346"></a>Arcfour (RC4) - 256 or 128-bit stream cipher (SSH-2 only)
 </li>
 <li>
-<a name="i345"></a>Blowfish - 256-bit SDCTR (SSH-2 only) or 128-bit CBC
+<a name="i347"></a>Blowfish - 256-bit SDCTR (SSH-2 only) or 128-bit CBC
 </li>
 <li>
-<a name="i346"></a>Triple-DES - 168-bit SDCTR (SSH-2 only) or CBC
+<a name="i348"></a>Triple-DES - 168-bit SDCTR (SSH-2 only) or CBC
 </li>
 <li>
-<a name="i347"></a>Single-DES - 56-bit CBC (see below for SSH-2)
+<a name="i349"></a>Single-DES - 56-bit CBC (see below for SSH-2)
 </li>
 </ul>
 <p>
@@ -2027,11 +2030,11 @@ Single-DES is not recommended in the SSH-2 protocol standards, but one or two se
 </p>
 <h2><a name="config-ssh-auth"></a><a name="S4.21"></a>4.21 The Auth panel</h2>
 <p>
-The Auth panel allows you to configure <a name="i348"></a>authentication options for SSH sessions.
+The Auth panel allows you to configure <a name="i350"></a>authentication options for SSH sessions.
 </p>
 <h3><a name="config-ssh-banner"></a><a name="S4.21.1"></a>4.21.1 &#8216;Display pre-authentication banner&#8217;</h3>
 <p>
-SSH-2 servers can provide a message for clients to display to the prospective user before the user logs in; this is sometimes known as a pre-authentication &#8216;<a name="i349"></a>banner&#8217;. Typically this is used to provide information about the server and legal notices.
+SSH-2 servers can provide a message for clients to display to the prospective user before the user logs in; this is sometimes known as a pre-authentication &#8216;<a name="i351"></a>banner&#8217;. Typically this is used to provide information about the server and legal notices.
 </p>
 <p>
 By default, PuTTY displays this message before prompting for a password or similar credentials (although, unfortunately, not before prompting for a login name, due to the nature of the protocol design). By unchecking this option, display of the banner can be suppressed entirely.
@@ -2081,33 +2084,33 @@ This option can also be controlled using the <code>-noagent</code> command-line 
 <p>
 See <a href="Chapter9.html#pageant">chapter 9</a> for more information about Pageant in general.
 </p>
-<h3><a name="config-ssh-tis"></a><a name="S4.21.5"></a>4.21.5 &#8216;Attempt <a name="i350"></a>TIS or <a name="i351"></a>CryptoCard authentication&#8217;</h3>
+<h3><a name="config-ssh-tis"></a><a name="S4.21.5"></a>4.21.5 &#8216;Attempt <a name="i352"></a>TIS or <a name="i353"></a>CryptoCard authentication&#8217;</h3>
 <p>
-TIS and CryptoCard authentication are (despite their names) generic forms of simple <a name="i352"></a>challenge/response authentication available in SSH protocol version 1 only. You might use them if you were using <a name="i353"></a>S/Key <a name="i354"></a>one-time passwords, for example, or if you had a physical <a name="i355"></a>security token that generated responses to authentication challenges. They can even be used to prompt for simple passwords.
+TIS and CryptoCard authentication are (despite their names) generic forms of simple <a name="i354"></a>challenge/response authentication available in SSH protocol version 1 only. You might use them if you were using <a name="i355"></a>S/Key <a name="i356"></a>one-time passwords, for example, or if you had a physical <a name="i357"></a>security token that generated responses to authentication challenges. They can even be used to prompt for simple passwords.
 </p>
 <p>
 With this switch enabled, PuTTY will attempt these forms of authentication if the server is willing to try them. You will be presented with a challenge string (which may be different every time) and must supply the correct response in order to log in. If your server supports this, you should talk to your system administrator about precisely what form these challenges and responses take.
 </p>
-<h3><a name="config-ssh-ki"></a><a name="S4.21.6"></a>4.21.6 &#8216;Attempt <a name="i356"></a>keyboard-interactive authentication&#8217;</h3>
+<h3><a name="config-ssh-ki"></a><a name="S4.21.6"></a>4.21.6 &#8216;Attempt <a name="i358"></a>keyboard-interactive authentication&#8217;</h3>
 <p>
-The SSH-2 equivalent of TIS authentication is called &#8216;keyboard-interactive&#8217;. It is a flexible authentication method using an arbitrary sequence of requests and responses; so it is not only useful for <a name="i357"></a>challenge/response mechanisms such as <a name="i358"></a>S/Key, but it can also be used for (for example) asking the user for a <a name="i359"></a>new password when the old one has expired.
+The SSH-2 equivalent of TIS authentication is called &#8216;keyboard-interactive&#8217;. It is a flexible authentication method using an arbitrary sequence of requests and responses; so it is not only useful for <a name="i359"></a>challenge/response mechanisms such as <a name="i360"></a>S/Key, but it can also be used for (for example) asking the user for a <a name="i361"></a>new password when the old one has expired.
 </p>
 <p>
 PuTTY leaves this option enabled by default, but supplies a switch to turn it off in case you should have trouble with it.
 </p>
-<h3><a name="config-ssh-agentfwd"></a><a name="S4.21.7"></a>4.21.7 &#8216;Allow <a name="i360"></a>agent forwarding&#8217;</h3>
+<h3><a name="config-ssh-agentfwd"></a><a name="S4.21.7"></a>4.21.7 &#8216;Allow <a name="i362"></a>agent forwarding&#8217;</h3>
 <p>
-This option allows the SSH server to open forwarded connections back to your local copy of <a name="i361"></a>Pageant. If you are not running Pageant, this option will do nothing.
+This option allows the SSH server to open forwarded connections back to your local copy of <a name="i363"></a>Pageant. If you are not running Pageant, this option will do nothing.
 </p>
 <p>
 See <a href="Chapter9.html#pageant">chapter 9</a> for general information on Pageant, and <a href="Chapter9.html#pageant-forward">section 9.4</a> for information on agent forwarding. Note that there is a security risk involved with enabling this option; see <a href="Chapter9.html#pageant-security">section 9.6</a> for details.
 </p>
-<h3><a name="config-ssh-changeuser"></a><a name="S4.21.8"></a>4.21.8 &#8216;Allow attempted <a name="i362"></a>changes of username in SSH-2&#8217;</h3>
+<h3><a name="config-ssh-changeuser"></a><a name="S4.21.8"></a>4.21.8 &#8216;Allow attempted <a name="i364"></a>changes of username in SSH-2&#8217;</h3>
 <p>
 In the SSH-1 protocol, it is impossible to change username after failing to authenticate. So if you mis-type your username at the PuTTY &#8216;login as:&#8217; prompt, you will not be able to change it except by restarting PuTTY.
 </p>
 <p>
-The SSH-2 protocol <em>does</em> allow changes of username, in principle, but does not make it mandatory for SSH-2 servers to accept them. In particular, <a name="i363"></a>OpenSSH does not accept a change of username; once you have sent one username, it will reject attempts to try to authenticate as another user. (Depending on the version of OpenSSH, it may quietly return failure for all login attempts, or it may send an error message.)
+The SSH-2 protocol <em>does</em> allow changes of username, in principle, but does not make it mandatory for SSH-2 servers to accept them. In particular, <a name="i365"></a>OpenSSH does not accept a change of username; once you have sent one username, it will reject attempts to try to authenticate as another user. (Depending on the version of OpenSSH, it may quietly return failure for all login attempts, or it may send an error message.)
 </p>
 <p>
 For this reason, PuTTY will by default not prompt you for your username more than once, in case the server complains. If you know your server can cope with it, you can enable the &#8216;Allow attempted changes of username&#8217; option to modify PuTTY's behaviour.
@@ -2116,20 +2119,20 @@ For this reason, PuTTY will by default not prompt you for your username more tha
 <p>
 This subpane of the Auth panel contains configuration options that specify actual <em>credentials</em> to present to the server: key files and certificates.
 </p>
-<h3><a name="config-ssh-privkey"></a><a name="S4.22.1"></a>4.22.1 &#8216;<a name="i364"></a>Private key file for authentication&#8217;</h3>
+<h3><a name="config-ssh-privkey"></a><a name="S4.22.1"></a>4.22.1 &#8216;<a name="i366"></a>Private key file for authentication&#8217;</h3>
 <p>
-This box is where you enter the name of your private key file if you are using <a name="i365"></a>public key authentication. See <a href="Chapter8.html#pubkey">chapter 8</a> for information about public key authentication in SSH.
+This box is where you enter the name of your private key file if you are using <a name="i367"></a>public key authentication. See <a href="Chapter8.html#pubkey">chapter 8</a> for information about public key authentication in SSH.
 </p>
 <p>
-This key must be in PuTTY's native format (<code>*.<a name="i366"></a>PPK</code>). If you have a private key in another format that you want to use with PuTTY, see <a href="Chapter8.html#puttygen-conversions">section 8.2.15</a>.
+This key must be in PuTTY's native format (<code>*.<a name="i368"></a>PPK</code>). If you have a private key in another format that you want to use with PuTTY, see <a href="Chapter8.html#puttygen-conversions">section 8.2.15</a>.
 </p>
 <p>
-You can use the authentication agent <a name="i367"></a>Pageant so that you do not need to explicitly configure a key here; see <a href="Chapter9.html#pageant">chapter 9</a>.
+You can use the authentication agent <a name="i369"></a>Pageant so that you do not need to explicitly configure a key here; see <a href="Chapter9.html#pageant">chapter 9</a>.
 </p>
 <p>
 If a private key file is specified here with Pageant running, PuTTY will first try asking Pageant to authenticate with that key, and ignore any other keys Pageant may have. If that fails, PuTTY will ask for a passphrase as normal. You can also specify a <em>public</em> key file in this case (in RFC 4716 or OpenSSH format), as that's sufficient to identify the key to Pageant, but of course if Pageant isn't present PuTTY can't fall back to using this file itself.
 </p>
-<h3><a name="config-ssh-cert"></a><a name="S4.22.2"></a>4.22.2 &#8216;<a name="i368"></a>Certificate to use with the private key&#8217;</h3>
+<h3><a name="config-ssh-cert"></a><a name="S4.22.2"></a>4.22.2 &#8216;<a name="i370"></a>Certificate to use with the private key&#8217;</h3>
 <p>
 (This is optional. If you don't know you need it, you can leave this blank.)
 </p>
@@ -2148,7 +2151,7 @@ To do this, enter the pathname of the certificate file into the &#8216;Certifica
 <p>
 When this setting is configured, PuTTY will honour it no matter whether the private key is found in a file, or loaded into Pageant.
 </p>
-<h3><a name="config-ssh-authplugin"></a><a name="S4.22.3"></a>4.22.3 &#8216;<a name="i369"></a>Plugin to provide authentication responses&#8217;</h3>
+<h3><a name="config-ssh-authplugin"></a><a name="S4.22.3"></a>4.22.3 &#8216;<a name="i371"></a>Plugin to provide authentication responses&#8217;</h3>
 <p>
 An SSH server can use the &#8216;keyboard-interactive&#8217; protocol to present a series of arbitrary questions and answers. Sometimes this is used for ordinary passwords, but sometimes the server will use the same mechanism for something more complicated, such as a one-time password system.
 </p>
@@ -2161,9 +2164,9 @@ If you have been provided with a plugin of this type, you can configure it here,
 <p>
 (If you want to <em>write</em> a plugin of this type, see <a href="AppendixH.html#authplugin">appendix H</a> for the full specification of how the plugin is expected to behave.)
 </p>
-<h2><a name="config-ssh-auth-gssapi"></a><a name="S4.23"></a>4.23 The <a name="i370"></a>GSSAPI panel</h2>
+<h2><a name="config-ssh-auth-gssapi"></a><a name="S4.23"></a>4.23 The <a name="i372"></a>GSSAPI panel</h2>
 <p>
-The &#8216;GSSAPI&#8217; subpanel of the &#8216;Auth&#8217; panel controls the use of GSSAPI authentication. This is a mechanism which delegates the authentication exchange to a library elsewhere on the client machine, which in principle can authenticate in many different ways but in practice is usually used with the <a name="i371"></a>Kerberos <a name="i372"></a>single sign-on protocol to implement <a name="i373"></a>passwordless login.
+The &#8216;GSSAPI&#8217; subpanel of the &#8216;Auth&#8217; panel controls the use of GSSAPI authentication. This is a mechanism which delegates the authentication exchange to a library elsewhere on the client machine, which in principle can authenticate in many different ways but in practice is usually used with the <a name="i373"></a>Kerberos <a name="i374"></a>single sign-on protocol to implement <a name="i375"></a>passwordless login.
 </p>
 <p>
 GSSAPI authentication is only available in the SSH-2 protocol.
@@ -2182,7 +2185,7 @@ If both of those checkboxes are disabled, PuTTY will not try any form of GSSAPI 
 </p>
 <h3><a name="config-ssh-auth-gssapi-delegation"></a><a name="S4.23.1"></a>4.23.1 &#8216;Allow GSSAPI credential delegation&#8217;</h3>
 <p>
-<a name="i374"></a>GSSAPI credential delegation is a mechanism for passing on your Kerberos (or other) identity to the session on the SSH server. If you enable this option, then not only will PuTTY be able to log in automatically to a server that accepts your Kerberos credentials, but also you will be able to connect out from that server to other Kerberos-supporting services and use the same credentials just as automatically.
+<a name="i376"></a>GSSAPI credential delegation is a mechanism for passing on your Kerberos (or other) identity to the session on the SSH server. If you enable this option, then not only will PuTTY be able to log in automatically to a server that accepts your Kerberos credentials, but also you will be able to connect out from that server to other Kerberos-supporting services and use the same credentials just as automatically.
 </p>
 <p>
 (This option is the Kerberos analogue of SSH agent forwarding; see <a href="Chapter9.html#pageant-forward">section 9.4</a> for some information on that.)
@@ -2198,26 +2201,26 @@ If your connection is not using GSSAPI key exchange, it is possible for the dele
 GSSAPI is a mechanism which allows more than one authentication method to be accessed through the same interface. Therefore, more than one authentication library may exist on your system which can be accessed using GSSAPI.
 </p>
 <p>
-PuTTY contains native support for a few well-known such libraries (including Windows' <a name="i375"></a>SSPI), and will look for all of them on your system and use whichever it finds. If more than one exists on your system and you need to use a specific one, you can adjust the order in which it will search using this preference list control.
+PuTTY contains native support for a few well-known such libraries (including Windows' <a name="i377"></a>SSPI), and will look for all of them on your system and use whichever it finds. If more than one exists on your system and you need to use a specific one, you can adjust the order in which it will search using this preference list control.
 </p>
 <p>
 One of the options in the preference list is to use a user-specified GSSAPI library. If the library you want to use is not mentioned by name in PuTTY's list of options, you can enter its full pathname in the &#8216;User-supplied GSSAPI library path&#8217; field, and move the &#8216;User-supplied GSSAPI library&#8217; option in the preference list to make sure it is selected before anything else.
 </p>
 <p>
-On Windows, such libraries are files with a <a name="i376"></a><code>.dll</code> extension, and must have been built in the same way as the PuTTY executable you're running; if you have a 32-bit DLL, you must run a 32-bit version of PuTTY, and the same with 64-bit (see <a href="AppendixA.html#faq-32bit-64bit">question A.6.10</a>). On Unix, shared libraries generally have a <code>.so</code> extension.
+On Windows, such libraries are files with a <a name="i378"></a><code>.dll</code> extension, and must have been built in the same way as the PuTTY executable you're running; if you have a 32-bit DLL, you must run a 32-bit version of PuTTY, and the same with 64-bit (see <a href="AppendixA.html#faq-32bit-64bit">question A.6.10</a>). On Unix, shared libraries generally have a <code>.so</code> extension.
 </p>
 <h2><a name="config-ssh-tty"></a><a name="S4.24"></a>4.24 The TTY panel</h2>
 <p>
 The TTY panel lets you configure the remote pseudo-terminal.
 </p>
-<h3><a name="config-ssh-pty"></a><a name="S4.24.1"></a>4.24.1 <a name="i377"></a>&#8216;Don't allocate a pseudo-terminal&#8217;</h3>
+<h3><a name="config-ssh-pty"></a><a name="S4.24.1"></a>4.24.1 <a name="i379"></a>&#8216;Don't allocate a pseudo-terminal&#8217;</h3>
 <p>
-When connecting to a <a name="i378"></a>Unix system, most <a name="i379"></a>interactive shell sessions are run in a <em>pseudo-terminal</em>, which allows the Unix system to pretend it's talking to a real physical terminal device but allows the SSH server to catch all the data coming from that fake device and send it back to the client.
+When connecting to a <a name="i380"></a>Unix system, most <a name="i381"></a>interactive shell sessions are run in a <em>pseudo-terminal</em>, which allows the Unix system to pretend it's talking to a real physical terminal device but allows the SSH server to catch all the data coming from that fake device and send it back to the client.
 </p>
 <p>
 Occasionally you might find you have a need to run a session <em>not</em> in a pseudo-terminal. In PuTTY, this is generally only useful for very specialist purposes; although in Plink (see <a href="Chapter7.html#plink">chapter 7</a>) it is the usual way of working.
 </p>
-<h3><a name="config-ttymodes"></a><a name="S4.24.2"></a>4.24.2 Sending <a name="i380"></a>terminal modes</h3>
+<h3><a name="config-ttymodes"></a><a name="S4.24.2"></a>4.24.2 Sending <a name="i382"></a>terminal modes</h3>
 <p>
 The SSH protocol allows the client to send &#8216;terminal modes&#8217; for the remote pseudo-terminal. These usually control the server's expectation of the local terminal's behaviour.
 </p>
@@ -2248,26 +2251,26 @@ If a value is specified, it will be sent to the server under all circumstances. 
 By default, all of the available modes are listed as &#8216;Auto&#8217;, which should do the right thing in most circumstances.
 </p>
 <p>
-The precise effect of each setting, if any, is up to the server. Their names come from <a name="i381"></a>POSIX and other Unix systems, and they are most likely to have a useful effect on such systems. (These are the same settings that can usually be changed using the <a name="i382"></a><code>stty</code> command once logged in to such servers.)
+The precise effect of each setting, if any, is up to the server. Their names come from <a name="i383"></a>POSIX and other Unix systems, and they are most likely to have a useful effect on such systems. (These are the same settings that can usually be changed using the <a name="i384"></a><code>stty</code> command once logged in to such servers.)
 </p>
 <p>
 Some notable modes are described below; for fuller explanations, see your server documentation.
 </p>
 <ul><li>
-<a name="i383"></a><code>ERASE</code> is the character that when typed by the user will delete one space to the left. When set to &#8216;Auto&#8217; (the default setting), this follows the setting of the local Backspace key in PuTTY (see <a href="#config-backspace">section 4.4.1</a>).
+<a name="i385"></a><code>ERASE</code> is the character that when typed by the user will delete one space to the left. When set to &#8216;Auto&#8217; (the default setting), this follows the setting of the local Backspace key in PuTTY (see <a href="#config-backspace">section 4.4.1</a>).
 <p>
-This and other <a name="i384"></a>special characters are specified using <code>^C</code> notation for Ctrl-C, and so on. Use <code>^&lt;27&gt;</code> or <code>^&lt;0x1B&gt;</code> to specify a character numerically, and <code>^~</code> to get a literal <code>^</code>. Other non-control characters are denoted by themselves. Leaving the box entirely blank indicates that <em>no</em> character should be assigned to the specified function, although this may not be supported by all servers. 
+This and other <a name="i386"></a>special characters are specified using <code>^C</code> notation for Ctrl-C, and so on. Use <code>^&lt;27&gt;</code> or <code>^&lt;0x1B&gt;</code> to specify a character numerically, and <code>^~</code> to get a literal <code>^</code>. Other non-control characters are denoted by themselves. Leaving the box entirely blank indicates that <em>no</em> character should be assigned to the specified function, although this may not be supported by all servers. 
 </p>
 
 </li>
 <li>
-<a name="i385"></a><code>QUIT</code> is a special character that usually forcefully ends the current process on the server (<code>SIGQUIT</code>). On many servers its default setting is Ctrl-backslash (<code>^\</code>), which is easy to accidentally invoke on many keyboards. If this is getting in your way, you may want to change it to another character or turn it off entirely.
+<a name="i387"></a><code>QUIT</code> is a special character that usually forcefully ends the current process on the server (<code>SIGQUIT</code>). On many servers its default setting is Ctrl-backslash (<code>^\</code>), which is easy to accidentally invoke on many keyboards. If this is getting in your way, you may want to change it to another character or turn it off entirely.
 </li>
 <li>
 Boolean modes such as <code>ECHO</code> and <code>ICANON</code> can be specified in PuTTY in a variety of ways, such as <code>true</code>/<code>false</code>, <code>yes</code>/<code>no</code>, and <code>0</code>/<code>1</code>. (Explicitly specifying a value of <code>no</code> is different from not sending the mode at all.)
 </li>
 <li>
-The boolean mode <a name="i386"></a><code>IUTF8</code> signals to the server whether the terminal character set is <a name="i387"></a>UTF-8 or not, for purposes such as basic line editing; if this is set incorrectly, the backspace key may erase the wrong amount of text, for instance. However, simply setting this is not usually sufficient for the server to use UTF-8; POSIX servers will generally also require the locale to be set (by some server-dependent means), although many newer installations default to UTF-8. Also, since this mode was added to the SSH protocol much later than the others, many servers (particularly older servers) do not honour this mode sent over SSH; indeed, a few poorly-written servers object to its mere presence, so you may find you need to set it to not be sent at all. When set to &#8216;Auto&#8217;, this follows the local configured character set (see <a href="#config-charset">section 4.10.1</a>).
+The boolean mode <a name="i388"></a><code>IUTF8</code> signals to the server whether the terminal character set is <a name="i389"></a>UTF-8 or not, for purposes such as basic line editing; if this is set incorrectly, the backspace key may erase the wrong amount of text, for instance. However, simply setting this is not usually sufficient for the server to use UTF-8; POSIX servers will generally also require the locale to be set (by some server-dependent means), although many newer installations default to UTF-8. Also, since this mode was added to the SSH protocol much later than the others, many servers (particularly older servers) do not honour this mode sent over SSH; indeed, a few poorly-written servers object to its mere presence, so you may find you need to set it to not be sent at all. When set to &#8216;Auto&#8217;, this follows the local configured character set (see <a href="#config-charset">section 4.10.1</a>).
 </li>
 <li>
 Terminal speeds are configured elsewhere; see <a href="#config-termspeed">section 4.15.4</a>.
@@ -2275,10 +2278,10 @@ Terminal speeds are configured elsewhere; see <a href="#config-termspeed">sectio
 </ul>
 <h2><a name="config-ssh-x11"></a><a name="S4.25"></a>4.25 The X11 panel</h2>
 <p>
-The X11 panel allows you to configure <a name="i388"></a>forwarding of X11 over an SSH connection.
+The X11 panel allows you to configure <a name="i390"></a>forwarding of X11 over an SSH connection.
 </p>
 <p>
-If your server lets you run X Window System <a name="i389"></a>graphical applications, X11 forwarding allows you to securely give those applications access to a local X display on your PC.
+If your server lets you run X Window System <a name="i391"></a>graphical applications, X11 forwarding allows you to securely give those applications access to a local X display on your PC.
 </p>
 <p>
 To enable X11 forwarding, check the &#8216;Enable X11 forwarding&#8217; box. If your X display is somewhere unusual, you will need to enter its location in the &#8216;X display location&#8217; box; if this is left blank, PuTTY will try to find a sensible default in the environment, or use the primary local display (<code>:0</code>) if that fails.
@@ -2286,15 +2289,15 @@ To enable X11 forwarding, check the &#8216;Enable X11 forwarding&#8217; box. If 
 <p>
 See <a href="Chapter3.html#using-x-forwarding">section 3.4</a> for more information about X11 forwarding.
 </p>
-<h3><a name="config-ssh-x11auth"></a><a name="S4.25.1"></a>4.25.1 Remote <a name="i390"></a>X11 authentication</h3>
+<h3><a name="config-ssh-x11auth"></a><a name="S4.25.1"></a>4.25.1 Remote <a name="i392"></a>X11 authentication</h3>
 <p>
 If you are using X11 forwarding, the virtual X server created on the SSH server machine will be protected by authorisation data. This data is invented, and checked, by PuTTY.
 </p>
 <p>
-The usual authorisation method used for this is called <a name="i391"></a><code>MIT-MAGIC-COOKIE-1</code>. This is a simple password-style protocol: the X client sends some cookie data to the server, and the server checks that it matches the real cookie. The cookie data is sent over an unencrypted X11 connection; so if you allow a client on a third machine to access the virtual X server, then the cookie will be sent in the clear.
+The usual authorisation method used for this is called <a name="i393"></a><code>MIT-MAGIC-COOKIE-1</code>. This is a simple password-style protocol: the X client sends some cookie data to the server, and the server checks that it matches the real cookie. The cookie data is sent over an unencrypted X11 connection; so if you allow a client on a third machine to access the virtual X server, then the cookie will be sent in the clear.
 </p>
 <p>
-PuTTY offers the alternative protocol <a name="i392"></a><code>XDM-AUTHORIZATION-1</code>. This is a cryptographically authenticated protocol: the data sent by the X client is different every time, and it depends on the IP address and port of the client's end of the connection and is also stamped with the current time. So an eavesdropper who captures an <code>XDM-AUTHORIZATION-1</code> string cannot immediately re-use it for their own X connection.
+PuTTY offers the alternative protocol <a name="i394"></a><code>XDM-AUTHORIZATION-1</code>. This is a cryptographically authenticated protocol: the data sent by the X client is different every time, and it depends on the IP address and port of the client's end of the connection and is also stamped with the current time. So an eavesdropper who captures an <code>XDM-AUTHORIZATION-1</code> string cannot immediately re-use it for their own X connection.
 </p>
 <p>
 PuTTY's support for <code>XDM-AUTHORIZATION-1</code> is a somewhat experimental feature, and may encounter several problems:
@@ -2322,12 +2325,12 @@ Some Windows X servers do not require this: they do authorisation by simpler mea
 <p>
 One way in which this data might be made available is for the X server to store it somewhere in a file which has the same format as the Unix <code>.Xauthority</code> file. If this is how your Windows X server works, then you can tell PuTTY where to find this file by configuring this option. By default, PuTTY will not attempt to find any authorisation for your local display.
 </p>
-<h2><a name="config-ssh-portfwd"></a><a name="S4.26"></a>4.26 <a name="i393"></a>The Tunnels panel</h2>
+<h2><a name="config-ssh-portfwd"></a><a name="S4.26"></a>4.26 <a name="i395"></a>The Tunnels panel</h2>
 <p>
 The Tunnels panel allows you to configure tunnelling of arbitrary connection types through an SSH connection.
 </p>
 <p>
-Port forwarding allows you to tunnel other types of <a name="i394"></a>network connection down an SSH session. See <a href="Chapter3.html#using-port-forwarding">section 3.5</a> for a general discussion of port forwarding and how it works.
+Port forwarding allows you to tunnel other types of <a name="i396"></a>network connection down an SSH session. See <a href="Chapter3.html#using-port-forwarding">section 3.5</a> for a general discussion of port forwarding and how it works.
 </p>
 <p>
 The port forwarding section in the Tunnels panel shows a list of all the port forwardings that PuTTY will try to set up when it connects to the server. By default no port forwardings are set up, so this list is empty.
@@ -2336,13 +2339,13 @@ The port forwarding section in the Tunnels panel shows a list of all the port fo
 To add a port forwarding:
 </p>
 <ul><li>
-Set one of the &#8216;Local&#8217; or &#8216;Remote&#8217; radio buttons, depending on whether you want to <a name="i395"></a>forward a local port to a remote destination (&#8216;Local&#8217;) or <a name="i396"></a>forward a remote port to a local destination (&#8216;Remote&#8217;). Alternatively, select &#8216;Dynamic&#8217; if you want PuTTY to <a name="i397"></a>provide a local SOCKS 4/4A/5 proxy on a local port (note that this proxy only supports TCP connections; the SSH protocol does not support forwarding <a name="i398"></a>UDP).
+Set one of the &#8216;Local&#8217; or &#8216;Remote&#8217; radio buttons, depending on whether you want to <a name="i397"></a>forward a local port to a remote destination (&#8216;Local&#8217;) or <a name="i398"></a>forward a remote port to a local destination (&#8216;Remote&#8217;). Alternatively, select &#8216;Dynamic&#8217; if you want PuTTY to <a name="i399"></a>provide a local SOCKS 4/4A/5 proxy on a local port (note that this proxy only supports TCP connections; the SSH protocol does not support forwarding <a name="i400"></a>UDP).
 </li>
 <li>
-Enter a source <a name="i399"></a>port number into the &#8216;Source port&#8217; box. For local forwardings, PuTTY will listen on this port of your PC. For remote forwardings, your SSH server will listen on this port of the remote machine. Note that most servers will not allow you to listen on <a name="i400"></a>port numbers less than 1024.
+Enter a source <a name="i401"></a>port number into the &#8216;Source port&#8217; box. For local forwardings, PuTTY will listen on this port of your PC. For remote forwardings, your SSH server will listen on this port of the remote machine. Note that most servers will not allow you to listen on <a name="i402"></a>port numbers less than 1024.
 </li>
 <li>
-If you have selected &#8216;Local&#8217; or &#8216;Remote&#8217; (this step is not needed with &#8216;Dynamic&#8217;), enter a hostname and port number separated by a colon, in the &#8216;Destination&#8217; box. Connections received on the source port will be directed to this destination. For example, to connect to a POP-3 server, you might enter <code>popserver.example.com:110</code>. (If you need to enter a literal <a name="i401"></a>IPv6 address, enclose it in square brackets, for instance &#8216;<code>[::1]:2200</code>&#8217;.)
+If you have selected &#8216;Local&#8217; or &#8216;Remote&#8217; (this step is not needed with &#8216;Dynamic&#8217;), enter a hostname and port number separated by a colon, in the &#8216;Destination&#8217; box. Connections received on the source port will be directed to this destination. For example, to connect to a POP-3 server, you might enter <code>popserver.example.com:110</code>. (If you need to enter a literal <a name="i403"></a>IPv6 address, enclose it in square brackets, for instance &#8216;<code>[::1]:2200</code>&#8217;.)
 </li>
 <li>
 Click the &#8216;Add&#8217; button. Your forwarding details should appear in the list box.
@@ -2352,19 +2355,19 @@ Click the &#8216;Add&#8217; button. Your forwarding details should appear in the
 To remove a port forwarding, simply select its details in the list box, and click the &#8216;Remove&#8217; button.
 </p>
 <p>
-In the &#8216;Source port&#8217; box, you can also optionally enter an <a name="i402"></a>IP address to listen on, by specifying (for instance) <code>127.0.0.5:79</code>. See <a href="Chapter3.html#using-port-forwarding">section 3.5</a> for more information on how this works and its restrictions.
+In the &#8216;Source port&#8217; box, you can also optionally enter an <a name="i404"></a>IP address to listen on, by specifying (for instance) <code>127.0.0.5:79</code>. See <a href="Chapter3.html#using-port-forwarding">section 3.5</a> for more information on how this works and its restrictions.
 </p>
 <p>
-In place of port numbers, you can enter <a name="i403"></a>service names, if they are known to the local system. For instance, in the &#8216;Destination&#8217; box, you could enter <code>popserver.example.com:pop3</code>.
+In place of port numbers, you can enter <a name="i405"></a>service names, if they are known to the local system. For instance, in the &#8216;Destination&#8217; box, you could enter <code>popserver.example.com:pop3</code>.
 </p>
 <p>
-You can <a name="i404"></a>modify the currently active set of port forwardings in mid-session using &#8216;Change Settings&#8217; (see <a href="Chapter3.html#using-changesettings">section 3.1.3.4</a>). If you delete a local or dynamic port forwarding in mid-session, PuTTY will stop listening for connections on that port, so it can be re-used by another program. If you delete a remote port forwarding, note that:
+You can <a name="i406"></a>modify the currently active set of port forwardings in mid-session using &#8216;Change Settings&#8217; (see <a href="Chapter3.html#using-changesettings">section 3.1.3.4</a>). If you delete a local or dynamic port forwarding in mid-session, PuTTY will stop listening for connections on that port, so it can be re-used by another program. If you delete a remote port forwarding, note that:
 </p>
 <ul><li>
 The SSH-1 protocol contains no mechanism for asking the server to stop listening on a remote port.
 </li>
 <li>
-The SSH-2 protocol does contain such a mechanism, but not all SSH servers support it. (In particular, <a name="i405"></a>OpenSSH does not support it in any version earlier than 3.9.)
+The SSH-2 protocol does contain such a mechanism, but not all SSH servers support it. (In particular, <a name="i407"></a>OpenSSH does not support it in any version earlier than 3.9.)
 </li>
 </ul>
 <p>
@@ -2378,18 +2381,18 @@ If the connection you are forwarding over SSH is itself a second SSH connection 
 </p>
 <h3><a name="config-ssh-portfwd-localhost"></a><a name="S4.26.1"></a>4.26.1 Controlling the visibility of forwarded ports</h3>
 <p>
-The source port for a forwarded connection usually does not accept connections from any machine except the <a name="i406"></a>SSH client or server machine itself (for local and remote forwardings respectively). There are controls in the Tunnels panel to change this:
+The source port for a forwarded connection usually does not accept connections from any machine except the <a name="i408"></a>SSH client or server machine itself (for local and remote forwardings respectively). There are controls in the Tunnels panel to change this:
 </p>
 <ul><li>
 The &#8216;Local ports accept connections from other hosts&#8217; option allows you to set up local-to-remote port forwardings in such a way that machines other than your client PC can connect to the forwarded port. (This also applies to dynamic SOCKS forwarding.)
 </li>
 <li>
-The &#8216;Remote ports do the same&#8217; option does the same thing for remote-to-local port forwardings (so that machines other than the SSH server machine can connect to the forwarded port.) Note that this feature is only available in the SSH-2 protocol, and not all SSH-2 servers support it (<a name="i407"></a>OpenSSH 3.0 does not, for example).
+The &#8216;Remote ports do the same&#8217; option does the same thing for remote-to-local port forwardings (so that machines other than the SSH server machine can connect to the forwarded port.) Note that this feature is only available in the SSH-2 protocol, and not all SSH-2 servers support it (<a name="i409"></a>OpenSSH 3.0 does not, for example).
 </li>
 </ul>
-<h3><a name="config-ssh-portfwd-address-family"></a><a name="S4.26.2"></a>4.26.2 Selecting <a name="i408"></a>Internet protocol version for forwarded ports</h3>
+<h3><a name="config-ssh-portfwd-address-family"></a><a name="S4.26.2"></a>4.26.2 Selecting <a name="i410"></a>Internet protocol version for forwarded ports</h3>
 <p>
-This switch allows you to select a specific Internet protocol (<a name="i409"></a>IPv4 or <a name="i410"></a>IPv6) for the local end of a forwarded port. By default, it is set on &#8216;Auto&#8217;, which means that:
+This switch allows you to select a specific Internet protocol (<a name="i411"></a>IPv4 or <a name="i412"></a>IPv6) for the local end of a forwarded port. By default, it is set on &#8216;Auto&#8217;, which means that:
 </p>
 <ul><li>
 for a local-to-remote port forwarding, PuTTY will listen for incoming connections in both IPv4 and (if available) IPv6
@@ -2402,9 +2405,9 @@ for a remote-to-local port forwarding, PuTTY will choose a sensible protocol for
 This overrides the general Internet protocol version preference on the Connection panel (see <a href="#config-address-family">section 4.14.4</a>).
 </p>
 <p>
-Note that some operating systems may listen for incoming connections in IPv4 even if you specifically asked for IPv6, because their IPv4 and IPv6 protocol stacks are linked together. Apparently <a name="i411"></a>Linux does this, and Windows does not. So if you're running PuTTY on Windows and you tick &#8216;IPv6&#8217; for a local or dynamic port forwarding, it will <em>only</em> be usable by connecting to it using IPv6; whereas if you do the same on Linux, you can also use it with IPv4. However, ticking &#8216;Auto&#8217; should always give you a port which you can connect to using either protocol.
+Note that some operating systems may listen for incoming connections in IPv4 even if you specifically asked for IPv6, because their IPv4 and IPv6 protocol stacks are linked together. Apparently <a name="i413"></a>Linux does this, and Windows does not. So if you're running PuTTY on Windows and you tick &#8216;IPv6&#8217; for a local or dynamic port forwarding, it will <em>only</em> be usable by connecting to it using IPv6; whereas if you do the same on Linux, you can also use it with IPv4. However, ticking &#8216;Auto&#8217; should always give you a port which you can connect to using either protocol.
 </p>
-<h2><a name="config-ssh-bugs"></a><a name="S4.27"></a>4.27 <a name="i412"></a>The Bugs and More Bugs panels</h2>
+<h2><a name="config-ssh-bugs"></a><a name="S4.27"></a>4.27 <a name="i414"></a>The Bugs and More Bugs panels</h2>
 <p>
 Not all SSH servers work properly. Various existing servers have bugs in them, which can make it impossible for a client to talk to them unless it knows about the bug and works around it.
 </p>
@@ -2427,16 +2430,16 @@ The Bugs and More Bugs panels (there are two because we have so many bug compati
 <p>
 (The PuTTY project has a defined policy about when we're prepared to add auto-detection for a bug workaround. See <a href="AppendixB.html#feedback-workarounds">section B.6</a>.)
 </p>
-<h3><a name="config-ssh-bug-ignore2"></a><a name="S4.27.1"></a>4.27.1 &#8216;Chokes on SSH-2 <a name="i413"></a>ignore messages&#8217;</h3>
+<h3><a name="config-ssh-bug-ignore2"></a><a name="S4.27.1"></a>4.27.1 &#8216;Chokes on SSH-2 <a name="i415"></a>ignore messages&#8217;</h3>
 <p>
-An ignore message (SSH_MSG_IGNORE) is a message in the SSH protocol which can be sent from the client to the server, or from the server to the client, at any time. Either side is required to ignore the message whenever it receives it. PuTTY uses ignore messages in SSH-2 to confuse the encrypted data stream and make it harder to cryptanalyse. It also uses ignore messages for connection <a name="i414"></a>keepalives (see <a href="#config-keepalive">section 4.14.1</a>).
+An ignore message (SSH_MSG_IGNORE) is a message in the SSH protocol which can be sent from the client to the server, or from the server to the client, at any time. Either side is required to ignore the message whenever it receives it. PuTTY uses ignore messages in SSH-2 to confuse the encrypted data stream and make it harder to cryptanalyse. It also uses ignore messages for connection <a name="i416"></a>keepalives (see <a href="#config-keepalive">section 4.14.1</a>).
 </p>
 <p>
 If it believes the server to have this bug, PuTTY will stop using ignore messages. If this bug is enabled when talking to a correct server, the session will succeed, but keepalives will not work and the session might be less cryptographically secure than it could be.
 </p>
 <h3><a name="config-ssh-bug-rekey"></a><a name="S4.27.2"></a>4.27.2 &#8216;Handles SSH-2 key re-exchange badly&#8217;</h3>
 <p>
-Some SSH servers cannot cope with <a name="i415"></a>repeat key exchange at all, and will ignore attempts by the client to start one. Since PuTTY pauses the session while performing a repeat key exchange, the effect of this would be to cause the session to hang after an hour (unless you have your rekey timeout set differently; see <a href="#config-ssh-kex-rekey">section 4.18.2</a> for more about rekeys). Other, very old, SSH servers handle repeat key exchange even more badly, and disconnect upon receiving a repeat key exchange request.
+Some SSH servers cannot cope with <a name="i417"></a>repeat key exchange at all, and will ignore attempts by the client to start one. Since PuTTY pauses the session while performing a repeat key exchange, the effect of this would be to cause the session to hang after an hour (unless you have your rekey timeout set differently; see <a href="#config-ssh-kex-rekey">section 4.18.2</a> for more about rekeys). Other, very old, SSH servers handle repeat key exchange even more badly, and disconnect upon receiving a repeat key exchange request.
 </p>
 <p>
 If this bug is detected, PuTTY will never initiate a repeat key exchange. If this bug is enabled when talking to a correct server, the session should still function, but may be less secure than you would expect.
@@ -2461,12 +2464,12 @@ Discussion on the <code>ietf-ssh</code> mailing list in April 2014 formed a clea
 <p>
 Because PuTTY sends channel requests with the &#8216;want reply&#8217; flag throughout channels' lifetime (see <a href="#config-ssh-bug-winadj">section 4.27.3</a>), it's possible that when connecting to such a server it might receive a reply to a request after it thinks the channel has entirely closed, and terminate with an error along the lines of &#8216;Received <code>SSH2_MSG_CHANNEL_FAILURE</code> for nonexistent channel 256&#8217;.
 </p>
-<h3><a name="config-ssh-bug-maxpkt2"></a><a name="S4.27.5"></a>4.27.5 &#8216;Ignores SSH-2 <a name="i416"></a>maximum packet size&#8217;</h3>
+<h3><a name="config-ssh-bug-maxpkt2"></a><a name="S4.27.5"></a>4.27.5 &#8216;Ignores SSH-2 <a name="i418"></a>maximum packet size&#8217;</h3>
 <p>
 When an SSH-2 channel is set up, each end announces the maximum size of data packet that it is willing to receive for that channel. Some servers ignore PuTTY's announcement and send packets larger than PuTTY is willing to accept, causing it to report &#8216;Incoming packet was garbled on decryption&#8217;.
 </p>
 <p>
-If this bug is detected, PuTTY never allows the channel's <a name="i417"></a>flow-control window to grow large enough to allow the server to send an over-sized packet. If this bug is enabled when talking to a correct server, the session will work correctly, but download performance will be less than it could be.
+If this bug is detected, PuTTY never allows the channel's <a name="i419"></a>flow-control window to grow large enough to allow the server to send an over-sized packet. If this bug is enabled when talking to a correct server, the session will work correctly, but download performance will be less than it could be.
 </p>
 <h3><a name="config-ssh-bug-dropstart"></a><a name="S4.27.6"></a>4.27.6 &#8216;Discards data sent before its greeting&#8217;</h3>
 <p>
@@ -2501,9 +2504,9 @@ If PuTTY is trying to do SSH-2 user authentication using an RSA key, and the ser
 <p>
 PuTTY should auto-detect the presence of this bug in earlier OpenSSH and adjust to send the right string.
 </p>
-<h3><a name="config-ssh-bug-sig"></a><a name="S4.27.9"></a>4.27.9 &#8216;Requires padding on SSH-2 <a name="i418"></a>RSA <a name="i419"></a>signatures&#8217;</h3>
+<h3><a name="config-ssh-bug-sig"></a><a name="S4.27.9"></a>4.27.9 &#8216;Requires padding on SSH-2 <a name="i420"></a>RSA <a name="i421"></a>signatures&#8217;</h3>
 <p>
-Versions below 3.3 of <a name="i420"></a>OpenSSH require SSH-2 RSA signatures to be padded with zero bytes to the same length as the RSA key modulus. The SSH-2 specification says that an unpadded signature MUST be accepted, so this is a bug. A typical symptom of this problem is that PuTTY mysteriously fails RSA authentication once in every few hundred attempts, and falls back to passwords.
+Versions below 3.3 of <a name="i422"></a>OpenSSH require SSH-2 RSA signatures to be padded with zero bytes to the same length as the RSA key modulus. The SSH-2 specification says that an unpadded signature MUST be accepted, so this is a bug. A typical symptom of this problem is that PuTTY mysteriously fails RSA authentication once in every few hundred attempts, and falls back to passwords.
 </p>
 <p>
 If this bug is detected, PuTTY will pad its signatures in the way OpenSSH expects. If this bug is enabled when talking to a correct server, it is likely that no damage will be done, since correct servers usually still accept padded signatures because they're used to talking to OpenSSH.
@@ -2523,7 +2526,7 @@ This is an SSH-2-specific bug.
 </p>
 <h3><a name="config-ssh-bug-hmac2"></a><a name="S4.27.11"></a>4.27.11 &#8216;Miscomputes SSH-2 HMAC keys&#8217;</h3>
 <p>
-Versions 2.3.0 and below of the SSH server software from <code>ssh.com</code> compute the keys for their <a name="i421"></a>HMAC <a name="i422"></a>message authentication codes incorrectly. A typical symptom of this problem is that PuTTY dies unexpectedly at the beginning of the session, saying &#8216;Incorrect MAC received on packet&#8217;.
+Versions 2.3.0 and below of the SSH server software from <code>ssh.com</code> compute the keys for their <a name="i423"></a>HMAC <a name="i424"></a>message authentication codes incorrectly. A typical symptom of this problem is that PuTTY dies unexpectedly at the beginning of the session, saying &#8216;Incorrect MAC received on packet&#8217;.
 </p>
 <p>
 If this bug is detected, PuTTY will compute its HMAC keys in the same way as the buggy server, so that communication will still be possible. If this bug is enabled when talking to a correct server, communication will fail.
@@ -2531,9 +2534,9 @@ If this bug is detected, PuTTY will compute its HMAC keys in the same way as the
 <p>
 This is an SSH-2-specific bug.
 </p>
-<h3><a name="config-ssh-bug-pksessid2"></a><a name="S4.27.12"></a>4.27.12 &#8216;Misuses the <a name="i423"></a>session ID in SSH-2 PK auth&#8217;</h3>
+<h3><a name="config-ssh-bug-pksessid2"></a><a name="S4.27.12"></a>4.27.12 &#8216;Misuses the <a name="i425"></a>session ID in SSH-2 PK auth&#8217;</h3>
 <p>
-Versions below 2.3 of <a name="i424"></a>OpenSSH require SSH-2 <a name="i425"></a>public-key authentication to be done slightly differently: the data to be signed by the client contains the session ID formatted in a different way. If public-key authentication mysteriously does not work but the Event Log (see <a href="Chapter3.html#using-eventlog">section 3.1.3.1</a>) thinks it has successfully sent a signature, it might be worth enabling the workaround for this bug to see if it helps.
+Versions below 2.3 of <a name="i426"></a>OpenSSH require SSH-2 <a name="i427"></a>public-key authentication to be done slightly differently: the data to be signed by the client contains the session ID formatted in a different way. If public-key authentication mysteriously does not work but the Event Log (see <a href="Chapter3.html#using-eventlog">section 3.1.3.1</a>) thinks it has successfully sent a signature, it might be worth enabling the workaround for this bug to see if it helps.
 </p>
 <p>
 If this bug is detected, PuTTY will sign data in the way OpenSSH expects. If this bug is enabled when talking to a correct server, SSH-2 public-key authentication will fail.
@@ -2541,9 +2544,9 @@ If this bug is detected, PuTTY will sign data in the way OpenSSH expects. If thi
 <p>
 This is an SSH-2-specific bug.
 </p>
-<h3><a name="config-ssh-bug-derivekey2"></a><a name="S4.27.13"></a>4.27.13 &#8216;Miscomputes SSH-2 <a name="i426"></a>encryption keys&#8217;</h3>
+<h3><a name="config-ssh-bug-derivekey2"></a><a name="S4.27.13"></a>4.27.13 &#8216;Miscomputes SSH-2 <a name="i428"></a>encryption keys&#8217;</h3>
 <p>
-Versions below 2.0.11 of the SSH server software from <a name="i427"></a><code>ssh.com</code> compute the keys for the session encryption incorrectly. This problem can cause various error messages, such as &#8216;Incoming packet was garbled on decryption&#8217;, or possibly even &#8216;Out of memory&#8217;.
+Versions below 2.0.11 of the SSH server software from <a name="i429"></a><code>ssh.com</code> compute the keys for the session encryption incorrectly. This problem can cause various error messages, such as &#8216;Incoming packet was garbled on decryption&#8217;, or possibly even &#8216;Out of memory&#8217;.
 </p>
 <p>
 If this bug is detected, PuTTY will compute its encryption keys in the same way as the buggy server, so that communication will still be possible. If this bug is enabled when talking to a correct server, communication will fail.
@@ -2551,14 +2554,14 @@ If this bug is detected, PuTTY will compute its encryption keys in the same way 
 <p>
 This is an SSH-2-specific bug.
 </p>
-<h3><a name="config-ssh-bug-ignore1"></a><a name="S4.27.14"></a>4.27.14 &#8216;Chokes on SSH-1 <a name="i428"></a>ignore messages&#8217;</h3>
+<h3><a name="config-ssh-bug-ignore1"></a><a name="S4.27.14"></a>4.27.14 &#8216;Chokes on SSH-1 <a name="i430"></a>ignore messages&#8217;</h3>
 <p>
-An ignore message (SSH_MSG_IGNORE) is a message in the SSH protocol which can be sent from the client to the server, or from the server to the client, at any time. Either side is required to ignore the message whenever it receives it. PuTTY uses ignore messages to <a name="i429"></a>hide the password packet in SSH-1, so that a listener cannot tell the length of the user's password; it also uses ignore messages for connection <a name="i430"></a>keepalives (see <a href="#config-keepalive">section 4.14.1</a>).
+An ignore message (SSH_MSG_IGNORE) is a message in the SSH protocol which can be sent from the client to the server, or from the server to the client, at any time. Either side is required to ignore the message whenever it receives it. PuTTY uses ignore messages to <a name="i431"></a>hide the password packet in SSH-1, so that a listener cannot tell the length of the user's password; it also uses ignore messages for connection <a name="i432"></a>keepalives (see <a href="#config-keepalive">section 4.14.1</a>).
 </p>
 <p>
 If this bug is detected, PuTTY will stop using ignore messages. This means that keepalives will stop working, and PuTTY will have to fall back to a secondary defence against SSH-1 password-length eavesdropping. See <a href="#config-ssh-bug-plainpw1">section 4.27.15</a>. If this bug is enabled when talking to a correct server, the session will succeed, but keepalives will not work and the session might be more vulnerable to eavesdroppers than it could be.
 </p>
-<h3><a name="config-ssh-bug-plainpw1"></a><a name="S4.27.15"></a>4.27.15 &#8216;Refuses all SSH-1 <a name="i431"></a>password camouflage&#8217;</h3>
+<h3><a name="config-ssh-bug-plainpw1"></a><a name="S4.27.15"></a>4.27.15 &#8216;Refuses all SSH-1 <a name="i433"></a>password camouflage&#8217;</h3>
 <p>
 When talking to an SSH-1 server which cannot deal with ignore messages (see <a href="#config-ssh-bug-ignore1">section 4.27.14</a>), PuTTY will attempt to disguise the length of the user's password by sending additional padding <em>within</em> the password packet. This is technically a violation of the SSH-1 specification, and so PuTTY will only do it when it cannot use standards-compliant ignore messages as camouflage. In this sense, for a server to refuse to accept a padded password packet is not really a bug, but it does make life inconvenient if the server can also not handle ignore messages.
 </p>
@@ -2568,9 +2571,9 @@ If this &#8216;bug&#8217; is detected, PuTTY will assume that neither ignore mes
 <p>
 This is an SSH-1-specific bug. SSH-2 is secure against this type of attack.
 </p>
-<h3><a name="config-ssh-bug-rsa1"></a><a name="S4.27.16"></a>4.27.16 &#8216;Chokes on SSH-1 <a name="i432"></a>RSA authentication&#8217;</h3>
+<h3><a name="config-ssh-bug-rsa1"></a><a name="S4.27.16"></a>4.27.16 &#8216;Chokes on SSH-1 <a name="i434"></a>RSA authentication&#8217;</h3>
 <p>
-Some SSH-1 servers cannot deal with RSA authentication messages at all. If <a name="i433"></a>Pageant is running and contains any SSH-1 keys, PuTTY will normally automatically try RSA authentication before falling back to passwords, so these servers will crash when they see the RSA attempt.
+Some SSH-1 servers cannot deal with RSA authentication messages at all. If <a name="i435"></a>Pageant is running and contains any SSH-1 keys, PuTTY will normally automatically try RSA authentication before falling back to passwords, so these servers will crash when they see the RSA attempt.
 </p>
 <p>
 If this bug is detected, PuTTY will go straight to password authentication. If this bug is enabled when talking to a correct server, the session will succeed, but of course RSA authentication will be impossible.
@@ -2578,7 +2581,7 @@ If this bug is detected, PuTTY will go straight to password authentication. If t
 <p>
 This is an SSH-1-specific bug.
 </p>
-<h2><a name="config-psusan"></a><a name="S4.28"></a>4.28 The &#8216;Bare <a name="i434"></a><code>ssh-connection</code>&#8217; protocol</h2>
+<h2><a name="config-psusan"></a><a name="S4.28"></a>4.28 The &#8216;Bare <a name="i436"></a><code>ssh-connection</code>&#8217; protocol</h2>
 <p>
 In addition to SSH itself, PuTTY also supports a second protocol that is derived from SSH. It's listed in the PuTTY GUI under the name &#8216;Bare <code>ssh-connection</code>&#8217;.
 </p>
@@ -2592,7 +2595,7 @@ It is therefore <strong>completely unsuited to any network connection</strong>. 
 The purpose of this protocol is for various specialist circumstances in which the &#8216;connection&#8217; is not over a real network, but is a pipe or IPC channel between different processes running on the <em>same</em> computer. In these contexts, the operating system will already have guaranteed that each of the two communicating processes is owned by the expected user (so that no authentication is necessary), and that the communications channel cannot be tapped by a hostile user on the same machine (so that no cryptography is necessary either). Examples of possible uses involve communicating with a strongly separated context such as the inside of a container, or a VM, or a different network namespace.
 </p>
 <p>
-Explicit support for this protocol is new in PuTTY 0.75. As of 2021-04, the only known server for the bare <code>ssh-connection</code> protocol is the Unix program &#8216;<a name="i435"></a><code>psusan</code>&#8217; that is also part of the PuTTY tool suite.
+Explicit support for this protocol is new in PuTTY 0.75. As of 2021-04, the only known server for the bare <code>ssh-connection</code> protocol is the Unix program &#8216;<a name="i437"></a><code>psusan</code>&#8217; that is also part of the PuTTY tool suite.
 </p>
 <p>
 (However, this protocol is also the same one used between instances of PuTTY to implement connection sharing: see <a href="#config-ssh-sharing">section 4.17.5</a>. In fact, in the Unix version of PuTTY, when a sharing upstream records &#8216;Sharing this connection at [pathname]&#8217; in the Event Log, it's possible to connect another instance of PuTTY directly to that Unix socket, by entering its pathname in the host name box and selecting &#8216;Bare <code>ssh-connection</code>&#8217; as the protocol!)
@@ -2605,14 +2608,14 @@ I repeat, <strong>DON'T TRY TO USE THIS PROTOCOL FOR NETWORK CONNECTIONS!</stron
 </p>
 <h2><a name="config-serial"></a><a name="S4.29"></a>4.29 The Serial panel</h2>
 <p>
-The <a name="i436"></a>Serial panel allows you to configure options that only apply when PuTTY is connecting to a local <a name="i437"></a><a name="i438"></a>serial line.
+The <a name="i438"></a>Serial panel allows you to configure options that only apply when PuTTY is connecting to a local <a name="i439"></a><a name="i440"></a>serial line.
 </p>
 <h3><a name="config-serial-line"></a><a name="S4.29.1"></a>4.29.1 Selecting a serial line to connect to</h3>
 <p>
 The &#8216;Serial line to connect to&#8217; box allows you to choose which serial line you want PuTTY to talk to, if your computer has more than one serial port.
 </p>
 <p>
-On Windows, the first serial line is called <a name="i439"></a><code>COM1</code>, and if there is a second it is called <code>COM2</code>, and so on.
+On Windows, the first serial line is called <a name="i441"></a><code>COM1</code>, and if there is a second it is called <code>COM2</code>, and so on.
 </p>
 <p>
 This configuration setting is also visible on the Session panel, where it replaces the &#8216;Host Name&#8217; box (see <a href="#config-hostname">section 4.1.1</a>) if the connection type is set to &#8216;Serial&#8217;.
@@ -2669,21 +2672,21 @@ The &#8216;Flow control&#8217; box allows you to choose what type of flow contro
 &#8216;DSR/DTR&#8217;: flow control is done using the DSR and DTR wires on the serial line.
 </li>
 </ul>
-<h2><a name="config-telnet"></a><a name="S4.30"></a>4.30 The <a name="i440"></a>Telnet panel</h2>
+<h2><a name="config-telnet"></a><a name="S4.30"></a>4.30 The <a name="i442"></a>Telnet panel</h2>
 <p>
 The Telnet panel allows you to configure options that only apply to Telnet sessions.
 </p>
 <h3><a name="config-oldenviron"></a><a name="S4.30.1"></a>4.30.1 &#8216;Handling of OLD_ENVIRON ambiguity&#8217;</h3>
 <p>
-The original Telnet mechanism for passing <a name="i441"></a>environment variables was badly specified. At the time the standard (RFC 1408) was written, BSD telnet implementations were already supporting the feature, and the intention of the standard was to describe the behaviour the BSD implementations were already using.
+The original Telnet mechanism for passing <a name="i443"></a>environment variables was badly specified. At the time the standard (RFC 1408) was written, BSD telnet implementations were already supporting the feature, and the intention of the standard was to describe the behaviour the BSD implementations were already using.
 </p>
 <p>
-Sadly there was a typing error in the standard when it was issued, and two vital function codes were specified the wrong way round. BSD implementations did not change, and the standard was not corrected. Therefore, it's possible you might find either <a name="i442"></a>BSD or <a name="i443"></a>RFC-compliant implementations out there. This switch allows you to choose which one PuTTY claims to be.
+Sadly there was a typing error in the standard when it was issued, and two vital function codes were specified the wrong way round. BSD implementations did not change, and the standard was not corrected. Therefore, it's possible you might find either <a name="i444"></a>BSD or <a name="i445"></a>RFC-compliant implementations out there. This switch allows you to choose which one PuTTY claims to be.
 </p>
 <p>
-The problem was solved by issuing a second standard, defining a new Telnet mechanism called <a name="i444"></a><code>NEW_ENVIRON</code>, which behaved exactly like the original <a name="i445"></a><code>OLD_ENVIRON</code> but was not encumbered by existing implementations. Most Telnet servers now support this, and it's unambiguous. This feature should only be needed if you have trouble passing environment variables to quite an old server.
+The problem was solved by issuing a second standard, defining a new Telnet mechanism called <a name="i446"></a><code>NEW_ENVIRON</code>, which behaved exactly like the original <a name="i447"></a><code>OLD_ENVIRON</code> but was not encumbered by existing implementations. Most Telnet servers now support this, and it's unambiguous. This feature should only be needed if you have trouble passing environment variables to quite an old server.
 </p>
-<h3><a name="config-ptelnet"></a><a name="S4.30.2"></a>4.30.2 Passive and active <a name="i446"></a>Telnet negotiation modes</h3>
+<h3><a name="config-ptelnet"></a><a name="S4.30.2"></a>4.30.2 Passive and active <a name="i448"></a>Telnet negotiation modes</h3>
 <p>
 In a Telnet connection, there are two types of data passed between the client and the server: actual text, and <em>negotiations</em> about which Telnet extra features to use.
 </p>
@@ -2691,60 +2694,60 @@ In a Telnet connection, there are two types of data passed between the client an
 PuTTY can use two different strategies for negotiation:
 </p>
 <ul><li>
-In <a name="i447"></a><em>active</em> mode, PuTTY starts to send negotiations as soon as the connection is opened.
+In <a name="i449"></a><em>active</em> mode, PuTTY starts to send negotiations as soon as the connection is opened.
 </li>
 <li>
-In <a name="i448"></a><em>passive</em> mode, PuTTY will wait to negotiate until it sees a negotiation from the server.
+In <a name="i450"></a><em>passive</em> mode, PuTTY will wait to negotiate until it sees a negotiation from the server.
 </li>
 </ul>
 <p>
 The obvious disadvantage of passive mode is that if the server is also operating in a passive mode, then negotiation will never begin at all. For this reason PuTTY defaults to active mode.
 </p>
 <p>
-However, sometimes passive mode is required in order to successfully get through certain types of firewall and <a name="i449"></a>Telnet proxy server. If you have confusing trouble with a <a name="i450"></a>firewall, you could try enabling passive mode to see if it helps.
+However, sometimes passive mode is required in order to successfully get through certain types of firewall and <a name="i451"></a>Telnet proxy server. If you have confusing trouble with a <a name="i452"></a>firewall, you could try enabling passive mode to see if it helps.
 </p>
-<h3><a name="config-telnetkey"></a><a name="S4.30.3"></a>4.30.3 &#8216;Keyboard sends <a name="i451"></a>Telnet special commands&#8217;</h3>
+<h3><a name="config-telnetkey"></a><a name="S4.30.3"></a>4.30.3 &#8216;Keyboard sends <a name="i453"></a>Telnet special commands&#8217;</h3>
 <p>
 If this box is checked, several key sequences will have their normal actions modified:
 </p>
 <ul><li>
-the Backspace key on the keyboard will send the <a name="i452"></a>Telnet special backspace code;
+the Backspace key on the keyboard will send the <a name="i454"></a>Telnet special backspace code;
 </li>
 <li>
-Control-C will send the Telnet special <a name="i453"></a>Interrupt Process code;
+Control-C will send the Telnet special <a name="i455"></a>Interrupt Process code;
 </li>
 <li>
-Control-Z will send the Telnet special <a name="i454"></a>Suspend Process code.
+Control-Z will send the Telnet special <a name="i456"></a>Suspend Process code.
 </li>
 </ul>
 <p>
 You probably shouldn't enable this unless you know what you're doing.
 </p>
-<h3><a name="config-telnetnl"></a><a name="S4.30.4"></a>4.30.4 &#8216;Return key sends <a name="i455"></a>Telnet New Line instead of ^M&#8217;</h3>
+<h3><a name="config-telnetnl"></a><a name="S4.30.4"></a>4.30.4 &#8216;Return key sends <a name="i457"></a>Telnet New Line instead of ^M&#8217;</h3>
 <p>
-Unlike most other remote login protocols, the Telnet protocol has a special &#8216;<a name="i456"></a>new line&#8217; code that is not the same as the usual line endings of Control-M or Control-J. By default, PuTTY sends the Telnet New Line code when you press Return, instead of sending Control-M as it does in most other protocols.
+Unlike most other remote login protocols, the Telnet protocol has a special &#8216;<a name="i458"></a>new line&#8217; code that is not the same as the usual line endings of Control-M or Control-J. By default, PuTTY sends the Telnet New Line code when you press Return, instead of sending Control-M as it does in most other protocols.
 </p>
 <p>
 Most Unix-style Telnet servers don't mind whether they receive Telnet New Line or Control-M; some servers do expect New Line, and some servers prefer to see ^M. If you are seeing surprising behaviour when you press Return in a Telnet session, you might try turning this option off to see if it helps.
 </p>
 <h2><a name="config-rlogin"></a><a name="S4.31"></a>4.31 The Rlogin panel</h2>
 <p>
-The <a name="i457"></a>Rlogin panel allows you to configure options that only apply to Rlogin sessions.
+The <a name="i459"></a>Rlogin panel allows you to configure options that only apply to Rlogin sessions.
 </p>
-<h3><a name="config-rlogin-localuser"></a><a name="S4.31.1"></a>4.31.1 <a name="i458"></a>&#8216;Local username&#8217;</h3>
+<h3><a name="config-rlogin-localuser"></a><a name="S4.31.1"></a>4.31.1 <a name="i460"></a>&#8216;Local username&#8217;</h3>
 <p>
-Rlogin allows an automated (password-free) form of login by means of a file called <a name="i459"></a><code>.rhosts</code> on the server. You put a line in your <code>.rhosts</code> file saying something like <code>jbloggs@pc1.example.com</code>, and then when you make an Rlogin connection the client transmits the username of the user running the Rlogin client. The server checks the username and hostname against <code>.rhosts</code>, and if they match it <a name="i460"></a>does not ask for a password.
-</p>
-<p>
-This only works because Unix systems contain a safeguard to stop a user from pretending to be another user in an Rlogin connection. Rlogin connections have to come from <a name="i461"></a>port numbers below 1024, and Unix systems prohibit this to unprivileged processes; so when the server sees a connection from a low-numbered port, it assumes the client end of the connection is held by a privileged (and therefore trusted) process, so it believes the claim of who the user is.
+Rlogin allows an automated (password-free) form of login by means of a file called <a name="i461"></a><code>.rhosts</code> on the server. You put a line in your <code>.rhosts</code> file saying something like <code>jbloggs@pc1.example.com</code>, and then when you make an Rlogin connection the client transmits the username of the user running the Rlogin client. The server checks the username and hostname against <code>.rhosts</code>, and if they match it <a name="i462"></a>does not ask for a password.
 </p>
 <p>
-Windows does not have this restriction: <em>any</em> user can initiate an outgoing connection from a low-numbered port. Hence, the Rlogin <code>.rhosts</code> mechanism is completely useless for securely distinguishing several different users on a Windows machine. If you have a <code>.rhosts</code> entry pointing at a Windows PC, you should assume that <em>anyone</em> using that PC can <a name="i462"></a>spoof your username in an Rlogin connection and access your account on the server.
+This only works because Unix systems contain a safeguard to stop a user from pretending to be another user in an Rlogin connection. Rlogin connections have to come from <a name="i463"></a>port numbers below 1024, and Unix systems prohibit this to unprivileged processes; so when the server sees a connection from a low-numbered port, it assumes the client end of the connection is held by a privileged (and therefore trusted) process, so it believes the claim of who the user is.
 </p>
 <p>
-The &#8216;Local username&#8217; control allows you to specify what user name PuTTY should claim you have, in case it doesn't match your <a name="i463"></a>Windows user name (or in case you didn't bother to set up a Windows user name).
+Windows does not have this restriction: <em>any</em> user can initiate an outgoing connection from a low-numbered port. Hence, the Rlogin <code>.rhosts</code> mechanism is completely useless for securely distinguishing several different users on a Windows machine. If you have a <code>.rhosts</code> entry pointing at a Windows PC, you should assume that <em>anyone</em> using that PC can <a name="i464"></a>spoof your username in an Rlogin connection and access your account on the server.
 </p>
-<h2><a name="config-supdup"></a><a name="S4.32"></a>4.32 The <a name="i464"></a>SUPDUP panel</h2>
+<p>
+The &#8216;Local username&#8217; control allows you to specify what user name PuTTY should claim you have, in case it doesn't match your <a name="i465"></a>Windows user name (or in case you didn't bother to set up a Windows user name).
+</p>
+<h2><a name="config-supdup"></a><a name="S4.32"></a>4.32 The <a name="i466"></a>SUPDUP panel</h2>
 <p>
 The SUPDUP panel allows you to configure options that only apply to SUPDUP sessions. See <a href="Chapter3.html#using-supdup">section 3.10</a> for more about the SUPDUP protocol.
 </p>
@@ -2767,9 +2770,9 @@ When **MORE** processing is enabled, the server causes output to pause at the bo
 <p>
 This controls whether the terminal will perform scrolling when the cursor goes below the last line, or if the cursor will return to the first line.
 </p>
-<h2><a name="config-file"></a><a name="S4.33"></a>4.33 <a name="i465"></a>Storing configuration in a file</h2>
+<h2><a name="config-file"></a><a name="S4.33"></a>4.33 <a name="i467"></a>Storing configuration in a file</h2>
 <p>
-PuTTY does not currently support storing its configuration in a file instead of the <a name="i466"></a>Registry. However, you can work around this with a couple of <a name="i467"></a>batch files.
+PuTTY does not currently support storing its configuration in a file instead of the <a name="i468"></a>Registry. However, you can work around this with a couple of <a name="i469"></a>batch files.
 </p>
 <p>
 You will need a file called (say) <code>PUTTY.BAT</code> which imports the contents of a file into the Registry, then runs PuTTY, exports the contents of the Registry back into the file, and deletes the Registry entries. This can all be done using the Regedit command line options, so it's all automatic. Here is what you need in <code>PUTTY.BAT</code>:
@@ -2806,5 +2809,5 @@ You should replace <code>a:\putty.rnd</code> with the location where you want to
 </p>
 
 <hr><p>If you want to provide feedback on this manual or on the PuTTY tools themselves, see the <a href="https://www.chiark.greenend.org.uk/~sgtatham/putty/feedback.html">Feedback page</a>.</p><address>
-[PuTTY release 0.82]</address></body>
+[PuTTY release 0.83]</address></body>
 </html>
