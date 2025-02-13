@@ -24,8 +24,9 @@
 <li><a href="#plink-options">7.2.3 Plink command line options</a></li>
 </ul></li>
 <li><a href="#plink-batch">7.3 Using Plink in batch files and scripts</a></li>
-<li><a href="#plink-cvs">7.4 Using Plink with CVS</a></li>
-<li><a href="#plink-wincvs">7.5 Using Plink with WinCVS</a></li>
+<li><a href="#plink-git">7.4 Using Plink with Git</a></li>
+<li><a href="#plink-cvs">7.5 Using Plink with CVS</a></li>
+<li><a href="#plink-wincvs">7.6 Using Plink with WinCVS</a></li>
 </ul></li>
 </ul>
 <h1><a name="plink"></a><a name="C7"></a>Chapter 7: Using the command-line connection tool <a name="i0"></a>Plink</h1>
@@ -52,11 +53,11 @@ This will only work for the lifetime of that particular console window. To set y
 This section describes the basics of how to use Plink for interactive logins and for automated processes.
 </p>
 <p>
-Once you've got a console window to type into, you can just type <code>plink</code> on its own to bring up a usage message. This tells you the version of Plink you're using, and gives you a brief summary of how to use Plink:
+Once you've got a console window to type into, you can type <code>plink --help</code> to bring up a usage message. This tells you the version of Plink you're using, and gives you a brief summary of how to use Plink:
 </p>
-<pre><code>C:\&gt;plink
+<pre><code>C:\&gt;plink --help
 Plink: command-line connection utility
-Release 0.82
+Release 0.83
 Usage: plink [options] [user@]host [command]
        ("host" can also be a PuTTY saved session name)
 Options:
@@ -224,6 +225,9 @@ If you use the <code>-batch</code> option, Plink will never give an interactive 
 <p>
 This may help Plink's behaviour when it is used in automated scripts: using <code>-batch</code>, if something goes wrong at connection time, the batch job will fail rather than hang.
 </p>
+<p>
+If another program is invoking Plink on your behalf, then you might need to arrange that that program passes <code>-batch</code> to Plink. See <a href="#plink-git">section 7.4</a> for an example involving Git.
+</p>
 <h4><a name="plink-option-s"></a><a name="S7.2.3.2"></a>7.2.3.2 <a name="i11"></a><code>-s</code>: remote command is SSH subsystem</h4>
 <p>
 If you specify the <code>-s</code> option, Plink passes the specified command as the name of an SSH &#8216;<a name="i12"></a>subsystem&#8217; rather than an ordinary command line.
@@ -341,9 +345,32 @@ Or perhaps you want to fetch all system log lines relating to a particular web a
 <p>
 Any non-interactive command you could usefully run on the server command line, you can run in a batch file using Plink in this way.
 </p>
-<h2><a name="plink-cvs"></a><a name="S7.4"></a>7.4 Using Plink with <a name="i22"></a>CVS</h2>
+<h2><a name="plink-git"></a><a name="S7.4"></a>7.4 Using Plink with <a name="i22"></a>Git</h2>
 <p>
-To use Plink with CVS, you need to set the environment variable <a name="i23"></a><code>CVS_RSH</code> to point to Plink:
+To use Plink for Git operations performed over SSH, you can set the environment variable <a name="i23"></a><code>GIT_SSH_COMMAND</code> to point to Plink.
+</p>
+<p>
+For example, if you've run PuTTY's full Windows installer and it has installed Plink in the default location, you might do this:
+</p>
+<pre><code>set GIT_SSH_COMMAND="C:\Program Files\PuTTY\plink.exe"
+</code></pre>
+<p>
+or if you've put Plink somewhere else then you can do a similar thing with a different path.
+</p>
+<p>
+This environment variable accepts a whole command line, not just an executable file name. So you can add Plink options to the end of it if you like. For example, if you're using Git in a batch-mode context, where your Git jobs are running unattended and nobody is available to answer interactive prompts, you might also append the &#8216;<code>-batch</code>&#8217; option (<a href="#plink-option-batch">section 7.2.3.1</a>):
+</p>
+<pre><code>set GIT_SSH_COMMAND="C:\Program Files\PuTTY\plink.exe" -batch
+</code></pre>
+<p>
+and then if Plink unexpectedly prints a prompt of some kind (for example, because the SSH server's host key has changed), your batch job will terminate with an error message, instead of stopping and waiting for user input that will never arrive.
+</p>
+<p>
+(However, you don't <em>always</em> want to do this with Git. If you're using Git interactively, you might <em>want</em> Plink to stop for interactive prompts &#8211; for example, to let you enter a password for the SSH server.)
+</p>
+<h2><a name="plink-cvs"></a><a name="S7.5"></a>7.5 Using Plink with <a name="i24"></a>CVS</h2>
+<p>
+To use Plink with CVS, you need to set the environment variable <a name="i25"></a><code>CVS_RSH</code> to point to Plink:
 </p>
 <pre><code>set CVS_RSH=\path\to\plink.exe
 </code></pre>
@@ -360,7 +387,7 @@ If you specified a username in your saved session, you don't even need to specif
 </p>
 <pre><code>cvs -d :ext:sessionname:/path/to/repository co module
 </code></pre>
-<h2><a name="plink-wincvs"></a><a name="S7.5"></a>7.5 Using Plink with <a name="i24"></a>WinCVS</h2>
+<h2><a name="plink-wincvs"></a><a name="S7.6"></a>7.6 Using Plink with <a name="i26"></a>WinCVS</h2>
 <p>
 Plink can also be used with WinCVS. Firstly, arrange for Plink to be able to connect to a remote host non-interactively, as described in <a href="#plink-usage-batch">section 7.2.2</a>.
 </p>
@@ -368,7 +395,7 @@ Plink can also be used with WinCVS. Firstly, arrange for Plink to be able to con
 Then, in WinCVS, bring up the &#8216;Preferences&#8217; dialogue box from the <em>Admin</em> menu, and switch to the &#8216;Ports&#8217; tab. Tick the box there labelled &#8216;Check for an alternate <code>rsh</code> name&#8217; and in the text entry field to the right enter the full path to <code>plink.exe</code>. Select &#8216;OK&#8217; on the &#8216;Preferences&#8217; dialogue box.
 </p>
 <p>
-Next, select &#8216;Command Line&#8217; from the WinCVS &#8216;Admin&#8217; menu, and type a CVS command as in <a href="#plink-cvs">section 7.4</a>, for example:
+Next, select &#8216;Command Line&#8217; from the WinCVS &#8216;Admin&#8217; menu, and type a CVS command as in <a href="#plink-cvs">section 7.5</a>, for example:
 </p>
 <pre><code>cvs -d :ext:user@hostname:/path/to/repository co module
 </code></pre>
@@ -382,5 +409,5 @@ Select the folder you want to check out to with the &#8216;Change Folder&#8217; 
 </p>
 
 <hr><p>If you want to provide feedback on this manual or on the PuTTY tools themselves, see the <a href="https://www.chiark.greenend.org.uk/~sgtatham/putty/feedback.html">Feedback page</a>.</p><address>
-[PuTTY release 0.82]</address></body>
+[PuTTY release 0.83]</address></body>
 </html>

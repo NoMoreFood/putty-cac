@@ -954,56 +954,56 @@ LPCSTR cert_registry_setting_load_str(LPCSTR sSetting, LPCSTR sDefault)
 BOOL cert_trusted_certs_only(CERT_SETCMD iCommand)
 {
 	const LPSTR sSetting = "TrustedCertsOnly";
-	if (iCommand & CERT_SETTABLE) cert_registry_setting_set(sSetting, iCommand);
+	if (iCommand & CERT_SET) cert_registry_setting_set(sSetting, iCommand);
 	return cert_registry_setting_load(sSetting, FALSE, iCommand);
 }
 
 BOOL cert_save_cert_list_enabled(CERT_SETCMD iCommand)
 {
 	const LPSTR sSetting = "SaveCertListEnabled";
-	if (iCommand & CERT_SETTABLE) cert_registry_setting_set(sSetting, iCommand);
+	if (iCommand & CERT_SET) cert_registry_setting_set(sSetting, iCommand);
 	return cert_registry_setting_load(sSetting, FALSE, iCommand);
 }
 
 BOOL cert_cache_enabled(CERT_SETCMD iCommand)
 {
 	const LPSTR sSetting = "ForcePinCaching";
-	if (iCommand & CERT_SETTABLE) cert_registry_setting_set(sSetting, iCommand);
+	if (iCommand & CERT_SET) cert_registry_setting_set(sSetting, iCommand);
 	return cert_registry_setting_load(sSetting, FALSE, iCommand);
 }
 
 BOOL cert_auth_prompting(CERT_SETCMD iCommand)
 {
 	const LPSTR sSetting = "CertAuthPrompting";
-	if (iCommand & CERT_SETTABLE) cert_registry_setting_set(sSetting, iCommand);
+	if (iCommand & CERT_SET) cert_registry_setting_set(sSetting, iCommand);
 	return cert_registry_setting_load(sSetting, FALSE, iCommand);
 }
 
 BOOL cert_smartcard_certs_only(CERT_SETCMD iCommand)
 {
 	const LPSTR sSetting = "SmartCardLogonCertsOnly";
-	if (iCommand & CERT_SETTABLE) cert_registry_setting_set(sSetting, iCommand);
+	if (iCommand & CERT_SET) cert_registry_setting_set(sSetting, iCommand);
 	return cert_registry_setting_load(sSetting, FALSE, iCommand);
 }
 
 BOOL cert_ignore_expired_certs(CERT_SETCMD iCommand)
 {
 	const LPSTR sSetting = "IgnoreExpiredCerts";
-	if (iCommand & CERT_SETTABLE) cert_registry_setting_set(sSetting, iCommand);
+	if (iCommand & CERT_SET) cert_registry_setting_set(sSetting, iCommand);
 	return cert_registry_setting_load(sSetting, FALSE, iCommand);
 }
 
 BOOL cert_allow_any_cert(CERT_SETCMD iCommand)
 {
 	const LPSTR sSetting = "AllowAnyCert";
-	if (iCommand & CERT_SETTABLE) cert_registry_setting_set(sSetting, iCommand);
+	if (iCommand & CERT_SET) cert_registry_setting_set(sSetting, iCommand);
 	return cert_registry_setting_load(sSetting, FALSE, iCommand);
 }
 
 BOOL cert_auto_load_certs(CERT_SETCMD iCommand)
 {
 	const LPSTR sSetting = "AutoloadCerts";
-	if (iCommand & CERT_SETTABLE) cert_registry_setting_set(sSetting, iCommand);
+	if (iCommand & CERT_SET) cert_registry_setting_set(sSetting, iCommand);
 	return cert_registry_setting_load(sSetting, FALSE, iCommand);
 }
 

@@ -327,8 +327,9 @@ static bool ssh2_userauth_signflags(struct ssh2_userauth_state *s,
     return true;
 }
 
-static void authplugin_plug_log(Plug *plug, PlugLogType type, SockAddr *addr,
-                                int port, const char *err_msg, int err_code)
+static void authplugin_plug_log(Plug *plug, Socket *sock, PlugLogType type,
+                                SockAddr *addr, int port,
+                                const char *err_msg, int err_code)
 {
     struct ssh2_userauth_state *s = container_of(
         plug, struct ssh2_userauth_state, authplugin_plug);
@@ -772,6 +773,7 @@ static void ssh2_userauth_process_queue(PacketProtocolLayer *ppl)
              */
         } else if ((s->username = s->default_username) == NULL) {
             s->cur_prompt = ssh_ppl_new_prompts(&s->ppl);
+            s->cur_prompt->utf8 = true;
             s->cur_prompt->to_server = true;
             s->cur_prompt->from_server = false;
             s->cur_prompt->name = dupstr("SSH login name");
@@ -1824,6 +1826,7 @@ static void ssh2_userauth_process_queue(PacketProtocolLayer *ppl)
                 s->ppl.bpp->pls->actx = SSH2_PKTCTX_PASSWORD;
 
                 s->cur_prompt = ssh_ppl_new_prompts(&s->ppl);
+                s->cur_prompt->utf8 = true;
                 s->cur_prompt->to_server = true;
                 s->cur_prompt->from_server = false;
                 s->cur_prompt->name = dupstr("SSH password");
@@ -1912,6 +1915,7 @@ static void ssh2_userauth_process_queue(PacketProtocolLayer *ppl)
                     prompt = get_string(pktin);
 
                     s->cur_prompt = ssh_ppl_new_prompts(&s->ppl);
+                    s->cur_prompt->utf8 = true;
                     s->cur_prompt->to_server = true;
                     s->cur_prompt->from_server = false;
                     s->cur_prompt->name = dupstr("New SSH password");
@@ -2136,6 +2140,7 @@ static bool ssh2_userauth_ki_setup_prompts(
     inst = get_string(src);
     get_string(src); /* skip language tag */
     s->cur_prompt = ssh_ppl_new_prompts(&s->ppl);
+    s->cur_prompt->utf8 = true;
     s->cur_prompt->to_server = true;
     s->cur_prompt->from_server = true;
 
