@@ -2,7 +2,7 @@
 <package xmlns="http://schemas.microsoft.com/packaging/2015/06/nuspec.xsd">
   <metadata>
     <id>putty-cac</id>
-    <version>0.83.0.0</version>
+    <version>0.83.0.1</version>
     <packageSourceUrl>https://github.com/NoMoreFood/putty-cac</packageSourceUrl>
     <owners>NoMoreFood</owners>
     <title>PuTTY-CAC</title>

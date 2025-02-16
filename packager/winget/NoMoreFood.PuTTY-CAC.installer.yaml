@@ -1,5 +1,5 @@
 PackageIdentifier: NoMoreFood.PuTTY-CAC
-PackageVersion: 0.83.0.0
+PackageVersion: 0.83.0.1
 Platform:
 - Windows.Desktop
 MinimumOSVersion: 10.0.0.0
@@ -10,37 +10,37 @@ InstallModes:
 FileExtensions:
 - PPK
 Installers:
-- InstallerUrl: https://github.com/NoMoreFood/putty-cac/raw/0.83/binaries/puttycac-0.83-x64.msi
+- InstallerUrl: https://github.com/NoMoreFood/putty-cac/raw/0.83/binaries/puttycac-0.83u1-x64.msi
   InstallerLocale: en-US
   Architecture: x64
   InstallerType: wix
   Scope: machine
-  InstallerSha256: 3FAE12AB0A2FDF2CC3221AFD743433836AF157452D042081D78352FAEAF430B5
+  InstallerSha256: B49B5B4540A9633D1864560A4073A66EC28ECF227515584BCEE347FA581A6D47
   UpgradeBehavior: install
-  ProductCode: '{4021A8D3-3BDD-47C9-AD4F-C00897639A09}'
-- InstallerUrl: https://github.com/NoMoreFood/putty-cac/raw/0.83/binaries/puttycac-0.83-x86.msi
+  ProductCode: '{FCE68215-672D-4204-BBF5-7B06AA4C622A}'
+- InstallerUrl: https://github.com/NoMoreFood/putty-cac/raw/0.83/binaries/puttycac-0.u1-x86.msi
   InstallerLocale: en-US
   Architecture: x86
   InstallerType: wix
   Scope: machine
-  InstallerSha256: A98A5A26AC223594BA7ED4672BB1CF0F1145907C1A3895BB89C53AA53A816E42
+  InstallerSha256: 0BA5265C903BA6DE813A7BB0CED4CD6AA05A10A245045F6696181938C83DB6C9
   UpgradeBehavior: install
-  ProductCode: '{1D08C52F-3285-4EB2-A55E-8EC0EF607EF4}'
-- InstallerUrl: https://github.com/NoMoreFood/putty-cac/raw/0.83/binaries/puttycac-0.83-arm64.msi
+  ProductCode: '{2E9A702A-6B8C-424A-981E-2621F3BDC657}'
+- InstallerUrl: https://github.com/NoMoreFood/putty-cac/raw/0.83/binaries/puttycac-0.83u1-arm64.msi
   InstallerLocale: en-US
   Architecture: arm64
   InstallerType: wix
   Scope: machine
-  InstallerSha256: 0F8AAC28CE61B24FB0D8139A8F92778C266627E5F20FB62288DD33F80768993B
+  InstallerSha256: 309AF28D225628682F01FECEA91104D43EEAC19E3523F4B47EF1A3CDFBDA1AF9
   UpgradeBehavior: install
-  ProductCode: '{C27044A2-4846-44CD-9487-8740988E81CE}'  
-- InstallerUrl: https://github.com/NoMoreFood/putty-cac/raw/0.83/binaries/puttycac-0.83-arm.msi
+  ProductCode: '{4816CC73-0EBE-48FF-B3AD-C325618F1741}'  
+- InstallerUrl: https://github.com/NoMoreFood/putty-cac/raw/0.83/binaries/puttycac-0.83u1-arm.msi
   InstallerLocale: en-US
   Architecture: arm
   InstallerType: wix
   Scope: machine
-  InstallerSha256: 39044B867710044CBAC3890B7906461F16B71B4BD2EA4713BCAD2067B2009A43
+  InstallerSha256: C92A3923C3FF5729D01FBAC0602CFC9CCDA6E83FD9618ED6EC9C3F024E23F783
   UpgradeBehavior: install
-  ProductCode: '{710C0264-60CD-4EDB-AAB1-663D3F83763F}'
+  ProductCode: '{078CF3CF-563B-4F09-8EEF-BFC226F187F0}'
 ManifestType: installer
 ManifestVersion: 1.6.0
