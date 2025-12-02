@@ -3,8 +3,8 @@ TITLE Building PuTTY-CAC
 SETLOCAL ENABLEDELAYEDEXPANSION
  
 :: version information
-SET VER=0.83u1
-SET VERN=0.83.0.1
+SET VER=0.83u2
+SET VERN=0.83.0.2
 
 :: setup environment variables based on location of this script
 SET INSTDIR=%~dp0
@@ -19,14 +19,17 @@ set LIBNAME=PuTTY-CAC
 set LIBURL=https://github.com/NoMoreFood/putty-cac
 
 :: import vs build tools
-FOR /F "DELIMS=" %%X IN ('DIR "%ProgramFiles%\Microsoft Visual Studio\VsDevCmd.bat" /A /S /B') DO SET VS=%%X
-CALL "%VS%"
+FOR /F "USEBACKQ TOKENS=*" %%X in (`
+    "%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe" ^
+        -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 ^
+        -property installationPath
+`) DO CALL "%%X\Common7\Tools\VsDevCmd.bat"
 
 :: build the binaries
 CD /D "%INSTDIR%"
 RD /S /Q "%BLDDIR%"
 RD /S /Q "%BINDIR%"
-FOR %%A IN (arm arm64 x86 x64) DO (
+FOR %%A IN (arm64 x86 x64) DO (
   SET ARCH=%%A
   IF /I "%%A" EQU "X86" SET ARCH=Win32
   CMAKE -S ..\code -A !ARCH! -B %BLDDIR%\%%A -D PUTTY_CAC=1 -D PUTTY_EMBEDDED_CHM_FILE=%BASEDIR%\doc\putty.chm
@@ -52,7 +55,7 @@ FOR %%X IN (Win32 x64 Debug Release Temp .vs) DO (
 FORFILES /S /P "%BINDIR%" /M "*.*" /C "CMD /C IF /I @ext NEQ """exe""" DEL /Q @file"
 
 :: sign the main executables
-signtool sign /a /as /fd sha256 /tr %TSAURL% /td sha256 /d %LIBNAME% /du %LIBURL% "%BINDIR%\arm\*.exe" "%BINDIR%\arm64\*.exe" "%BINDIR%\x64\*.exe" "%BINDIR%\x64\*.exe"  
+signtool sign /a /as /fd sha256 /tr %TSAURL% /td sha256 /d %LIBNAME% /du %LIBURL% "%BINDIR%\arm64\*.exe" "%BINDIR%\x64\*.exe" "%BINDIR%\x64\*.exe"  
 signtool sign /a /fd sha256 /tr %TSAURL% /td sha256 /d %LIBNAME% /du %LIBURL% "%BINDIR%\*.msi"
 
 :: copy prereqs from build dir and 'real' installer
@@ -64,9 +67,8 @@ COPY /Y "%INSTDIR%\*.bmp" "%BASEDIR%\build\"
 
 :: do the build
 PUSHD "%BASEDIR%\build"
-FOR %%A IN (Arm Arm64 x86 x64) DO (
+FOR %%A IN (Arm64 x86 x64) DO (
   SET LOWERA=%%A
-  IF /I "%%A" EQU "ARM" SET LOWERA=arm
   IF /I "%%A" EQU "ARM64" SET LOWERA=arm64
   IF /I "%%A" EQU "ARM64" SET WIN64=yes
   IF /I "%%A" EQU "X64" SET WIN64=yes
@@ -85,7 +87,7 @@ DEL /F /Q "%BINDIR%\*.wixpdb"
 
 :: zip up executatables
 SET POWERSHELL=POWERSHELL.EXE -NoProfile -NonInteractive -NoLogo -ExecutionPolicy Unrestricted
-FOR %%A IN (arm arm64 x86 x64) DO (
+FOR %%A IN (arm64 x86 x64) DO (
   PUSHD "%BINDIR%\%%A"
   %POWERSHELL% -Command "Compress-Archive '*.exe' -DestinationPath '%BINDIR%\puttycac-%VER%-%%A.zip'"
   POPD
