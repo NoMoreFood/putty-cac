@@ -413,7 +413,7 @@ HCERTSTORE cert_fido_get_cert_store()
 		}
 	}
 
-	CloseHandle(hEnumKey);
+	RegCloseKey(hEnumKey);
 	return hStoreHandle;
 }
 
@@ -620,6 +620,7 @@ BOOL fido_create_key(LPCSTR szAlgName, LPCSTR szDisplayName, LPCSTR szApplicatio
 
 	// cleanup
 	WebAuthNFreeCredentialAttestation(pParams.ppWebAuthNCredentialAttestation);
+	free(pPublicKey);
 	return TRUE;
 }
 
