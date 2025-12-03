@@ -42,9 +42,9 @@ EXTERN_C LPSTR cert_capi_create_key(LPCSTR szAlgName, LPCSTR sSubjectName, BOOL 
     HRESULT iInit = CoInitializeEx(NULL, COINIT_APARTMENTTHREADED);
     if (iInit != S_OK && iInit != S_FALSE) return NULL;
 
-	// create provider information structure
+    // create provider information structure
     CComPtr<ICspInformation> oProviderInfo = nullptr;
-     if (FAILED(CoCreateInstance(__uuidof(CCspInformation), NULL, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&oProviderInfo))) ||
+    if (FAILED(CoCreateInstance(__uuidof(CCspInformation), NULL, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&oProviderInfo))) ||
         FAILED(oProviderInfo->InitializeFromName(sProviderName)))
     {
         return NULL;
@@ -66,7 +66,7 @@ EXTERN_C LPSTR cert_capi_create_key(LPCSTR szAlgName, LPCSTR sSubjectName, BOOL 
         FAILED(oPrivateKey->put_Algorithm(GetObjectId(sAlgOid))) ||
         FAILED(oPrivateKey->put_Length(iBits)) ||
         FAILED(oPrivateKey->put_KeyProtection(XCN_NCRYPT_UI_NO_PROTECTION_FLAG)) ||
-        FAILED(oPrivateKey->put_ExportPolicy(XCN_NCRYPT_ALLOW_EXPORT_NONE)) || 
+        FAILED(oPrivateKey->put_ExportPolicy(XCN_NCRYPT_ALLOW_EXPORT_NONE)) ||
         FAILED(oPrivateKey->Create()))
     {
         return NULL;
@@ -142,7 +142,7 @@ EXTERN_C LPSTR cert_capi_create_key(LPCSTR szAlgName, LPCSTR sSubjectName, BOOL 
         return NULL;
     }
     SysFreeString(sRequestString);
-    
+
     // fetch dummy context so we can lookup the thumbprint
     PCCERT_CONTEXT tDummyCertContext = CertCreateCertificateContext(
         X509_ASN_ENCODING | PKCS_7_ASN_ENCODING,
@@ -151,16 +151,19 @@ EXTERN_C LPSTR cert_capi_create_key(LPCSTR szAlgName, LPCSTR sSubjectName, BOOL 
     SysFreeString(sInstralledCert);
 
     // now use the public key to find the unified certificate in the cer store
-     LPSTR szThumbprint = NULL;
-     if (tDummyCertContext != NULL)
-     {
-         HCERTSTORE hCertStore = cert_capi_get_cert_store();
-         PCCERT_CONTEXT tUnifiedCert = CertFindCertificateInStore(hCertStore, X509_ASN_ENCODING | PKCS_7_ASN_ENCODING,
-             0, CERT_FIND_PUBLIC_KEY, (PVOID)&tDummyCertContext->pCertInfo->SubjectPublicKeyInfo, NULL);
-         szThumbprint = cert_get_cert_thumbprint(IDEN_CAPI, tUnifiedCert);
-         CertCloseStore(hCertStore, 0);
-         if (tDummyCertContext != NULL) CertFreeCertificateContext(tUnifiedCert);
-     }
+    LPSTR szThumbprint = NULL;
+    if (tDummyCertContext != NULL)
+    {
+        HCERTSTORE hCertStore = cert_capi_get_cert_store();
+        PCCERT_CONTEXT tUnifiedCert = CertFindCertificateInStore(hCertStore, X509_ASN_ENCODING | PKCS_7_ASN_ENCODING,
+            0, CERT_FIND_PUBLIC_KEY, (PVOID)&tDummyCertContext->pCertInfo->SubjectPublicKeyInfo, NULL);
+        if (tUnifiedCert != NULL)
+        {
+            szThumbprint = cert_get_cert_thumbprint(IDEN_CAPI, tUnifiedCert);
+            CertFreeCertificateContext(tUnifiedCert);
+        }
+        CertCloseStore(hCertStore, 0);
+    }
 
     // cleanup
     if (tDummyCertContext != NULL) CertFreeCertificateContext(tDummyCertContext);

@@ -236,7 +236,7 @@ BYTE * cert_pkcs_sign(struct ssh2_userkey * userkey, LPCBYTE pDataToSign, int iD
 			// error
 			free(pSharedKeyId);
 			pFunctionList->C_CloseSession(hSession);
-			return FALSE;
+			return NULL;
 		}
 
 		// check for error
@@ -691,7 +691,7 @@ void pkcs_lookup_token_cert(LPCSTR szCert, CK_SESSION_HANDLE_PTR phSession, CK_O
 		}
 
 		// cleanup
-		pFunctionList->C_CloseSession(pSlotList[iSlot]);
+		pFunctionList->C_CloseSession(hSession);
 	}
 }
 
