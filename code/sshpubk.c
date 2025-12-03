@@ -1334,7 +1334,6 @@ bool ppk_loadpub_f(const Filename *filename, char **algorithm, BinarySink *bs,
                    char **commentptr, const char **errorstr)
 {
 #ifdef PUTTY_CAC
-    //cert_convert_legacy(filename->path);
     if (cert_is_certpath(filename->cpath)) {
         struct ssh2_userkey* userkey = cert_load_key(filename->cpath);
         if (userkey == NULL || userkey->key == NULL) {
