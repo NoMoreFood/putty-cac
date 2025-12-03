@@ -18,7 +18,7 @@
 
 void cert_capi_load_cert(LPCSTR szCert, PCCERT_CONTEXT* ppCertCtx, HCERTSTORE* phStore)
 {
-	HCERTSTORE hStore = cert_capi_get_cert_store(NULL);
+	HCERTSTORE hStore = cert_capi_get_cert_store();
 	if (hStore == NULL)
 	{
 		return;

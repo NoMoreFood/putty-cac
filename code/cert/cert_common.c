@@ -38,7 +38,7 @@ VOID cert_reverse_array(LPBYTE pb, DWORD cb)
 LPSTR cert_get_cert_thumbprint(LPCSTR szIden, PCCERT_CONTEXT pCertContext)
 {
 	// sanity check
-	if (szIden == NULL || pCertContext == NULL) return FALSE;
+	if (szIden == NULL || pCertContext == NULL) return NULL;
 
 	BYTE pbThumbBinary[SHA1_BINARY_SIZE];
 	DWORD cbThumbBinary = SHA1_BINARY_SIZE;
@@ -47,15 +47,15 @@ LPSTR cert_get_cert_thumbprint(LPCSTR szIden, PCCERT_CONTEXT pCertContext)
 		return NULL;
 	}
 
-	LPSTR szThumbHex[SHA1_HEX_SIZE + 1];
+	CHAR szThumbHex[SHA1_HEX_SIZE + 1];
 	DWORD iThumbHexSize = _countof(szThumbHex);
 	CryptBinaryToStringA(pbThumbBinary, cbThumbBinary,
-		CRYPT_STRING_HEXRAW | CRYPT_STRING_NOCRLF, (LPSTR)szThumbHex, &iThumbHexSize);
+		CRYPT_STRING_HEXRAW | CRYPT_STRING_NOCRLF, szThumbHex, &iThumbHexSize);
 
 	LPSTR szThumb = NULL;
 	if (cert_is_capipath(szIden))
 	{
-		szThumb = dupprintf("CAPI:%s", &szThumbHex[0]);
+		szThumb = dupprintf("CAPI:%s", szThumbHex);
 	}
 	else if (cert_is_pkcspath((LPSTR)szIden))
 	{
@@ -64,7 +64,7 @@ LPSTR cert_get_cert_thumbprint(LPCSTR szIden, PCCERT_CONTEXT pCertContext)
 		DWORD cbFileName = sizeof(szFileName);
 		if (CertGetCertificateContextProperty(pCertContext, CERT_PVK_FILE_PROP_ID, szFileName, &cbFileName) == TRUE)
 		{
-			szThumb = dupprintf("PKCS:%s=%S", &szThumbHex[0], szFileName);
+			szThumb = dupprintf("PKCS:%s=%S", szThumbHex, szFileName);
 		}
 	}
 	else if (cert_is_fidopath(szIden))
@@ -681,8 +681,8 @@ int cert_all_certs(LPSTR** pszCert)
 	LPCSTR sStoreType[2] = { IDEN_CAPI, IDEN_FIDO };
 	HCERTSTORE hCertStore[2] =
 	{
-		cert_capi_get_cert_store(NULL),
-		cert_fido_get_cert_store(NULL)
+		cert_capi_get_cert_store(),
+		cert_fido_get_cert_store()
 	};
 
 	// find certificates matching our criteria
