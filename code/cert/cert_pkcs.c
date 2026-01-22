@@ -54,7 +54,9 @@ BOOL cert_pkcs_test_hash(LPCSTR szCert, DWORD iHashRequest)
 BYTE * cert_pkcs_sign(struct ssh2_userkey * userkey, LPCBYTE pDataToSign, int iDataToSignLen, int * iSigLen, LPCSTR sHashAlgName)
 {
 	// get the library to load from based on comment
-	LPSTR szLibrary = strrchr(userkey->comment, '=') + 1;
+	LPSTR szLibrary = strrchr(userkey->comment, '=');
+	if (szLibrary == NULL) return NULL;
+	szLibrary = szLibrary + 1;
 	CK_FUNCTION_LIST_PTR pFunctionList = cert_pkcs_load_library(szLibrary);
 	if (pFunctionList == NULL) return NULL;
 
@@ -84,8 +86,8 @@ BYTE * cert_pkcs_sign(struct ssh2_userkey * userkey, LPCBYTE pDataToSign, int iD
 			pDataToEncode[1 + i] = mp_get_byte(X, i);
 			pDataToEncode[1 + i + iKeySize] = mp_get_byte(Y, i);
 		}
-		sfree(X);
-		sfree(Y);
+		mp_free(X);
+		mp_free(Y);
 
 		// reverse for big-endian
 		cert_reverse_array(1 + pDataToEncode, iKeySize);
@@ -130,8 +132,8 @@ BYTE * cert_pkcs_sign(struct ssh2_userkey * userkey, LPCBYTE pDataToSign, int iD
 	};
 
 	// get a handle to the session of the token and the public key object
-	CK_SESSION_HANDLE hSession = 0;
-	CK_OBJECT_HANDLE hPublicKey = 0;
+	CK_SESSION_HANDLE hSession = CK_INVALID_HANDLE;
+	CK_OBJECT_HANDLE hPublicKey = CK_INVALID_HANDLE;
 	pkcs_lookup_token_cert(userkey->comment, &hSession,
 		&hPublicKey, aFindPubCriteria, _countof(aFindPubCriteria), TRUE);
 
@@ -139,10 +141,10 @@ BYTE * cert_pkcs_sign(struct ssh2_userkey * userkey, LPCBYTE pDataToSign, int iD
 	free(pLookupValue);
 
 	// check for error
-	if (hSession == 0 || hPublicKey == 0)
+	if (hSession == CK_INVALID_HANDLE || hPublicKey == CK_INVALID_HANDLE)
 	{
 		// when public key entry does not exist,
-		// we try to locate key id by certificate’s id
+		// we try to locate key id by certificate's id
 		CK_BBOOL bFalse = CK_FALSE;
 		CK_BBOOL bTrue = CK_TRUE;
 		CK_OBJECT_CLASS iObjectType = CKO_CERTIFICATE;
@@ -153,10 +155,10 @@ BYTE * cert_pkcs_sign(struct ssh2_userkey * userkey, LPCBYTE pDataToSign, int iD
 		};
 		pkcs_lookup_token_cert(userkey->comment, &hSession, &hPublicKey,
 			aFindCriteria, _countof(aFindCriteria), FALSE);
-		if (hSession == 0 || hPublicKey == 0)
+		if (hSession == CK_INVALID_HANDLE || hPublicKey == CK_INVALID_HANDLE)
 		{
 			// error
-			pFunctionList->C_CloseSession(hSession);
+			if (hSession != CK_INVALID_HANDLE) pFunctionList->C_CloseSession(hSession);
 			return NULL;
 		}
 	} 
@@ -175,7 +177,7 @@ BYTE * cert_pkcs_sign(struct ssh2_userkey * userkey, LPCBYTE pDataToSign, int iD
 	}
 
 	// setup the find structure to identify the private key on the token
-	CK_OBJECT_HANDLE iPrivateType = CKO_PRIVATE_KEY;
+	CK_OBJECT_CLASS iPrivateType = CKO_PRIVATE_KEY;
 	CK_ATTRIBUTE aFindPrivateCriteria[] = {
 		{ CKA_CLASS,    &iPrivateType,	sizeof(CK_OBJECT_CLASS) },
 		{ CKA_ID,		pSharedKeyId,	iSize },
@@ -309,7 +311,11 @@ void cert_pkcs_load_cert(LPCSTR szCert, PCCERT_CONTEXT* ppCertCtx, HCERTSTORE* p
 	*szLibrary++ = '\0';
 
 	CK_FUNCTION_LIST_PTR pFunctionList = cert_pkcs_load_library(szLibrary);
-	if (pFunctionList == NULL) return;
+	if (pFunctionList == NULL)
+	{
+		free(szThumb);
+		return;
+	}
 
 	CK_BBOOL bFalse = CK_FALSE;
 	CK_BBOOL bTrue = CK_TRUE;
@@ -320,8 +326,8 @@ void cert_pkcs_load_cert(LPCSTR szCert, PCCERT_CONTEXT* ppCertCtx, HCERTSTORE* p
 		{ CKA_PRIVATE,  &bFalse,      sizeof(CK_BBOOL) }
 	};
 
-	CK_SESSION_HANDLE hSession;
-	CK_OBJECT_HANDLE hObject;
+	CK_SESSION_HANDLE hSession = CK_INVALID_HANDLE;
+	CK_OBJECT_HANDLE hObject = CK_INVALID_HANDLE;
 	pkcs_lookup_token_cert(szCert, &hSession, &hObject,
 		aFindCriteria, _countof(aFindCriteria), FALSE);
 
@@ -330,7 +336,7 @@ void cert_pkcs_load_cert(LPCSTR szCert, PCCERT_CONTEXT* ppCertCtx, HCERTSTORE* p
 	*ppCertCtx = pkcs_get_cert_from_token(pFunctionList, hSession, hObject, szLibrary);
 
 	// cleanup
-	pFunctionList->C_CloseSession(hSession);
+	if (hSession != CK_INVALID_HANDLE) pFunctionList->C_CloseSession(hSession);
 	free(szThumb);
 }
 
@@ -398,7 +404,7 @@ CK_FUNCTION_LIST_PTR cert_pkcs_load_library(LPCSTR szLibrary)
 		MessageBox(NULL, szMessage, "PuTTY PKCS Library Problem", MB_OK | MB_ICONERROR);
 
 		// error - cleanup and return
-		FreeLibrary(hModule);
+		if (hModule != NULL) FreeLibrary(hModule);
 		return NULL;
 	}
 
@@ -584,7 +590,9 @@ PCCERT_CONTEXT pkcs_get_cert_from_token(CK_FUNCTION_LIST_PTR FunctionList, CK_SE
 void pkcs_lookup_token_cert(LPCSTR szCert, CK_SESSION_HANDLE_PTR phSession, CK_OBJECT_HANDLE_PTR phObject,
 	CK_ATTRIBUTE aFindCriteria[], CK_ULONG iFindCriteria, BOOL bReturnFirst)
 {
-	LPSTR szLibrary = strrchr(szCert, '=') + 1;
+	LPSTR szLibrary = strrchr(szCert, '=');
+	if (szLibrary == NULL) return;
+	szLibrary = szLibrary + 1;
 	CK_FUNCTION_LIST_PTR pFunctionList = cert_pkcs_load_library(szLibrary);
 	if (pFunctionList == NULL) return;
 
