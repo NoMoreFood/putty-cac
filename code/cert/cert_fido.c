@@ -278,9 +278,9 @@ BYTE* cert_fido_sign(struct ssh2_userkey* userkey, LPCBYTE pDataToSign, int iDat
 	return Signature;
 }
 
-BOOL fido_test_hash(LPCSTR szCert, DWORD iHashRequest)
+BOOL cert_fido_test_hash(LPCSTR szCert, DWORD iHashRequest)
 {
-	return FALSE;
+	return TRUE;
 }
 
 BOOL cert_fido_get_cert(PBCRYPT_ECCKEY_BLOB pPubKeyBlob, DWORD iPublicKeyBufferSize, LPWSTR sApplicationId, PCERT_CONTEXT* ppCertCtx)
@@ -305,7 +305,7 @@ BOOL cert_fido_get_cert(PBCRYPT_ECCKEY_BLOB pPubKeyBlob, DWORD iPublicKeyBufferS
 	{
 		// windows does not support eddsa so we mark it ecdsa and adjust in other functions
 		pPubKeyBlob->dwMagic = BCRYPT_ECDSA_PUBLIC_P256_MAGIC;
-		sAlgo = szOID_ED25119;
+		sAlgo = szOID_ED25519;
 		memcpy(pPubKeyBlobTemp, pPubKeyBlob, iPublicKeyBufferSize);
 		pPubKeyBlob = (PBCRYPT_ECCKEY_BLOB)&pPubKeyBlobTemp[0];
 	}
@@ -410,6 +410,7 @@ HCERTSTORE cert_fido_get_cert_store()
 		if (cert_fido_get_cert((PBCRYPT_ECCKEY_BLOB)sPublicKeyBuffer, iPublicKeyBufferSize, sApplicationId, &pCertContext) == TRUE)
 		{
 			CertAddCertificateContextToStore(hStoreHandle, pCertContext, CERT_STORE_ADD_ALWAYS, NULL);
+			CertFreeCertificateContext(pCertContext);
 		}
 	}
 
@@ -646,6 +647,8 @@ LPWSTR fido_get_user_id()
 			// acquire key name using 
 			ConvertSidToStringSidW(pTokenUser->User.Sid, &sSidString);
 		}
+
+		free(pTokenUser);
 	}
 
 	// cleanup and sanity check results

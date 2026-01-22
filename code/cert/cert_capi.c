@@ -32,8 +32,12 @@ void cert_capi_load_cert(LPCSTR szCert, PCCERT_CONTEXT* ppCertCtx, HCERTSTORE* p
 	CRYPT_HASH_BLOB cryptHashBlob;
 	cryptHashBlob.cbData = SHA1_BINARY_SIZE;
 	cryptHashBlob.pbData = pbThumb;
-	CryptStringToBinary(szThumb, SHA1_HEX_SIZE, CRYPT_STRING_HEXRAW, cryptHashBlob.pbData,
-		&cryptHashBlob.cbData, NULL, NULL);
+	if (!CryptStringToBinary(szThumb, SHA1_HEX_SIZE, CRYPT_STRING_HEXRAW, cryptHashBlob.pbData,
+		&cryptHashBlob.cbData, NULL, NULL) || cryptHashBlob.cbData != SHA1_BINARY_SIZE)
+	{
+		CertCloseStore(hStore, 0);
+		return;
+	}
 
 	// enumerate the store looking for the certificate
 	PCCERT_CONTEXT pFindCertContext = NULL;
@@ -203,8 +207,8 @@ BYTE* cert_capi_sign(struct ssh2_userkey* userkey, LPCBYTE pDataToSign, int iDat
 			}
 
 			// cleanup hash structure and pin 
-			if (szPin != NULL) { SecureZeroMemory(szPin, wcslen(szPin) * sizeof(WCHAR)); free(szPin); }
-			if (pHashData != NULL) { free(pHashData); }
+			if (szPin != NULL) { SecureZeroMemory(szPin, (1 + wcslen(szPin)) * sizeof(WCHAR)); free(szPin); }
+			if (pHashData != NULL) { sfree(pHashData); }
 		}
 		else if (CryptAcquireContextW(&hCryptProv, pProviderInfo->pwszContainerName,
 			pProviderInfo->pwszProvName, pProviderInfo->dwProvType,
@@ -291,7 +295,7 @@ BOOL cert_capi_delete_key(LPCSTR szCert)
 			pProviderInfo->pwszProvName, pProviderInfo->dwProvType, CRYPT_DELETEKEYSET |
 			((pProviderInfo->dwFlags & CRYPT_MACHINE_KEYSET) ? CRYPT_MACHINE_KEYSET : 0)) != FALSE)
 		{
-			bSuccess = true;
+			bSuccess = TRUE;
 		}
 
 		// cleanup crypto structures and intermediate signing data
@@ -301,11 +305,9 @@ BOOL cert_capi_delete_key(LPCSTR szCert)
 		if (pProviderInfo != NULL) sfree(pProviderInfo);
 	}
 
-	// if key was cleaned up, already remove certificate from store
-	if (bSuccess) CertDeleteCertificateFromStore(pCertCtx);
-
 	// cleanup certificate handles and return
-	if (pCertCtx != NULL) { CertFreeCertificateContext(pCertCtx); }
+	if (bSuccess) CertDeleteCertificateFromStore(pCertCtx);
+	else if (pCertCtx != NULL) { CertFreeCertificateContext(pCertCtx); }
 	if (hCertStore != NULL) { CertCloseStore(hCertStore, 0); }
 	return bSuccess;
 }
