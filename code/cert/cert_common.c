@@ -488,7 +488,6 @@ struct ssh2_userkey* cert_load_key(LPCSTR szCert)
 	struct ssh2_userkey* pUserKey = cert_get_ssh_userkey(szCert, pCertContext);
 	CertFreeCertificateContext(pCertContext);
 	CertCloseStore(hCertStore, 0);
-	sfree(szCert);
 	return pUserKey;
 }
 
