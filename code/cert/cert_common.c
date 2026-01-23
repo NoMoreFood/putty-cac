@@ -390,7 +390,7 @@ struct ssh2_userkey* cert_get_ssh_userkey(LPCSTR szCert, PCERT_CONTEXT pCertCont
 	}
 
 	// Handle EDDSA Keys
-	else if (strstr(sAlgoId, szOID_ECC_PUBLIC_KEY) == sAlgoId && strcmp(sSigAlgId, szOID_ED25119) == 0)
+	else if (strstr(sAlgoId, szOID_ECC_PUBLIC_KEY) == sAlgoId && strcmp(sSigAlgId, szOID_ED25519) == 0)
 	{
 		// calculate key bit and byte lengths (ignore leading byte)
 		int iKeyLength = ((pPubKey->cbData - 1) * 8 - pPubKey->cUnusedBits) / 2;

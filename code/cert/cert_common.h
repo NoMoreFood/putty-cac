@@ -71,8 +71,8 @@ EXTERN VOID fido_clear_keys();
 EXTERN LPSTR cert_capi_create_key(LPCSTR szAlgName, LPCSTR sSubjectName, BOOL bHardware);
 
 // ed25519 oid; no native support in windows
-#ifndef szOID_ED25119
-#define szOID_ED25119 "1.3.6.1.4.1.11591.15.1"
+#ifndef szOID_ED25519
+#define szOID_ED25519 "1.3.6.1.4.1.11591.15.1"
 #endif
 
 #define SHA1_BINARY_SIZE (160 / 8)
