@@ -27,4 +27,4 @@ EXTERN BYTE * cert_capi_sign(struct ssh2_userkey * userkey, LPCBYTE pDataToSign,
 EXTERN void cert_capi_load_cert(LPCSTR szCert, PCCERT_CONTEXT* ppCertCtx, HCERTSTORE* phStore);
 EXTERN HCERTSTORE cert_capi_get_cert_store();
 
-#endif /* USE_CAPI */
+#endif /* PUTTY_CAC */

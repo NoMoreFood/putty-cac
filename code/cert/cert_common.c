@@ -660,7 +660,7 @@ BOOL cert_check_valid(LPCSTR szIden, PCCERT_CONTEXT pCertContext)
 
 	// verify time validity if requested
 	DWORD iFlags = CERT_STORE_TIME_VALIDITY_FLAG;
-	if (cert_ignore_expired_certs(CERT_QUERY))
+	if (!cert_ignore_expired_certs(CERT_QUERY))
 	{
 		if (CertVerifySubjectCertificateContext(pCertContext, NULL, &iFlags) == TRUE && iFlags != 0)
 			return FALSE;
