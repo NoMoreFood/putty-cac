@@ -243,7 +243,7 @@ BYTE* cert_capi_sign(struct ssh2_userkey* userkey, LPCBYTE pDataToSign, int iDat
 			}
 
 			// cleanup hash structure 
-			if (szPin != NULL) { SecureZeroMemory(szPin, strlen(szPin) * sizeof(CHAR)); free(szPin); }
+			if (szPin != NULL) { SecureZeroMemory(szPin, (strlen(szPin) + 1) * sizeof(CHAR)); free(szPin); }
 			if (hHash != (ULONG_PTR)NULL) { CryptDestroyHash(hHash); }
 		}
 
