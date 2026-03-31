@@ -832,7 +832,7 @@ static INT_PTR CALLBACK KeyListProc(HWND hwnd, UINT msg,
 			  pageant_add_keyfile(fn, NULL, &err, false);
 			  keylist_update();
 			  filename_free(fn);
-			  free(szCert);
+			  sfree(szCert);
 			  sfree(err);
 		}
 		return 0;
@@ -860,7 +860,7 @@ static INT_PTR CALLBACK KeyListProc(HWND hwnd, UINT msg,
                     cert_key_string(comment) : pageant_nth_ssh2_string(selectedArray[iSelected]);
 
                 // handle request for the comment
-                else if (comment && cert_is_certpath(comment)) szClipStringAddon = _strdup(comment);
+                else if (comment && cert_is_certpath(comment)) szClipStringAddon = dupstr(comment);
 
                 // no valid string to append; ignore
 				if (szClipStringAddon == NULL) continue;
@@ -890,7 +890,7 @@ static INT_PTR CALLBACK KeyListProc(HWND hwnd, UINT msg,
                     {
                         strcpy(szClipData, szClipString);
                         GlobalUnlock(hGlob);
-                        SetClipboardData(CF_TEXT, szClipData);
+                        SetClipboardData(CF_TEXT, hGlob);
                     }
                     CloseClipboard();
                 }
