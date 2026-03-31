@@ -743,7 +743,6 @@ static void signop_coroutine(PageantAsyncOp *pao)
             response = strbuf_new();
             failure(so->pao.info->pc, so->pao.reqid, response, so->failure_type,
                 "key invalid: %s", so->priv->encrypted_key_comment);
-            sfree(invalid);
             goto respond;
         }
         cert_sign(newkey, (LPCBYTE)so->data_to_sign->u, so->data_to_sign->len, so->flags, signature);
@@ -1139,7 +1138,7 @@ static PageantAsyncOp *pageant_make_op(
         sfree(fingerprint);
         if (!bContinue)
         {
-            fail("signed operationg blocked by user");
+            fail("signed operation blocked by user");
             goto responded;
         }
 #endif // PUTTY_CAC

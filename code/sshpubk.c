@@ -1338,10 +1338,15 @@ bool ppk_loadpub_f(const Filename *filename, char **algorithm, BinarySink *bs,
         struct ssh2_userkey* userkey = cert_load_key(filename->cpath);
         if (userkey == NULL || userkey->key == NULL) {
             *errorstr = "load key from certificate failed";
+            if (userkey) {
+                sfree(userkey->comment);
+                sfree(userkey);
+            }
             return false;
         }
         if (algorithm) { *algorithm = dupstr(userkey->key->vt->ssh_id); }
         if (commentptr) { *commentptr = userkey->comment; }
+        else { sfree(userkey->comment); }
         userkey->key->vt->public_blob(userkey->key, bs);
         userkey->key->vt->freekey(userkey->key);
         sfree(userkey);
