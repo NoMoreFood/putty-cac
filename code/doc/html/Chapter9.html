@@ -3,6 +3,7 @@
 <html>
 <head>
 <meta http-equiv="content-type" content="text/html; charset=US-ASCII">
+<meta name="generator" content="Halibut, unidentified version">
 <title>Using Pageant for authentication</title>
 <link rel="previous" href="Chapter8.html">
 <link rel="ToC" href="index.html">
@@ -149,7 +150,7 @@ If the keys are stored encrypted, Pageant will request the passphrases on startu
 If Pageant is already running, this syntax loads keys into the existing Pageant.
 </p>
 <p>
-You can specify the &#8216;<code>--encrypted</code>&#8217; option to defer decryption of these keys; see <a href="#pageant-deferred-decryption">section 9.5</a>.
+You can specify the <code>--encrypted</code> option to defer decryption of these keys; see <a href="#pageant-deferred-decryption">section 9.5</a>.
 </p>
 <h3><a name="pageant-cmdline-command"></a><a name="S9.3.2"></a>9.3.2 Making Pageant run another program</h3>
 <p>
@@ -194,7 +195,7 @@ So, if you want to use Windows <code>git</code> with an SSH key held in Pageant,
 Pageant can listen on the WinSock implementation of &#8216;Unix-domain sockets&#8217;. These interoperate with the Unix-domain sockets found in the original Windows Subsystem for Linux (now known as WSL 1). So if you ask Pageant to listen on one of these, then your WSL 1 processes can talk directly to Pageant.
 </p>
 <p>
-To configure this, run Pageant with the option <code>--unix</code>, followed with a pathname. Then, in WSL 1, set the environment variable <code>SSH_AUTH_SOCK</code> to point at the WSL translation of that pathname.
+To configure this, run Pageant with the option <a name="i15"></a><code>--unix</code>, followed with a pathname. Then, in WSL 1, set the environment variable <code>SSH_AUTH_SOCK</code> to point at the WSL translation of that pathname.
 </p>
 <p>
 For example, you might run
@@ -222,21 +223,21 @@ although doing it like that may mean that <code>ssh-add</code> commands won't fi
 </p>
 <h3><a name="pageant-cmdline-keylist"></a><a name="S9.3.5"></a>9.3.5 Starting with the key list visible</h3>
 <p>
-Start Pageant with the <a name="i15"></a><code>--keylist</code> option to show the main window as soon as it starts up.
+Start Pageant with the <a name="i16"></a><code>--keylist</code> option to show the main window as soon as it starts up.
 </p>
-<h3><a name="pageant-cmdline-restrict-acl"></a><a name="S9.3.6"></a>9.3.6 Restricting the <a name="i16"></a>Windows process ACL</h3>
+<h3><a name="pageant-cmdline-restrict-acl"></a><a name="S9.3.6"></a>9.3.6 Restricting the <a name="i17"></a>Windows process ACL</h3>
 <p>
-Pageant supports the same <a name="i17"></a><code>-restrict-acl</code> option as the other PuTTY utilities to lock down the Pageant process's access control; see <a href="Chapter3.html#using-cmdline-restrict-acl">section 3.11.3.28</a> for why you might want to do this.
+Pageant supports the same <a name="i18"></a><code>-restrict-acl</code> option as the other PuTTY utilities to lock down the Pageant process's access control; see <a href="Chapter3.html#using-cmdline-restrict-acl">section 3.11.3.30</a> for why you might want to do this.
 </p>
 <p>
-By default, if Pageant is started with <code>-restrict-acl</code>, it won't pass this to any PuTTY sessions started from its System Tray submenu. Use <code>-restrict-putty-acl</code> to change this. (Again, see <a href="Chapter3.html#using-cmdline-restrict-acl">section 3.11.3.28</a> for details.)
+By default, if Pageant is started with <code>-restrict-acl</code>, it won't pass this to any PuTTY sessions started from its System Tray submenu. Use <a name="i19"></a><code>-restrict-putty-acl</code> to change this. (Again, see <a href="Chapter3.html#using-cmdline-restrict-acl">section 3.11.3.30</a> for details.)
 </p>
-<h2><a name="pageant-forward"></a><a name="S9.4"></a>9.4 Using <a name="i18"></a>agent forwarding</h2>
+<h2><a name="pageant-forward"></a><a name="S9.4"></a>9.4 Using <a name="i20"></a>agent forwarding</h2>
 <p>
 Agent forwarding is a mechanism that allows applications on your SSH server machine to talk to the agent on your client machine.
 </p>
 <p>
-Note that at present, whether agent forwarding in SSH-2 is available depends on your server. Pageant's protocol is compatible with the <a name="i19"></a>OpenSSH server, but the <a name="i20"></a><code>ssh.com</code> server uses a different agent protocol, which PuTTY does not yet support.
+Note that at present, whether agent forwarding in SSH-2 is available depends on your server. Pageant's protocol is compatible with the <a name="i21"></a>OpenSSH server, but the <a name="i22"></a><code>ssh.com</code> server uses a different agent protocol, which PuTTY does not yet support.
 </p>
 <p>
 To enable agent forwarding, first start Pageant. Then set up a PuTTY SSH session in which &#8216;Allow agent forwarding&#8217; is enabled (see <a href="Chapter4.html#config-ssh-agentfwd">section 4.21.7</a>). Open the session as normal. (Alternatively, you can use the <code>-A</code> command line option; see <a href="Chapter3.html#using-cmdline-agent">section 3.11.3.10</a> for details.)
@@ -265,7 +266,7 @@ debug: ssh-userauth2 successful: method publickey
 If you enable agent forwarding on <em>that</em> SSH connection as well (see the manual for your server-side SSH client to find out how to do this), your authentication keys will still be available on the next machine you connect to - two SSH connections away from where they're actually stored.
 </p>
 <p>
-In addition, if you have a private key on one of the SSH servers, you can send it all the way back to Pageant using the local <a name="i21"></a><code>ssh-add</code> command:
+In addition, if you have a private key on one of the SSH servers, you can send it all the way back to Pageant using the local <a name="i23"></a><code>ssh-add</code> command:
 </p>
 <pre><code>unixbox:~$ ssh-add ~/.ssh/id_rsa
 Need passphrase for /home/fred/.ssh/id_rsa
@@ -287,12 +288,12 @@ This works the same way whether the key is used by an instance of PuTTY running 
 To add a key to Pageant in this encrypted form, press the &#8216;Add Key (encrypted)&#8217; button in the Pageant main window, or alternatively right-click on the Pageant icon in the system tray and select &#8216;Add Key (encrypted)&#8217; from there. Pageant will bring up a file dialog, in just the same way as it would for the plain &#8216;Add Key&#8217; button. But it won't ask for a passphrase. Instead, the key will be listed in the main window with &#8216;(encrypted)&#8217; after it.
 </p>
 <p>
-To start Pageant up in the first place with encrypted keys loaded into it, you can use the &#8216;<code>--encrypted</code>&#8217; option on the command line. For example:
+To start Pageant up in the first place with encrypted keys loaded into it, you can use the <a name="i24"></a><code>--encrypted</code> option on the command line. For example:
 </p>
 <pre><code>C:\PuTTY\pageant.exe --encrypted d:\main.ppk
 </code></pre>
 <p>
-After a key has been decrypted for the first use, it remains decrypted, so that it can be used again. The main window will list the key with &#8216;(<a name="i22"></a>re-encryptable)&#8217; after it. You can revert it to the previous state, where a passphrase is required, using the &#8216;<a name="i23"></a>Re-encrypt&#8217; button in the Pageant main window.
+After a key has been decrypted for the first use, it remains decrypted, so that it can be used again. The main window will list the key with &#8216;(<a name="i25"></a>re-encryptable)&#8217; after it. You can revert it to the previous state, where a passphrase is required, using the &#8216;<a name="i26"></a>Re-encrypt&#8217; button in the Pageant main window.
 </p>
 <p>
 You can also &#8216;re-encrypt&#8217; all keys that were added encrypted by choosing &#8216;Re-encrypt All Keys&#8217; from the System tray menu. (Note that this does <em>not</em> discard cleartext keys that were not previously added encrypted!)
@@ -302,13 +303,13 @@ You can also &#8216;re-encrypt&#8217; all keys that were added encrypted by choo
 </p>
 <h2><a name="pageant-security"></a><a name="S9.6"></a>9.6 Security considerations</h2>
 <p>
-<a name="i24"></a>Using Pageant for public-key authentication gives you the convenience of being able to open multiple SSH sessions without having to type a passphrase every time, but also gives you the security benefit of never storing a decrypted private key on disk. Many people feel this is a good compromise between security and convenience.
+<a name="i27"></a>Using Pageant for public-key authentication gives you the convenience of being able to open multiple SSH sessions without having to type a passphrase every time, but also gives you the security benefit of never storing a decrypted private key on disk. Many people feel this is a good compromise between security and convenience.
 </p>
 <p>
 It <em>is</em> a compromise, however. Holding your decrypted private keys in Pageant is better than storing them in easy-to-find disk files, but still less secure than not storing them anywhere at all. This is for two reasons:
 </p>
 <ul><li>
-Windows unfortunately provides no way to protect pieces of memory from being written to the system <a name="i25"></a>swap file. So if Pageant is holding your private keys for a long period of time, it's possible that decrypted private key data may be written to the system swap file, and an attacker who gained access to your hard disk later on might be able to recover that data. (However, if you stored an unencrypted key in a disk file they would <em>certainly</em> be able to recover it.)
+Windows unfortunately provides no way to protect pieces of memory from being written to the system <a name="i28"></a>swap file. So if Pageant is holding your private keys for a long period of time, it's possible that decrypted private key data may be written to the system swap file, and an attacker who gained access to your hard disk later on might be able to recover that data. (However, if you stored an unencrypted key in a disk file they would <em>certainly</em> be able to recover it.)
 </li>
 <li>
 Although, like most modern operating systems, Windows prevents programs from accidentally accessing one another's memory space, it does allow programs to access one another's memory space deliberately, for special purposes such as debugging. This means that if you allow a virus, trojan, or other malicious program on to your Windows system while Pageant is running, it could access the memory of the Pageant process, extract your decrypted authentication keys, and send them back to its master.
@@ -325,5 +326,5 @@ Therefore, if you don't trust the sysadmin of a server machine, you should <em>n
 </p>
 
 <hr><p>If you want to provide feedback on this manual or on the PuTTY tools themselves, see the <a href="https://www.chiark.greenend.org.uk/~sgtatham/putty/feedback.html">Feedback page</a>.</p><address>
-[PuTTY release 0.83]</address></body>
+[PuTTY release 0.84]</address></body>
 </html>

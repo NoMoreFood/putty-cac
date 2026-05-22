@@ -3,6 +3,7 @@
 <html>
 <head>
 <meta http-equiv="content-type" content="text/html; charset=US-ASCII">
+<meta name="generator" content="Halibut, unidentified version">
 <title>Using PSCP to transfer files securely</title>
 <link rel="previous" href="Chapter4.html">
 <link rel="ToC" href="index.html">
@@ -51,7 +52,7 @@ Once you've got a console window to type into, you can type <code>pscp -h</code>
 </p>
 <pre><code>C:\&gt;pscp -h
 PuTTY Secure Copy client
-Release 0.83
+Release 0.84
 Usage: pscp [options] [user@]host:source target
        pscp [options] source [source...] [user@]host:target
        pscp [options] -ls [user@]host:filespec
@@ -82,6 +83,8 @@ Options:
   -no-sanitise-stderr  don't strip control chars from standard error
   -proxycmd command
             use 'command' as local proxy
+  -preconnectcommand command
+            run 'command' before making network connection
   -unsafe   allow server-side wildcards (DANGEROUS)
   -sftp     force use of SFTP protocol
   -scp      force use of SCP protocol
@@ -230,7 +233,7 @@ The <code>-sftp</code> option forces PSCP to use the SFTP protocol or quit. When
 </p>
 <h4><a name="pscp-option-sanitise"></a><a name="S5.2.2.7"></a>5.2.2.7 <a name="i33"></a><a name="i34"></a><code>-no-sanitise-stderr</code>: control error message sanitisation</h4>
 <p>
-The <code>-no-sanitise-stderr</code> option will cause PSCP to pass through the server's standard-error stream literally, without stripping control characters from it first. This might be useful if the server were sending coloured error messages, but it also gives the server the ability to have unexpected effects on your terminal display. For more discussion, see <a href="Chapter7.html#plink-option-sanitise">section 7.2.3.5</a>.
+The <code>-no-sanitise-stderr</code> option will cause PSCP to pass through the server's standard-error stream literally, without stripping control characters from it first. This might be useful if the server were sending coloured error messages, but it also gives the server the ability to have unexpected effects on your terminal display. For more discussion, see <a href="Chapter7.html#plink-option-sanitise">section 7.2.3.4</a>.
 </p>
 <h3><a name="pscp-retval"></a><a name="S5.2.3"></a>5.2.3 <a name="i35"></a>Return value</h3>
 <p>
@@ -271,5 +274,5 @@ For more general information on public-key authentication, see <a href="Chapter8
 </p>
 
 <hr><p>If you want to provide feedback on this manual or on the PuTTY tools themselves, see the <a href="https://www.chiark.greenend.org.uk/~sgtatham/putty/feedback.html">Feedback page</a>.</p><address>
-[PuTTY release 0.83]</address></body>
+[PuTTY release 0.84]</address></body>
 </html>

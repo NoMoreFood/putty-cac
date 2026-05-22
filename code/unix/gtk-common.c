@@ -66,6 +66,7 @@ struct uxsel_id {
     guint watch_id;
 #else
     int id;
+    int flags;
 #endif
 };
 
@@ -93,6 +94,9 @@ gboolean fd_input_func(GIOChannel *source, GIOCondition condition,
 #else
 void fd_input_func(gpointer data, gint sourcefd, GdkInputCondition condition)
 {
+    uxsel_id *id = (uxsel_id *)data;
+    condition &= id->flags;
+
     if (condition & GDK_INPUT_EXCEPTION)
         select_result(sourcefd, SELECT_X);
     if (condition & GDK_INPUT_READ)
@@ -122,7 +126,8 @@ uxsel_id *uxsel_input_add(int fd, int rwx) {
     if (rwx & SELECT_W) flags |= GDK_INPUT_WRITE;
     if (rwx & SELECT_X) flags |= GDK_INPUT_EXCEPTION;
     assert(flags);
-    id->id = gdk_input_add(fd, flags, fd_input_func, NULL);
+    id->flags = flags;
+    id->id = gdk_input_add(fd, flags, fd_input_func, id);
 #endif
 
     return id;

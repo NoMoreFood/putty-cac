@@ -81,7 +81,7 @@ static const SeatVtable pscp_seat_vt = {
     .prompt_descriptions = console_prompt_descriptions,
     .is_utf8 = nullseat_is_never_utf8,
     .echoedit_update = nullseat_echoedit_update,
-    .get_x_display = nullseat_get_x_display,
+    .get_display = nullseat_get_display,
     .get_windowid = nullseat_get_windowid,
     .get_window_pixel_size = nullseat_get_window_pixel_size,
     .stripctrl_new = console_stripctrl_new,
@@ -2227,6 +2227,8 @@ static void usage(void)
            " standard error\n");
     printf("  -proxycmd command\n");
     printf("            use 'command' as local proxy\n");
+    printf("  -preconnectcommand command\n");
+    printf("            run 'command' before making network connection\n");
     printf("  -unsafe   allow server-side wildcards (DANGEROUS)\n");
     printf("  -sftp     force use of SFTP protocol\n");
     printf("  -scp      force use of SCP protocol\n");

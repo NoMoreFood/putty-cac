@@ -1121,7 +1121,7 @@ void try_send(NetSocket *s)
             data = bufdata.ptr;
             len = bufdata.len;
         }
-        nsent = send(s->s, data, len, urgentflag);
+        nsent = send(s->s, data, len, MSG_NOSIGNAL | urgentflag);
         noise_ultralight(NOISE_SOURCE_IOLEN, nsent);
         if (nsent <= 0) {
             err = (nsent < 0 ? errno : 0);

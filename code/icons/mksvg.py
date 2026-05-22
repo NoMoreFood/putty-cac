@@ -276,6 +276,7 @@ def sysbox(size):
     toret = SVGgroup([background, hl_dark, hl_light, floppy, outline])
     toret.props.sysboxheight = height
     toret.props.borderthickness = 1 # FIXME
+    toret.props.ytop = max(y for (x,y) in background_coords)
     return toret
 
 def monitor(size):
@@ -287,7 +288,7 @@ def monitor(size):
     botsurround = 2*size
     sheight = height - surround - botsurround
     swidth = width - 2*surround
-    depth = 2*size
+    depth = 1.6*size
     highlight = surround/2
     shadow = 0.5*size
 
@@ -342,6 +343,7 @@ def monitor(size):
     # shadow on the top and left. I think that looks very slightly nicer.
     sbb = (surround+shadow, botsurround, width-surround, height-surround-shadow)
     toret.props.screencentre = ((sbb[0]+sbb[2])/2, (sbb[1]+sbb[3])/2)
+    toret.props.ybackcorner = depth
     return toret
 
 def computer(size):
@@ -353,7 +355,7 @@ def computer(size):
     mb = m.bbox()
     sb = s.bbox()
     xoff = mb[0] - sb[0] + x
-    yoff = mb[1] - sb[1] + y
+    yoff = s.props.ytop - m.props.ybackcorner
     toret = SVGgroup([s, m], [(0,0), (xoff,yoff)])
     toret.props.screencentre = (m.props.screencentre[0]+xoff,
                                 m.props.screencentre[1]+yoff)
@@ -673,9 +675,12 @@ def box(size, wantback):
     # Three shades of basically acceptable brown, all achieved by
     # halftoning between two of the Windows-16 colours. I'm quite
     # pleased that was feasible at all!
-    dark = halftone(cr, cK)
-    med = halftone(cr, cy)
-    light = halftone(cr, cY)
+    if not is_bw:
+        dark = halftone(cr, cK)
+        med = halftone(cr, cy)
+        light = halftone(cr, cY)
+    else:
+        dark = med = light = halftone(cK, cY)
     # We define our halftoning parity in such a way that the black
     # pixels along the RHS of the visible part of the box back
     # match up with the one-pixel black outline around the
@@ -839,8 +844,8 @@ def pageant_icon(size):
     # Determine the relative coordinates of the computer and hat. We
     # do this by first centring one on the other, then adjusting by
     # hand.
-    xrel = (cbb[0]+cbb[2]-hbb[0]-hbb[2])/2 + 2*size
-    yrel = (cbb[1]+cbb[3]-hbb[1]-hbb[3])/2 + 12*size
+    xrel = (cbb[0]+cbb[2]-hbb[0]-hbb[2])/2 + 0.7*size
+    yrel = (cbb[1]+cbb[3]-hbb[1]-hbb[3])/2 + 12.5*size
 
     both = SVGgroup([c, ht], [(0,0), (xrel,yrel)])
 
@@ -862,33 +867,53 @@ def pageant_icon(size):
 
 # Test and output functions.
 
-cK = (0x00, 0x00, 0x00, 0xFF)
-cr = (0x80, 0x00, 0x00, 0xFF)
-cg = (0x00, 0x80, 0x00, 0xFF)
-cy = (0x80, 0x80, 0x00, 0xFF)
-cb = (0x00, 0x00, 0x80, 0xFF)
-cm = (0x80, 0x00, 0x80, 0xFF)
-cc = (0x00, 0x80, 0x80, 0xFF)
-cP = (0xC0, 0xC0, 0xC0, 0xFF)
-cw = (0x80, 0x80, 0x80, 0xFF)
-cR = (0xFF, 0x00, 0x00, 0xFF)
-cG = (0x00, 0xFF, 0x00, 0xFF)
-cY = (0xFF, 0xFF, 0x00, 0xFF)
-cB = (0x00, 0x00, 0xFF, 0xFF)
-cM = (0xFF, 0x00, 0xFF, 0xFF)
-cC = (0x00, 0xFF, 0xFF, 0xFF)
-cW = (0xFF, 0xFF, 0xFF, 0xFF)
-cD = (0x00, 0x00, 0x00, 0x80)
-cT = (0x00, 0x00, 0x00, 0x00)
+def setup_colours(mode):
+    global cK,cr,cg,cy,cb,cm,cc,cP,cw,cR,cG,cY,cB,cM,cC,cW,cD,cT,is_bw
+
+    is_bw = mode == 'bw'
+
+    cK = (0x00, 0x00, 0x00, 0xFF)
+    cW = (0xFF, 0xFF, 0xFF, 0xFF)
+    cT = (0x00, 0x00, 0x00, 0x00)
+
+    if mode == 'colour':
+        cr = (0x80, 0x00, 0x00, 0xFF)
+        cg = (0x00, 0x80, 0x00, 0xFF)
+        cy = (0x80, 0x80, 0x00, 0xFF)
+        cb = (0x00, 0x00, 0x80, 0xFF)
+        cm = (0x80, 0x00, 0x80, 0xFF)
+        cc = (0x00, 0x80, 0x80, 0xFF)
+        cP = (0xC0, 0xC0, 0xC0, 0xFF)
+        cw = (0x80, 0x80, 0x80, 0xFF)
+        cR = (0xFF, 0x00, 0x00, 0xFF)
+        cG = (0x00, 0xFF, 0x00, 0xFF)
+        cY = (0xFF, 0xFF, 0x00, 0xFF)
+        cB = (0x00, 0x00, 0xFF, 0xFF)
+        cM = (0xFF, 0x00, 0xFF, 0xFF)
+        cC = (0x00, 0xFF, 0xFF, 0xFF)
+        cD = (0x00, 0x00, 0x00, 0x80)
+    elif mode == 'bw':
+        cr=cg=cb=cm=cc=cP=cw=cR=cG=cB=cM=cC=cD = cK
+        cY=cy = cW
+    else:
+        assert False, f"unexpected mode {mode!r}"
 def greypix(value):
     value = max(min(value, 1), 0)
+    if is_bw:
+        value = 1 if value > 0.3 else 0
     return (int(round(0xFF*value)),) * 3 + (0xFF,)
 def yellowpix(value):
     value = max(min(value, 1), 0)
-    return (int(round(0xFF*value)),) * 2 + (0, 0xFF)
+    if is_bw:
+        return (int(round(0xFF*value)),) * 3 + (0xFF)
+    else:
+        return (int(round(0xFF*value)),) * 2 + (0, 0xFF)
 def bluepix(value):
     value = max(min(value, 1), 0)
-    return (0, 0, int(round(0xFF*value)), 0xFF)
+    if is_bw:
+        return (0, 0, 0, 0xFF)
+    else:
+        return (0, 0, int(round(0xFF*value)), 0xFF)
 def dark(value):
     value = max(min(value, 1), 0)
     return (0, 0, 0, int(round(0xFF*value)))
@@ -926,12 +951,15 @@ def drawicon(func, width, fname):
 def main():
     parser = argparse.ArgumentParser(description='Generate PuTTY SVG icons.')
     parser.add_argument("icon", help="Which icon to generate.")
+    parser.add_argument("--mode", choices=('colour', 'bw'), default='colour',
+                        help="Colour mode to generate the icon in.")
     parser.add_argument("-s", "--size", type=int, default=48,
                         help="Notional pixel size to base the SVG on.")
     parser.add_argument("-o", "--output", required=True,
                         help="Output file name.")
     args = parser.parse_args()
 
+    setup_colours(args.mode)
     drawicon(eval(args.icon), args.size, args.output)
 
 if __name__ == '__main__':

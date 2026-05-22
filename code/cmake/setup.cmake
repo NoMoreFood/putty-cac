@@ -116,6 +116,12 @@ int main(int argc, char **argv) {
     free(p);
 }" HAVE_ALIGNED_ALLOC)
 
+check_c_source_compiles("
+int main(int argc, char **argv) {
+    int a[3];
+    return _Countof(a);
+}" HAVE_COUNTOF)
+
 if(PUTTY_DEBUG)
   add_compile_definitions(DEBUG)
 endif()

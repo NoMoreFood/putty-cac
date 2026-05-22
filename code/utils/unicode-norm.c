@@ -341,13 +341,13 @@ static void subtest(const char *filename, int lineno, const char *subdesc,
         pass++;
     } else {
         printf("%s:%d: failed %s: NF%c([", filename, lineno, subdesc, nftype);
-        for (size_t pos = 0; pos < input->len; pos += sizeof(uchar))
+        for (size_t pos = 0; pos < input->len; pos++)
             printf("%s%04X", pos ? " " : "", (unsigned)input->buf[pos]);
         printf("]) -> [");
-        for (size_t pos = 0; pos < nf->len; pos += sizeof(uchar))
+        for (size_t pos = 0; pos < nf->len; pos++)
             printf("%s%04X", pos ? " " : "", (unsigned)nf->buf[pos]);
         printf("] != [");
-        for (size_t pos = 0; pos < expected->len; pos += sizeof(uchar))
+        for (size_t pos = 0; pos < expected->len; pos++)
             printf("%s%04X", pos ? " " : "", (unsigned)expected->buf[pos]);
         printf("]\n");
         fail++;

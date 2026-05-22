@@ -1,33 +1,38 @@
 # Makefile for the PuTTY icon suite.
 
 ICONS = putty puttycfg puttygen pscp pageant pterm ptermcfg puttyins
-SIZES = 16 32 48 128
+ICOSIZES = 16 32 48 64
+SIZES = $(ICOSIZES) 128
+ICOSUFFIXES = $(ICOSIZES) $(patsubst %,%-mono,$(ICOSIZES))
 
 MODE = # override to -it on command line for opaque testing
 
 PAMS = $(foreach I,$(ICONS),$(foreach S,$(SIZES),$(I)-$(S).pam))
 MONOPAMS = $(foreach I,$(ICONS),$(foreach S,$(SIZES),$(I)-$(S)-mono.pam))
-TRUEPAMS = $(foreach I,$(ICONS),$(foreach S,$(SIZES),$(I)-$(S)-true.pam))
+TRUEPAMS = $(foreach I,puttyins,$(foreach S,$(SIZES),$(I)-$(S)-true.pam))
 
 PNGS = $(patsubst %.pam,%.png,$(PAMS))
 MONOPNGS = $(patsubst %.pam,%.png,$(MONOPAMS))
 TRUEPNGS = $(patsubst %.pam,%.png,$(TRUEPAMS))
 
 SVGS = $(patsubst %,%.svg,$(ICONS))
+MONOSVGS = $(patsubst %,%-mono.svg,$(ICONS))
 
 ICOS = putty.ico puttygen.ico pscp.ico pageant.ico pageants.ico puttycfg.ico \
        puttyins.ico pterm.ico ptermcfg.ico
 ICNS = PuTTY.icns Pterm.icns
-CICONS = xpmputty.c xpmpucfg.c xpmpterm.c xpmptcfg.c
+CICONS = putty-xpm.c putty-config-xpm.c pterm-xpm.c pterm-config-xpm.c \
+         putty-rgb.c putty-config-rgb.c pterm-rgb.c pterm-config-rgb.c
 
 base: icos cicons
 
-all: pngs monopngs base icns svgs # truepngs currently disabled by default
+all: pngs monopngs base icns svgs monosvgs truepngs
 
 pngs: $(PNGS)
 monopngs: $(MONOPNGS)
 truepngs: $(TRUEPNGS)
 svgs: $(SVGS)
+monosvgs: $(MONOSVGS)
 
 icos: $(ICOS)
 icns: $(ICNS)
@@ -52,64 +57,72 @@ $(TRUEPAMS): %.pam: mkicon.py
 $(SVGS): %.svg: mksvg.py
 	./mksvg.py $(patsubst %.svg,%_icon,$@) -o $@
 
-putty.ico: putty-16.png putty-32.png putty-48.png \
-           putty-16-mono.png putty-32-mono.png putty-48-mono.png
+$(MONOSVGS): %.svg: mksvg.py
+	./mksvg.py --mode=bw $(patsubst %-mono.svg,%_icon,$@) -o $@
+
+putty.ico: $(patsubst %,putty-%.png,$(ICOSUFFIXES))
 	./icon.pl -4 $(filter-out %-mono.png, $^) -1 $(filter %-mono.png, $^) > $@
 
-puttycfg.ico: puttycfg-16.png puttycfg-32.png puttycfg-48.png \
-              puttycfg-16-mono.png puttycfg-32-mono.png puttycfg-48-mono.png
+puttycfg.ico: $(patsubst %,puttycfg-%.png,$(ICOSUFFIXES))
 	./icon.pl -4 $(filter-out %-mono.png, $^) -1 $(filter %-mono.png, $^) > $@
 
-puttygen.ico: puttygen-16.png puttygen-32.png puttygen-48.png \
-              puttygen-16-mono.png puttygen-32-mono.png puttygen-48-mono.png
+puttygen.ico: $(patsubst %,puttygen-%.png,$(ICOSUFFIXES))
 	./icon.pl -4 $(filter-out %-mono.png, $^) -1 $(filter %-mono.png, $^) > $@
 
-pageant.ico: pageant-16.png pageant-32.png pageant-48.png \
-             pageant-16-mono.png pageant-32-mono.png pageant-48-mono.png
+pageant.ico: $(patsubst %,pageant-%.png,$(ICOSUFFIXES))
 	./icon.pl -4 $(filter-out %-mono.png, $^) -1 $(filter %-mono.png, $^) > $@
 
 pageants.ico: pageant-16.png pageant-16-mono.png
 	./icon.pl -4 $(filter-out %-mono.png, $^) -1 $(filter %-mono.png, $^) > $@
 
-pscp.ico: pscp-16.png pscp-32.png pscp-48.png \
-          pscp-16-mono.png pscp-32-mono.png pscp-48-mono.png
+pscp.ico: $(patsubst %,pscp-%.png,$(ICOSUFFIXES))
 	./icon.pl -4 $(filter-out %-mono.png, $^) -1 $(filter %-mono.png, $^) > $@
 
-pterm.ico: pterm-16.png pterm-32.png pterm-48.png \
-           pterm-16-mono.png pterm-32-mono.png pterm-48-mono.png
+pterm.ico: $(patsubst %,pterm-%.png,$(ICOSUFFIXES))
 	./icon.pl -4 $(filter-out %-mono.png, $^) -1 $(filter %-mono.png, $^) > $@
 
-ptermcfg.ico: ptermcfg-16.png ptermcfg-32.png ptermcfg-48.png \
-              ptermcfg-16-mono.png ptermcfg-32-mono.png ptermcfg-48-mono.png
+ptermcfg.ico: $(patsubst %,ptermcfg-%.png,$(ICOSUFFIXES))
 	./icon.pl -4 $(filter-out %-mono.png, $^) -1 $(filter %-mono.png, $^) > $@
 
 # Because the installer icon makes heavy use of brown when drawing
 # the cardboard box, it's worth having 8-bit versions of it in
 # addition to the 4- and 1-bit ones.
-puttyins.ico: puttyins-16.png puttyins-32.png puttyins-48.png \
-              puttyins-16-mono.png puttyins-32-mono.png \
-              puttyins-48-mono.png \
-              puttyins-16-true.png puttyins-32-true.png \
-              puttyins-48-true.png
+puttyins.ico: $(patsubst %,puttyins-%.png,$(ICOSUFFIXES)) \
+              $(patsubst %,puttyins-%-true.png,$(ICOSIZES))
 	./icon.pl -8 $(filter %-true.png, $^) \
                   -4 $(filter-out %-true.png, $(filter-out %-mono.png, $^)) \
                   -1 $(filter %-mono.png, $^) > $@
 
-# Icon for the website. (This isn't linked into "make all".)
-website.ico: putty-16.png
+# Assorted icons for the website. (This isn't linked into "make all".)
+web: website.ico web180.png web192.png web512.png
+website.ico: putty-16.png putty-32.png putty-48.png
 	./icon.pl -4 $^ >$@
+web180.png: putty.svg
+	rsvg-convert -f png -b white -w 180 -h 180 -o $@ $<
+web192.png: putty.svg
+	rsvg-convert -f png -w 192 -h 192 -o $@ $<
+web512.png: putty.svg
+	rsvg-convert -f png -w 512 -h 512 -o $@ $<
 
-xpmputty.c: putty-16.png putty-32.png putty-48.png
+putty-xpm.c: putty-16.png putty-32.png putty-48.png
 	./cicon.pl main_icon $^ > $@
+putty-rgb.c: putty-16.png putty-32.png putty-48.png
+	./cicon.pl --rgb main_icon $^ > $@
 
-xpmpucfg.c: puttycfg-16.png puttycfg-32.png puttycfg-48.png
+putty-config-xpm.c: puttycfg-16.png puttycfg-32.png puttycfg-48.png
 	./cicon.pl cfg_icon $^ > $@
+putty-config-rgb.c: puttycfg-16.png puttycfg-32.png puttycfg-48.png
+	./cicon.pl --rgb cfg_icon $^ > $@
 
-xpmpterm.c: pterm-16.png pterm-32.png pterm-48.png
+pterm-xpm.c: pterm-16.png pterm-32.png pterm-48.png
 	./cicon.pl main_icon $^ > $@
+pterm-rgb.c: pterm-16.png pterm-32.png pterm-48.png
+	./cicon.pl --rgb main_icon $^ > $@
 
-xpmptcfg.c: ptermcfg-16.png ptermcfg-32.png ptermcfg-48.png
+pterm-config-xpm.c: ptermcfg-16.png ptermcfg-32.png ptermcfg-48.png
 	./cicon.pl cfg_icon $^ > $@
+pterm-config-rgb.c: ptermcfg-16.png ptermcfg-32.png ptermcfg-48.png
+	./cicon.pl --rgb cfg_icon $^ > $@
 
 PuTTY.icns: putty-16-mono.pam putty-16.pam \
 	    putty-32-mono.pam putty-32.pam \

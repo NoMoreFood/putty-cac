@@ -3,6 +3,7 @@
 <html>
 <head>
 <meta http-equiv="content-type" content="text/html; charset=US-ASCII">
+<meta name="generator" content="Halibut, unidentified version">
 <title>Using public keys for SSH authentication</title>
 <link rel="previous" href="Chapter7.html">
 <link rel="ToC" href="index.html">
@@ -360,31 +361,31 @@ PuTTYgen supports a set of command-line options to configure many of the same se
 The options supported on the command line are:
 </p>
 <dl><dt>
-<code>-t</code> <em>keytype</em>
+<a name="i50"></a><code>-t</code> <em>keytype</em>
 </dt>
 <dd>
 Type of key to generate. You can select <code>rsa</code>, <code>dsa</code>, <code>ecdsa</code>, <code>eddsa</code>, <code>ed25519</code>, <code>ed448</code>, or <code>rsa1</code>. See <a href="#puttygen-keytype">section 8.2.2</a>.
 </dd>
 <dt>
-<code>-b</code> <em>bits</em>
+<a name="i51"></a><code>-b</code> <em>bits</em>
 </dt>
 <dd>
 Size of the key to generate, in bits. See <a href="#puttygen-strength">section 8.2.3</a>.
 </dd>
 <dt>
-<code>--primes</code> <em>method</em>
+<a name="i52"></a><code>--primes</code> <em>method</em>
 </dt>
 <dd>
 Method for generating prime numbers. You can select <code>probable</code>, <code>proven</code>, and <code>proven-even</code>. See <a href="#puttygen-primes">section 8.2.4</a>.
 </dd>
 <dt>
-<code>--strong-rsa</code>
+<a name="i53"></a><code>--strong-rsa</code>
 </dt>
 <dd>
 When generating an RSA key, make sure the prime factors of the key modulus are &#8216;strong primes&#8217;. See <a href="#puttygen-primes">section 8.2.4</a>.
 </dd>
 <dt>
-<code>--ppk-param</code> <em>key</em><code>=</code><em>value</em><code>,</code>...
+<a name="i54"></a><code>--ppk-param</code> <em>key</em><code>=</code><em>value</em><code>,</code>...
 </dt>
 <dd>
 Allows setting all the same details of the PPK save file format described in <a href="#puttygen-save-params">section 8.2.13</a>.
@@ -431,7 +432,7 @@ Number of parallelisable threads that can be used to decrypt the key.
 
 </dd>
 <dt>
-<code>-E</code> <em>fptype</em>
+<a name="i55"></a><code>-E</code> <em>fptype</em>
 </dt>
 <dd>
 Algorithm to use when displaying key fingerprints. You can select <code>sha256</code> or <code>md5</code>. See <a href="#puttygen-fingerprint">section 8.2.6</a>.
@@ -442,14 +443,14 @@ Algorithm to use when displaying key fingerprints. You can select <code>sha256</
 Connect to your SSH server using PuTTY with the SSH protocol. When the connection succeeds you will be prompted for your user name and password to login. Once logged in, you must configure the server to accept your public key for authentication:
 </p>
 <ul><li>
-If your server is <a name="i50"></a>OpenSSH, you should change into the <a name="i51"></a><code>.ssh</code> directory under your home directory, and open the file <a name="i52"></a><code>authorized_keys</code> with your favourite editor. (You may have to create this file, if this is the first key you have put in it.) Then switch to the PuTTYgen window, select all of the text in the &#8216;Public key for pasting into OpenSSH authorized_keys file&#8217; box (see <a href="#puttygen-pastekey">section 8.2.12</a>), and copy it to the clipboard (<code>Ctrl+C</code>). Then, switch back to the PuTTY window and insert the data into the open file, making sure it ends up all on one line. Save the file.
+If your server is <a name="i56"></a>OpenSSH, you should change into the <a name="i57"></a><code>.ssh</code> directory under your home directory, and open the file <a name="i58"></a><code>authorized_keys</code> with your favourite editor. (You may have to create this file, if this is the first key you have put in it.) Then switch to the PuTTYgen window, select all of the text in the &#8216;Public key for pasting into OpenSSH authorized_keys file&#8217; box (see <a href="#puttygen-pastekey">section 8.2.12</a>), and copy it to the clipboard (<code>Ctrl+C</code>). Then, switch back to the PuTTY window and insert the data into the open file, making sure it ends up all on one line. Save the file.
 <p>
 (In very old versions of OpenSSH, SSH-2 keys had to be put in a separate file called <code>authorized_keys2</code>. In all current versions, the same <code>authorized_keys</code> file is used for both SSH-1 and SSH-2 keys.) 
 </p>
 
 </li>
 <li>
-If your server is <a name="i53"></a><code>ssh.com</code>'s product and is using SSH-2, you need to save a <em>public</em> key file from PuTTYgen (see <a href="#puttygen-savepub">section 8.2.11</a>), and copy that into the <a name="i54"></a><code>.ssh2</code> directory on the server. Then you should go into that <code>.ssh2</code> directory, and edit (or create) a file called <code>authorization</code>. In this file you should put a line like <code>Key mykey.pub</code>, with <code>mykey.pub</code> replaced by the name of your key file.
+If your server is <a name="i59"></a><code>ssh.com</code>'s product and is using SSH-2, you need to save a <em>public</em> key file from PuTTYgen (see <a href="#puttygen-savepub">section 8.2.11</a>), and copy that into the <a name="i60"></a><code>.ssh2</code> directory on the server. Then you should go into that <code>.ssh2</code> directory, and edit (or create) a file called <code>authorization</code>. In this file you should put a line like <code>Key mykey.pub</code>, with <code>mykey.pub</code> replaced by the name of your key file.
 </li>
 <li>
 For other SSH server software, you should refer to the manual for that server.
@@ -475,5 +476,5 @@ Load the private key into Pageant (see <a href="Chapter9.html#pageant">chapter 9
 </ul>
 
 <hr><p>If you want to provide feedback on this manual or on the PuTTY tools themselves, see the <a href="https://www.chiark.greenend.org.uk/~sgtatham/putty/feedback.html">Feedback page</a>.</p><address>
-[PuTTY release 0.83]</address></body>
+[PuTTY release 0.84]</address></body>
 </html>

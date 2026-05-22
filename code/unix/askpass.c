@@ -320,13 +320,13 @@ static gboolean try_grab_keyboard(gpointer vctx)
                           true,
                           GDK_KEY_PRESS_MASK | GDK_KEY_RELEASE_MASK,
                           NULL,
-                          GDK_CURRENT_TIME);
+                          gtk_get_current_event_time());
 #else
     /*
      * It's much simpler in GTK 1 and 2!
      */
     ret = gdk_keyboard_grab(gtk_widget_get_window(ctx->dialog),
-                            false, GDK_CURRENT_TIME);
+                            false, gtk_get_current_event_time());
 #endif
     if (ret != GDK_GRAB_SUCCESS)
         goto fail;
@@ -527,9 +527,9 @@ static void gtk_askpass_cleanup(struct askpass_ctx *ctx)
         gdk_seat_ungrab(ctx->seat);
 #elif GTK_CHECK_VERSION(3,0,0)
     if (ctx->keyboard)
-        gdk_device_ungrab(ctx->keyboard, GDK_CURRENT_TIME);
+        gdk_device_ungrab(ctx->keyboard, gtk_get_current_event_time());
 #else
-    gdk_keyboard_ungrab(GDK_CURRENT_TIME);
+    gdk_keyboard_ungrab(gtk_get_current_event_time());
 #endif
     gtk_grab_remove(ctx->promptlabel);
 

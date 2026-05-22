@@ -72,12 +72,15 @@ cmake_install.cmake
 /build.out
 /empty.h
 Makefile
+!/contrib/cygtermd/Makefile
+!/icons/Makefile
 /compile
 *.a
 /charset/sbcsdat.c
 /contrib/cygtermd/cygtermd.exe
 /doc/*.html
 /doc/*.txt
+!/doc/CMakeLists.txt
 /doc/*.cnt
 /doc/*.hlp
 /doc/*.gid
@@ -97,6 +100,7 @@ Makefile
 /icons/*.ico
 /icons/*.icns
 /icons/*.xpm
+/icons/*.svg
 /icons/*.c
 /unix/empty.h
 /unix/plink
