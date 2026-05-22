@@ -570,6 +570,9 @@ static void supdup_log(Plug *plug, Socket *s, PlugLogType type, SockAddr *addr,
         supdup->socket_connected = true;
         if (supdup->ldisc)
             ldisc_check_sendok(supdup->ldisc);
+
+        /* No local authentication phase in this protocol */
+        seat_set_trust_status(supdup->seat, false);
     }
 }
 
@@ -753,9 +756,9 @@ static char *supdup_init(const BackendVtable *x, Seat *seat,
     /*
      * Open socket.
      */
-    supdup->s = new_connection(addr, *realhost, port, false, true,
-                               nodelay, keepalive, &supdup->plug, supdup->conf,
-                               &supdup->interactor);
+    supdup->s = new_main_connection(
+        addr, *realhost, port, false, true, nodelay, keepalive, &supdup->plug,
+        supdup->conf, &supdup->interactor, supdup->logctx);
     if ((err = sk_socket_error(supdup->s)) != NULL)
         return dupstr(err);
 
@@ -812,7 +815,6 @@ static char *supdup_init(const BackendVtable *x, Seat *seat,
      * We next expect a connection message followed by %TDNOP from the server
      */
     supdup->state = CONNECTING;
-    seat_set_trust_status(supdup->seat, false);
 
     /* Make sure the terminal is in UTF-8 mode. */
     c_write(supdup, (unsigned char *)utf8, strlen(utf8));

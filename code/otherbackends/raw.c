@@ -47,6 +47,9 @@ static void raw_log(Plug *plug, Socket *s, PlugLogType type, SockAddr *addr,
         raw->socket_connected = true;
         if (raw->ldisc)
             ldisc_check_sendok(raw->ldisc);
+
+        /* No local authentication phase in this protocol */
+        seat_set_trust_status(raw->seat, false);
     }
 }
 
@@ -205,13 +208,11 @@ static char *raw_init(const BackendVtable *vt, Seat *seat,
     /*
      * Open socket.
      */
-    raw->s = new_connection(addr, *realhost, port, false, true, nodelay,
-                            keepalive, &raw->plug, conf, &raw->interactor);
+    raw->s = new_main_connection(
+        addr, *realhost, port, false, true, nodelay, keepalive, &raw->plug,
+        conf, &raw->interactor, raw->logctx);
     if ((err = sk_socket_error(raw->s)) != NULL)
         return dupstr(err);
-
-    /* No local authentication phase in this protocol */
-    seat_set_trust_status(raw->seat, false);
 
     loghost = conf_get_str(conf, CONF_loghost);
     if (*loghost) {

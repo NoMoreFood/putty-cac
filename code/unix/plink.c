@@ -419,7 +419,7 @@ static const SeatVtable plink_seat_vt = {
     .prompt_descriptions = console_prompt_descriptions,
     .is_utf8 = nullseat_is_never_utf8,
     .echoedit_update = plink_echoedit_update,
-    .get_x_display = nullseat_get_x_display,
+    .get_display = nullseat_get_display,
     .get_windowid = nullseat_get_windowid,
     .get_window_pixel_size = nullseat_get_window_pixel_size,
     .stripctrl_new = console_stripctrl_new,
@@ -529,6 +529,8 @@ static void usage(void)
     printf("  -batch    disable all interactive prompts\n");
     printf("  -proxycmd command\n");
     printf("            use 'command' as local proxy\n");
+    printf("  -preconnectcommand command\n");
+    printf("            run 'command' before making network connection\n");
     printf("  -sercfg configuration-string (e.g. 19200,8,n,1,X)\n");
     printf("            Specify the serial configuration (serial only)\n");
     printf("The following options only apply to SSH connections:\n");

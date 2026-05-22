@@ -40,8 +40,10 @@
  * very simple rectangle-copy operation rather than a lot of fiddly
  * drawing or bitmap transfer.
  *
- * However, GTK is deprecating the use of server-side pixmaps, so we
- * have to disable this mode under some circumstances.
+ * For preference, we use a GdkPixmap for this, because both GDK and
+ * Cairo can draw to one of those.  If those aren't available, then we
+ * instead create a Cairo surface that we hope will be backed by an X
+ * Pixmap.
  */
 #define NO_BACKING_PIXMAPS
 #endif
@@ -124,7 +126,6 @@ typedef struct unifont_drawctx {
              * screen number when creating server-side pixmaps */
             GtkWidget *widget;
             cairo_t *cr;
-            cairo_matrix_t origmatrix;
 #if GTK_CHECK_VERSION(3,22,0)
             GdkWindow *gdkwin;
             GdkDrawingContext *drawctx;

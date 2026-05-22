@@ -203,7 +203,7 @@ static const SeatVtable sesschan_seat_vt = {
     .prompt_descriptions = nullseat_prompt_descriptions,
     .is_utf8 = nullseat_is_never_utf8,
     .echoedit_update = nullseat_echoedit_update,
-    .get_x_display = nullseat_get_x_display,
+    .get_display = nullseat_get_display,
     .get_windowid = nullseat_get_windowid,
     .get_window_pixel_size = sesschan_get_window_pixel_size,
     .stripctrl_new = nullseat_stripctrl_new,
@@ -310,7 +310,7 @@ static void sesschan_start_backend(sesschan *sess, const char *cmd)
      * confusingly set in the absence of that.
      *
      * (DISPLAY must also be cleared, but pty.c will do that anyway
-     * when our get_x_display method returns NULL.)
+     * when our get_display method returns NULL.)
      */
     static const char *const env_to_unset[] = {
         "XAUTHORITY", "SSH_AUTH_SOCK", "SSH_AGENT_PID",

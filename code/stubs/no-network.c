@@ -131,9 +131,15 @@ Socket *new_unix_listener(SockAddr *listenaddr, Plug *plug)
         plug, "no actual networking in this application");
 }
 
-Socket *platform_start_subprocess(const char *cmd, Plug *plug,
-                                  const char *prefix)
+void subproc_waiter_set_callback(
+    SubprocessWaiter *waiter, SubprocessWaiterCallback cb, void *cbctx) {}
+void subproc_waiter_free(SubprocessWaiter *waiter) {}
+
+Socket *platform_start_subprocess(
+    const char *cmd, Plug *plug, const char *pfx, SubprocessWaiter **waiter)
 {
+    if (waiter)
+        *waiter = NULL;
     return new_error_socket_fmt(
         plug, "no actual networking in this application");
 }

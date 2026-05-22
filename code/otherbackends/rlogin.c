@@ -293,9 +293,9 @@ static char *rlogin_init(const BackendVtable *vt, Seat *seat,
     /*
      * Open socket.
      */
-    rlogin->s = new_connection(addr, *realhost, port, true, false,
-                               nodelay, keepalive, &rlogin->plug, conf,
-                               &rlogin->interactor);
+    rlogin->s = new_main_connection(
+        addr, *realhost, port, true, false, nodelay, keepalive, &rlogin->plug,
+        conf, &rlogin->interactor, rlogin->logctx);
     if ((err = sk_socket_error(rlogin->s)) != NULL)
         return dupstr(err);
 

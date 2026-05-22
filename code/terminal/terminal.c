@@ -1381,9 +1381,10 @@ static void term_schedule_tblink(Terminal *term)
  */
 static void term_schedule_cblink(Terminal *term)
 {
-    if (term->blink_cur && term->has_focus) {
+    int delay = CBLINK_DELAY;
+    if (term->blink_cur && term->has_focus && delay > 0) {
         if (!term->cblink_pending)
-            term->next_cblink = schedule_timer(CBLINK_DELAY, term_timer, term);
+            term->next_cblink = schedule_timer(delay, term_timer, term);
         term->cblink_pending = true;
     } else {
         term->cblinker = true;         /* reset when not in use */
@@ -2066,7 +2067,6 @@ Terminal *term_init(Conf *myconf, struct unicode_data *ucsdata, TermWin *win)
 
     term_copy_stuff_from_conf(term);
 
-    term->dispcursx = term->dispcursy = -1;
     deselect(term);
     term->rows = term->cols = -1;
     power_on(term, true);
@@ -2160,6 +2160,8 @@ void term_free(Terminal *term)
     /* In case a term_userpass_state is still around */
     if (term->userpass_state)
         term_userpass_state_free(term->userpass_state);
+
+    freetermline(term->preedit_termline);
 
     sfree(term);
 }
@@ -2297,7 +2299,6 @@ void term_size(Terminal *term, int newrows, int newcols, int newsavelines)
     }
     sfree(term->disptext);
     term->disptext = newdisp;
-    term->dispcursx = term->dispcursy = -1;
 
     /* Make a new alternate screen. */
     newalt = newtree234(NULL);
@@ -3185,22 +3186,18 @@ static void toggle_mode(Terminal *term, int mode, int query, bool state)
 }
 
 /*
- * Process an OSC sequence: set window title or icon name.
+ * Process an OSC or similar sequence, with a whole embedded string,
+ * like setting the window title or icon name.
  */
 static void do_osc(Terminal *term)
 {
-    if (term->osc_is_apc) {
-        /* This OSC was really an APC, and we don't support that
-         * sequence at all. We only recognise it in order to ignore it
-         * and filter it out of input. */
-        return;
-    }
-
-    if (term->osc_w) {
+    switch (term->osc_type) {
+      case OSCLIKE_OSC_W:
         while (term->osc_strlen--)
             term->wordness[(unsigned char)term->osc_string[term->osc_strlen]] =
                 term->esc_args[0];
-    } else {
+        break;
+      case OSCLIKE_OSC:
         term->osc_string[term->osc_strlen] = '\0';
         switch (term->esc_args[0]) {
           case 0:
@@ -3242,6 +3239,11 @@ static void do_osc(Terminal *term)
             }
             break;
         }
+        break;
+      default:
+        /* DCS, APC, SOS and PM are recognised as control sequences but
+         * ignored. PuTTY implements no support for any of them. */
+        break;
     }
 }
 
@@ -4122,23 +4124,26 @@ static void term_out(Terminal *term, bool called_from_term_data)
                     /* Compatibility is nasty here, xterm, linux, decterm yuk! */
                     compatibility(OTHER);
                     term->termstate = SEEN_OSC;
-                    term->osc_is_apc = false;
+                    term->osc_type = OSCLIKE_OSC;
                     term->osc_strlen = 0;
                     term->esc_args[0] = 0;
                     term->esc_nargs = 1;
                     break;
+                  case 'P':             /* DCS: Device Control String */
                   case 'X':             /* SOS: Start of String */
                   case '^':             /* PM: privacy message */
                   case '_':             /* APC: application program command */
-                    /* SOS, PM, and APC sequences are just a string, terminated by
-                     * ST or (I've observed in practice for APC) ^G. That is,
-                     * they have the same termination convention as
-                     * OSC. So we handle them by going straight into
-                     * OSC_STRING state and setting a flag indicating
-                     * that it's not really an OSC. */
+                    /* DCS, SOS, PM, and APC sequences are just a string, terminated
+                     * by ST or (I've observed in practice for APC) ^G. That
+                     * is, they have the same termination convention as OSC. So
+                     * we handle them by going straight into OSC_STRING state
+                     * and setting a flag indicating that it's not really an
+                     * OSC. */
                     compatibility(OTHER);
                     term->termstate = SEEN_OSC;
-                    term->osc_is_apc = true;
+                    term->osc_type = (c == 'P' ? OSCLIKE_DCS :
+                                      c == 'X' ? OSCLIKE_SOS :
+                                      c == '^' ? OSCLIKE_PM : OSCLIKE_APC);
                     term->osc_strlen = 0;
                     term->esc_args[0] = 0;
                     term->esc_nargs = 1;
@@ -5247,7 +5252,6 @@ static void term_out(Terminal *term, bool called_from_term_data)
                     }
                 break;
               case SEEN_OSC:
-                term->osc_w = false;
                 switch (c) {
                   case 'P':            /* Linux palette sequence */
                     term->termstate = SEEN_OSC_P;
@@ -5260,7 +5264,7 @@ static void term_out(Terminal *term, bool called_from_term_data)
                     break;
                   case 'W':            /* word-set */
                     term->termstate = SEEN_OSC_W;
-                    term->osc_w = true;
+                    term->osc_type = OSCLIKE_OSC_W;
                     break;
                   case '0':
                   case '1':
@@ -6015,14 +6019,14 @@ static void do_paint_draw(Terminal *term, termline *ldata, int x, int y,
             IS_REGIONAL_INDICATOR_LETTER(ch[1]))
             attr |= ATTR_WIDE | TATTR_COMBINING;
         win_draw_text(term->win, x, y, ch, ccount, attr, ldata->lattr, tc);
-        if (attr & (TATTR_ACTCURS | TATTR_PASCURS))
+        if (attr & (ATTR_ACTCURS | ATTR_PASCURS))
             win_draw_cursor(term->win, x, y, ch, ccount,
                             attr, ldata->lattr, tc);
     }
 }
 
 /*
- * Given a context, update the window.
+ * Update the window.
  */
 static void do_paint(Terminal *term)
 {
@@ -6051,13 +6055,13 @@ static void do_paint(Terminal *term)
     if (term->cursor_on) {
         if (term->has_focus) {
             if (term->cblinker || !term->blink_cur)
-                cursor = TATTR_ACTCURS;
+                cursor = ATTR_ACTCURS;
             else
                 cursor = 0;
         } else
-            cursor = TATTR_PASCURS;
+            cursor = ATTR_PASCURS;
         if (term->wrapnext)
-            cursor |= TATTR_RIGHTCURS;
+            cursor |= ATTR_RIGHTCURS;
     } else
         cursor = 0;
     our_curs_y = term->curs.y - term->disptop;
@@ -6088,27 +6092,6 @@ static void do_paint(Terminal *term)
         unlineptr(ldata);
     }
 
-    /*
-     * If the cursor is not where it was last time we painted, and
-     * its previous position is visible on screen, invalidate its
-     * previous position.
-     */
-    if (term->dispcursy >= 0 &&
-        (term->curstype != cursor ||
-         term->dispcursy != our_curs_y ||
-         term->dispcursx != our_curs_x)) {
-        termchar *dispcurs = term->disptext[term->dispcursy]->chars +
-            term->dispcursx;
-
-        if (term->dispcursx > 0 && dispcurs->chr == UCSWIDE)
-            dispcurs[-1].attr |= ATTR_INVALID;
-        if (term->dispcursx < term->cols-1 && dispcurs[1].chr == UCSWIDE)
-            dispcurs[1].attr |= ATTR_INVALID;
-        dispcurs->attr |= ATTR_INVALID;
-
-        term->curstype = 0;
-    }
-    term->dispcursx = term->dispcursy = -1;
 
     /* The normal screen data */
     for (i = 0; i < term->rows; i++) {
@@ -6123,6 +6106,7 @@ static void do_paint(Terminal *term)
         bool dirtyrect;
         int *backward;
         truecolour tc;
+        int preedit_start = 0, preedit_end = 0;
 
         scrpos.y = i + term->disptop;
         ldata = lineptr(scrpos.y);
@@ -6136,6 +6120,23 @@ static void do_paint(Terminal *term)
             backward = NULL;
         }
 
+        /* Work out if and where to display pre-edit text. */
+        if (i == our_curs_y && term->preedit_termline != NULL) {
+            preedit_start = our_curs_x;
+            preedit_end = preedit_start + term->preedit_termline->cols;
+            if (preedit_end > term->cols) {
+                preedit_end = term->cols;
+                preedit_start = preedit_end - term->preedit_termline->cols;
+            }
+            /* Show the cursor at the right end of the pre-edit text. */
+            if (term->preedit_termline->chars[term->preedit_termline->cols - 1]
+                .chr == UCSWIDE)
+                our_curs_x = preedit_end - 2;
+            else
+                our_curs_x = preedit_end - 1;
+            cursor |= ATTR_RIGHTCURS;
+        }
+
         /*
          * First loop: work along the line deciding what we want
          * each character cell to look like.
@@ -6143,7 +6144,11 @@ static void do_paint(Terminal *term)
         for (j = 0; j < term->cols; j++) {
             unsigned long tattr, tchar;
             termchar *d = lchars + j;
+            bool in_preedit = j >= preedit_start && j < preedit_end;
             scrpos.x = backward ? backward[j] : j;
+
+            if (in_preedit)
+                d = term->preedit_termline->chars + j - preedit_start;
 
             tchar = d->chr;
             tattr = d->attr;
@@ -6179,7 +6184,8 @@ static void do_paint(Terminal *term)
                 tchar = term->ucsdata->unitab_scoacs[tchar&0xFF];
                 break;
             }
-            if (j < term->cols-1 && d[1].chr == UCSWIDE)
+            if (j < (in_preedit ? preedit_end : term->cols) - 1
+                && d[1].chr == UCSWIDE)
                 tattr |= ATTR_WIDE;
 
             /* Video reversing things */
@@ -6216,12 +6222,8 @@ static void do_paint(Terminal *term)
             } else if (term->disptext[i]->chars[j].attr & ATTR_NARROW)
                 tattr |= ATTR_NARROW;
 
-            if (i == our_curs_y && j == our_curs_x) {
+            if (i == our_curs_y && j == our_curs_x)
                 tattr |= cursor;
-                term->curstype = cursor;
-                term->dispcursx = j;
-                term->dispcursy = i;
-            }
 
             /* FULL-TERMCHAR */
             newline[j].attr = tattr;
@@ -6282,6 +6284,10 @@ static void do_paint(Terminal *term)
             unsigned long tattr, tchar;
             bool break_run, do_copy, next_run_dirty = false;
             termchar *d = lchars + j;
+            bool in_preedit = j >= preedit_start && j < preedit_end;
+
+            if (in_preedit)
+                d = term->preedit_termline->chars + j - preedit_start;
 
             tattr = newline[j].attr;
             tchar = newline[j].chr;
@@ -8128,4 +8134,52 @@ void term_notify_window_size_pixels(Terminal *term, int x, int y)
 {
     term->winpixsize_x = x;
     term->winpixsize_y = y;
+}
+
+/*
+ * Set the pre-edit text as required by an input method.  preedit_text
+ * is expected to be in UTF-8.  It's NULL if no pre-edit text is
+ * required.  It's owned by the caller and must not be freed here.
+ */
+void term_set_preedit_text(Terminal *term, char *preedit_text)
+{
+    freetermline(term->preedit_termline);
+    term->preedit_termline = NULL;
+    if (preedit_text != NULL) {
+        BinarySource src[1];
+        int width = 0;
+
+        term->preedit_termline = newtermline(term, 0, false);
+        BinarySource_BARE_INIT(src, preedit_text, strlen(preedit_text));
+        while (get_avail(src)) {
+            unsigned int c = decode_utf8(src, NULL);
+            switch (term_char_width(term, c)) {
+              case -1:
+                /* Ignore control characters. */
+                break;
+              case 0:
+                if (width == 0) {
+                    width = 1;
+                    resizeline(term, term->preedit_termline, width);
+                }
+                if (term->preedit_termline->chars[width - 1].chr == UCSWIDE)
+                    add_cc(term->preedit_termline, width - 2, c);
+                else
+                    add_cc(term->preedit_termline, width - 1, c);
+                break;
+              case 1:
+                width += 1;
+                resizeline(term, term->preedit_termline, width);
+                term->preedit_termline->chars[width - 1].chr = c;
+                break;
+              case 2:
+                width += 2;
+                resizeline(term, term->preedit_termline, width);
+                term->preedit_termline->chars[width - 2].chr = c;
+                term->preedit_termline->chars[width - 1].chr = UCSWIDE;
+                break;
+            }
+        }
+    }
+    seen_disp_event(term);
 }

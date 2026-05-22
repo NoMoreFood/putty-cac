@@ -6,7 +6,13 @@
 #define charset_internal_h
 
 /* This invariably comes in handy */
-#define lenof(x) ( sizeof((x)) / sizeof(*(x)) )
+#ifndef lenof
+#if HAVE_COUNTOF
+#define lenof(x) _Countof(x)
+#else
+#define lenof(x) ( (sizeof((x))) / (sizeof(*(x))))
+#endif
+#endif
 
 /* This is an invalid Unicode value used to indicate an error. */
 #define ERROR 0xFFFFL                  /* Unicode value representing error */

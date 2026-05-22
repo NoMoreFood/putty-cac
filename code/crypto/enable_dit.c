@@ -20,5 +20,9 @@ void enable_dit(void)
 {
     if (!platform_dit_available())
         return;
-    asm volatile("msr dit, %0" :: "r"(1));
+    register uint64_t one asm("x8");
+    one = 1;
+    // This is the binary encoding of "msr dit, x8". You can check via, e.g.,
+    // echo "msr dit,x8" | llvm-mc -triple aarch64 -mattr=+dit -show-encoding
+    asm volatile(".inst 0xd51b42a8" :: "r"(one));
 }

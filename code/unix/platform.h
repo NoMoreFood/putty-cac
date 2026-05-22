@@ -186,6 +186,14 @@ void app_menu_action(GtkFrontend *frontend, enum MenuAction);
 extern const char *const *const main_icon[];
 extern const char *const *const cfg_icon[];
 extern const int n_main_icon, n_cfg_icon;
+/* Same, but in raw RGB24 with a wrapper struct */
+struct RgbIconImage {
+    unsigned width, height;
+    const void *data;
+};
+extern const struct RgbIconImage *const main_icon_rgb[];
+extern const struct RgbIconImage *const cfg_icon_rgb[];
+extern const int n_main_icon_rgb, n_cfg_icon_rgb;
 
 /* Things dialog.c needs from window.c */
 #ifdef MAY_REFER_TO_GTK_IN_HEADERS
@@ -200,8 +208,7 @@ enum DialogSlot {
 GtkWidget *gtk_seat_get_window(Seat *seat);
 void register_dialog(Seat *seat, enum DialogSlot slot, GtkWidget *dialog);
 void unregister_dialog(Seat *seat, enum DialogSlot slot);
-void set_window_icon(GtkWidget *window, const char *const *const *icon,
-                     int n_icon);
+void set_window_cfg_icon(GtkWidget *window);
 extern GdkAtom compound_text_atom;
 #endif
 
@@ -469,6 +476,14 @@ typedef bool (*cliloop_pw_setup_t)(void *ctx, pollwrapper *pw);
 typedef void (*cliloop_pw_check_t)(void *ctx, pollwrapper *pw);
 typedef bool (*cliloop_continue_t)(void *ctx, bool found_any_fd,
                                    bool ran_any_callback);
+
+/* Unix-specific API for making a SubprocessWaiter */
+SubprocessWaiter *subproc_waiter_from_pid(pid_t pid);
+/* Force setup of the SIGCHLD handler, in case we're about to fork for
+ * any other reason */
+void subproc_waiter_force_setup(void);
+/* Force a run of the waitpid() loop even if there's been no signal */
+void subproc_waiter_force_wait(void);
 
 void cli_main_loop(cliloop_pw_setup_t pw_setup,
                    cliloop_pw_check_t pw_check,

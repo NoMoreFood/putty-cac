@@ -237,9 +237,16 @@ if(neon)
 endif()
 
 test_compile_with_flags(HAVE_ARM_DIT
-  GNU_FLAGS -march=armv8.4-a
   TEST_SOURCE "
-    int main(void) { asm volatile(\"msr dit, %0\" :: \"r\"(1)); }"
+    #ifndef __aarch64__
+    #error make sure this only even tries to work on AArch64
+    #endif
+    #include <stdint.h>
+    int main(void) {
+      register uint64_t one asm(\"x8\");
+      one = 1;
+      asm volatile(\".inst 0xd51b42a8\" :: \"r\"(one));
+    }"
   ADD_SOURCES_IF_SUCCESSFUL enable_dit.c)
 
 set(HAVE_AES_NI ${HAVE_AES_NI} PARENT_SCOPE)

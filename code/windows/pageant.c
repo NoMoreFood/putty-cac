@@ -1645,7 +1645,8 @@ static LRESULT CALLBACK TrayWndProc(HWND hwnd, UINT message,
         break;
       }
       case WM_NETEVENT:
-        winselgui_response(wParam, lParam);
+      case WM_DONE_WITH_SOCKET:
+        winselgui_response(message, wParam, lParam);
         return 0;
       case WM_DESTROY:
         quit_help(hwnd);

@@ -46,27 +46,7 @@ char *buildinfo(const char *newline)
      */
 #elif _MSC_VER == 1950
     put_fmt(buf, " 2026 (18.0)");
-#elif _MSC_VER == 1943
-    put_fmt(buf, " 2022 (17.13)");
-#elif _MSC_VER == 1942
-    put_fmt(buf, " 2022 (17.12)");
-#elif _MSC_VER == 1941
-    put_fmt(buf, " 2022 (17.11)");
-#elif _MSC_VER == 1940
-    put_fmt(buf, " 2022 (17.10)");
-#elif _MSC_VER == 1939
-    put_fmt(buf, " 2022 (17.9)");
-#elif _MSC_VER == 1938
-    put_fmt(buf, " 2022 (17.8)");
-#elif _MSC_VER == 1937
-    put_fmt(buf, " 2022 (17.7)");
-#elif _MSC_VER == 1936
-    put_fmt(buf, " 2022 (17.6)");
-#elif _MSC_VER == 1935
-    put_fmt(buf, " 2022 (17.5)");
-#elif _MSC_VER == 1934
-    put_fmt(buf, " 2022 (17.4)");
-#elif _MSC_VER == 1932
+#elif _MSC_VER == 1933
     put_fmt(buf, " 2022 (17.3)");
 #elif _MSC_VER == 1932
     put_fmt(buf, " 2022 (17.2)");

@@ -691,13 +691,36 @@ host_ca *host_ca_load(const char *name)
 
 char *host_ca_save(host_ca *hca)
 {
+    char *filename, *err;
+
     if (!*hca->name)
         return dupstr("CA record must have a name");
 
-    char *filename = make_filename(INDEX_HOSTCA, hca->name);
+    filename = make_filename(INDEX_DIR, NULL);
+    if ((err = make_dir_path(filename, 0700)) != NULL) {
+        char *msg = dupprintf("Unable to save CA record: "
+                              "making directory '%s': %s", filename, err);
+        sfree(err);
+        sfree(filename);
+        return msg;
+    }
+    sfree(filename);
+
+    filename = make_filename(INDEX_HOSTCADIR, NULL);
+    if ((err = make_dir_path(filename, 0700)) != NULL) {
+        char *msg = dupprintf("Unable to save CA record: "
+                              "making directory '%s': %s", filename, err);
+        sfree(err);
+        sfree(filename);
+        return msg;
+    }
+    sfree(filename);
+
+    filename = make_filename(INDEX_HOSTCA, hca->name);
     FILE *fp = fopen(filename, "w");
     if (!fp)
-        return dupprintf("Unable to open file '%s'", filename);
+        return dupprintf("Unable to save CA record: opening file '%s': %s",
+                         filename, strerror(errno));
 
     fprintf(fp, "PublicKey=");
     base64_encode_fp(fp, ptrlen_from_strbuf(hca->ca_public_key), 0);
@@ -715,9 +738,10 @@ char *host_ca_save(host_ca *hca)
     if (fclose(fp) < 0)
         bad = true;
 
-    char *err = NULL;
+    err = NULL;
     if (bad)
-        err = dupprintf("Unable to write file '%s'", filename);
+        err = dupprintf("Unable to save CA record: writing file '%s': %s",
+                        filename, strerror(errno));
 
     sfree(filename);
     return err;
@@ -962,7 +986,7 @@ void write_random_seed(void *data, int len)
             break;
         }
         len -= ret;
-        data = (char *)data + len;
+        data = (char *)data + ret;
     }
 
     close(fd);

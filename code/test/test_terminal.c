@@ -31,6 +31,7 @@ typedef struct Mock {
     Terminal *term;
     Conf *conf;
     struct unicode_data ucsdata[1];
+    strbuf *title;
 
     strbuf *context;
 
@@ -50,11 +51,15 @@ static void mock_set_raw_mouse_mode_pointer(TermWin *win, bool enable) {}
 static void mock_palette_set(TermWin *win, unsigned start, unsigned ncolours,
                              const rgb *colours) {}
 static void mock_palette_get_overrides(TermWin *tw, Terminal *term) {}
+static void mock_set_title(TermWin *win, const char *title, int codepage);
+static void mock_set_icon_title(TermWin *win, const char *title, int cp) {}
 
 static const TermWinVtable mock_termwin_vt = {
     .setup_draw_ctx = mock_setup_draw_ctx,
     .draw_text = mock_draw_text,
     .draw_cursor = mock_draw_cursor,
+    .set_title = mock_set_title,
+    .set_icon_title = mock_set_icon_title,
     .set_raw_mouse_mode = mock_set_raw_mouse_mode,
     .set_raw_mouse_mode_pointer = mock_set_raw_mouse_mode_pointer,
     .palette_set = mock_palette_set,
@@ -73,6 +78,7 @@ static Mock *mock_new(void)
     mk->ucsdata->line_codepage = CP_ISO8859_1;
 
     mk->context = strbuf_new();
+    mk->title = strbuf_new();
 
     mk->tw.vt = &mock_termwin_vt;
 
@@ -84,7 +90,15 @@ static void mock_free(Mock *mk)
     strbuf_free(mk->context);
     conf_free(mk->conf);
     term_free(mk->term);
+    strbuf_free(mk->title);
     sfree(mk);
+}
+
+static void mock_set_title(TermWin *win, const char *title, int codepage)
+{
+    Mock *mk = container_of(win, Mock, tw);
+    strbuf_clear(mk->title);
+    put_dataz(mk->title, title);
 }
 
 static void reset(Mock *mk)
@@ -93,6 +107,7 @@ static void reset(Mock *mk)
     term_size(mk->term, 24, 80, 0);
     term_set_trust_status(mk->term, false);
     strbuf_clear(mk->context);
+    strbuf_clear(mk->title);
 }
 
 #if 0
@@ -131,7 +146,15 @@ static inline void check_iequal(Mock *mk, const char *file, int line,
                     lhs, rhs, lhs, rhs);
 }
 
+static inline void check_sequal(Mock *mk, const char *file, int line,
+                                const char *lhs, const char *rhs)
+{
+    if (strcmp(lhs, rhs) != 0)
+        report_fail(mk, file, line, "'%s' != '%s'", lhs, rhs);
+}
+
 #define IEQUAL(lhs, rhs) check_iequal(mk, __FILE__, __LINE__, lhs, rhs)
+#define SEQUAL(lhs, rhs) check_sequal(mk, __FILE__, __LINE__, lhs, rhs)
 
 static inline void term_datapl(Terminal *term, ptrlen pl)
 {
@@ -482,6 +505,25 @@ static void test_nonwrap(Mock *mk)
     IEQUAL(get_termchar(mk->term, 79, 0).chr, 0xFFFD);
 }
 
+static void test_wintitle(Mock *mk)
+{
+    reset(mk);
+    term_datapl(mk->term, PTRLEN_LITERAL("\033]0;foo\033\\"));
+    term_update(mk->term);
+    SEQUAL(mk->title->s, "foo");
+    term_datapl(mk->term, PTRLEN_LITERAL("\033]0;bar\007"));
+    term_update(mk->term);
+    SEQUAL(mk->title->s, "bar");
+
+    /* Regression test for a bug in which a DCS string was
+     * accidentally treated as a title-setting OSC 0. We expect that
+     * this is not a window-title setting sequence, and leaves the
+     * title unchanged. */
+    term_datapl(mk->term, PTRLEN_LITERAL("\033Pzz\033\\"));
+    term_update(mk->term);
+    SEQUAL(mk->title->s, "bar");
+}
+
 int main(void)
 {
     Mock *mk = mock_new();
@@ -490,6 +532,7 @@ int main(void)
     test_hello_world(mk);
     test_wrap(mk);
     test_nonwrap(mk);
+    test_wintitle(mk);
 
     bool failed = mk->any_test_failed;
     mock_free(mk);
