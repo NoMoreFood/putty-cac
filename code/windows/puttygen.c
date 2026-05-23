@@ -2061,6 +2061,19 @@ static INT_PTR CALLBACK MainDlgProc(HWND hwnd, UINT msg,
                     }
 
                     if (state->ssh2) {
+#ifdef PUTTY_CAC
+                        if (!ssh_key_has_private(state->ssh2key.key)) {
+                            MessageBox(hwnd,
+                                       "This key is backed by a hardware token "
+                                       "and cannot be exported in this format.\n"
+                                       "Use \"Save public key\" to save the "
+                                       "public key only.",
+                                       "PuTTYgen Error", MB_OK | MB_ICONERROR);
+                            burnstr(passphrase);
+                            filename_free(fn);
+                            break;
+                        }
+#endif /* PUTTY_CAC */
                         if (type != realtype)
                             ret = export_ssh2(fn, type, &state->ssh2key,
                                               *passphrase ? passphrase : NULL);
