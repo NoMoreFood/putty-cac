@@ -236,6 +236,7 @@ target_link_directories(puttyimp PUBLIC
 target_include_directories(puttyimp PUBLIC ../contrib/libfido2/include)
 set_target_properties(puttyimp PROPERTIES
   WIN32_EXECUTABLE OFF
+  VS_PLATFORM_TOOLSET "v143"
   LINK_FLAGS "/MANIFESTUAC:\"level='requireAdministrator' uiAccess='false'\"")
 installed_program(puttyimp)
 endif()
