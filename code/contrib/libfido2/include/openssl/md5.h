@@ -1,4 +1,4 @@
-/* $OpenBSD: md5.h,v 1.21 2023/07/08 06:50:38 jsing Exp $ */
+/* $OpenBSD: md5.h,v 1.25 2025/01/25 17:59:44 tb Exp $ */
 /* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
  *
@@ -60,25 +60,16 @@
 
 #ifndef HEADER_MD5_H
 #define HEADER_MD5_H
+
+#include <openssl/opensslconf.h>
+
 #if !defined(HAVE_ATTRIBUTE__BOUNDED__) && !defined(__OpenBSD__)
 #define __bounded__(x, y, z)
 #endif
 
-#include <openssl/opensslconf.h>
-
 #ifdef  __cplusplus
 extern "C" {
 #endif
-
-#ifdef OPENSSL_NO_MD5
-#error MD5 is disabled.
-#endif
-
-/*
- * !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
- * ! MD5_LONG has to be at least 32 bits wide.                     !
- * !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
- */
 
 #define MD5_LONG unsigned int
 
@@ -98,7 +89,8 @@ int MD5_Update(MD5_CTX *c, const void *data, size_t len)
     __attribute__ ((__bounded__(__buffer__, 2, 3)));
 int MD5_Final(unsigned char *md, MD5_CTX *c);
 unsigned char *MD5(const unsigned char *d, size_t n, unsigned char *md)
-    __attribute__ ((__bounded__(__buffer__, 1, 2)));
+    __attribute__ ((__bounded__(__buffer__, 1, 2)))
+    __attribute__ ((__nonnull__(3)));
 void MD5_Transform(MD5_CTX *c, const unsigned char *b);
 #ifdef  __cplusplus
 }

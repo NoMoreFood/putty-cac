@@ -1,4 +1,4 @@
-/* $OpenBSD: rc4.h,v 1.14 2023/07/28 10:35:14 tb Exp $ */
+/* $OpenBSD: rc4.h,v 1.16 2025/01/25 17:59:44 tb Exp $ */
 /* Copyright (C) 1995-1997 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
  *
@@ -61,10 +61,6 @@
 
 #include <openssl/opensslconf.h> /* OPENSSL_NO_RC4, RC4_INT */
 
-#ifdef OPENSSL_NO_RC4
-#error RC4 is disabled.
-#endif
-
 #include <stddef.h>
 
 #ifdef  __cplusplus
@@ -77,7 +73,6 @@ typedef struct rc4_key_st {
 } RC4_KEY;
 
 void RC4_set_key(RC4_KEY *key, int len, const unsigned char *data);
-void private_RC4_set_key(RC4_KEY *key, int len, const unsigned char *data);
 void RC4(RC4_KEY *key, size_t len, const unsigned char *indata,
     unsigned char *outdata);
 
