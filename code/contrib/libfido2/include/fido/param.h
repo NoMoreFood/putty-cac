@@ -1,18 +1,18 @@
 /*
- * Copyright (c) 2018-2022 Yubico AB. All rights reserved.
+ * Copyright (c) 2018-2026 Yubico AB. All rights reserved.
  * SPDX-License-Identifier: BSD-2-Clause
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
  * met:
- * 
+ *
  *    1. Redistributions of source code must retain the above copyright
  *       notice, this list of conditions and the following disclaimer.
  *    2. Redistributions in binary form must reproduce the above copyright
  *       notice, this list of conditions and the following disclaimer in
  *       the documentation and/or other materials provided with the
  *       distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
  * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
  * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
@@ -74,6 +74,7 @@
 
 /* ISO7816-4 status words. */
 #define SW1_MORE_DATA			0x61
+#define SW_WRONG_LENGTH			0x6700
 #define SW_CONDITIONS_NOT_SATISFIED	0x6985
 #define SW_WRONG_DATA			0x6a80
 #define SW_NO_ERROR			0x9000
@@ -130,18 +131,25 @@
 #define FIDO_EXT_LARGEBLOB_KEY	0x04
 #define FIDO_EXT_CRED_BLOB	0x08
 #define FIDO_EXT_MINPINLEN	0x10
+#define FIDO_EXT_HMAC_SECRET_MC	0x20
+#define FIDO_EXT_PAYMENT	0x40
 
 /* Supported credential protection policies. */
 #define FIDO_CRED_PROT_UV_OPTIONAL		0x01
 #define FIDO_CRED_PROT_UV_OPTIONAL_WITH_ID	0x02
 #define FIDO_CRED_PROT_UV_REQUIRED		0x03
 
+/* Supported enterprise attestation modes. */
+#define FIDO_ENTATTEST_VENDOR	1
+#define FIDO_ENTATTEST_PLATFORM	2
+
 #ifdef _FIDO_INTERNAL
 #define FIDO_EXT_ASSERT_MASK	(FIDO_EXT_HMAC_SECRET|FIDO_EXT_LARGEBLOB_KEY| \
-				 FIDO_EXT_CRED_BLOB)
+				 FIDO_EXT_CRED_BLOB|FIDO_EXT_PAYMENT)
 #define FIDO_EXT_CRED_MASK	(FIDO_EXT_HMAC_SECRET|FIDO_EXT_CRED_PROTECT| \
-				 FIDO_EXT_LARGEBLOB_KEY|FIDO_EXT_CRED_BLOB| \
-				 FIDO_EXT_MINPINLEN)
+				 FIDO_EXT_LARGEBLOB_KEY|FIDO_EXT_CRED_BLOB|  \
+				 FIDO_EXT_MINPINLEN|FIDO_EXT_HMAC_SECRET_MC| \
+				 FIDO_EXT_PAYMENT)
 #endif /* _FIDO_INTERNAL */
 
 /* Recognised UV modes. */
@@ -158,5 +166,14 @@
 #define FIDO_UV_MODE_ALL	0x0400	/* all supported UV modes required */
 #define FIDO_UV_MODE_EXT_PIN	0x0800	/* external pin verification */
 #define FIDO_UV_MODE_EXT_DRAWN	0x1000	/* external drawn pattern check */
+
+/* Recognised token permissions */
+#define FIDO_PUAT_MAKECRED	0x01
+#define FIDO_PUAT_GETASSERT	0x02
+#define FIDO_PUAT_CREDMAN	0x04
+#define FIDO_PUAT_BIOENROLL	0x08
+#define FIDO_PUAT_LARGEBLOB	0x10
+#define FIDO_PUAT_CONFIG	0x20
+#define FIDO_PUAT_CREDMAN_RO	0x40
 
 #endif /* !_FIDO_PARAM_H */

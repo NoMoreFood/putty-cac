@@ -1,18 +1,18 @@
 /*
- * Copyright (c) 2018-2022 Yubico AB. All rights reserved.
+ * Copyright (c) 2018-2026 Yubico AB. All rights reserved.
  * SPDX-License-Identifier: BSD-2-Clause
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
  * met:
- * 
+ *
  *    1. Redistributions of source code must retain the above copyright
  *       notice, this list of conditions and the following disclaimer.
  *    2. Redistributions in binary form must reproduce the above copyright
  *       notice, this list of conditions and the following disclaimer in
  *       the documentation and/or other materials provided with the
  *       distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
  * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
  * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
@@ -166,25 +166,42 @@ typedef struct fido_cred_ext {
 	size_t minpinlen; /* minimum pin length */
 } fido_cred_ext_t;
 
+typedef struct fido_cred_extin {
+	fido_cred_ext_t attr;
+	fido_blob_t     blob;      /* CTAP 2.1 credBlob */
+	fido_blob_t     hmac_salt; /* CTAP 2.2 hmac-secret-mc salt */
+} fido_cred_extin_t;
+
+typedef struct fido_cred_extout {
+	fido_cred_ext_t attr;
+	fido_blob_t     hmac_secret_enc; /* CTAP 2.2 hmac-secret-mc, encrypted */
+} fido_cred_extout_t;
+
+typedef struct fido_cred_ea {
+	int mode;
+	bool att;
+} fido_cred_ea_t;
+
 typedef struct fido_cred {
-	fido_blob_t       cd;            /* client data */
-	fido_blob_t       cdh;           /* client data hash */
-	fido_rp_t         rp;            /* relying party */
-	fido_user_t       user;          /* user entity */
-	fido_blob_array_t excl;          /* list of credential ids to exclude */
-	fido_opt_t        rk;            /* resident key */
-	fido_opt_t        uv;            /* user verification */
-	fido_cred_ext_t   ext;           /* extensions */
-	int               type;          /* cose algorithm */
-	char             *fmt;           /* credential format */
-	fido_cred_ext_t   authdata_ext;  /* decoded extensions */
-	fido_blob_t       authdata_cbor; /* cbor-encoded payload */
-	fido_blob_t       authdata_raw;  /* cbor-decoded payload */
-	fido_authdata_t   authdata;      /* decoded authdata payload */
-	fido_attcred_t    attcred;       /* returned credential (key + id) */
-	fido_attstmt_t    attstmt;       /* attestation statement (x509 + sig) */
-	fido_blob_t       largeblob_key; /* decoded large blob key */
-	fido_blob_t       blob;          /* CTAP 2.1 credBlob */
+	fido_blob_t        cd;            /* client data */
+	fido_blob_t        cdh;           /* client data hash */
+	fido_rp_t          rp;            /* relying party */
+	fido_user_t        user;          /* user entity */
+	fido_blob_array_t  excl;          /* list of credential ids to exclude */
+	fido_opt_t         rk;            /* resident key */
+	fido_opt_t         uv;            /* user verification */
+	fido_cred_extin_t  ext;           /* extensions */
+	int                type;          /* cose algorithm */
+	char               *fmt;          /* credential format */
+	fido_cred_extout_t authdata_ext;  /* decoded extensions */
+	fido_blob_t        authdata_cbor; /* cbor-encoded payload */
+	fido_blob_t        authdata_raw;  /* cbor-decoded payload */
+	fido_authdata_t    authdata;      /* decoded authdata payload */
+	fido_attcred_t     attcred;       /* returned credential (key + id) */
+	fido_attstmt_t     attstmt;       /* attestation statement (x509 + sig) */
+	fido_blob_t        largeblob_key; /* decoded large blob key */
+	fido_cred_ea_t     ea;            /* enterprise attestation */
+	fido_blob_t        hmac_secret;   /* CTAP 2.2 hmac-secret-mc */
 } fido_cred_t;
 
 typedef struct fido_assert_extattr {
@@ -277,6 +294,18 @@ typedef struct fido_cbor_info {
 	int64_t           rk_remaining;   /* remaining resident credentials */
 	bool              new_pin_reqd;   /* new pin required */
 	fido_cert_array_t certs;          /* associated certifications */
+	fido_str_array_t  attfmts;        /* attestation formats */
+	int64_t           uv_since_pin;   /* uv count since last pin entry */
+	bool              long_reset;     /* long touch for reset */
+	fido_blob_t       encid;          /* encrypted identifier */
+	fido_blob_t       id;             /* decrypted identifier */
+	fido_str_array_t  rsttransports;  /* transports for reset */
+	int               pinpolicy;      /* enforces pin complexity */
+	fido_blob_t       pinpolicyurl;   /* url to pin policy */
+	uint64_t          maxpinlen;      /* non-default max pin length */
+	fido_blob_t       encstate;       /* encrypted credential store state */
+	fido_byte_array_t cfgcmds;        /* supported config commands */
+	fido_blob_t       state;          /* decrypted credential store state */
 } fido_cbor_info_t;
 
 typedef struct fido_dev_info {
@@ -315,6 +344,7 @@ typedef struct fido_dev {
 	fido_dev_transport_t  transport;  /* transport functions */
 	uint64_t	      maxmsgsize; /* max message size */
 	int		      timeout_ms; /* read timeout in ms */
+	fido_blob_t	      puat;       /* client-controlled PUAT */
 } fido_dev_t;
 
 #else

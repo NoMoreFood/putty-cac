@@ -1,4 +1,4 @@
-/* $OpenBSD: x509v3.h,v 1.29 2024/03/02 10:43:52 tb Exp $ */
+/* $OpenBSD: x509v3.h,v 1.40 2024/12/23 09:57:23 tb Exp $ */
 /* Written by Dr Stephen N Henson (steve@openssl.org) for the OpenSSL
  * project 1999.
  */
@@ -117,17 +117,9 @@ struct v3_ext_method {
 	X509V3_EXT_I2R i2r;
 	X509V3_EXT_R2I r2i;
 
-	void *usr_data;	/* Any extension specific data */
+	const void *usr_data;	/* Any extension specific data */
 };
 
-typedef struct X509V3_CONF_METHOD_st {
-	char *(*get_string)(void *db, const char *section, const char *value);
-	STACK_OF(CONF_VALUE) *(*get_section)(void *db, const char *section);
-	void (*free_string)(void *db, char *string);
-	void (*free_section)(void *db, STACK_OF(CONF_VALUE) *section);
-} X509V3_CONF_METHOD;
-
-/* Context specific info */
 struct v3_ext_ctx {
 	#define CTX_TEST 0x1
 	int flags;
@@ -135,20 +127,18 @@ struct v3_ext_ctx {
 	X509 *subject_cert;
 	X509_REQ *subject_req;
 	X509_CRL *crl;
-	X509V3_CONF_METHOD *db_meth;
 	void *db;
-	/* Maybe more here */
 };
 
 typedef struct v3_ext_method X509V3_EXT_METHOD;
 
 DECLARE_STACK_OF(X509V3_EXT_METHOD)
 
-/* ext_flags values */
-#define X509V3_EXT_DYNAMIC	0x1
-#define X509V3_EXT_CTX_DEP	0x2
+/* XXX - can this be made internal? */
 #define X509V3_EXT_MULTILINE	0x4
 
+/* XXX - remove it anyway? */
+/* Guess who uses this... Yes, of course, it's xca. */
 typedef BIT_STRING_BITNAME ENUMERATED_NAMES;
 
 typedef struct BASIC_CONSTRAINTS_st {
@@ -351,24 +341,6 @@ struct ISSUING_DIST_POINT_st {
 #define X509V3_set_ctx_test(ctx) \
 			X509V3_set_ctx(ctx, NULL, NULL, NULL, NULL, CTX_TEST)
 #define X509V3_set_ctx_nodb(ctx) (ctx)->db = NULL;
-
-#define EXT_BITSTRING(nid, table) { nid, 0, &ASN1_BIT_STRING_it, \
-			0,0,0,0, \
-			0,0, \
-			(X509V3_EXT_I2V)i2v_ASN1_BIT_STRING, \
-			(X509V3_EXT_V2I)v2i_ASN1_BIT_STRING, \
-			NULL, NULL, \
-			table}
-
-#define EXT_IA5STRING(nid) { nid, 0, &ASN1_IA5STRING_it, \
-			0,0,0,0, \
-			(X509V3_EXT_I2S)i2s_ASN1_IA5STRING, \
-			(X509V3_EXT_S2I)s2i_ASN1_IA5STRING, \
-			0,0,0,0, \
-			NULL}
-
-#define EXT_END { -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
-
 
 /* X509_PURPOSE stuff */
 
@@ -648,37 +620,13 @@ X509_EXTENSION *X509V3_EXT_conf_nid(LHASH_OF(CONF_VALUE) *conf, X509V3_CTX *ctx,
     int ext_nid, const char *value);
 X509_EXTENSION *X509V3_EXT_conf(LHASH_OF(CONF_VALUE) *conf, X509V3_CTX *ctx,
     const char *name, const char *value);
-int X509V3_EXT_add_conf(LHASH_OF(CONF_VALUE) *conf, X509V3_CTX *ctx,
-    const char *section, X509 *cert);
-int X509V3_EXT_REQ_add_conf(LHASH_OF(CONF_VALUE) *conf, X509V3_CTX *ctx,
-    const char *section, X509_REQ *req);
-int X509V3_EXT_CRL_add_conf(LHASH_OF(CONF_VALUE) *conf, X509V3_CTX *ctx,
-    const char *section, X509_CRL *crl);
 
-int X509V3_add_value_bool_nf(const char *name, int asn1_bool,
-			     STACK_OF(CONF_VALUE) **extlist);
-int X509V3_get_value_bool(const CONF_VALUE *value, int *asn1_bool);
-int X509V3_get_value_int(const CONF_VALUE *value, ASN1_INTEGER **aint);
 void X509V3_set_nconf(X509V3_CTX *ctx, CONF *conf);
-void X509V3_set_conf_lhash(X509V3_CTX *ctx, LHASH_OF(CONF_VALUE) *lhash);
 #endif
 
-char *X509V3_get_string(X509V3_CTX *ctx, const char *name,
-    const char *section);
-STACK_OF(CONF_VALUE) *X509V3_get_section(X509V3_CTX *ctx, const char *section);
-void X509V3_string_free(X509V3_CTX *ctx, char *str);
-void X509V3_section_free( X509V3_CTX *ctx, STACK_OF(CONF_VALUE) *section);
 void X509V3_set_ctx(X509V3_CTX *ctx, X509 *issuer, X509 *subject,
 				 X509_REQ *req, X509_CRL *crl, int flags);
 
-int X509V3_add_value(const char *name, const char *value,
-						STACK_OF(CONF_VALUE) **extlist);
-int X509V3_add_value_uchar(const char *name, const unsigned char *value,
-						STACK_OF(CONF_VALUE) **extlist);
-int X509V3_add_value_bool(const char *name, int asn1_bool,
-						STACK_OF(CONF_VALUE) **extlist);
-int X509V3_add_value_int(const char *name, const ASN1_INTEGER *aint,
-						STACK_OF(CONF_VALUE) **extlist);
 char *i2s_ASN1_INTEGER(X509V3_EXT_METHOD *meth, const ASN1_INTEGER *aint);
 ASN1_INTEGER *s2i_ASN1_INTEGER(X509V3_EXT_METHOD *meth, const char *value);
 char *i2s_ASN1_ENUMERATED(X509V3_EXT_METHOD *meth, const ASN1_ENUMERATED *aint);
@@ -692,7 +640,6 @@ STACK_OF(CONF_VALUE) *X509V3_parse_list(const char *line);
 void *X509V3_EXT_d2i(X509_EXTENSION *ext);
 void *X509V3_get_d2i(const STACK_OF(X509_EXTENSION) *x, int nid, int *crit,
     int *idx);
-
 
 X509_EXTENSION *X509V3_EXT_i2d(int ext_nid, int crit, void *ext_struc);
 int X509V3_add1_i2d(STACK_OF(X509_EXTENSION) **x, int nid, void *value, int crit, unsigned long flags);
@@ -742,13 +689,6 @@ STACK_OF(OPENSSL_STRING) *X509_get1_ocsp(X509 *x);
 #define X509_CHECK_FLAG_SINGLE_LABEL_SUBDOMAINS 0x10
 /* Disable checking the CN for a hostname, to support modern validation */
 #define X509_CHECK_FLAG_NEVER_CHECK_SUBJECT 0x20
-
-/*
- * Match reference identifiers starting with "." to any sub-domain.
- * This is a non-public flag, turned on implicitly when the subject
- * reference identity is a DNS name.
- */
-#define _X509_CHECK_FLAG_DOT_SUBDOMAINS 0x8000
 
 int X509_check_host(X509 *x, const char *chk, size_t chklen,
     unsigned int flags, char **peername);

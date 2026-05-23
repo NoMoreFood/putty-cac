@@ -1,4 +1,4 @@
-/* $OpenBSD: cms.h,v 1.16 2023/07/28 10:28:02 tb Exp $ */
+/* $OpenBSD: cms.h,v 1.18 2024/03/30 00:35:15 joshua Exp $ */
 /*
  * Written by Dr Stephen N Henson (steve@openssl.org) for the OpenSSL
  * project.
@@ -58,8 +58,11 @@
 #include <openssl/opensslconf.h>
 
 #ifndef OPENSSL_NO_CMS
+
+#include <openssl/pem.h>
 #include <openssl/x509.h>
 #include <openssl/x509v3.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -138,14 +141,12 @@ ASN1_OCTET_STRING **CMS_get0_content(CMS_ContentInfo *cms);
 int CMS_is_detached(CMS_ContentInfo *cms);
 int CMS_set_detached(CMS_ContentInfo *cms, int detached);
 
-#ifdef HEADER_PEM_H
 CMS_ContentInfo *PEM_read_bio_CMS(BIO *bp, CMS_ContentInfo **x,
     pem_password_cb *cb, void *u);
 CMS_ContentInfo *PEM_read_CMS(FILE *fp, CMS_ContentInfo **x,
     pem_password_cb *cb, void *u);
 int PEM_write_bio_CMS(BIO *bp, const CMS_ContentInfo *x);
 int PEM_write_CMS(FILE *fp, const CMS_ContentInfo *x);
-#endif
 int CMS_stream(unsigned char ***boundary, CMS_ContentInfo *cms);
 CMS_ContentInfo *d2i_CMS_bio(BIO *bp, CMS_ContentInfo **cms);
 int i2d_CMS_bio(BIO *bp, CMS_ContentInfo *cms);
@@ -314,8 +315,6 @@ int CMS_unsigned_add1_attr_by_txt(CMS_SignerInfo *si, const char *attrname,
 void *CMS_unsigned_get0_data_by_OBJ(CMS_SignerInfo *si, ASN1_OBJECT *oid,
     int lastpos, int type);
 
-#ifdef HEADER_X509V3_H
-
 int CMS_get1_ReceiptRequest(CMS_SignerInfo *si, CMS_ReceiptRequest **prr);
 CMS_ReceiptRequest *CMS_ReceiptRequest_create0(unsigned char *id, int idlen,
     int allorfirst, STACK_OF(GENERAL_NAMES) *receiptList,
@@ -324,7 +323,7 @@ int CMS_add1_ReceiptRequest(CMS_SignerInfo *si, CMS_ReceiptRequest *rr);
 void CMS_ReceiptRequest_get0_values(CMS_ReceiptRequest *rr, ASN1_STRING **pcid,
     int *pallorfirst, STACK_OF(GENERAL_NAMES) **plist,
     STACK_OF(GENERAL_NAMES) **prto);
-#endif
+
 int CMS_RecipientInfo_kari_get0_alg(CMS_RecipientInfo *ri, X509_ALGOR **palg,
     ASN1_OCTET_STRING **pukm);
 STACK_OF(CMS_RecipientEncryptedKey) *

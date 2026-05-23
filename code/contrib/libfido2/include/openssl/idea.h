@@ -1,4 +1,4 @@
-/* $OpenBSD: idea.h,v 1.11 2023/07/07 12:51:58 beck Exp $ */
+/* $OpenBSD: idea.h,v 1.13 2025/01/25 17:59:44 tb Exp $ */
 /* Copyright (C) 1995-1997 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
  *
@@ -61,10 +61,6 @@
 
 #include <openssl/opensslconf.h> /* IDEA_INT, OPENSSL_NO_IDEA */
 
-#ifdef OPENSSL_NO_IDEA
-#error IDEA is disabled.
-#endif
-
 #define IDEA_ENCRYPT	1
 #define IDEA_DECRYPT	0
 
@@ -79,7 +75,6 @@ typedef struct idea_key_st {
 	IDEA_INT data[9][6];
 } IDEA_KEY_SCHEDULE;
 
-const char *idea_options(void);
 void idea_ecb_encrypt(const unsigned char *in, unsigned char *out,
     IDEA_KEY_SCHEDULE *ks);
 void idea_set_encrypt_key(const unsigned char *key, IDEA_KEY_SCHEDULE *ks);

@@ -4407,6 +4407,10 @@
 #define NID_ct_cert_scts		1021
 #define OBJ_ct_cert_scts		1L,3L,6L,1L,4L,1L,11129L,2L,4L,5L
 
+#define SN_tls1_prf		"TLS1-PRF"
+#define LN_tls1_prf		"tls1-prf"
+#define NID_tls1_prf		1055
+
 #define SN_hkdf		"HKDF"
 #define LN_hkdf		"hkdf"
 #define NID_hkdf		1022
