@@ -133,6 +133,7 @@ DWORD WINAPI WebAuthNAuthenticatorGetAssertionThread(LPVOID lpParam)
 		pParams->pWebAuthNClientData, pParams->pWebAuthNGetAssertionOptions, &pParams->ppWebAuthNAssertion);
 	if (hMakeResult != S_OK)
 	{
+		if (pParams->hWnd != NULL) PostMessage(pParams->hWnd, WM_USER, 0, 0);
 		ExitThread(1);
 		return FALSE;
 	}
@@ -438,6 +439,7 @@ DWORD WINAPI WebAuthNAuthenticatorMakeCredentialThread(LPVOID lpParam)
 		pParams->pWebAuthNMakeCredentialOptions, &pParams->ppWebAuthNCredentialAttestation);
 	if (hMakeResult != S_OK)
 	{
+		if (pParams->hWnd != NULL) PostMessage(pParams->hWnd, WM_USER, 0, 0);
 		ExitThread(1);
 		return FALSE;
 	}
