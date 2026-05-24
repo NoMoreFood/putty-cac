@@ -222,6 +222,7 @@ target_include_directories(testcrypt PUBLIC ../cert)
 target_include_directories(puttygen PUBLIC ../cert)
 add_sources_from_current_dir(crypto
 ../import.c
+../cert/cert_portable.c
 ../cert/cert_common.c
 ../cert/cert_capi.c
 ../cert/cert_capi_tools.cc
@@ -229,11 +230,13 @@ add_sources_from_current_dir(crypto
 ../cert/cert_pkcs.c)
 
 add_executable(puttyimp
-  puttyimp.c puttyimp.rc)
+  puttyimp.c ../cert/cert_portable.c puttyimp.rc)
 target_link_directories(puttyimp PUBLIC
   ../contrib/libfido2/lib/${CMAKE_GENERATOR_PLATFORM},
   contrib/libfido2/lib/${CMAKE_GENERATOR_PLATFORM})
 target_include_directories(puttyimp PUBLIC ../contrib/libfido2/include)
+target_include_directories(puttyimp PUBLIC ../cert)
+target_link_libraries(puttyimp shlwapi.lib)
 set_target_properties(puttyimp PROPERTIES
   WIN32_EXECUTABLE OFF
   VS_PLATFORM_TOOLSET "v143"

@@ -21,6 +21,9 @@ typedef enum {
 
 #include "defs.h"
 #include "platform.h"
+#ifdef PUTTY_CAC
+#include "cert/cert_portable.h"
+#endif
 #include "network.h"
 #include "misc.h"
 #include "marshal.h"

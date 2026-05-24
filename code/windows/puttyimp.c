@@ -12,6 +12,8 @@
 #include <devpkey.h>
 #include <fido/credman.h>
 
+#include "cert_portable.h"
+
 #pragma comment(lib,"setupapi.lib")
 #pragma comment(lib,"crypto.lib")
 #pragma comment(lib,"fido2.lib")

@@ -3,6 +3,8 @@
 #define UMDF_USING_NTSTATUS
 #include <ntstatus.h>
 
+#include "putty.h"
+
 #include <windows.h>
 #include <wincrypt.h>
 #include <cryptuiapi.h>

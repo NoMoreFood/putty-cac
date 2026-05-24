@@ -173,7 +173,7 @@ endif()
 
 set(platform_libraries
   advapi32.lib comdlg32.lib gdi32.lib imm32.lib
-  ole32.lib shell32.lib user32.lib ws2_32.lib kernel32.lib)
+  ole32.lib shell32.lib shlwapi.lib user32.lib ws2_32.lib kernel32.lib)
 
 # Generate link maps
 if(PUTTY_LINK_MAPS)
