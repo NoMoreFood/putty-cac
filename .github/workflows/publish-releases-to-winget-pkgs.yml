@@ -1,0 +1,110 @@
+name: Publish releases to WinGet and Chocolatey
+on:
+  release:
+    types: [released]
+permissions:
+  contents: read
+jobs:
+  get-version:
+    runs-on: windows-latest
+    outputs:
+      version: ${{ steps.get-version.outputs.version }}
+      tag: ${{ steps.get-version.outputs.tag }}
+      skip: ${{ steps.get-version.outputs.skip }}
+    steps:
+      - name: Get version
+        id: get-version
+        run: |
+          $tag = "${{ github.ref_name }}"
+          if ($tag -imatch '^(\d+\.\d+)u(\d+)$')
+          {
+              $version = "$($Matches[1]).$($Matches[2]).0"
+              "version=$version" >> $env:GITHUB_OUTPUT
+              "tag=$tag" >> $env:GITHUB_OUTPUT
+              "skip=false" >> $env:GITHUB_OUTPUT
+          }
+          elseif ($tag -imatch '^\d+\.\d+$')
+          {
+              $version = "$tag.0.0"
+              "version=$version" >> $env:GITHUB_OUTPUT
+              "tag=$tag" >> $env:GITHUB_OUTPUT
+              "skip=false" >> $env:GITHUB_OUTPUT
+          }
+          else
+          {
+              "skip=true" >> $env:GITHUB_OUTPUT
+          }
+        shell: pwsh
+
+  publish-winget:
+    needs: get-version
+    if: ${{ needs.get-version.outputs.skip != 'true' }}
+    runs-on: windows-latest
+    steps:
+      - name: Submit to WinGet
+        env:
+          WINGET_TOKEN: ${{ secrets.WINGET_TOKEN }}
+        run: |
+          $wc = "$env:TEMP\wingetcreate.exe"
+          Invoke-WebRequest -Uri "https://github.com/microsoft/winget-create/releases/latest/download/wingetcreate.exe" -OutFile $wc -UseBasicParsing
+          $tag = "${{ needs.get-version.outputs.tag }}"
+          $version = "${{ needs.get-version.outputs.version }}"
+          $base = "https://github.com/NoMoreFood/putty-cac/raw/$tag/binaries"
+          & $wc update NoMoreFood.PuTTY-CAC `
+            --version $version `
+            --urls "$base/puttycac-$tag-x64.msi|x64" "$base/puttycac-$tag-x86.msi|x86" "$base/puttycac-$tag-arm64.msi|arm64" `
+            --token $env:WINGET_TOKEN `
+            --submit
+        shell: pwsh
+
+  publish-chocolatey:
+    needs: get-version
+    if: ${{ needs.get-version.outputs.skip != 'true' }}
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Update package files
+        run: |
+          $tag = "${{ needs.get-version.outputs.tag }}"
+          $version = "${{ needs.get-version.outputs.version }}"
+          $base = "https://github.com/NoMoreFood/putty-cac/raw/$tag/binaries"
+          $x86Url = "$base/puttycac-$tag-x86.msi"
+          $x64Url = "$base/puttycac-$tag-x64.msi"
+
+          Invoke-WebRequest -Uri $x86Url -OutFile "$env:TEMP\x86.msi" -UseBasicParsing
+          Invoke-WebRequest -Uri $x64Url -OutFile "$env:TEMP\x64.msi" -UseBasicParsing
+          $x86Hash = (Get-FileHash "$env:TEMP\x86.msi" -Algorithm SHA256).Hash
+          $x64Hash = (Get-FileHash "$env:TEMP\x64.msi" -Algorithm SHA256).Hash
+
+          $installPath = "packager\chocolatey\tools\chocolateyinstall.ps1"
+          $content = Get-Content -LiteralPath $installPath -Raw
+          $content = [regex]::Replace($content, "(?m)^(\`$url\s*=\s*')[^']+(')",   '${1}' + $x86Url + '${2}')
+          $content = [regex]::Replace($content, "(?m)^(\`$url64\s*=\s*')[^']+(')", '${1}' + $x64Url + '${2}')
+          $content = [regex]::Replace($content, "(\bchecksum\s*=\s*')[0-9A-Fa-f]+'",   '${1}' + $x86Hash + "'")
+          $content = [regex]::Replace($content, "(\bchecksum64\s*=\s*')[0-9A-Fa-f]+'", '${1}' + $x64Hash + "'")
+          Set-Content -LiteralPath $installPath -Value $content -NoNewline
+
+          $nuspecPath = "packager\chocolatey\putty cac.nuspec"
+          [xml]$nuspec = Get-Content -LiteralPath $nuspecPath
+          $nuspec.package.metadata.version = $version
+          $nuspec.Save((Resolve-Path $nuspecPath).Path)
+        shell: pwsh
+      - name: Build Chocolatey package
+        run: |
+          $version = "${{ needs.get-version.outputs.version }}"
+          [xml]$nuspec = Get-Content -LiteralPath "packager\chocolatey\putty cac.nuspec"
+          if ($nuspec.package.metadata.version -ne $version)
+          {
+              throw "Chocolatey package version '$($nuspec.package.metadata.version)' does not match release version '$version'."
+          }
+          Remove-Item -Path *.nupkg -Force -ErrorAction SilentlyContinue
+          choco pack "packager\chocolatey\putty cac.nuspec"
+        shell: pwsh
+      - name: Push Chocolatey package
+        env:
+          CHOCOLATEY_API_KEY: ${{ secrets.CHOCOAPIKEY }}
+        run: |
+          $package = Get-ChildItem -Filter *.nupkg | Select-Object -First 1 -ExpandProperty FullName
+          if (-not $package) { throw "No .nupkg file found." }
+          choco push $package --source https://push.chocolatey.org/ --api-key $env:CHOCOLATEY_API_KEY
+        shell: pwsh
