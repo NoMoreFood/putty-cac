@@ -365,7 +365,7 @@ struct ssh2_userkey* cert_get_ssh_userkey(LPCSTR szCert, PCERT_CONTEXT pCertCont
 		{
 			// create a new putty rsa structure fill out all non-private params
 			struct RSAKey* rsa = snew(struct RSAKey);
-			ZeroMemory(rsa, sizeof(struct RSAKey));
+			*rsa = (struct RSAKey){0};
 			rsa->sshk.vt = find_pubkey_alg("ssh-rsa");
 
 			RSAPUBKEY* pPublicKey = (RSAPUBKEY*)(pbPublicKeyBlob + sizeof(BLOBHEADER));
@@ -399,7 +399,7 @@ struct ssh2_userkey* cert_get_ssh_userkey(LPCSTR szCert, PCERT_CONTEXT pCertCont
 
 		// create eddsa struture to hold our key params
 		struct eddsa_key* ec = snew(struct eddsa_key);
-		ZeroMemory(ec, sizeof(struct eddsa_key));
+		*ec = (struct eddsa_key){0};
 		ec_ed_alg_and_curve_by_bits(iKeyLength, &(ec->curve), &(ec->sshk.vt));
 		ec->privateKey = mp_from_integer(0);
 
@@ -437,7 +437,7 @@ struct ssh2_userkey* cert_get_ssh_userkey(LPCSTR szCert, PCERT_CONTEXT pCertCont
 
 		// create ecdsa structure to hold our key params
 		struct ecdsa_key* ec = snew(struct ecdsa_key);
-		ZeroMemory(ec, sizeof(struct ecdsa_key));
+		*ec = (struct ecdsa_key){0};
 		ec_nist_alg_and_curve_by_bits(iKeyLength, &(ec->curve), &(ec->sshk.vt));
 		ec->privateKey = mp_from_integer(0);
 
@@ -670,9 +670,7 @@ BOOL cert_check_valid(LPCSTR szIden, PCCERT_CONTEXT pCertContext)
 	if (cert_trusted_certs_only(CERT_QUERY))
 	{
 		// attempt to chain the chain
-		CERT_CHAIN_PARA tChainParams;
-		ZeroMemory(&tChainParams, sizeof(tChainParams));
-		tChainParams.cbSize = sizeof(tChainParams);
+		CERT_CHAIN_PARA tChainParams = { .cbSize = sizeof(tChainParams) };
 		PCCERT_CHAIN_CONTEXT pChainContext = NULL;
 		BOOL bChainResult = CertGetCertificateChain(NULL, pCertContext, NULL, NULL, &tChainParams,
 			CERT_CHAIN_REVOCATION_CHECK_CHAIN_EXCLUDE_ROOT, NULL, &pChainContext);
@@ -891,9 +889,7 @@ PVOID cert_pin(LPSTR szCert, BOOL bWide, LPVOID szPin)
 	}
 
 	// prompt the user to enter the pin
-	CREDUI_INFOW tCredInfo;
-	ZeroMemory(&tCredInfo, sizeof(CREDUI_INFOW));
-	tCredInfo.cbSize = sizeof(tCredInfo);
+	CREDUI_INFOW tCredInfo = { .cbSize = sizeof(tCredInfo) };
 	tCredInfo.pszCaptionText = L"PuTTY Authentication";
 	tCredInfo.pszMessageText = L"Please Enter Your Smart Card Credentials";
 	tCredInfo.hwndParent = GetDesktopWindow();

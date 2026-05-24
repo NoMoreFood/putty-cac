@@ -522,9 +522,9 @@ BOOL fido_create_key(LPCSTR szAlgName, LPCSTR szDisplayName, LPCSTR szApplicatio
 	WebAuthNClientData.pwszHashAlgId = sWebAuthHashAlg;
 
 	//  setup general creation options 
-	WEBAUTHN_AUTHENTICATOR_MAKE_CREDENTIAL_OPTIONS tCredentialOptions;
-	ZeroMemory(&tCredentialOptions, sizeof(tCredentialOptions));
-	tCredentialOptions.dwVersion = WEBAUTHN_AUTHENTICATOR_MAKE_CREDENTIAL_OPTIONS_CURRENT_VERSION;
+	WEBAUTHN_AUTHENTICATOR_MAKE_CREDENTIAL_OPTIONS tCredentialOptions = {
+		.dwVersion = WEBAUTHN_AUTHENTICATOR_MAKE_CREDENTIAL_OPTIONS_CURRENT_VERSION
+	};
 	tCredentialOptions.bRequireResidentKey = bResidentKey;
 	tCredentialOptions.dwUserVerificationRequirement = bUserVerification ? WEBAUTHN_USER_VERIFICATION_REQUIREMENT_REQUIRED : WEBAUTHN_USER_VERIFICATION_REQUIREMENT_DISCOURAGED;
 
@@ -744,9 +744,7 @@ LPSTR fido_import_openssh_key()
 
 	// get the file from the user
 	char szFile[MAX_PATH + 1] = "\0";
-	OPENFILENAME tFileNameInfo;
-	ZeroMemory(&tFileNameInfo, sizeof(OPENFILENAME));
-	tFileNameInfo.lStructSize = sizeof(OPENFILENAME);
+	OPENFILENAME tFileNameInfo = { .lStructSize = sizeof(tFileNameInfo) };
 	tFileNameInfo.hwndOwner = GetForegroundWindow();
 	tFileNameInfo.lpstrFilter = "SSH Key Files (id_*_sk)\0id_*_sk\0All Files (*)\0*\0\0";
 	tFileNameInfo.lpstrTitle = "Please Select SSH Security Key File To Import";
