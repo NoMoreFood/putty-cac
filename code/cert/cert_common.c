@@ -678,9 +678,14 @@ BOOL cert_check_valid(LPCSTR szIden, PCCERT_CONTEXT pCertContext)
 			CERT_CHAIN_REVOCATION_CHECK_CHAIN_EXCLUDE_ROOT, NULL, &pChainContext);
 		if (bChainResult == false) return FALSE;
 
-		// concider trusted if the only error was account offline crls
-		BOOL bTrusted = (pChainContext->TrustStatus.dwErrorStatus
-			& ~(CERT_TRUST_IS_OFFLINE_REVOCATION | CERT_TRUST_REVOCATION_STATUS_UNKNOWN)) == 0;
+		// consider trusted if error was account offline crls
+		DWORD dwIgnoredErrors = CERT_TRUST_IS_OFFLINE_REVOCATION | CERT_TRUST_REVOCATION_STATUS_UNKNOWN;
+		if (cert_ignore_expired_certs(CERT_QUERY)) 
+		{
+			// allow accept expired certs if user has that setting enabled
+			dwIgnoredErrors |= CERT_TRUST_IS_NOT_TIME_VALID | CERT_TRUST_IS_NOT_TIME_NESTED;
+		}
+		BOOL bTrusted = (pChainContext->TrustStatus.dwErrorStatus & ~dwIgnoredErrors) == 0;
 		CertFreeCertificateChain(pChainContext);
 		if (!bTrusted) return FALSE;
 	}
