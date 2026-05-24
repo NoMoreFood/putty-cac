@@ -15,7 +15,11 @@ param(
     [int[]]$RsaKeyLengths = @(1024, 2048, 3072, 4096),
     [switch]$IncludeLegacyRsaProviders,
     [switch]$TrustTestRoots,
-    [switch]$SkipEd25519
+    [switch]$SkipEd25519,
+    [switch]$UseSmartCard,
+    [string]$SmartCardProvider = 'Microsoft Smart Card Key Storage Provider',
+    [string]$Pkcs11Library,
+    [string]$Pkcs11Pin = '1234'
 )
 
 Set-StrictMode -Version Latest
@@ -320,6 +324,148 @@ function New-Ed25519Certificate([string]$CaseName, [datetime]$NotAfter, [switch]
     }
 }
 
+# Locate pkcs11-tool (OpenSC) in PATH or common install locations
+function Find-Pkcs11Tool {
+    $Cmd = Get-Command 'pkcs11-tool' -ErrorAction SilentlyContinue
+    if ($Cmd) { return $Cmd.Source }
+
+    $Candidates = @(
+        'C:\Program Files\OpenSC Project\OpenSC\tools\pkcs11-tool.exe',
+        'C:\Program Files (x86)\OpenSC Project\OpenSC\tools\pkcs11-tool.exe'
+    )
+    foreach ($C in $Candidates) {
+        if (Test-Path -LiteralPath $C -PathType Leaf) { return $C }
+    }
+    return $null
+}
+
+# Create a test certificate on a PKCS#11 token: generate key via OpenSSL, import to token
+function New-Pkcs11TestCertificate([string]$CaseName, [string]$KeyAlgorithm, [int]$KeyLength, [string]$Curve, [datetime]$NotAfter) {
+    $Pkcs11Tool = Find-Pkcs11Tool
+    $OpenSSL = Get-Command openssl -ErrorAction SilentlyContinue
+
+    if (-not $Pkcs11Tool) {
+        Add-Result -Name $CaseName -Status 'Skip' -Detail 'Skipped PKCS#11 certificate creation: pkcs11-tool (OpenSC) not found.'
+        return $null
+    }
+    if (-not $OpenSSL) {
+        Add-Result -Name $CaseName -Status 'Skip' -Detail 'Skipped PKCS#11 certificate creation: openssl not found.'
+        return $null
+    }
+
+    $Dir = New-Directory (Join-Path $script:Paths.Run "pkcs11-$CaseName")
+    $KeyPath = Join-Path $Dir 'key.pem'
+    $CertPemPath = Join-Path $Dir 'cert.pem'
+    $KeyDerPath = Join-Path $Dir 'key.der'
+    $CertDerPath = Join-Path $Dir 'cert.der'
+
+    try {
+        # Generate private key with OpenSSL
+        if ($KeyAlgorithm -eq 'RSA') {
+            Invoke-Native -FilePath $OpenSSL.Source -ArgumentList @('genrsa', '-out', $KeyPath, $KeyLength.ToString()) | Out-Null
+        }
+        else {
+            Invoke-Native -FilePath $OpenSSL.Source -ArgumentList @('ecparam', '-name', $Curve, '-genkey', '-noout', '-out', $KeyPath) | Out-Null
+        }
+
+        # Convert private key to PKCS#8 DER for token import
+        Invoke-Native -FilePath $OpenSSL.Source -ArgumentList @('pkcs8', '-topk8', '-nocrypt', '-in', $KeyPath, '-outform', 'DER', '-out', $KeyDerPath) | Out-Null
+
+        # Create self-signed certificate
+        $DaysValid = [int][Math]::Max(1, [Math]::Ceiling(($NotAfter - (Get-Date)).TotalDays))
+        Invoke-Native -FilePath $OpenSSL.Source -ArgumentList @(
+            'req', '-x509', '-new', '-key', $KeyPath, '-out', $CertPemPath,
+            '-subj', "/CN=$CaseName", '-days', $DaysValid.ToString(),
+            '-addext', 'keyUsage=digitalSignature',
+            '-addext', 'extendedKeyUsage=clientAuth'
+        ) | Out-Null
+
+        # Convert certificate to DER for token import
+        Invoke-Native -FilePath $OpenSSL.Source -ArgumentList @('x509', '-in', $CertPemPath, '-outform', 'DER', '-out', $CertDerPath) | Out-Null
+
+        # Extract SHA-1 thumbprint (40 hex chars, no colons)
+        $FingerprintLine = (Invoke-Native -FilePath $OpenSSL.Source -ArgumentList @(
+                'x509', '-in', $CertPemPath, '-fingerprint', '-sha1', '-noout'
+            )).StdOut
+        $Thumbprint = ($FingerprintLine -replace '(?i)^.*?=', '' -replace ':', '').Trim().ToLowerInvariant()
+
+        # Generate a unique key/cert slot ID for this test object
+        $SlotId = '{0:x2}{1:x2}' -f (Get-Random -Minimum 1 -Maximum 255), (Get-Random -Minimum 1 -Maximum 255)
+
+        # Import private key to token
+        Invoke-Native -FilePath $Pkcs11Tool -ArgumentList @(
+            '--module', $Pkcs11Library,
+            '--login', '--pin', $Pkcs11Pin,
+            '--write-object', $KeyDerPath,
+            '--type', 'privkey',
+            '--id', $SlotId,
+            '--label', $CaseName
+        ) | Out-Null
+
+        # Import certificate to token
+        Invoke-Native -FilePath $Pkcs11Tool -ArgumentList @(
+            '--module', $Pkcs11Library,
+            '--login', '--pin', $Pkcs11Pin,
+            '--write-object', $CertDerPath,
+            '--type', 'cert',
+            '--id', $SlotId,
+            '--label', $CaseName
+        ) | Out-Null
+
+        # Load certificate as X509Certificate2 for SSH public key extraction (no store import needed)
+        $CertObj = [X509Certificate2]::new([System.IO.File]::ReadAllBytes($CertPemPath))
+
+        return [PSCustomObject]@{
+            Certificate = $CertObj
+            Thumbprint  = $Thumbprint
+            CertId      = "PKCS:$Thumbprint=$Pkcs11Library"
+            SlotId      = $SlotId
+        }
+    }
+    catch {
+        Add-Result -Name $CaseName -Status 'Fail' -Detail "PKCS#11 certificate setup failed: $($_.Exception.Message)"
+        return $null
+    }
+}
+
+# Build a test matrix of certificates created on a PKCS#11 token
+function New-Pkcs11TestMatrix {
+    $Matrix = [List[object]]::new()
+
+    $Cases = @(
+        [PSCustomObject]@{ Name = 'PKCS11-RSA-2048';     KeyAlgorithm = 'RSA';   KeyLength = 2048; Curve = '' }
+        [PSCustomObject]@{ Name = 'PKCS11-RSA-4096';     KeyAlgorithm = 'RSA';   KeyLength = 4096; Curve = '' }
+        [PSCustomObject]@{ Name = 'PKCS11-ECDSA-P256';   KeyAlgorithm = 'ECDSA'; KeyLength = 256;  Curve = 'prime256v1' }
+        [PSCustomObject]@{ Name = 'PKCS11-ECDSA-P384';   KeyAlgorithm = 'ECDSA'; KeyLength = 384;  Curve = 'secp384r1' }
+    )
+
+    foreach ($Case in $Cases) {
+        try {
+            $Result = New-Pkcs11TestCertificate -CaseName $Case.Name -KeyAlgorithm $Case.KeyAlgorithm `
+                -KeyLength $Case.KeyLength -Curve $Case.Curve -NotAfter (Get-Date).AddDays(30)
+
+            if ($Result) {
+                $SshKey = Get-OpenSshKeyLine -Certificate $Result.Certificate
+                $Matrix.Add([PSCustomObject]@{
+                        Name          = $Case.Name
+                        Cert          = $Result.Certificate
+                        CertId        = $Result.CertId
+                        KeyType       = $Case.KeyAlgorithm
+                        Provider      = 'PKCS#11'
+                        Bits          = $Case.KeyLength
+                        AuthorizedKey = $SshKey
+                    }) | Out-Null
+                Add-Result -Name $Case.Name -Status 'Pass' -Detail "Created PKCS#11 $($Case.KeyAlgorithm) test certificate on token."
+            }
+        }
+        catch {
+            Add-Result -Name $Case.Name -Status 'Skip' -Detail $_.Exception.Message
+        }
+    }
+
+    return $Matrix
+}
+
 # Extract OpenSSH public key from certificate or return fallback key
 function Get-OpenSshKeyLine([X509Certificate2]$Certificate, [string]$FallbackPublicKey) {
     if ($FallbackPublicKey) { return $FallbackPublicKey }
@@ -349,24 +495,34 @@ function Get-PageantAutoloadMessage {
 # Build matrix of RSA providers for testing
 function Get-RsaProviderMatrix {
     $Providers = [List[object]]::new()
-    $Providers.Add([PSCustomObject]@{
-            Name    = $CngProvider
-            Alias   = 'CNG'
-            Enabled = $true
-        }) | Out-Null
 
-    if ($IncludeLegacyRsaProviders) {
+    if ($UseSmartCard) {
         $Providers.Add([PSCustomObject]@{
-                Name    = $LegacyEnhancedProvider
-                Alias   = 'LEGENH'
+                Name    = $SmartCardProvider
+                Alias   = 'SCCNG'
+                Enabled = $true
+            }) | Out-Null
+    }
+    else {
+        $Providers.Add([PSCustomObject]@{
+                Name    = $CngProvider
+                Alias   = 'CNG'
                 Enabled = $true
             }) | Out-Null
 
-        $Providers.Add([PSCustomObject]@{
-                Name    = $LegacyOldProvider
-                Alias   = 'LEGOLD'
-                Enabled = $true
-            }) | Out-Null
+        if ($IncludeLegacyRsaProviders) {
+            $Providers.Add([PSCustomObject]@{
+                    Name    = $LegacyEnhancedProvider
+                    Alias   = 'LEGENH'
+                    Enabled = $true
+                }) | Out-Null
+
+            $Providers.Add([PSCustomObject]@{
+                    Name    = $LegacyOldProvider
+                    Alias   = 'LEGOLD'
+                    Enabled = $true
+                }) | Out-Null
+        }
     }
 
     return $Providers
@@ -403,11 +559,13 @@ function New-TestMatrix {
     }
 
     # Create ECDSA test certificates for various curves
+    $EcdsaProvider = if ($UseSmartCard) { $SmartCardProvider } else { $CngProvider }
     foreach ($Curve in @('ECDSA_nistP256', 'ECDSA_nistP384', 'ECDSA_nistP521')) {
         $Case = $Curve.Replace('_', '-')
+        if ($UseSmartCard) { $Case = "$Case-SC" }
 
         try {
-            $Cert = New-TestCertificate -CaseName $Case -Provider $CngProvider -KeyAlgorithm $Curve -KeyLength 0 -EnhancedKeyUsage @($ClientAuthEku) -NotAfter (Get-Date).AddDays(30) -TrustRoot:$TrustTestRoots
+            $Cert = New-TestCertificate -CaseName $Case -Provider $EcdsaProvider -KeyAlgorithm $Curve -KeyLength 0 -EnhancedKeyUsage @($ClientAuthEku) -NotAfter (Get-Date).AddDays(30) -TrustRoot:$TrustTestRoots
 
             $ECDSA = [ECDsaCertificateExtensions]::GetECDsaPublicKey($Cert)
 
@@ -416,7 +574,7 @@ function New-TestMatrix {
                     Cert          = $Cert
                     CertId        = "CAPI:$($Cert.Thumbprint.ToLowerInvariant())"
                     KeyType       = 'ECDSA'
-                    Provider      = 'Microsoft Software Key Storage Provider'
+                    Provider      = $EcdsaProvider
                     Bits          = $ECDSA.KeySize
                     AuthorizedKey = (Get-OpenSshKeyLine -Certificate $Cert)
                 }) | Out-Null
@@ -431,8 +589,8 @@ function New-TestMatrix {
         }
     }
 
-    # Create Ed25519 test certificate if not skipped
-    if (-not $SkipEd25519) {
+    # Create Ed25519 test certificate if not skipped (not supported by smart card KSP)
+    if (-not $SkipEd25519 -and -not $UseSmartCard) {
         $Case = 'ED25519'
 
         try {
@@ -500,6 +658,7 @@ function New-TestMatrix {
 
         $Negative.Add([PSCustomObject]@{
                 Name           = 'NEG-UNTRUSTED'
+                Cert           = $Cert
                 CertId         = "CAPI:$($Cert.Thumbprint.ToLowerInvariant())"
                 ExpectedListed = $false
                 KeyId          = (Get-KeyId (Get-OpenSshKeyLine -Certificate $Cert))
@@ -668,6 +827,104 @@ function Invoke-PsftpTest([string]$Name, [string]$CertId, [string[]]$HostKeys) {
     if ($Result.StdOut -notmatch '/' -and $Result.StdErr -notmatch 'Remote directory is') { throw 'PSFTP did not return a working directory.' }
 
     Add-Result -Name "PSFTP-$Name" -Status 'Pass' -Detail 'Batch PSFTP authentication succeeded.'
+}
+
+# Test secure file copy using pscp with certificate authentication
+function Invoke-PscpTest([string]$Name, [string]$CertId, [string[]]$HostKeys) {
+    if (-not (Test-Path -LiteralPath $script:Paths.Pscp -PathType Leaf)) {
+        Add-Result -Name "PSCP-$Name" -Status 'Skip' -Detail 'pscp.exe not found; skipping PSCP test.'
+        return
+    }
+
+    $LocalFile = Join-Path $script:Paths.Run "pscp-$Name.txt"
+    Set-Content -LiteralPath $LocalFile -Value "PuTTYCAC-PSCP-TEST-$Name" -Encoding ascii
+
+    $RemotePath = "$UserName@${HostName}:pscp-$Name.txt"
+    $ArgList = @('-batch', '-P', $Port.ToString(), '-l', $UserName) +
+    ($HostKeys | ForEach-Object { @('-hostkey', $_) }) +
+    @('-i', $CertId, $LocalFile, $RemotePath)
+
+    Invoke-Native -FilePath $script:Paths.Pscp -ArgumentList $ArgList | Out-Null
+
+    Add-Result -Name "PSCP-$Name" -Status 'Pass' -Detail 'PSCP file upload authentication succeeded.'
+}
+
+# Test SSH authentication via Pageant acting as SSH agent (uses OpenSSH ssh.exe)
+function Invoke-PageantAgentTest([string]$Name, [string]$CertId, [string[]]$HostKeys) {
+    $Bridge = Start-Pageant -Arguments @($CertId)
+
+    try {
+        # Build known_hosts from the actual host public key files — $HostKeys contains
+        # fingerprints for plink, but ssh.exe needs "hostname keytype base64key" lines.
+        $KnownHostsPath = Join-Path $script:Paths.Run 'pageant_known_hosts'
+        $KnownHostsLines = Get-ChildItem -LiteralPath (Join-Path $env:ProgramData 'ssh') -Filter 'ssh_host_*_key.pub' -File |
+            ForEach-Object { "$HostName $((Get-Content -LiteralPath $_.FullName -Raw).Trim())" }
+        Set-Content -LiteralPath $KnownHostsPath -Value $KnownHostsLines -Encoding ascii
+
+        # Write a config file so paths with spaces are properly quoted (inline -o quoting
+        # is unreliable when the pipe path or temp dir contains spaces, e.g. "Bryan Berns")
+        $SshConfigPath = Join-Path $script:Paths.Run "pageant_agent_$Name.conf"
+        Set-Content -LiteralPath $SshConfigPath -Value @(
+            "IdentityAgent `"$($Bridge.Agent)`""
+            "UserKnownHostsFile `"$KnownHostsPath`""
+            'StrictHostKeyChecking yes'
+            'BatchMode yes'
+        ) -Encoding ascii
+
+        $ArgList = @(
+            '-F', $SshConfigPath,
+            '-p', $Port.ToString(),
+            '-l', $UserName,
+            $HostName,
+            'whoami'
+        )
+
+        $Result = Invoke-Native -FilePath $script:Paths.SshExe -ArgumentList $ArgList
+
+        if ($Result.StdOut -notmatch [regex]::Escape($UserName)) { throw "Unexpected ssh output: $($Result.StdOut)" }
+
+        Add-Result -Name "PAGEANT-AGENT-$Name" -Status 'Pass' -Detail 'SSH via Pageant agent socket authenticated successfully.'
+    }
+    finally {
+        if ($Bridge.Process -and -not $Bridge.Process.HasExited) { Stop-Process -Id $Bridge.Process.Id -Force -ErrorAction SilentlyContinue }
+    }
+}
+
+# Test that -allowanycert permits authentication with an untrusted certificate
+function Test-AllowAnyCert([object]$UntrustedCase, [string[]]$HostKeys) {
+    if (-not $UntrustedCase) {
+        Add-Result -Name 'ALLOWANYCERT' -Status 'Skip' -Detail 'No untrusted negative certificate available for -allowanycert test.'
+        return
+    }
+
+    # Temporarily add the untrusted cert's public key to authorized_keys
+    $AuthorizedKeys = Join-Path $HOME '.ssh\authorized_keys'
+    $UntrustedKey = Get-OpenSshKeyLine -Certificate $UntrustedCase.Cert
+    $Existing = if (Test-Path -LiteralPath $AuthorizedKeys -PathType Leaf) { Get-Content -LiteralPath $AuthorizedKeys } else { @() }
+    $Marker = "$($script:State.Marker) ALLOWANYCERT"
+    Set-Content -LiteralPath $AuthorizedKeys -Value ($Existing + @($Marker, $UntrustedKey)) -Encoding ascii
+
+    try {
+        $ArgList = @('-batch', '-ssh', '-P', $Port.ToString(), '-l', $UserName) +
+        ($HostKeys | ForEach-Object { @('-hostkey', $_) }) +
+        @('-allowanycert', '-i', $UntrustedCase.CertId, $HostName, 'whoami')
+
+        $Result = Invoke-Native -FilePath $script:Paths.Plink -ArgumentList $ArgList
+
+        if ($Result.StdOut -notmatch [regex]::Escape($UserName)) { throw "Unexpected plink output: $($Result.StdOut)" }
+
+        Add-Result -Name 'ALLOWANYCERT' -Status 'Pass' -Detail 'plink authenticated with untrusted certificate using -allowanycert.'
+    }
+    finally {
+        # Remove the temporary authorized_keys entry
+        $Content = Get-Content -LiteralPath $AuthorizedKeys | Where-Object { $_ -ne $Marker -and $_ -ne $UntrustedKey }
+        Set-Content -LiteralPath $AuthorizedKeys -Value $Content -Encoding ascii
+
+        # plink persisted AllowAnyCert=1 to the registry; clear it now so Test-PageantFilters
+        # is not affected (AllowAnyCert bypasses EKU filtering, which would cause NEG-SERVERAUTH
+        # to appear in the autoloaded key list)
+        Remove-ItemProperty -LiteralPath 'HKCU:\Software\SimonTatham\PuTTY' -Name 'AllowAnyCert' -Force -ErrorAction SilentlyContinue
+    }
 }
 
 # Start Pageant with specified arguments and wait for initialization
@@ -922,11 +1179,43 @@ try {
 
     $HostKeys = Get-HostKeyFingerprints
 
+    # Build PKCS#11 test matrix if a PKCS#11 library was supplied
+    $Pkcs11Matrix = [List[object]]::new()
+    if ($Pkcs11Library) {
+        if (-not (Test-Path -LiteralPath $Pkcs11Library -PathType Leaf)) {
+            Add-Result -Name 'PKCS11-SETUP' -Status 'Fail' -Detail "PKCS#11 library not found: $Pkcs11Library"
+        }
+        else {
+            foreach ($Entry in (New-Pkcs11TestMatrix)) { $Pkcs11Matrix.Add($Entry) | Out-Null }
+            if ($Pkcs11Matrix.Count -gt 0) {
+                Set-AuthorizedKeys -Matrix ($Matrix.Positive + $Pkcs11Matrix) | Out-Null
+                Add-Result -Name 'PKCS11-SETUP' -Status 'Pass' -Detail "Loaded $($Pkcs11Matrix.Count) PKCS#11 test certificate(s) from $Pkcs11Library."
+            }
+        }
+    }
+
     foreach ($Case in $Matrix.Positive) {
         Invoke-PlinkTest -Name $Case.Name -CertId $Case.CertId -HostKeys $HostKeys
+        Invoke-PscpTest -Name $Case.Name -CertId $Case.CertId -HostKeys $HostKeys
 
         if (Test-Path -LiteralPath $script:Paths.Psftp -PathType Leaf) { Invoke-PsftpTest -Name $Case.Name -CertId $Case.CertId -HostKeys $HostKeys }
     }
+
+    # Run plink and psftp tests for PKCS#11 certificates
+    foreach ($Case in $Pkcs11Matrix) {
+        Invoke-PlinkTest -Name $Case.Name -CertId $Case.CertId -HostKeys $HostKeys
+        Invoke-PscpTest -Name $Case.Name -CertId $Case.CertId -HostKeys $HostKeys
+
+        if (Test-Path -LiteralPath $script:Paths.Psftp -PathType Leaf) { Invoke-PsftpTest -Name $Case.Name -CertId $Case.CertId -HostKeys $HostKeys }
+    }
+
+    # Test Pageant as an SSH agent (using first positive cert to keep runtime reasonable)
+    $AgentTestCase = $Matrix.Positive | Select-Object -First 1
+    if ($AgentTestCase) { Invoke-PageantAgentTest -Name $AgentTestCase.Name -CertId $AgentTestCase.CertId -HostKeys $HostKeys }
+
+    # Test -allowanycert functional behavior with an untrusted certificate
+    $UntrustedNeg = $Matrix.Negative | Where-Object Name -eq 'NEG-UNTRUSTED' | Select-Object -First 1
+    Test-AllowAnyCert -UntrustedCase $UntrustedNeg -HostKeys $HostKeys
 
     Test-PageantFilters -Positive $Matrix.Positive -Negative $Matrix.Negative
 
