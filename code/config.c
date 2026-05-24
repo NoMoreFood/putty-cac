@@ -12,6 +12,7 @@
 #include "tree234.h"
 #ifdef PUTTY_CAC
 #include "cert_common.h"
+#include "cert_portable.h"
 #endif // PUTTY_CAC
 
 #define PRINTER_DISABLED_STRING "None (printing disabled)"
@@ -1164,6 +1165,88 @@ void capi_event_handler(dlgcontrol* ctrl, dlgparam* dlg, void* data, int event)
 	if (ctrl == capid->capi_provider_radio && event == EVENT_REFRESH)
 	{
 		dlg_radiobutton_set(ctrl, dlg, 0);
+	}
+}
+
+struct portable_data {
+	dlgcontrol* portable_export_button;
+	dlgcontrol* portable_import_button;
+	dlgcontrol* portable_path_text;
+};
+
+void portable_event_handler(dlgcontrol* ctrl, dlgparam* dlg, void* data, int event)
+{
+	struct portable_data* portd = (struct portable_data*)ctrl->context.p;
+	(void)data;
+
+	if (ctrl == portd->portable_export_button && event == EVENT_REFRESH)
+	{
+		WCHAR sPathW[MAX_PATH];
+		char sPathA[MAX_PATH];
+		if (cert_portable_get_settings_path(sPathW))
+			WideCharToMultiByte(CP_ACP, 0, sPathW, -1, sPathA, sizeof(sPathA), NULL, NULL);
+		else
+			strcpy(sPathA, "<path unavailable>");
+		dlg_text_set(portd->portable_path_text, dlg, sPathA);
+	}
+
+	if (ctrl == portd->portable_export_button && event == EVENT_ACTION)
+	{
+		if (cert_portable_enabled())
+		{
+			MessageBoxW(NULL,
+				L"Cannot export settings because putty.dat already exists.\n\n"
+				L"Close all PuTTY-CAC program and then remove or rename putty.dat before exporting registry settings.",
+				L"PuTTY-CAC", MB_OK | MB_ICONINFORMATION);
+			return;
+		}
+
+		if (cert_portable_export())
+		{
+			if (MessageBoxW(NULL,
+					L"Settings exported to putty.dat successfully.\n\n"
+					L"Restart PuTTY to begin using the portable settings file?",
+					L"PuTTY-CAC", MB_YESNO | MB_ICONQUESTION) == IDYES)
+			{
+				WCHAR sExe[MAX_PATH];
+				STARTUPINFOW si = { .cb = sizeof(si) };
+				PROCESS_INFORMATION pi = {0};
+				if (GetModuleFileNameW(NULL, sExe, MAX_PATH) > 0)
+					CreateProcessW(sExe, NULL, NULL, NULL, FALSE, 0, NULL, NULL, &si, &pi);
+				ExitProcess(0);
+			}
+		}
+		else
+			MessageBoxW(NULL, L"Failed to export settings to putty.dat.",
+				L"PuTTY-CAC", MB_OK | MB_ICONERROR);
+	}
+
+	if (ctrl == portd->portable_import_button && event == EVENT_ACTION)
+	{
+		if (!cert_portable_settings_exists())
+		{
+			MessageBoxW(NULL,
+				L"Cannot import settings because putty.dat does not exist.",
+				L"PuTTY-CAC", MB_OK | MB_ICONINFORMATION);
+			return;
+		}
+
+		if (MessageBoxW(NULL,
+				L"Import settings from putty.dat into the Windows registry?\n\n"
+				L"Existing settings under HKCU\\Software\\SimonTatham will be updated.\n\n"
+				L"Warning: PuTTY-CAC will continue to use putty.dat while it exists. "
+				L"Close all PuTTY program and then remove or rename putty.dat for the imported registry "
+				L"settings to take effect.",
+				L"PuTTY-CAC", MB_YESNO | MB_ICONQUESTION) == IDYES)
+		{
+			if (cert_portable_import())
+				MessageBoxW(NULL, L"Settings imported from putty.dat successfully.",
+					L"PuTTY-CAC", MB_OK | MB_ICONINFORMATION);
+			else
+				MessageBoxW(NULL,
+					L"Failed to import settings. Ensure putty.dat exists and is valid.",
+					L"PuTTY-CAC", MB_OK | MB_ICONERROR);
+		}
 	}
 }
 #endif // PUTTY_CAC
@@ -3443,6 +3526,41 @@ void setup_config_box(struct controlbox *b, bool midsession,
 			capid->capi_delete_key_button = ctrl_pushbutton(s, "Delete Key...",
 				NO_SHORTCUT, HELPCTX(no_help), capi_event_handler, P(capid));
 			capid->capi_delete_key_button->column = 2;
+
+			/*
+			 * The Portable panel (root level).
+			 */
+			ctrl_settitle(b, "Portable",
+				"Portable settings options");
+			struct portable_data* portd =
+				(struct portable_data*)ctrl_alloc(b, sizeof(struct portable_data));
+
+			s = ctrl_getset(b, "Portable", "info", "Portable settings file");
+			ctrl_text(s,
+				"When putty.dat is placed next to the PuTTY executable, PuTTY uses it "
+				"instead of the registry.",
+				HELPCTX(no_help));
+			portd->portable_path_text = ctrl_text(s, "", HELPCTX(no_help));
+
+			s = ctrl_getset(b, "Portable", "export", "Export");
+			ctrl_text(s,
+				"Saves the current registry settings to putty.dat "
+				"next to the PuTTY executable when putty.dat does not already exist.",
+				HELPCTX(no_help));
+			ctrl_columns(s, 3, 45, 10, 45);
+			portd->portable_export_button = ctrl_pushbutton(s, "Export to putty.dat",
+				NO_SHORTCUT, HELPCTX(no_help), portable_event_handler, P(portd));
+			portd->portable_export_button->column = 0;
+
+			s = ctrl_getset(b, "Portable", "import", "Import");
+			ctrl_text(s,
+				"Loads settings from putty.dat into the registry. "
+				"Existing values are overwritten.",
+				HELPCTX(no_help));
+			ctrl_columns(s, 3, 45, 10, 45);
+			portd->portable_import_button = ctrl_pushbutton(s, "Import from putty.dat",
+				NO_SHORTCUT, HELPCTX(no_help), portable_event_handler, P(portd));
+			portd->portable_import_button->column = 0;
 #endif // PUTTY_CAC
             /*
              * The Connection/SSH/Auth panel.
