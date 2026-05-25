@@ -55,7 +55,7 @@ FOR %%X IN (Win32 x64 Debug Release Temp .vs) DO (
 FORFILES /S /P "%BINDIR%" /M "*.*" /C "CMD /C IF /I @ext NEQ """exe""" DEL /Q @file"
 
 :: sign the main executables
-signtool sign /a /as /fd sha256 /tr %TSAURL% /td sha256 /d %LIBNAME% /du %LIBURL% "%BINDIR%\arm64\*.exe" "%BINDIR%\x64\*.exe" "%BINDIR%\x64\*.exe"  
+signtool sign /a /as /fd sha256 /tr %TSAURL% /td sha256 /d %LIBNAME% /du %LIBURL% "%BINDIR%\arm64\*.exe" "%BINDIR%\x86\*.exe" "%BINDIR%\x64\*.exe"  
 signtool sign /a /fd sha256 /tr %TSAURL% /td sha256 /d %LIBNAME% /du %LIBURL% "%BINDIR%\*.msi"
 
 :: copy prereqs from build dir and 'real' installer
