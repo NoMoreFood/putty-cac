@@ -239,7 +239,6 @@ target_include_directories(puttyimp PUBLIC ../cert)
 target_link_libraries(puttyimp shlwapi.lib)
 set_target_properties(puttyimp PROPERTIES
   WIN32_EXECUTABLE OFF
-  VS_PLATFORM_TOOLSET "v143"
   LINK_FLAGS "/MANIFESTUAC:\"level='requireAdministrator' uiAccess='false'\"")
 installed_program(puttyimp)
 endif()
