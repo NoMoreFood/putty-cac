@@ -38,6 +38,22 @@ FOR %%A IN (arm64 x86 x64) DO (
   COPY /Y %BLDDIR%\%%A\Release\*.exe "%BINDIR%\%%A"	
 )
 
+:: verify the binaries do not import the dynamic C/C++ runtime
+WHERE DUMPBIN.EXE >NUL 2>&1
+IF ERRORLEVEL 1 (
+  ECHO ERROR: dumpbin.exe not found; cannot verify static runtime linkage.
+  EXIT /B 1
+)
+FOR /R "%BINDIR%" %%F IN (*.exe) DO (
+  FOR /F "USEBACKQ TOKENS=*" %%D IN (`
+    DUMPBIN.EXE /NOLOGO /DEPENDENTS "%%F" ^| FINDSTR /I /R "vcruntime.*\.dll msvcp.*\.dll msvcr.*\.dll msvcm.*\.dll concrt.*\.dll ucrtbase.*\.dll api-ms-win-crt-.*\.dll"
+  `) DO (
+    ECHO ERROR: %%F imports %%D
+    ECHO ERROR: rebuild with the static runtime before packaging.
+    EXIT /B 1
+  )
+)
+
 :: determine 32-bit program files directory
 IF DEFINED ProgramFiles SET PX86=%ProgramFiles%
 IF DEFINED ProgramFiles(x86) SET PX86=%ProgramFiles(x86)%
