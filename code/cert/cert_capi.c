@@ -290,6 +290,7 @@ BOOL cert_capi_delete_key(LPCSTR szCert)
 			NCryptOpenKey(hNCryptProv, &hNCryptKey, pProviderInfo->pwszContainerName, pProviderInfo->dwKeySpec, 0) == ERROR_SUCCESS)
 		{
 			bSuccess = NCryptDeleteKey(hNCryptKey, 0) == ERROR_SUCCESS;
+			if (bSuccess) hNCryptKey = 0;
 		}
 		else if (CryptAcquireContextW(&hCryptProv, pProviderInfo->pwszContainerName,
 			pProviderInfo->pwszProvName, pProviderInfo->dwProvType, CRYPT_DELETEKEYSET |

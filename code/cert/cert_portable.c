@@ -49,25 +49,6 @@ static BOOL cert_portable_find_settings(WCHAR* sPath)
 		}
 	}
 
-	iLen = GetEnvironmentVariableW(L"USERPROFILE", sPath, MAX_PATH);
-	if (iLen > 0 && iLen < MAX_PATH &&
-		cert_portable_append_settings(sPath) &&
-		cert_portable_file_exists(sPath))
-		return TRUE;
-
-	WCHAR sDrive[MAX_PATH], sHome[MAX_PATH];
-	DWORD iDriveLen = GetEnvironmentVariableW(L"HOMEDRIVE", sDrive, _countof(sDrive));
-	DWORD iHomeLen = GetEnvironmentVariableW(L"HOMEPATH", sHome, _countof(sHome));
-	if (iDriveLen < _countof(sDrive) && iHomeLen > 0 && iHomeLen < _countof(sHome) &&
-		iDriveLen + iHomeLen + strlen(CERT_PORTABLE_SETTINGS) + 2 < MAX_PATH)
-	{
-		wcscpy(sPath, iDriveLen ? sDrive : L"");
-		wcscat(sPath, sHome);
-		if (cert_portable_append_settings(sPath) &&
-			cert_portable_file_exists(sPath))
-			return TRUE;
-	}
-
 	return FALSE;
 }
 
@@ -443,7 +424,19 @@ LONG WINAPI cert_portable_RegSetKeyValueA(HKEY hKey, LPCSTR lpSubKey, LPCSTR lpV
 		return RegSetKeyValueA(hKey, lpSubKey, lpValueName, dwType, lpData, cbData);
 	sSubKey = cert_portable_from_mb(lpSubKey);
 	sValueName = cert_portable_from_mb(lpValueName);
-	iResult = cert_portable_RegSetKeyValueW(hKey, sSubKey, sValueName, dwType, lpData, cbData);
+
+	if ((dwType == REG_SZ || dwType == REG_EXPAND_SZ) && lpData != NULL)
+	{
+		LPWSTR sData = cert_portable_from_mb((LPCSTR)lpData);
+		DWORD cbWide = (DWORD)((wcslen(sData) + 1) * sizeof(WCHAR));
+		iResult = cert_portable_RegSetKeyValueW(hKey, sSubKey, sValueName, dwType, sData, cbWide);
+		free(sData);
+	}
+	else
+	{
+		iResult = cert_portable_RegSetKeyValueW(hKey, sSubKey, sValueName, dwType, lpData, cbData);
+	}
+
 	free(sSubKey);
 	free(sValueName);
 	return iResult;
