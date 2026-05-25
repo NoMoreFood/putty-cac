@@ -15,6 +15,7 @@ static const WCHAR sSoftwareRoot[] = L"Software";
 
 static INIT_ONCE oInitOnce = INIT_ONCE_STATIC_INIT;
 static HKEY hPortableRoot = NULL;
+static WCHAR sPortablePath[MAX_PATH];
 
 static BOOL cert_portable_file_exists(LPCWSTR sPath)
 {
@@ -52,6 +53,29 @@ static BOOL cert_portable_find_settings(WCHAR* sPath)
 	return FALSE;
 }
 
+static void cert_portable_cleanup(void)
+{
+	if (hPortableRoot == NULL) return;
+	RegCloseKey(hPortableRoot);
+	hPortableRoot = NULL;
+
+	const WCHAR* suffixes[] =
+	{
+		L".LOG1",
+		L".LOG2",
+		L".tmp.LOG1",
+		L".tmp.LOG2"
+	};
+
+	for (size_t i = 0; i < _countof(suffixes); ++i)
+	{		
+		WCHAR sLog[MAX_PATH];
+		wcscpy(sLog, sPortablePath);
+		wcscat(sLog, suffixes[i]);
+		DeleteFileW(sLog);
+	}
+}
+
 static BOOL CALLBACK cert_portable_init(PINIT_ONCE pInitOnce, PVOID pParam, PVOID* ppContext)
 {
 	HANDLE hMutex;
@@ -81,6 +105,11 @@ static BOOL CALLBACK cert_portable_init(PINIT_ONCE pInitOnce, PVOID pParam, PVOI
 				L"Could not load portable settings file:\n\n%s\n\n%s", sPath, sError);
 			MessageBoxW(NULL, sMessage, L"PuTTY-CAC", MB_OK | MB_ICONERROR);
 			ExitProcess(1);
+		}
+		if (hPortableRoot != NULL)
+		{
+			wcscpy(sPortablePath, sPath);
+			atexit(cert_portable_cleanup);
 		}
 	}
 
