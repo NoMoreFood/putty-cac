@@ -16,6 +16,42 @@
 #pragma comment(lib,"cryptui.lib")
 #pragma comment(lib,"ncrypt.lib")
 
+// Open the certificate's private key through a CNG Key Storage Provider,
+// preferring the KSP in all cases: try the provider named in the certificate
+// first, then the Microsoft Smart Card and Software KSPs as bridges (the Smart
+// Card KSP shares container names with the legacy Base Smart Card CSP, so it can
+// service smart-card keys whose certificate still references that CSP). Returns
+// FALSE (handles left 0) when no KSP can open the key, so the caller can fall
+// back to the legacy CryptoAPI.
+static BOOL cert_capi_open_ncrypt_key(PCRYPT_KEY_PROV_INFO pProviderInfo,
+	NCRYPT_PROV_HANDLE* phProvider, NCRYPT_KEY_HANDLE* phKey)
+{
+	*phProvider = 0;
+	*phKey = 0;
+
+	// cert-named provider first (authoritative), then KSP bridges
+	LPCWSTR szProviders[] = {
+		pProviderInfo->pwszProvName,
+		MS_SMART_CARD_KEY_STORAGE_PROVIDER,
+		MS_KEY_STORAGE_PROVIDER
+	};
+	for (size_t iProvider = 0; iProvider < ARRAYSIZE(szProviders); iProvider++)
+	{
+		if (NCryptOpenStorageProvider(phProvider, szProviders[iProvider], 0) == ERROR_SUCCESS &&
+			NCryptOpenKey(*phProvider, phKey, pProviderInfo->pwszContainerName,
+				pProviderInfo->dwKeySpec, 0) == ERROR_SUCCESS)
+		{
+			return TRUE;
+		}
+
+		// release partial handles before trying the next provider
+		if (*phKey != 0) { NCryptFreeObject(*phKey); *phKey = 0; }
+		if (*phProvider != 0) { NCryptFreeObject(*phProvider); *phProvider = 0; }
+	}
+
+	return FALSE;
+}
+
 void cert_capi_load_cert(LPCSTR szCert, PCCERT_CONTEXT* ppCertCtx, HCERTSTORE* phStore)
 {
 	HCERTSTORE hStore = cert_capi_get_cert_store();
@@ -93,10 +129,11 @@ BOOL cert_capi_test_hash(LPCSTR szCert, DWORD iHashRequest)
 	{
 		HCRYPTPROV_OR_NCRYPT_KEY_HANDLE hCryptProv = 0;
 		NCRYPT_PROV_HANDLE hNCryptProv = 0;
+		NCRYPT_KEY_HANDLE hNCryptKey = 0;
 
-		if (NCryptOpenStorageProvider(&hNCryptProv, pProviderInfo->pwszProvName, 0) == ERROR_SUCCESS)
+		if (cert_capi_open_ncrypt_key(pProviderInfo, &hNCryptProv, &hNCryptKey))
 		{
-			// see whether this providers supports the algorihmn
+			// key is serviced through cng; report whether cng supports the hash
 			BCRYPT_ALG_HANDLE hAlg = NULL;
 			bHashSuccess = BCryptOpenAlgorithmProvider(&hAlg, sHashAlgBCrypt, NULL, 0) == 0;
 			if (hAlg != NULL) BCryptCloseAlgorithmProvider(hAlg, 0);
@@ -114,6 +151,7 @@ BOOL cert_capi_test_hash(LPCSTR szCert, DWORD iHashRequest)
 		// cleanup crypto structures and intermediate signing data
 		if (hCryptProv != 0) CryptReleaseContext(hCryptProv, 0);
 		if (hNCryptProv != 0) NCryptFreeObject(hNCryptProv);
+		if (hNCryptKey != 0) NCryptFreeObject(hNCryptKey);
 		if (pProviderInfo != NULL) sfree(pProviderInfo);
 	}
 
@@ -165,8 +203,7 @@ BYTE* cert_capi_sign(struct ssh2_userkey* userkey, LPCBYTE pDataToSign, int iDat
 		NCRYPT_KEY_HANDLE hNCryptKey = 0;
 		NCRYPT_PROV_HANDLE hNCryptProv = 0;
 
-		if (NCryptOpenStorageProvider(&hNCryptProv, pProviderInfo->pwszProvName, 0) == ERROR_SUCCESS &&
-			NCryptOpenKey(hNCryptProv, &hNCryptKey, pProviderInfo->pwszContainerName, pProviderInfo->dwKeySpec, 0) == ERROR_SUCCESS)
+		if (cert_capi_open_ncrypt_key(pProviderInfo, &hNCryptProv, &hNCryptKey))
 		{
 			// set pin prompt
 			WCHAR* szPin = NULL;
@@ -286,8 +323,7 @@ BOOL cert_capi_delete_key(LPCSTR szCert)
 		NCRYPT_KEY_HANDLE hNCryptKey = 0;
 		NCRYPT_PROV_HANDLE hNCryptProv = 0;
 
-		if (NCryptOpenStorageProvider(&hNCryptProv, pProviderInfo->pwszProvName, 0) == ERROR_SUCCESS &&
-			NCryptOpenKey(hNCryptProv, &hNCryptKey, pProviderInfo->pwszContainerName, pProviderInfo->dwKeySpec, 0) == ERROR_SUCCESS)
+		if (cert_capi_open_ncrypt_key(pProviderInfo, &hNCryptProv, &hNCryptKey))
 		{
 			bSuccess = NCryptDeleteKey(hNCryptKey, 0) == ERROR_SUCCESS;
 			if (bSuccess) hNCryptKey = 0;
