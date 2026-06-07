@@ -812,8 +812,12 @@ static INT_PTR CALLBACK KeyListProc(HWND hwnd, UINT msg,
 
 				  int * selectedArray = snewn(numSelected, int);
 			  	  SendDlgItemMessage(hwnd, IDC_KEYLIST_LISTBOX, LB_GETSELITEMS, numSelected, (WPARAM)selectedArray);
-				  char * comment = (pageant_nth_ssh2_comment(selectedArray[0]));
-				  cert_display_cert(comment, hwnd);
+				  int rCount = pageant_count_ssh1_keys();
+				  if (selectedArray[0] >= rCount)
+				  {
+					  char * comment = pageant_nth_ssh2_comment(selectedArray[0] - rCount);
+					  cert_display_cert(comment, hwnd);
+				  }
 				  sfree(selectedArray);
 			  }
 		  }
@@ -849,24 +853,29 @@ static INT_PTR CALLBACK KeyListProc(HWND hwnd, UINT msg,
 
 			/* enumerate each selected item */
 			LPSTR szClipString = dupstr("");
+			int rCount = pageant_count_ssh1_keys();
 			for (int iSelected = 0; iSelected < numSelected; iSelected++)
 			{
+				if (selectedArray[iSelected] < rCount)
+					continue;
+
+				int ssh2Index = selectedArray[iSelected] - rCount;
 				/* get the comment from the key */
-				char * comment = pageant_nth_ssh2_comment(selectedArray[iSelected]);
+				char * comment = pageant_nth_ssh2_comment(ssh2Index);
                 
-                // handle request for the key format
-                LPSTR szClipStringAddon = NULL;
-                if (clipkey) szClipStringAddon = (comment && cert_is_certpath(comment)) ?
-                    cert_key_string(comment) : pageant_nth_ssh2_string(selectedArray[iSelected]);
+				// handle request for the key format
+				LPSTR szClipStringAddon = NULL;
+				if (clipkey) szClipStringAddon = (comment && cert_is_certpath(comment)) ?
+					cert_key_string(comment) : pageant_nth_ssh2_string(ssh2Index);
 
-                // handle request for the comment
-                else if (comment && cert_is_certpath(comment)) szClipStringAddon = dupstr(comment);
+				// handle request for the comment
+				else if (comment && cert_is_certpath(comment)) szClipStringAddon = dupstr(comment);
 
-                // no valid string to append; ignore
+				// no valid string to append; ignore
 				if (szClipStringAddon == NULL) continue;
 
 				/* add to cumulative key string */
-                LPCSTR szSeperator = (clipkey) ? "\n" : " ";
+				LPCSTR szSeperator = (clipkey) ? "\n" : " ";
 				LPSTR szClipStringNew = dupcat(szClipString, (strlen(szClipString) > 0) ? szSeperator : "",
 					szClipStringAddon);
 

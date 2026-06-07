@@ -1318,7 +1318,21 @@ static void ssh2_userauth_process_queue(PacketProtocolLayer *ppl)
 					if (cert_is_certpath(key->comment))
 					{
 						ptrlen datatosign = ptrlen_from_strbuf(sigdata);
-						cert_sign(key, datatosign.ptr, datatosign.len, s->signflags, sigblob);
+						if (!cert_sign(key, datatosign.ptr, datatosign.len, s->signflags, sigblob))
+						{
+							ppl_logevent("Smartcard/token refused signing request");
+							ppl_printf("Smartcard/token failed to provide a signature\r\n");
+							s->suppress_wait_for_response_packet = true;
+							ssh_free_pktout(s->pktout);
+							strbuf_free(sigdata);
+							strbuf_free(pkblob);
+							strbuf_free(sigblob);
+							ssh_key_free(key->key);
+							sfree(key->comment);
+							sfree(key);
+							s->is_trivial_auth = false;
+							continue;
+						}
 					}
 					else
 #endif // PUTTY_CAC

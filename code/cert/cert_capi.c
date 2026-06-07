@@ -152,12 +152,12 @@ BOOL cert_capi_test_hash(LPCSTR szCert, DWORD iHashRequest)
 		if (hCryptProv != 0) CryptReleaseContext(hCryptProv, 0);
 		if (hNCryptProv != 0) NCryptFreeObject(hNCryptProv);
 		if (hNCryptKey != 0) NCryptFreeObject(hNCryptKey);
-		if (pProviderInfo != NULL) sfree(pProviderInfo);
 	}
 
 	// cleanup certificate handles and return
 	if (pCertCtx != NULL) { CertFreeCertificateContext(pCertCtx); }
 	if (hCertStore != NULL) { CertCloseStore(hCertStore, 0); }
+	if (pProviderInfo != NULL) sfree(pProviderInfo);
 	return bHashSuccess;
 }
 
@@ -289,12 +289,12 @@ BYTE* cert_capi_sign(struct ssh2_userkey* userkey, LPCBYTE pDataToSign, int iDat
 		if (hNCryptProv != 0) NCryptFreeObject(hNCryptProv);
 		if (hNCryptKey != 0) NCryptFreeObject(hNCryptKey);
 		if (pSig != NULL) sfree(pSig);
-		if (pProviderInfo != NULL) sfree(pProviderInfo);
 	}
 
 	// cleanup certificate handles and return
 	if (pCertCtx != NULL) { CertFreeCertificateContext(pCertCtx); }
 	if (hCertStore != NULL) { CertCloseStore(hCertStore, 0); }
+	if (pProviderInfo != NULL) sfree(pProviderInfo);
 	return pSignedData;
 }
 
@@ -339,13 +339,13 @@ BOOL cert_capi_delete_key(LPCSTR szCert)
 		if (hCryptProv != 0) CryptReleaseContext(hCryptProv, 0);
 		if (hNCryptProv != 0) NCryptFreeObject(hNCryptProv);
 		if (hNCryptKey != 0) NCryptFreeObject(hNCryptKey);
-		if (pProviderInfo != NULL) sfree(pProviderInfo);
 	}
 
 	// cleanup certificate handles and return
 	if (bSuccess) CertDeleteCertificateFromStore(pCertCtx);
 	else if (pCertCtx != NULL) { CertFreeCertificateContext(pCertCtx); }
 	if (hCertStore != NULL) { CertCloseStore(hCertStore, 0); }
+	if (pProviderInfo != NULL) sfree(pProviderInfo);
 	return bSuccess;
 }
 

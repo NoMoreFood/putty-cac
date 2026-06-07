@@ -746,10 +746,21 @@ static void signop_coroutine(PageantAsyncOp *pao)
                 "key invalid: %s", so->priv->encrypted_key_comment);
             goto respond;
         }
-        cert_sign(newkey, (LPCBYTE)so->data_to_sign->u, so->data_to_sign->len, so->flags, signature);
+        const ssh_keyalg *orig_vt = newkey->key->vt;
+        // Temporarily override the key's vtable to match the requested signature format during signing
+        newkey->key->vt = so->priv->skey->vt;
+        BOOL bSigned = cert_sign(newkey, (LPCBYTE)so->data_to_sign->u, so->data_to_sign->len, so->flags, signature);
+        newkey->key->vt = orig_vt;
         newkey->key->vt->freekey(newkey->key);
         sfree(newkey->comment);
         sfree(newkey);
+        if (!bSigned)
+        {
+            response = strbuf_new();
+            failure(so->pao.info->pc, so->pao.reqid, response, so->failure_type,
+                "signing failed: %s", so->priv->encrypted_key_comment);
+            goto respond;
+        }
     }
     else
 #endif // PUTTY_CAC

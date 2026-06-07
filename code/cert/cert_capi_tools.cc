@@ -132,12 +132,12 @@ EXTERN_C LPSTR cert_capi_create_key(LPCSTR szAlgName, LPCSTR sSubjectName, BOOL 
     // create and submit self-signed enrollment request
     CComPtr<IX509Enrollment2> oEnrollment = nullptr;
     BSTR sRequestString;
-    BSTR sInstralledCert;
+    BSTR sInstalledCert;
     if (FAILED(CoCreateInstance(__uuidof(CX509Enrollment), NULL, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&oEnrollment))) ||
         FAILED(oEnrollment->InitializeFromRequest(oRequest)) ||
         FAILED(oEnrollment->CreateRequest(XCN_CRYPT_STRING_BASE64, &sRequestString)) ||
         FAILED(oEnrollment->InstallResponse(AllowUntrustedCertificate, sRequestString, XCN_CRYPT_STRING_BASE64, _bstr_t(L""))) ||
-        FAILED(oEnrollment->get_Certificate(XCN_CRYPT_STRING_BINARY, &sInstralledCert)))
+        FAILED(oEnrollment->get_Certificate(XCN_CRYPT_STRING_BINARY, &sInstalledCert)))
     {
         return NULL;
     }
@@ -146,9 +146,9 @@ EXTERN_C LPSTR cert_capi_create_key(LPCSTR szAlgName, LPCSTR sSubjectName, BOOL 
     // fetch dummy context so we can lookup the thumbprint
     PCCERT_CONTEXT tDummyCertContext = CertCreateCertificateContext(
         X509_ASN_ENCODING | PKCS_7_ASN_ENCODING,
-        &((LPBYTE)sInstralledCert)[sizeof(UINT)],
-        SysStringByteLen(sInstralledCert));
-    SysFreeString(sInstralledCert);
+        &((LPBYTE)sInstalledCert)[sizeof(UINT)],
+        SysStringByteLen(sInstalledCert));
+    SysFreeString(sInstalledCert);
 
     // now use the public key to find the unified certificate in the cer store
     LPSTR szThumbprint = NULL;

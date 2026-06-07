@@ -858,7 +858,8 @@ void cert_event_handler(dlgcontrol* ctrl, dlgparam* dlg, void* data, int event)
 		conf_set_str(conf, CONF_cert_fingerprint, szCert);
 		conf_set_bool(conf, CONF_cert_attempt_auth, 1);
 		dlg_checkbox_set(certd->cert_auth_checkbox, dlg, 1);
-		*strrchr(szCert, '=') = '\0';
+		char* equals = strrchr(szCert, '=');
+		if (equals != NULL) *equals = '\0';
 		dlg_text_set(certd->cert_thumbprint_text, dlg, szCert);
 		sfree(szCert);
 	}
@@ -948,6 +949,7 @@ void fido_event_handler(dlgcontrol* ctrl, dlgparam* dlg, void* data, int event)
 				L"This value cannot be blank. " \
 				L"Please check this value and try again.",
 				L"FIDO Key Creation Parameters Invalid", MB_SYSTEMMODAL | MB_ICONERROR | MB_OK);
+			if (szDisplayName != NULL) sfree(szDisplayName);
 			return;
 		}
 
@@ -959,6 +961,8 @@ void fido_event_handler(dlgcontrol* ctrl, dlgparam* dlg, void* data, int event)
 				L"This value must begin for 'ssh:' for compatibility reasons. " \
 				L"Please check this value and try again.",
 				L"FIDO Key Creation Parameters Invalid", MB_SYSTEMMODAL | MB_ICONERROR | MB_OK);
+			sfree(szDisplayName);
+			if (szAppId != NULL) sfree(szAppId);
 			return;
 		}
 
@@ -974,7 +978,12 @@ void fido_event_handler(dlgcontrol* ctrl, dlgparam* dlg, void* data, int event)
 			CertCloseStore(hCertStore, 0);
 			if (MessageBoxW(NULL, L"It appears that a FIDO key with this name may already exist. " \
 				L"PuTTY CAC may not be able to determine which key to use. Are you sure you want to continue?",
-				L"FIDO Duplicate Key Detected", MB_SYSTEMMODAL | MB_ICONQUESTION | MB_YESNO) != IDYES) return;
+				L"FIDO Duplicate Key Detected", MB_SYSTEMMODAL | MB_ICONQUESTION | MB_YESNO) != IDYES)
+			{
+				sfree(szDisplayName);
+				sfree(szAppId);
+				return;
+			}
 		}
 
 		// fetch options from resident key and verification boxes
@@ -1000,6 +1009,7 @@ void fido_event_handler(dlgcontrol* ctrl, dlgparam* dlg, void* data, int event)
 			L"or the token may not support the selected algorithm / parameters.",
 			L"FIDO Key Creation Failed", MB_SYSTEMMODAL | MB_ICONERROR | MB_OK);
 
+		sfree(szDisplayName);
 		sfree(szAppId);
 	}
 
