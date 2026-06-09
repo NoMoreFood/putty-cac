@@ -662,7 +662,7 @@ BOOL cert_check_valid(LPCSTR szIden, PCCERT_CONTEXT pCertContext)
 
 	// verify time validity if requested
 	DWORD iFlags = CERT_STORE_TIME_VALIDITY_FLAG;
-	if (!cert_ignore_expired_certs(CERT_QUERY))
+	if (cert_ignore_expired_certs(CERT_QUERY))
 	{
 		if (CertVerifySubjectCertificateContext(pCertContext, NULL, &iFlags) == TRUE && iFlags != 0)
 			return FALSE;
@@ -680,9 +680,9 @@ BOOL cert_check_valid(LPCSTR szIden, PCCERT_CONTEXT pCertContext)
 
 		// consider trusted if error was account offline crls
 		DWORD dwIgnoredErrors = CERT_TRUST_IS_OFFLINE_REVOCATION | CERT_TRUST_REVOCATION_STATUS_UNKNOWN;
-		if (cert_ignore_expired_certs(CERT_QUERY)) 
+		if (!cert_ignore_expired_certs(CERT_QUERY))
 		{
-			// allow accept expired certs if user has that setting enabled
+			// tolerate chain time errors only when not filtering expired certs
 			dwIgnoredErrors |= CERT_TRUST_IS_NOT_TIME_VALID | CERT_TRUST_IS_NOT_TIME_NESTED;
 		}
 		BOOL bTrusted = (pChainContext->TrustStatus.dwErrorStatus & ~dwIgnoredErrors) == 0;
