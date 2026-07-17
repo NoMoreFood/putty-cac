@@ -25,6 +25,8 @@
 #include "cert_common.h"
 char* pageant_nth_ssh2_comment(int i);
 char* pageant_nth_ssh2_string(int i);
+bool pageant_nth_ssh2_is_provider(int i);
+bool pageant_ssh2_blob_is_provider(ptrlen blob);
 #endif // PUTTY_CAC
 
 #include <aclapi.h>
@@ -87,6 +89,7 @@ static int initial_menuitems_count;
 #define IDM_AUTOCERT 0x0130
 #define IDM_SAVELIST 0x0140
 #define IDM_PINCACHE 0x0150
+#define IDM_X509AUTH 0x0160
 #define IDM_CERTAUTH 0x0170
 #define IDM_SCONLY   0x0180
 #define IDM_NOEXPR   0x0190
@@ -340,6 +343,9 @@ struct keylist_update_ctx {
 
 struct keylist_display_data {
     strbuf *alg, *bits, *hash, *comment, *info;
+#ifdef PUTTY_CAC
+    bool provider_backed;
+#endif
 };
 
 static void keylist_update_callback(
@@ -356,6 +362,10 @@ static void keylist_update_callback(
     disp->hash = strbuf_new();
     disp->comment = strbuf_new();
     disp->info = strbuf_new();
+#ifdef PUTTY_CAC
+    disp->provider_backed = key->ssh_version == 2 &&
+        pageant_ssh2_blob_is_provider(ptrlen_from_strbuf(key->blob));
+#endif
 
     /* There is at least one key, so the controls for removing keys
      * should be enabled */
@@ -506,7 +516,7 @@ void keylist_update(void)
         for (int ikey = 0; (comment = pageant_nth_ssh2_comment(ikey)) != NULL; ikey++)
         {
             /* only process cert keys*/
-            if (!comment || !cert_is_certpath(comment)) continue;
+            if (!pageant_nth_ssh2_is_provider(ikey)) continue;
 
             /* append the null separated, double-null terminated string */
             slist = srealloc(slist, slistsize + strlen(comment) + 2);
@@ -517,7 +527,8 @@ void keylist_update(void)
 
         /* commit full list to registry */
         RegSetKeyValue(HKEY_CURRENT_USER, PUTTY_REG_POS, "SaveCertList",
-            REG_MULTI_SZ, slist, slistsize + 1);
+            REG_MULTI_SZ, slist, slistsize > 0 ? slistsize + 1 : 2);
+        sfree(slist);
     }
 #endif /* PUTTY_CAC */
 }
@@ -740,7 +751,7 @@ static INT_PTR CALLBACK KeyListProc(HWND hwnd, UINT msg,
             }
 
 #ifdef PUTTY_CAC
-            if (cert_is_certpath(disp->comment->s))
+            if (disp->provider_backed && cert_is_certpath(disp->comment->s))
             {
                 // replace the has with the thumbprint
                 LPSTR thumbprint = _strdup(disp->comment->s);
@@ -767,7 +778,7 @@ static INT_PTR CALLBACK KeyListProc(HWND hwnd, UINT msg,
             }
 
 #ifdef PUTTY_CAC
-            if (cert_is_certpath(disp->comment->s))
+            if (disp->provider_backed && cert_is_certpath(disp->comment->s))
             {
                 // replace the comment with the subject name
                 LPSTR subjectname = cert_subject_string(disp->comment->s);
@@ -813,7 +824,7 @@ static INT_PTR CALLBACK KeyListProc(HWND hwnd, UINT msg,
 				  int * selectedArray = snewn(numSelected, int);
 			  	  SendDlgItemMessage(hwnd, IDC_KEYLIST_LISTBOX, LB_GETSELITEMS, numSelected, (WPARAM)selectedArray);
 				  int rCount = pageant_count_ssh1_keys();
-				  if (selectedArray[0] >= rCount)
+				  if (selectedArray[0] >= rCount && pageant_nth_ssh2_is_provider(selectedArray[0] - rCount))
 				  {
 					  char * comment = pageant_nth_ssh2_comment(selectedArray[0] - rCount);
 					  cert_display_cert(comment, hwnd);
@@ -862,14 +873,16 @@ static INT_PTR CALLBACK KeyListProc(HWND hwnd, UINT msg,
 				int ssh2Index = selectedArray[iSelected] - rCount;
 				/* get the comment from the key */
 				char * comment = pageant_nth_ssh2_comment(ssh2Index);
+				bool provider_backed = pageant_nth_ssh2_is_provider(ssh2Index);
                 
 				// handle request for the key format
 				LPSTR szClipStringAddon = NULL;
-				if (clipkey) szClipStringAddon = (comment && cert_is_certpath(comment)) ?
-					cert_key_string(comment) : pageant_nth_ssh2_string(ssh2Index);
+				if (clipkey)
+					szClipStringAddon = pageant_nth_ssh2_string(ssh2Index);
 
 				// handle request for the comment
-				else if (comment && cert_is_certpath(comment)) szClipStringAddon = dupstr(comment);
+				else if (provider_backed && comment && cert_is_certpath(comment))
+					szClipStringAddon = dupstr(comment);
 
 				// no valid string to append; ignore
 				if (szClipStringAddon == NULL) continue;
@@ -1461,6 +1474,10 @@ static LRESULT CALLBACK TrayWndProc(HWND hwnd, UINT message,
         if (!menuinprogress) {
             menuinprogress = true;
             update_sessions();
+#ifdef PUTTY_CAC
+            CheckMenuItem(systray_menu, IDM_X509AUTH,
+                          cert_auth_x509_enabled(CERT_QUERY) ? MF_CHECKED : MF_UNCHECKED);
+#endif
             SetForegroundWindow(hwnd);
             TrackPopupMenu(systray_menu,
                            TPM_RIGHTALIGN | TPM_BOTTOMALIGN |
@@ -1567,6 +1584,12 @@ static LRESULT CALLBACK TrayWndProc(HWND hwnd, UINT message,
 		  DWORD ForcePinCaching = (iNewState == MF_CHECKED);
 		  cert_cache_enabled(ForcePinCaching ? CERT_SET : CERT_UNSET);
 		  RegSetKeyValue(HKEY_CURRENT_USER, PUTTY_REG_POS, "ForcePinCaching", REG_DWORD, &ForcePinCaching, sizeof(DWORD));
+	  } break;
+	  case IDM_X509AUTH: {
+		  BOOL bEnabled = cert_auth_x509_enabled(cert_auth_x509_enabled(CERT_QUERY) ? CERT_UNSET : CERT_SET);
+		  CheckMenuItem(systray_menu, IDM_X509AUTH, bEnabled ? MF_CHECKED : MF_UNCHECKED);
+		  if (keylist != NULL)
+			  keylist_update();
 	  } break;
 	  case IDM_CERTAUTH: {
 		  DWORD iItem = CheckMenuItem(systray_menu, IDM_CERTAUTH, MF_CHECKED);
@@ -2148,7 +2171,6 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
         AppendMenu(systray_menu, MF_SEPARATOR, 0, 0);
     }
 #ifdef PUTTY_CAC
-
     if (cert_auto_load_certs(CERT_QUERY))
     {
         LPSTR* pszCert = NULL;
@@ -2196,6 +2218,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 	AppendMenu(systray_menu, cert_menu_flags(cert_save_cert_list_enabled), IDM_SAVELIST, "Remember Certs && Keys");
 	AppendMenu(systray_menu, cert_menu_flags(cert_cache_enabled), IDM_PINCACHE, "Force PIN Caching");
 	AppendMenu(systray_menu, cert_menu_flags(cert_auth_prompting), IDM_CERTAUTH, "Cert && Key Auth Prompting");
+	AppendMenu(systray_menu, cert_menu_flags(cert_auth_x509_enabled), IDM_X509AUTH, "Attempt X.509v3 Cert Auth");
 	AppendMenu(systray_menu, MF_SEPARATOR, 0, NULL);
 	AppendMenu(systray_menu, cert_menu_flags(cert_smartcard_certs_only), IDM_SCONLY, "Filter: Smart Card Logon Certs");
     AppendMenu(systray_menu, cert_menu_flags(cert_trusted_certs_only), IDM_TRUSTED, "Filter: Trusted Certs");

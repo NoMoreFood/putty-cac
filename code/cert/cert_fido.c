@@ -8,6 +8,8 @@
 #include <webauthn.h>
 
 #include "ssh.h"
+#include "mpint.h"
+#include "ecc.h"
 #include "putty.h"
 
 #define DEFINE_VARIABLES
@@ -22,14 +24,6 @@
 #pragma comment(lib,"webauthn.lib")
 #pragma comment(lib,"delayimp.lib")
 
-// arbitrarily large limits for certain fido buffers
-#define FIDO_MAX_APPID_LEN 256
-#define FIDO_MAX_DISPLAY_LEN 64
-#define FIDO_MAX_CREDID_LEN 128
-#define FIDO_MAX_PUBKEY_LEN 256
-#define FIDO_MAX_USERNAME_LEN 128
-#define FIDO_MAX_BLOB_SIZE 512
-
 // registry key locations for fido
 #define FIDO_REG_PUBKEYS L"Software\\SimonTatham\\PuTTY\\Fido\\PubKeyBlobs"
 #define FIDO_REG_CREDIDS L"Software\\SimonTatham\\PuTTY\\Fido\\CredIdBlobs"
@@ -40,64 +34,38 @@
 #define WEBAUTHN_COSE_ALGORITHM_EDDSA_ED25519 -8
 #endif
 
-#pragma pack(push, 1)
-typedef struct _cbor_ecdsa_response_header_t
+// Bounds for FIDO identifiers and supported public-key encodings.
+#define FIDO_MAX_APPID_LEN 256
+#define FIDO_MAX_DISPLAY_LEN 64
+#define FIDO_MAX_CREDID_LEN 1023
+#define FIDO_MAX_COORDINATE_LEN 66
+
+typedef struct _fido_public_key_buffer_t
 {
-	uint8_t RpHashId[32];
-	uint8_t Flags;
-	uint32_t Counter;
-	uint8_t CredIdLeng[16];
-	uint16_t Length;
+	BCRYPT_ECCKEY_BLOB tHeader;
+	BYTE pCoordinates[2 * FIDO_MAX_COORDINATE_LEN];
 }
-cbor_ecdsa_response_header_t;
+fido_public_key_buffer_t;
 
-typedef struct _cbor_t
+typedef struct _fido_algorithm_details_t
 {
-	uint8_t CountOrVal : 5;
-	uint8_t MajorType : 3;
+	LPCSTR sAlgorithm;
+	LPCWSTR sHashAlgorithm;
+	DWORD iSignaturePartSize;
+	BOOL bEd25519;
+	LONG iCoseAlgorithm;
+	LONG iCoseKeyType;
+	LONG iCoseCurve;
+	ULONG iPublicKeyMagic;
 }
-cbor_t;
+fido_algorithm_details_t;
 
-typedef struct _cbor_ecdsa_pubkey_t
+typedef struct _fido_cbor_reader_t
 {
-	// Map Type (5 Pairs) 
-	cbor_t MapIden;
-
-	// Map Key Type & Value    Map Value Type & Data 
-	cbor_t KeyTypeMapKey;      cbor_t KeyTypeMapValue;
-	cbor_t AlgIdMapKey;        cbor_t AlgIdMapValue;
-	cbor_t CurveIdMapKey;      cbor_t CurveIdMapValue;
-	union
-	{
-		struct
-		{
-			// Map Key Type & Value   Map Value Type         Map Value Data 
-			cbor_t PubKey1MapKey;     cbor_t Key1ValueType;  uint8_t Key1ValLen; uint8_t Key1Val[32];
-			cbor_t PubKey2MapKey;     cbor_t Key2ValueType;  uint8_t Key2ValLen; uint8_t Key2Val[32];
-		} Key256;
-		struct
-		{
-			cbor_t PubKey1MapKey;     cbor_t Key1ValueType;  uint8_t Key1ValLen; uint8_t Key1Val[48];
-			cbor_t PubKey2MapKey;     cbor_t Key2ValueType;  uint8_t Key2ValLen; uint8_t Key2Val[48];
-		} Key384;
-		struct
-		{
-			cbor_t PubKey1MapKey;     cbor_t Key1ValueType;  uint8_t Key1ValLen; uint8_t Key1Val[64];
-			cbor_t PubKey2MapKey;     cbor_t Key2ValueType;  uint8_t Key2ValLen; uint8_t Key2Val[64];
-		} Key521;
-	};
-
+	LPCBYTE pData;
+	LPCBYTE pEnd;
 }
-cbor_ecdsa_t;
-
-typedef struct _ecdsa_assertion_auth_header_t
-{
-	uint8_t RelyingPartyHash[32];
-	uint8_t Flags;
-	uint32_t Counter;
-}
-ecdsa_assertion_auth_header_t;
-#pragma pack(pop)
+fido_cbor_reader_t;
 
 struct GetAttestationThreadParams
 {
@@ -108,21 +76,31 @@ struct GetAttestationThreadParams
 	PWEBAUTHN_ASSERTION ppWebAuthNAssertion;
 };
 
+static INIT_ONCE fido_webauthn_once = INIT_ONCE_STATIC_INIT;
+static BOOL fido_webauthn_loaded = FALSE;
+
+static BOOL CALLBACK cert_fido_load_webauthn(PINIT_ONCE pOnce, PVOID pParameter, PVOID* ppContext)
+{
+	(void)pOnce;
+	(void)pParameter;
+	(void)ppContext;
+	fido_webauthn_loaded = LoadLibraryExW(L"webauthn.dll", NULL, LOAD_LIBRARY_SEARCH_SYSTEM32) != NULL;
+	return TRUE;
+}
+
 BOOL LoadDelayLoadedLibaries()
 {
-	static BOOL bImported = FALSE;
-	if (!bImported)
+	if (!InitOnceExecuteOnce(&fido_webauthn_once, cert_fido_load_webauthn, NULL, NULL))
 	{
-		bImported = LoadLibrary("webauthn.dll") != NULL;
-		if (!bImported)
-		{
-			// notify if webauthn 
-			MessageBoxW(NULL, L"PuTTY CAC FIDO support is not available on this platform.",
-				L"FIDO Not Supported", MB_SYSTEMMODAL | MB_ICONERROR | MB_OK);
-		}
+		return FALSE;
+	}
+	if (!fido_webauthn_loaded)
+	{
+		MessageBoxW(NULL, L"PuTTY CAC FIDO support is not available on this platform.",
+			L"FIDO Not Supported", MB_SYSTEMMODAL | MB_ICONERROR | MB_OK);
 	}
 
-	return bImported;
+	return fido_webauthn_loaded;
 }
 
 DWORD WINAPI WebAuthNAuthenticatorGetAssertionThread(LPVOID lpParam)
@@ -143,8 +121,387 @@ DWORD WINAPI WebAuthNAuthenticatorGetAssertionThread(LPVOID lpParam)
 	return TRUE;
 }
 
+static const fido_algorithm_details_t fido_algorithms[] = {
+	{ "sk-ecdsa-sha2-nistp256@openssh.com", WEBAUTHN_HASH_ALGORITHM_SHA_256, 32, FALSE, -7, 2, 1,
+		BCRYPT_ECDSA_PUBLIC_P256_MAGIC },
+	{ "sk-ecdsa-sha2-nistp384@openssh.com", WEBAUTHN_HASH_ALGORITHM_SHA_384, 48, FALSE, -35, 2, 2,
+		BCRYPT_ECDSA_PUBLIC_P384_MAGIC },
+	{ "sk-ecdsa-sha2-nistp521@openssh.com", WEBAUTHN_HASH_ALGORITHM_SHA_512, 66, FALSE, -36, 2, 3,
+		BCRYPT_ECDSA_PUBLIC_P521_MAGIC },
+	{ "sk-ssh-ed25519@openssh.com", WEBAUTHN_HASH_ALGORITHM_SHA_256, 32, TRUE, -8, 1, 6,
+		BCRYPT_ECDSA_PUBLIC_GENERIC_MAGIC },
+};
+
+static const fido_algorithm_details_t* cert_fido_lookup_algorithm(LPCSTR sAlgorithm)
+{
+	if (sAlgorithm == NULL) return NULL;
+	for (size_t iAlgorithm = 0; iAlgorithm < _countof(fido_algorithms); iAlgorithm++)
+	{
+		if (strcmp(sAlgorithm, fido_algorithms[iAlgorithm].sAlgorithm) == 0)
+			return &fido_algorithms[iAlgorithm];
+	}
+	return NULL;
+}
+
+static BOOL cert_fido_cbor_head(fido_cbor_reader_t* pReader, PBYTE pMajor, PULONGLONG pArgument)
+{
+	if (pReader->pData >= pReader->pEnd) return FALSE;
+	BYTE iInitial = *pReader->pData++;
+	BYTE iAdditional = iInitial & 0x1F;
+	*pMajor = iInitial >> 5;
+	if (iAdditional < 24)
+	{
+		*pArgument = iAdditional;
+		return TRUE;
+	}
+
+	size_t iArgumentBytes = iAdditional == 24 ? 1 : iAdditional == 25 ? 2 :
+		iAdditional == 26 ? 4 : iAdditional == 27 ? 8 : 0;
+	if (iArgumentBytes == 0 || (size_t)(pReader->pEnd - pReader->pData) < iArgumentBytes)
+	{
+		return FALSE;
+	}
+
+	ULONGLONG iArgument = 0;
+	for (size_t i = 0; i < iArgumentBytes; i++)
+		iArgument = (iArgument << 8) | *pReader->pData++;
+	*pArgument = iArgument;
+	return TRUE;
+}
+
+static BOOL cert_fido_cbor_int(fido_cbor_reader_t* pReader, PLONG pValue)
+{
+	BYTE iMajor;
+	ULONGLONG iArgument;
+	if (!cert_fido_cbor_head(pReader, &iMajor, &iArgument) || iArgument > LONG_MAX || (iMajor != 0 && iMajor != 1))
+	{
+		return FALSE;
+	}
+	*pValue = iMajor == 0 ? (LONG)iArgument : -1 - (LONG)iArgument;
+	return TRUE;
+}
+
+static BOOL cert_fido_cbor_bytes(fido_cbor_reader_t* pReader, LPCBYTE* ppValue, size_t* piValueLen)
+{
+	BYTE iMajor;
+	ULONGLONG iArgument;
+	if (!cert_fido_cbor_head(pReader, &iMajor, &iArgument) || iMajor != 2 ||
+		iArgument > (ULONGLONG)(pReader->pEnd - pReader->pData))
+	{
+		return FALSE;
+	}
+	*ppValue = pReader->pData;
+	*piValueLen = (size_t)iArgument;
+	pReader->pData += (size_t)iArgument;
+	return TRUE;
+}
+
+static BOOL cert_fido_cbor_skip(fido_cbor_reader_t* pReader, unsigned iDepth)
+{
+	BYTE iMajor;
+	ULONGLONG iArgument;
+	if (iDepth > 8 || !cert_fido_cbor_head(pReader, &iMajor, &iArgument))
+	{
+		return FALSE;
+	}
+
+	if (iMajor == 2 || iMajor == 3)
+	{
+		if (iArgument > (ULONGLONG)(pReader->pEnd - pReader->pData))
+			return FALSE;
+		pReader->pData += (size_t)iArgument;
+		return TRUE;
+	}
+	if (iMajor == 4 || iMajor == 5)
+	{
+		ULONGLONG iItems = iMajor == 5 ? iArgument * 2 : iArgument;
+		if (iItems < iArgument || iItems > (ULONGLONG)(pReader->pEnd - pReader->pData))
+		{
+			return FALSE;
+		}
+		for (ULONGLONG i = 0; i < iItems; i++)
+			if (!cert_fido_cbor_skip(pReader, iDepth + 1)) return FALSE;
+		return TRUE;
+	}
+	if (iMajor == 6)
+		return cert_fido_cbor_skip(pReader, iDepth + 1);
+	return iMajor == 0 || iMajor == 1 || iMajor == 7;
+}
+
+static BOOL cert_fido_public_key_valid(const fido_algorithm_details_t* pAlgorithm, LPCBYTE pX, LPCBYTE pY)
+{
+	const struct ec_curve* pCurve = NULL;
+	const ssh_keyalg* pKeyAlg = NULL;
+	if (!pAlgorithm->bEd25519)
+	{
+		int iBits = pAlgorithm->iSignaturePartSize == 66 ? 521 : (int)pAlgorithm->iSignaturePartSize * 8;
+		if (!ec_nist_alg_and_curve_by_bits(iBits, &pCurve, &pKeyAlg))
+			return FALSE;
+		mp_int* x = mp_from_bytes_be(make_ptrlen(pX, pAlgorithm->iSignaturePartSize));
+		mp_int* y = mp_from_bytes_be(make_ptrlen(pY, pAlgorithm->iSignaturePartSize));
+		if (mp_cmp_hs(x, pCurve->p) || mp_cmp_hs(y, pCurve->p))
+		{
+			mp_free(x);
+			mp_free(y);
+			return FALSE;
+		}
+		WeierstrassPoint* pPoint = ecc_weierstrass_point_new(pCurve->w.wc, x, y);
+		mp_free(x);
+		mp_free(y);
+		BOOL bValid = pPoint != NULL && ecc_weierstrass_point_valid(pPoint);
+		if (pPoint != NULL) ecc_weierstrass_point_free(pPoint);
+		return bValid;
+	}
+
+	if (!ec_ed_alg_and_curve_by_bits(256, &pCurve, &pKeyAlg)) return FALSE;
+	mp_int* y = mp_from_bytes_le(make_ptrlen(pX, pAlgorithm->iSignaturePartSize));
+	unsigned iParity = mp_get_bit(y, pCurve->fieldBytes * 8 - 1);
+	mp_set_bit(y, pCurve->fieldBytes * 8 - 1, 0);
+	if (mp_cmp_hs(y, pCurve->p))
+	{
+		mp_free(y);
+		return FALSE;
+	}
+	EdwardsPoint* pPoint = ecc_edwards_point_new_from_y(pCurve->e.ec, y, iParity);
+	mp_free(y);
+	if (pPoint == NULL) return FALSE;
+
+	// Require a non-identity Ed25519 point in the prime-order subgroup.
+	mp_int* one = mp_from_integer(1);
+	EdwardsPoint* pIdentity = ecc_edwards_point_new_from_y(pCurve->e.ec, one, 0);
+	mp_free(one);
+	EdwardsPoint* pMultiple = ecc_edwards_multiply(pPoint, pCurve->e.G_order);
+	BOOL bValid = pIdentity != NULL && pMultiple != NULL &&
+		!ecc_edwards_eq(pPoint, pIdentity) && ecc_edwards_eq(pMultiple, pIdentity);
+	if (pMultiple != NULL) ecc_edwards_point_free(pMultiple);
+	if (pIdentity != NULL) ecc_edwards_point_free(pIdentity);
+	ecc_edwards_point_free(pPoint);
+	return bValid;
+}
+
+static BOOL cert_fido_decode_credential(LPCSTR sAlgorithm, LPCBYTE pAuthenticatorData, DWORD iAuthenticatorDataLen,
+	LPCBYTE pCredentialId, DWORD iCredentialIdLen, fido_public_key_buffer_t* pPublicKey, PDWORD piPublicKeyLen)
+{
+	if (piPublicKeyLen != NULL) *piPublicKeyLen = 0;
+	const fido_algorithm_details_t* pAlgorithm = cert_fido_lookup_algorithm(sAlgorithm);
+	if (pAlgorithm == NULL || pAuthenticatorData == NULL || pCredentialId == NULL || iCredentialIdLen == 0 ||
+		pPublicKey == NULL || piPublicKeyLen == NULL || iAuthenticatorDataLen < 55 ||
+		(pAuthenticatorData[32] & 0x40) == 0)
+	{
+		return FALSE;
+	}
+	memset(pPublicKey, 0, sizeof(*pPublicKey));
+
+	// Locate the COSE_Key after AAGUID and credential ID.
+	size_t iAuthenticatorCredentialIdLen = ((size_t)pAuthenticatorData[53] << 8) | pAuthenticatorData[54];
+	if (iAuthenticatorCredentialIdLen != iCredentialIdLen || iCredentialIdLen > FIDO_MAX_CREDID_LEN ||
+		iCredentialIdLen > iAuthenticatorDataLen - 55 || memcmp(pAuthenticatorData + 55, pCredentialId, iCredentialIdLen))
+	{
+		return FALSE;
+	}
+	fido_cbor_reader_t tReader = {
+		pAuthenticatorData + 55 + iAuthenticatorCredentialIdLen,
+		pAuthenticatorData + iAuthenticatorDataLen
+	};
+
+	BYTE iMajor;
+	ULONGLONG iMapCount;
+	if (!cert_fido_cbor_head(&tReader, &iMajor, &iMapCount) || iMajor != 5 ||
+		iMapCount > (ULONGLONG)(tReader.pEnd - tReader.pData) / 2)
+	{
+		return FALSE;
+	}
+
+	LONG iKeyType = 0, iCoseAlgorithm = 0, iCurve = 0;
+	LPCBYTE pX = NULL, pY = NULL;
+	size_t iXLen = 0, iYLen = 0;
+	BOOL bHaveKeyType = FALSE, bHaveAlgorithm = FALSE, bHaveCurve = FALSE;
+	BOOL bHaveX = FALSE, bHaveY = FALSE;
+
+	// Decode required COSE labels without depending on map order.
+	for (ULONGLONG i = 0; i < iMapCount; i++)
+	{
+		LONG iLabel;
+		if (!cert_fido_cbor_int(&tReader, &iLabel)) return FALSE;
+		switch (iLabel)
+		{
+		case 1:
+			if (bHaveKeyType || !cert_fido_cbor_int(&tReader, &iKeyType)) return FALSE;
+			bHaveKeyType = TRUE;
+			break;
+		case 3:
+			if (bHaveAlgorithm || !cert_fido_cbor_int(&tReader, &iCoseAlgorithm)) return FALSE;
+			bHaveAlgorithm = TRUE;
+			break;
+		case -1:
+			if (bHaveCurve || !cert_fido_cbor_int(&tReader, &iCurve)) return FALSE;
+			bHaveCurve = TRUE;
+			break;
+		case -2:
+			if (bHaveX || !cert_fido_cbor_bytes(&tReader, &pX, &iXLen)) return FALSE;
+			bHaveX = TRUE;
+			break;
+		case -3:
+			if (bHaveY || !cert_fido_cbor_bytes(&tReader, &pY, &iYLen)) return FALSE;
+			bHaveY = TRUE;
+			break;
+		default:
+			if (!cert_fido_cbor_skip(&tReader, 0)) return FALSE;
+			break;
+		}
+	}
+
+	if (!bHaveKeyType || !bHaveAlgorithm || !bHaveCurve || !bHaveX || iKeyType != pAlgorithm->iCoseKeyType ||
+		iCoseAlgorithm != pAlgorithm->iCoseAlgorithm || iCurve != pAlgorithm->iCoseCurve ||
+		iXLen != pAlgorithm->iSignaturePartSize ||
+		(pAlgorithm->bEd25519 ? bHaveY : (!bHaveY || iYLen != pAlgorithm->iSignaturePartSize)) ||
+		!cert_fido_public_key_valid(pAlgorithm, pX, pY))
+	{
+		return FALSE;
+	}
+
+	DWORD iCoordinateCount = pAlgorithm->bEd25519 ? 1 : 2;
+	DWORD iPublicKeyLen = sizeof(BCRYPT_ECCKEY_BLOB) + iCoordinateCount * pAlgorithm->iSignaturePartSize;
+	if (iPublicKeyLen > sizeof(*pPublicKey)) return FALSE;
+	pPublicKey->tHeader.dwMagic = pAlgorithm->iPublicKeyMagic;
+	pPublicKey->tHeader.cbKey = pAlgorithm->iSignaturePartSize;
+	memcpy(pPublicKey->pCoordinates, pX, iXLen);
+	if (!pAlgorithm->bEd25519)
+		memcpy(pPublicKey->pCoordinates + iXLen, pY, iYLen);
+	*piPublicKeyLen = iPublicKeyLen;
+	return TRUE;
+}
+
+static BOOL cert_fido_store_credential(LPCWSTR sApplicationId, LPCBYTE pPublicKey, DWORD iPublicKeyLen,
+	LPCBYTE pCredentialId, DWORD iCredentialIdLen, DWORD iUserVerification)
+{
+	if (sApplicationId == NULL || pPublicKey == NULL || pCredentialId == NULL || iCredentialIdLen == 0 ||
+		iCredentialIdLen > FIDO_MAX_CREDID_LEN)
+	{
+		return FALSE;
+	}
+
+	BYTE pOldPublicKey[sizeof(fido_public_key_buffer_t)];
+	BYTE pOldCredentialId[FIDO_MAX_CREDID_LEN];
+	BYTE pOldUserVerification[sizeof(DWORD)];
+	struct {
+		LPCWSTR sKey;
+		DWORD iType, iReadFlags;
+		LPCVOID pNewValue;
+		DWORD iNewLen;
+		LPBYTE pOldValue;
+		DWORD iOldLen, iOldCapacity;
+		BOOL bPresent;
+	} tValues[] = {
+		{ FIDO_REG_PUBKEYS, REG_BINARY, RRF_RT_REG_BINARY, pPublicKey, iPublicKeyLen, pOldPublicKey, 0,
+			sizeof(pOldPublicKey), FALSE },
+		{ FIDO_REG_CREDIDS, REG_BINARY, RRF_RT_REG_BINARY, pCredentialId, iCredentialIdLen, pOldCredentialId, 0,
+			sizeof(pOldCredentialId), FALSE },
+		{ FIDO_REG_USERVER, REG_DWORD, RRF_RT_REG_DWORD, &iUserVerification, sizeof(DWORD), pOldUserVerification, 0,
+			sizeof(pOldUserVerification), FALSE },
+	};
+
+	// Snapshot old values so failed updates cannot erase a working credential.
+	for (size_t i = 0; i < _countof(tValues); i++)
+	{
+		tValues[i].iOldLen = tValues[i].iOldCapacity;
+		LONG iResult = RegGetValueW(HKEY_CURRENT_USER, tValues[i].sKey, sApplicationId, tValues[i].iReadFlags,
+			NULL, tValues[i].pOldValue, &tValues[i].iOldLen);
+		if (iResult == ERROR_SUCCESS)
+			tValues[i].bPresent = TRUE;
+		else if (iResult != ERROR_FILE_NOT_FOUND && iResult != ERROR_PATH_NOT_FOUND)
+			return FALSE;
+	}
+
+	for (size_t i = 0; i < _countof(tValues); i++)
+	{
+		if (RegSetKeyValueW(HKEY_CURRENT_USER, tValues[i].sKey, sApplicationId, tValues[i].iType,
+			tValues[i].pNewValue, tValues[i].iNewLen) == ERROR_SUCCESS)
+		{
+			continue;
+		}
+
+		// Restore every prior value after a partial persistence failure.
+		for (size_t j = 0; j < _countof(tValues); j++)
+		{
+			if (tValues[j].bPresent)
+				RegSetKeyValueW(HKEY_CURRENT_USER, tValues[j].sKey, sApplicationId, tValues[j].iType,
+					tValues[j].pOldValue, tValues[j].iOldLen);
+			else
+				RegDeleteKeyValueW(HKEY_CURRENT_USER, tValues[j].sKey, sApplicationId);
+		}
+		return FALSE;
+	}
+
+	return TRUE;
+}
+
+static BYTE* cert_fido_decode_assertion(LPCSTR sAlgorithm,
+	LPCBYTE pSignature, DWORD iSignatureLen,
+	LPCBYTE pAuthenticatorData, DWORD iAuthenticatorDataLen,
+	int* piDecodedSignatureLen, PDWORD piCounter, PBYTE piFlags)
+{
+	if (piDecodedSignatureLen != NULL) *piDecodedSignatureLen = 0;
+	if (piCounter != NULL) *piCounter = 0;
+	if (piFlags != NULL) *piFlags = 0;
+	if (pSignature == NULL || pAuthenticatorData == NULL ||
+		piDecodedSignatureLen == NULL || piCounter == NULL || piFlags == NULL ||
+		iAuthenticatorDataLen < 37)
+	{
+		return NULL;
+	}
+
+	const fido_algorithm_details_t* pAlgorithm =
+		cert_fido_lookup_algorithm(sAlgorithm);
+	if (pAlgorithm == NULL) return NULL;
+
+	BYTE* pDecodedSignature = NULL;
+	if (pAlgorithm->bEd25519)
+	{
+		if (iSignatureLen != 64) return NULL;
+		pDecodedSignature = malloc(64);
+		if (pDecodedSignature != NULL)
+		{
+			memcpy(pDecodedSignature, pSignature, 64);
+			*piDecodedSignatureLen = 64;
+		}
+	}
+	else
+	{
+		pDecodedSignature = malloc(2 * pAlgorithm->iSignaturePartSize);
+		if (pDecodedSignature != NULL && cert_decode_ecdsa_signature(
+			pSignature, iSignatureLen, pAlgorithm->iSignaturePartSize,
+			pDecodedSignature))
+		{
+			*piDecodedSignatureLen =
+				2 * pAlgorithm->iSignaturePartSize;
+		}
+		else
+		{
+			free(pDecodedSignature);
+			pDecodedSignature = NULL;
+		}
+	}
+
+	if (pDecodedSignature == NULL) return NULL;
+
+	/* Authenticator data is rpIdHash[32], flags[1], signCount[4]. */
+	*piFlags = pAuthenticatorData[32];
+	*piCounter = ((DWORD)pAuthenticatorData[33] << 24) |
+		((DWORD)pAuthenticatorData[34] << 16) |
+		((DWORD)pAuthenticatorData[35] << 8) |
+		(DWORD)pAuthenticatorData[36];
+	return pDecodedSignature;
+}
+
 BYTE* cert_fido_sign(struct ssh2_userkey* userkey, LPCBYTE pDataToSign, int iDataToSignLen, int* iSigLen, LPCSTR sHashAlgName, PDWORD iCounter, PBYTE iFlags)
 {
+	if (userkey == NULL || userkey->comment == NULL || iSigLen == NULL || iCounter == NULL || iFlags == NULL || sHashAlgName == NULL)
+	{
+		return NULL;
+	}
+	*iSigLen = 0;
+
 	// sanity check for webauthn support
 	if (!LoadDelayLoadedLibaries()) return NULL;
 
@@ -154,36 +511,29 @@ BYTE* cert_fido_sign(struct ssh2_userkey* userkey, LPCBYTE pDataToSign, int iDat
 	if (MultiByteToWideChar(CP_UTF8, 0, szAppId, -1, szAppIdUnicode, _countof(szAppIdUnicode)) == 0) return NULL;
 
 	//  determine with algorithm to sign with 
-	LPCWSTR sHashAlg = NULL;
-	DWORD iSigPartSize = 0;
-	if (strstr(sHashAlgName, "sk-ecdsa-sha2-nistp256") == sHashAlgName)
-	{
-		sHashAlg = WEBAUTHN_HASH_ALGORITHM_SHA_256;
-		iSigPartSize = 0x20;
-	}
-	else if (strstr(sHashAlgName, "sk-ecdsa-sha2-nistp384") == sHashAlgName)
-	{
-		sHashAlg = WEBAUTHN_HASH_ALGORITHM_SHA_384;
-		iSigPartSize = 0x30;
-	}
-	else if (strstr(sHashAlgName, "sk-ecdsa-sha2-nistp521") == sHashAlgName)
-	{
-		sHashAlg = WEBAUTHN_HASH_ALGORITHM_SHA_512;
-		iSigPartSize = 0x40;
-	}
-	else if (strstr(sHashAlgName, "sk-ssh-ed25519") == sHashAlgName)
-	{
-		sHashAlg = WEBAUTHN_HASH_ALGORITHM_SHA_256;
-		iSigPartSize = 0x20;
-	}
+	const fido_algorithm_details_t* pAlgorithm = cert_fido_lookup_algorithm(sHashAlgName);
+	if (pAlgorithm == NULL) return NULL;
 
-	//  fetch credential id from registry 
-	BYTE sCredIdBuffer[FIDO_MAX_CREDID_LEN] = { 0 };
-	DWORD iCredIdBufferSize = sizeof(sCredIdBuffer);
-	if (RegGetValueW(HKEY_CURRENT_USER, FIDO_REG_CREDIDS, szAppIdUnicode,
-		RRF_RT_REG_BINARY, NULL, sCredIdBuffer, &iCredIdBufferSize) != ERROR_SUCCESS)
+	// Fetch the complete credential ID for nonresident keys.
+	PBYTE pCredentialId = NULL;
+	DWORD iCredentialIdLen = 0;
+	LONG iCredentialResult = RegGetValueW(HKEY_CURRENT_USER, FIDO_REG_CREDIDS, szAppIdUnicode,
+		RRF_RT_REG_BINARY, NULL, NULL, &iCredentialIdLen);
+	if (iCredentialResult == ERROR_SUCCESS)
 	{
-		iCredIdBufferSize = 0;
+		if (iCredentialIdLen == 0 || iCredentialIdLen > FIDO_MAX_CREDID_LEN)
+			return NULL;
+		pCredentialId = malloc(iCredentialIdLen);
+		if (pCredentialId == NULL || RegGetValueW(HKEY_CURRENT_USER, FIDO_REG_CREDIDS, szAppIdUnicode,
+			RRF_RT_REG_BINARY, NULL, pCredentialId, &iCredentialIdLen) != ERROR_SUCCESS)
+		{
+			free(pCredentialId);
+			return NULL;
+		}
+	}
+	else if (iCredentialResult != ERROR_FILE_NOT_FOUND && iCredentialResult != ERROR_PATH_NOT_FOUND)
+	{
+		return NULL;
 	}
 
 	//  fetch user verification id from registry
@@ -202,31 +552,35 @@ BYTE* cert_fido_sign(struct ssh2_userkey* userkey, LPCBYTE pDataToSign, int iDat
 	WEBAUTHN_CLIENT_DATA tClientData = { WEBAUTHN_CLIENT_DATA_CURRENT_VERSION };
 	tClientData.cbClientDataJSON = iDataToSignLen;
 	tClientData.pbClientDataJSON = (PBYTE)pDataToSign;
-	tClientData.pwszHashAlgId = sHashAlg;
+	tClientData.pwszHashAlgId = pAlgorithm->sHashAlgorithm;
 
 	//  identify credential list (technically only required for non-resident keys) 
 	WEBAUTHN_CREDENTIAL tCredential = { WEBAUTHN_CREDENTIAL_CURRENT_VERSION };
-	tCredential.cbId = iCredIdBufferSize;
+	tCredential.cbId = iCredentialIdLen;
 	tCredential.pwszCredentialType = WEBAUTHN_CREDENTIAL_TYPE_PUBLIC_KEY;
-	tCredential.pbId = sCredIdBuffer;
+	tCredential.pbId = pCredentialId;
 
 	//  setup assertion options 
 	BOOL bUtfAppId = FALSE;
 	WEBAUTHN_CREDENTIALS tCredList = { 1, &tCredential };
 	WEBAUTHN_AUTHENTICATOR_GET_ASSERTION_OPTIONS tAssertionOptions = { WEBAUTHN_AUTHENTICATOR_GET_ASSERTION_OPTIONS_CURRENT_VERSION };
-	if (iCredIdBufferSize != 0) tAssertionOptions.CredentialList = tCredList;
+	if (iCredentialIdLen != 0) tAssertionOptions.CredentialList = tCredList;
 	tAssertionOptions.dwAuthenticatorAttachment = WEBAUTHN_AUTHENTICATOR_ATTACHMENT_ANY;
 	tAssertionOptions.dwUserVerificationRequirement = iUserVerification;
 	tAssertionOptions.pbU2fAppId = &bUtfAppId;
 
 	//  fetch assertion 
-	struct GetAttestationThreadParams pParams;
+	struct GetAttestationThreadParams pParams = { 0 };
 	pParams.hWnd = GetForegroundWindow();
 	pParams.pWebAuthNClientData = &tClientData;
 	pParams.pWebAuthNGetAssertionOptions = &tAssertionOptions;
 	pParams.pwszRpId = szAppIdUnicode;
 	HANDLE hThread = CreateThread(NULL, 0, WebAuthNAuthenticatorGetAssertionThread, &pParams, 0, NULL);
-	if (hThread == NULL) return NULL;
+	if (hThread == NULL)
+	{
+		free(pCredentialId);
+		return NULL;
+	}
 
 	// wait for message to complete
 	if (pParams.hWnd != NULL && GetWindowThreadProcessId(pParams.hWnd, NULL) == GetCurrentThreadId())
@@ -244,40 +598,27 @@ BYTE* cert_fido_sign(struct ssh2_userkey* userkey, LPCBYTE pDataToSign, int iDat
 	WaitForSingleObject(hThread, INFINITE);
 	GetExitCodeThread(hThread, &iExitCode);
 	CloseHandle(hThread);
-	if (iExitCode != 0) return NULL;
-
-	//  allocate and copy signature to compressed structure
-	BYTE* Signature = NULL;
-	if (strstr(sHashAlgName, "sk-ssh-ed25519") == sHashAlgName)
+	if (iExitCode != 0)
 	{
-		// eddsa
-		Signature = malloc(pParams.ppWebAuthNAssertion->cbSignature);
-		memcpy(Signature, pParams.ppWebAuthNAssertion->pbSignature, pParams.ppWebAuthNAssertion->cbSignature);
-		*iSigLen = pParams.ppWebAuthNAssertion->cbSignature;
+		free(pCredentialId);
+		return NULL;
 	}
-	else
+	if (pParams.ppWebAuthNAssertion == NULL)
 	{
-		// ecdsa
-		const int iSigInitialOffset = 3;
-		int iSigPartOffsetR = iSigInitialOffset + 1 + (pParams.ppWebAuthNAssertion->pbSignature[iSigInitialOffset] - iSigPartSize);
-		int iSigPartOffsetS = iSigPartOffsetR + 1 + pParams.ppWebAuthNAssertion->pbSignature[iSigPartOffsetR + iSigPartSize + 1] + 1;
-		if (iSigPartOffsetR < 0 || iSigPartOffsetS < 0)
-		{
-			WebAuthNFreeAssertion(pParams.ppWebAuthNAssertion);
-			return NULL;
-		}
-		Signature = malloc((*iSigLen = iSigPartSize * 2));
-		memcpy(&Signature[0], &pParams.ppWebAuthNAssertion->pbSignature[iSigPartOffsetR], iSigPartSize);
-		memcpy(&Signature[iSigPartSize], &pParams.ppWebAuthNAssertion->pbSignature[iSigPartOffsetS], iSigPartSize);
+		free(pCredentialId);
+		return NULL;
 	}
 
-	//  return counter 
-	ecdsa_assertion_auth_header_t* pAuthData = (ecdsa_assertion_auth_header_t*)&pParams.ppWebAuthNAssertion->pbAuthenticatorData[0];
-	*iCounter = ntohl(pAuthData->Counter);
-	*iFlags = pAuthData->Flags;
+	BYTE* Signature = cert_fido_decode_assertion(sHashAlgName,
+		pParams.ppWebAuthNAssertion->pbSignature,
+		pParams.ppWebAuthNAssertion->cbSignature,
+		pParams.ppWebAuthNAssertion->pbAuthenticatorData,
+		pParams.ppWebAuthNAssertion->cbAuthenticatorData,
+		iSigLen, iCounter, iFlags);
 
 	//  cleanup 
 	WebAuthNFreeAssertion(pParams.ppWebAuthNAssertion);
+	free(pCredentialId);
 	return Signature;
 }
 
@@ -286,20 +627,44 @@ BOOL cert_fido_test_hash(LPCSTR szCert, DWORD iHashRequest)
 	return TRUE;
 }
 
-BOOL cert_fido_get_cert(PBCRYPT_ECCKEY_BLOB pPubKeyBlob, DWORD iPublicKeyBufferSize, LPWSTR sApplicationId, PCERT_CONTEXT* ppCertCtx)
+static BOOL cert_fido_get_cert(PBCRYPT_ECCKEY_BLOB pPubKeyBlob, DWORD iPublicKeyBufferSize,
+	LPWSTR sApplicationId, PCERT_CONTEXT* ppCertCtx)
 {
-	//  sanity check 
-	if (!(
-		(pPubKeyBlob->dwMagic == BCRYPT_ECDSA_PUBLIC_P256_MAGIC && pPubKeyBlob->cbKey == 32) ||
-		(pPubKeyBlob->dwMagic == BCRYPT_ECDSA_PUBLIC_P384_MAGIC && pPubKeyBlob->cbKey == 48) ||
-		(pPubKeyBlob->dwMagic == BCRYPT_ECDSA_PUBLIC_P521_MAGIC && pPubKeyBlob->cbKey == 66) ||
-		(pPubKeyBlob->dwMagic == BCRYPT_ECDSA_PUBLIC_GENERIC_MAGIC && pPubKeyBlob->cbKey == 32)))
+	if (ppCertCtx == NULL) return FALSE;
+	*ppCertCtx = NULL;
+	if (pPubKeyBlob == NULL || sApplicationId == NULL ||
+		iPublicKeyBufferSize < sizeof(BCRYPT_ECCKEY_BLOB))
+	{
+		return FALSE;
+	}
+
+	const fido_algorithm_details_t* pAlgorithm = NULL;
+	for (size_t i = 0; i < _countof(fido_algorithms); i++)
+	{
+		if (pPubKeyBlob->dwMagic == fido_algorithms[i].iPublicKeyMagic &&
+			pPubKeyBlob->cbKey == fido_algorithms[i].iSignaturePartSize)
+		{
+			pAlgorithm = &fido_algorithms[i];
+			break;
+		}
+	}
+	if (pAlgorithm == NULL) return FALSE;
+	DWORD iCoordinateCount = pAlgorithm->bEd25519 ? 1 : 2;
+
+	if (iPublicKeyBufferSize != sizeof(BCRYPT_ECCKEY_BLOB) +
+		iCoordinateCount * pPubKeyBlob->cbKey)
+	{
+		return FALSE;
+	}
+	LPCBYTE pCoordinates = (LPCBYTE)(pPubKeyBlob + 1);
+	if (!cert_fido_public_key_valid(pAlgorithm, pCoordinates,
+		pAlgorithm->bEd25519 ? NULL : pCoordinates + pAlgorithm->iSignaturePartSize))
 	{
 		return FALSE;
 	}
 
 	//  determine algorithm for cert creation
-	BYTE pPubKeyBlobTemp[FIDO_MAX_BLOB_SIZE] = { 0 };
+	fido_public_key_buffer_t tPublicKeyTemp = { 0 };
 	LPSTR sAlgo = NULL;
 	if (pPubKeyBlob->dwMagic == BCRYPT_ECDSA_PUBLIC_P256_MAGIC) sAlgo = szOID_ECDSA_SHA256;
 	if (pPubKeyBlob->dwMagic == BCRYPT_ECDSA_PUBLIC_P384_MAGIC) sAlgo = szOID_ECDSA_SHA384;
@@ -307,10 +672,10 @@ BOOL cert_fido_get_cert(PBCRYPT_ECCKEY_BLOB pPubKeyBlob, DWORD iPublicKeyBufferS
 	if (pPubKeyBlob->dwMagic == BCRYPT_ECDSA_PUBLIC_GENERIC_MAGIC)
 	{
 		// windows does not support eddsa so we mark it ecdsa and adjust in other functions
-		pPubKeyBlob->dwMagic = BCRYPT_ECDSA_PUBLIC_P256_MAGIC;
 		sAlgo = szOID_ED25519;
-		memcpy(pPubKeyBlobTemp, pPubKeyBlob, iPublicKeyBufferSize);
-		pPubKeyBlob = (PBCRYPT_ECCKEY_BLOB)&pPubKeyBlobTemp[0];
+		memcpy(&tPublicKeyTemp, pPubKeyBlob, iPublicKeyBufferSize);
+		pPubKeyBlob = &tPublicKeyTemp.tHeader;
+		pPubKeyBlob->dwMagic = BCRYPT_ECDSA_PUBLIC_P256_MAGIC;
 	}
 
 	//  get crypto handle 
@@ -321,9 +686,10 @@ BOOL cert_fido_get_cert(PBCRYPT_ECCKEY_BLOB pPubKeyBlob, DWORD iPublicKeyBufferS
 	}
 
 	//  import key data
-	NCRYPT_KEY_HANDLE hKeyHandle = sizeof(BCRYPT_ECCKEY_BLOB) + (NCRYPT_KEY_HANDLE)NULL;
-	SECURITY_STATUS iResult = NCryptImportKey(hProvider, (NCRYPT_KEY_HANDLE)NULL, BCRYPT_ECCPUBLIC_BLOB,
-		NULL, &hKeyHandle, (PBYTE)pPubKeyBlob, sizeof(BCRYPT_ECCKEY_BLOB) + (pPubKeyBlob->cbKey * 2), BCRYPT_NO_KEY_VALIDATION);
+	NCRYPT_KEY_HANDLE hKeyHandle = 0;
+	DWORD iImportFlags = pAlgorithm->bEd25519 ? BCRYPT_NO_KEY_VALIDATION : 0;
+	SECURITY_STATUS iResult = NCryptImportKey(hProvider, (NCRYPT_KEY_HANDLE)NULL, BCRYPT_ECCPUBLIC_BLOB, NULL,
+		&hKeyHandle, (PBYTE)pPubKeyBlob, sizeof(BCRYPT_ECCKEY_BLOB) + (pPubKeyBlob->cbKey * 2), iImportFlags);
 	if (iResult != ERROR_SUCCESS || hKeyHandle == (NCRYPT_KEY_HANDLE)NULL)
 	{
 		NCryptFreeObject(hProvider);
@@ -368,19 +734,20 @@ void cert_fido_load_cert(LPCSTR szCert, PCCERT_CONTEXT* ppCertCtx, HCERTSTORE* p
 	LPSTR sApplicationId = IDEN_SPLIT(szCert);
 
 	// convert to unicode in order to 
-	WCHAR szAppIdUnicode[FIDO_MAX_CREDID_LEN] = L"";
+	WCHAR szAppIdUnicode[FIDO_MAX_APPID_LEN] = L"";
 	if (MultiByteToWideChar(CP_UTF8, 0, sApplicationId, -1, szAppIdUnicode, _countof(szAppIdUnicode)) == 0) return;
 
 	// fetch value from registry
-	BYTE sPublicKeyBuffer[FIDO_MAX_PUBKEY_LEN];
-	DWORD iPublicKeyBufferSize = sizeof(sPublicKeyBuffer);
-	if (RegGetValueW(HKEY_CURRENT_USER, FIDO_REG_PUBKEYS, szAppIdUnicode, RRF_RT_REG_BINARY, NULL, sPublicKeyBuffer, &iPublicKeyBufferSize) != ERROR_SUCCESS)
+	fido_public_key_buffer_t tPublicKey;
+	DWORD iPublicKeyBufferSize = sizeof(tPublicKey);
+	if (RegGetValueW(HKEY_CURRENT_USER, FIDO_REG_PUBKEYS, szAppIdUnicode, RRF_RT_REG_BINARY,
+		NULL, &tPublicKey, &iPublicKeyBufferSize) != ERROR_SUCCESS)
 	{
 		return;
 	}
 
 	// convert public key to a certificate
-	cert_fido_get_cert((PBCRYPT_ECCKEY_BLOB)sPublicKeyBuffer, iPublicKeyBufferSize, szAppIdUnicode, ppCertCtx);
+	cert_fido_get_cert(&tPublicKey.tHeader, iPublicKeyBufferSize, szAppIdUnicode, ppCertCtx);
 }
 
 
@@ -401,17 +768,17 @@ HCERTSTORE cert_fido_get_cert_store()
 	}
 
 	// enum over cached keys in registry
-	BYTE sPublicKeyBuffer[FIDO_MAX_PUBKEY_LEN];
+	fido_public_key_buffer_t tPublicKey;
 	WCHAR sApplicationId[FIDO_MAX_APPID_LEN];
 	for (int iIndex = 0; ; iIndex++)
 	{
-		DWORD iPublicKeyBufferSize = sizeof(sPublicKeyBuffer);
+		DWORD iPublicKeyBufferSize = sizeof(tPublicKey);
 		DWORD iApplicationIdSize = _countof(sApplicationId);
 		if (RegEnumValueW(hEnumKey, iIndex, sApplicationId, &iApplicationIdSize,
-			NULL, NULL, sPublicKeyBuffer, &iPublicKeyBufferSize) != ERROR_SUCCESS) break;
+			NULL, NULL, (PBYTE)&tPublicKey, &iPublicKeyBufferSize) != ERROR_SUCCESS) break;
 
 		PCCERT_CONTEXT pCertContext = NULL;
-		if (cert_fido_get_cert((PBCRYPT_ECCKEY_BLOB)sPublicKeyBuffer, iPublicKeyBufferSize, sApplicationId, &pCertContext) == TRUE)
+		if (cert_fido_get_cert(&tPublicKey.tHeader, iPublicKeyBufferSize, sApplicationId, &pCertContext) == TRUE)
 		{
 			CertAddCertificateContextToStore(hStoreHandle, pCertContext, CERT_STORE_ADD_ALWAYS, NULL);
 			CertFreeCertificateContext(pCertContext);
@@ -464,36 +831,35 @@ BOOL fido_create_key(LPCSTR szAlgName, LPCSTR szDisplayName, LPCSTR szApplicatio
 	if (MultiByteToWideChar(CP_UTF8, 0, szDisplayName, -1, szAppDisplayUnicode, _countof(szAppDisplayUnicode)) == 0) return FALSE;
 
 	LONG iWebAuthAlt = 0;
-	LONG iSigBytes = 0;
-	LPCWSTR sWebAuthHashAlg = NULL;
+	LPCSTR sSecurityKeyAlgorithm = NULL;
 	if (strcmp(szAlgName, "ecdsa-sha2-nistp256") == 0)
 	{
 		iWebAuthAlt = WEBAUTHN_COSE_ALGORITHM_ECDSA_P256_WITH_SHA256;
-		sWebAuthHashAlg = WEBAUTHN_HASH_ALGORITHM_SHA_256;
-		iSigBytes = 32;
+		sSecurityKeyAlgorithm = "sk-ecdsa-sha2-nistp256@openssh.com";
 	}
 	else if (strcmp(szAlgName, "ecdsa-sha2-nistp384") == 0)
 	{
 		iWebAuthAlt = WEBAUTHN_COSE_ALGORITHM_ECDSA_P384_WITH_SHA384;
-		sWebAuthHashAlg = WEBAUTHN_HASH_ALGORITHM_SHA_384;
-		iSigBytes = 48;
+		sSecurityKeyAlgorithm = "sk-ecdsa-sha2-nistp384@openssh.com";
 	}
 	else if (strcmp(szAlgName, "ecdsa-sha2-nistp521") == 0)
 	{
 		iWebAuthAlt = WEBAUTHN_COSE_ALGORITHM_ECDSA_P521_WITH_SHA512;
-		sWebAuthHashAlg = WEBAUTHN_HASH_ALGORITHM_SHA_512;
-		iSigBytes = 64;
+		sSecurityKeyAlgorithm = "sk-ecdsa-sha2-nistp521@openssh.com";
 	}
 	else if (strcmp(szAlgName, "ssh-ed25519") == 0)
 	{
 		iWebAuthAlt = WEBAUTHN_COSE_ALGORITHM_EDDSA_ED25519;
-		sWebAuthHashAlg = WEBAUTHN_HASH_ALGORITHM_SHA_256;
-		iSigBytes = 32;
+		sSecurityKeyAlgorithm = "sk-ssh-ed25519@openssh.com";
 	}
 	else
 	{
 		return FALSE;
 	}
+	const fido_algorithm_details_t* pAlgorithm =
+		cert_fido_lookup_algorithm(sSecurityKeyAlgorithm);
+	if (pAlgorithm == NULL) return FALSE;
+	DWORD iSigBytes = pAlgorithm->iSignaturePartSize;
 
 	WEBAUTHN_RP_ENTITY_INFORMATION tEntityInfo = { WEBAUTHN_RP_ENTITY_INFORMATION_CURRENT_VERSION };
 	tEntityInfo.pwszName = szAppIdUnicode;
@@ -515,14 +881,14 @@ BOOL fido_create_key(LPCSTR szAlgName, LPCSTR szDisplayName, LPCSTR szApplicatio
 	WebAuthNCredentialParameters.cCredentialParameters = 1;
 	WebAuthNCredentialParameters.pCredentialParameters = &tCoseParam;
 
-	BYTE pRandomChallenge[FIDO_MAX_PUBKEY_LEN];
+	BYTE pRandomChallenge[FIDO_MAX_COORDINATE_LEN];
 	if (BCryptGenRandom(NULL, pRandomChallenge, iSigBytes, BCRYPT_USE_SYSTEM_PREFERRED_RNG)) return FALSE;
 
 	WEBAUTHN_CLIENT_DATA WebAuthNClientData;
 	WebAuthNClientData.dwVersion = WEBAUTHN_CLIENT_DATA_CURRENT_VERSION;
 	WebAuthNClientData.cbClientDataJSON = iSigBytes;
 	WebAuthNClientData.pbClientDataJSON = pRandomChallenge;
-	WebAuthNClientData.pwszHashAlgId = sWebAuthHashAlg;
+	WebAuthNClientData.pwszHashAlgId = pAlgorithm->sHashAlgorithm;
 
 	//  setup general creation options 
 	WEBAUTHN_AUTHENTICATOR_MAKE_CREDENTIAL_OPTIONS tCredentialOptions = {
@@ -571,63 +937,25 @@ BOOL fido_create_key(LPCSTR szAlgName, LPCSTR szDisplayName, LPCSTR szApplicatio
 	CloseHandle(hThread);
 	if (iExitCode != 0) return FALSE;
 
-	//  determine start of public key area 
-	PBYTE pAuthData = pParams.ppWebAuthNCredentialAttestation->pbAuthenticatorData;
-	cbor_ecdsa_response_header_t* pHeader = (cbor_ecdsa_response_header_t*)&pAuthData[0];
-	const int iPubKeyOffset = sizeof(cbor_ecdsa_response_header_t) + htons(pHeader->Length);
-
-	//  get pubic key area information 
-	cbor_ecdsa_t* pPubKey = (cbor_ecdsa_t*)&pAuthData[iPubKeyOffset];
-
-	//  allocate key blob and populate headers
-	LONG iPubKeySize = iSigBytes * 2;
-	PBCRYPT_ECCKEY_BLOB pPublicKey = calloc(sizeof(BCRYPT_ECCKEY_BLOB) + iPubKeySize, 1);
-	if (pPublicKey == NULL) return FALSE;
-	PBYTE pPublicKeyParts = &((PBYTE)pPublicKey)[sizeof(BCRYPT_ECCKEY_BLOB)];
-	pPublicKey->cbKey = iSigBytes;
-
-	//  sanity checks and copy over key parts 
-	if (iWebAuthAlt == WEBAUTHN_COSE_ALGORITHM_ECDSA_P256_WITH_SHA256 &&
-		pPubKey->Key256.Key1ValLen == iSigBytes && pPubKey->Key256.Key2ValLen == iSigBytes)
+	PWEBAUTHN_CREDENTIAL_ATTESTATION pAttestation = pParams.ppWebAuthNCredentialAttestation;
+	if (pAttestation == NULL || pAttestation->pbAuthenticatorData == NULL || pAttestation->pbCredentialId == NULL ||
+		pAttestation->cbCredentialId == 0 || pAttestation->cbCredentialId > FIDO_MAX_CREDID_LEN)
 	{
-		memcpy(&pPublicKeyParts[0], &pPubKey->Key256.Key1Val, iSigBytes);
-		memcpy(&pPublicKeyParts[iSigBytes], &pPubKey->Key256.Key2Val, iSigBytes);
-		pPublicKey->dwMagic = BCRYPT_ECDSA_PUBLIC_P256_MAGIC;
-	}
-	else if (iWebAuthAlt == WEBAUTHN_COSE_ALGORITHM_ECDSA_P384_WITH_SHA384 &&
-		pPubKey->Key384.Key1ValLen == iSigBytes && pPubKey->Key384.Key2ValLen == iSigBytes)
-	{
-		memcpy(&pPublicKeyParts[0], &pPubKey->Key384.Key1Val, iSigBytes);
-		memcpy(&pPublicKeyParts[iSigBytes], &pPubKey->Key384.Key2Val, iSigBytes);
-		pPublicKey->dwMagic = BCRYPT_ECDSA_PUBLIC_P384_MAGIC;
-	}
-	else if (iWebAuthAlt == WEBAUTHN_COSE_ALGORITHM_ECDSA_P521_WITH_SHA512 &&
-		pPubKey->Key521.Key1ValLen == iSigBytes && pPubKey->Key521.Key2ValLen == iSigBytes)
-	{
-		memcpy(&pPublicKeyParts[0], &pPubKey->Key521.Key1Val, iSigBytes);
-		memcpy(&pPublicKeyParts[iSigBytes], &pPubKey->Key521.Key2Val, iSigBytes);
-		pPublicKey->dwMagic = BCRYPT_ECDSA_PUBLIC_P521_MAGIC;
-	}
-	else if (iWebAuthAlt == WEBAUTHN_COSE_ALGORITHM_EDDSA_ED25519 &&
-		pPubKey->Key256.Key1ValLen == iSigBytes)
-	{
-		iPubKeySize = iSigBytes;
-		memcpy(&pPublicKeyParts[0], &pPubKey->Key256.Key1Val, iSigBytes);
-		pPublicKey->dwMagic = BCRYPT_ECDSA_PUBLIC_GENERIC_MAGIC;
+		if (pAttestation != NULL)
+			WebAuthNFreeCredentialAttestation(pAttestation);
+		return FALSE;
 	}
 
-	// commit data to registry
-	RegSetKeyValueW(HKEY_CURRENT_USER, FIDO_REG_PUBKEYS, szAppIdUnicode, REG_BINARY,
-		pPublicKey, iPubKeySize + sizeof(BCRYPT_ECCKEY_BLOB));
-	RegSetKeyValueW(HKEY_CURRENT_USER, FIDO_REG_CREDIDS, szAppIdUnicode, REG_BINARY,
-		pParams.ppWebAuthNCredentialAttestation->pbCredentialId, (DWORD)pParams.ppWebAuthNCredentialAttestation->cbCredentialId);
-	RegSetKeyValueW(HKEY_CURRENT_USER, FIDO_REG_USERVER, szAppIdUnicode, REG_DWORD,
-		&tCredProtect.dwCredProtect, sizeof(DWORD));
-
-	// cleanup
-	WebAuthNFreeCredentialAttestation(pParams.ppWebAuthNCredentialAttestation);
-	free(pPublicKey);
-	return TRUE;
+	// Decode and persist only a fully validated credential.
+	fido_public_key_buffer_t tPublicKey;
+	DWORD iPublicKeyLen = 0;
+	BOOL bDecoded = cert_fido_decode_credential(sSecurityKeyAlgorithm, pAttestation->pbAuthenticatorData,
+		pAttestation->cbAuthenticatorData, pAttestation->pbCredentialId, pAttestation->cbCredentialId,
+		&tPublicKey, &iPublicKeyLen);
+	BOOL bStored = bDecoded && cert_fido_store_credential(szAppIdUnicode, (LPCBYTE)&tPublicKey, iPublicKeyLen,
+		pAttestation->pbCredentialId, pAttestation->cbCredentialId, tCredProtect.dwCredProtect);
+	WebAuthNFreeCredentialAttestation(pAttestation);
+	return bStored;
 }
 
 LPWSTR fido_get_user_id()
@@ -639,21 +967,18 @@ LPWSTR fido_get_user_id()
 		return NULL;
 	}
 
-	// lookup process information size
+	// Read the bounded token-user record directly into stack storage.
 	LPWSTR sSidString = NULL;
-	DWORD dwBufferSize = 0;
-	GetTokenInformation(hToken, TokenUser, NULL, 0, &dwBufferSize);
-	if (dwBufferSize > 0)
+	union {
+		TOKEN_USER tUser;
+		BYTE pData[TOKEN_USER_MAX_SIZE];
+	} tTokenUser;
+	DWORD dwBufferSize = sizeof(tTokenUser);
+	PTOKEN_USER pTokenUser = (PTOKEN_USER)tTokenUser.pData;
+	if (GetTokenInformation(hToken, TokenUser, pTokenUser, dwBufferSize, &dwBufferSize) &&
+		IsValidSid(pTokenUser->User.Sid))
 	{
-		// lookup process information
-		PTOKEN_USER pTokenUser = (PTOKEN_USER)malloc(dwBufferSize);
-		if (GetTokenInformation(hToken, TokenUser, pTokenUser, dwBufferSize, &dwBufferSize) && IsValidSid(pTokenUser->User.Sid))
-		{
-			// acquire key name using 
-			ConvertSidToStringSidW(pTokenUser->User.Sid, &sSidString);
-		}
-
-		free(pTokenUser);
+		ConvertSidToStringSidW(pTokenUser->User.Sid, &sSidString);
 	}
 
 	// cleanup and sanity check results
@@ -768,19 +1093,19 @@ LPSTR fido_import_openssh_key()
 	ssh2_userkey* pKey = import_ssh2(oFile, SSH_KEYTYPE_OPENSSH_NEW, "", NULL);
 	sfree(oFile);
 
-	// allocate memory for the public key blob to store in the registry
-	PBCRYPT_ECCKEY_BLOB pPublicKey = calloc(FIDO_MAX_BLOB_SIZE, 1);
-	if (pPublicKey == NULL) return NULL;
+	// Keep the standardized public-key blob in bounded stack storage.
+	fido_public_key_buffer_t tPublicKey = { 0 };
+	PBCRYPT_ECCKEY_BLOB pPublicKey = &tPublicKey.tHeader;
 
 	char* szAppId = NULL;
 	DWORD iFlags = 0;
-	DWORD iPubKeyLen = 0;
 	ptrlen* tPubKeyRaw = NULL;
 	ptrlen* tCredId = NULL;
 	ptrlen* szPubKey = NULL;
 
 	// handle ecdsa import
-	if (pKey != NULL && strstr(pKey->key->vt->ssh_id, "sk-ecdsa-") == pKey->key->vt->ssh_id)
+	if (pKey != NULL && pKey->key != NULL && pKey->key->vt != NULL &&
+		strstr(pKey->key->vt->ssh_id, "sk-ecdsa-") == pKey->key->vt->ssh_id)
 	{
 		struct ecdsa_key* ek = container_of(pKey->key, struct ecdsa_key, sshk);
 		tPubKeyRaw = &ek->publicKeyRaw;
@@ -796,7 +1121,8 @@ LPSTR fido_import_openssh_key()
 	}
 
 	// handle eddsa import
-	else if (pKey != NULL && strstr(pKey->key->vt->ssh_id, "sk-ssh-ed25519") == pKey->key->vt->ssh_id)
+	else if (pKey != NULL && pKey->key != NULL && pKey->key->vt != NULL &&
+		strstr(pKey->key->vt->ssh_id, "sk-ssh-ed25519") == pKey->key->vt->ssh_id)
 	{
 		struct eddsa_key* ek = container_of(pKey->key, struct eddsa_key, sshk);
 		tPubKeyRaw = &ek->publicKeyRaw;
@@ -807,33 +1133,44 @@ LPSTR fido_import_openssh_key()
 		pPublicKey->dwMagic = BCRYPT_ECDSA_PUBLIC_GENERIC_MAGIC;
 	}
 
+	const fido_algorithm_details_t* pAlgorithm = pKey != NULL && pKey->key != NULL && pKey->key->vt != NULL ?
+		cert_fido_lookup_algorithm(pKey->key->vt->ssh_id) : NULL;
+	BOOL bPublicKeyValid = pAlgorithm != NULL && tPubKeyRaw != NULL &&
+		tPubKeyRaw->len == pAlgorithm->iSignaturePartSize * (pAlgorithm->bEd25519 ? 1 : 2) &&
+		cert_fido_public_key_valid(pAlgorithm, tPubKeyRaw->ptr,
+			pAlgorithm->bEd25519 ? NULL : (LPCBYTE)tPubKeyRaw->ptr + pAlgorithm->iSignaturePartSize);
+
 	// key load - upload to cache
-	if (szAppId != NULL)
+	if (szAppId != NULL && bPublicKeyValid)
 	{
 		// copy public key part into blob
-		memcpy(&((PBYTE)pPublicKey)[sizeof(BCRYPT_ECCKEY_BLOB)], tPubKeyRaw->ptr, tPubKeyRaw->len);
+		memcpy(tPublicKey.pCoordinates, tPubKeyRaw->ptr, tPubKeyRaw->len);
 
 		// convert to unicode for storing to registry
-		WCHAR szAppIdUnicode[FIDO_MAX_CREDID_LEN] = L"";
-		if (MultiByteToWideChar(CP_UTF8, 0, szAppId, -1, szAppIdUnicode, _countof(szAppIdUnicode)) != 0)
+		WCHAR szAppIdUnicode[FIDO_MAX_APPID_LEN] = L"";
+		BOOL bStored = tCredId != NULL && tCredId->len <= FIDO_MAX_CREDID_LEN && tCredId->len <= MAXDWORD &&
+			MultiByteToWideChar(CP_UTF8, 0, szAppId, -1, szAppIdUnicode, _countof(szAppIdUnicode)) != 0;
+		if (bStored)
 		{
-			// commit to registry
-			RegSetKeyValueW(HKEY_CURRENT_USER, FIDO_REG_PUBKEYS, szAppIdUnicode, REG_BINARY,
-				pPublicKey, sizeof(BCRYPT_ECCKEY_BLOB) + tPubKeyRaw->len);
-			RegSetKeyValueW(HKEY_CURRENT_USER, FIDO_REG_CREDIDS, szAppIdUnicode, REG_BINARY,
-				tCredId->ptr, tCredId->len);
-			RegSetKeyValueW(HKEY_CURRENT_USER, FIDO_REG_USERVER, szAppIdUnicode, REG_DWORD,
-				&iFlags, sizeof(DWORD));
+			bStored = cert_fido_store_credential(szAppIdUnicode, (LPCBYTE)pPublicKey,
+				(DWORD)(sizeof(BCRYPT_ECCKEY_BLOB) + tPubKeyRaw->len), tCredId->ptr, (DWORD)tCredId->len, iFlags);
+		}
+		if (!bStored)
+		{
+			free(szAppId);
+			szAppId = NULL;
 		}
 	}
-
-	// cleanup public key blob
-	if (pPublicKey != NULL) free(pPublicKey);
+	else if (szAppId != NULL)
+	{
+		free(szAppId);
+		szAppId = NULL;
+	}
 
 	// key cleanup
-	if (pKey != NULL && pKey->key != NULL)
+	if (pKey != NULL)
 	{
-		if (pKey != NULL) ssh_key_free(pKey->key);
+		if (pKey->key != NULL) ssh_key_free(pKey->key);
 		if (pKey->comment != NULL) sfree(pKey->comment);
 		sfree(pKey);
 	}

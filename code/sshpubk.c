@@ -562,6 +562,11 @@ const ssh_keyalg *const all_keyalgs[] = {
     &ssh_ecdsa_nistp384,
     &ssh_ecdsa_nistp521,
 #ifdef PUTTY_CAC
+    &ssh_x509v3_ssh_rsa,
+    &ssh_x509v3_rsa2048_sha256,
+    &ssh_x509v3_ecdsa_nistp256,
+    &ssh_x509v3_ecdsa_nistp384,
+    &ssh_x509v3_ecdsa_nistp521,
     &ssh_ecdsa_nistp256_sk,
     &ssh_ecdsa_nistp384_sk,
     &ssh_ecdsa_nistp521_sk,
@@ -980,6 +985,9 @@ ssh2_userkey *ppk_load_s(BinarySource *src, const char *passphrase,
         alg, ptrlen_from_strbuf(public_blob),
         ptrlen_from_strbuf(private_blob));
     if (!ukey->key) {
+#ifdef PUTTY_CAC
+        sfree(ukey->comment);
+#endif
         sfree(ukey);
         ukey = NULL;
         error = "createkey failed";

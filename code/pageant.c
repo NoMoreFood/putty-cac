@@ -62,11 +62,57 @@ struct PageantAsyncOp {
     PageantClientInfo *info;
     PageantClientRequestNode cr;
     PageantClientRequestId *reqid;
+#ifdef PUTTY_CAC
+    PageantAsyncOp *active_parent;
+#endif
 };
 struct PageantAsyncOpVtable {
     void (*coroutine)(PageantAsyncOp *pao);
     void (*free)(PageantAsyncOp *pao);
+#ifdef PUTTY_CAC
+    void (*cancel)(PageantAsyncOp *pao);
+#endif
 };
+
+#ifdef PUTTY_CAC
+static PageantAsyncOp *pageant_active_op;
+
+static bool pageant_async_op_is_active(PageantAsyncOp *pao)
+{
+    for (PageantAsyncOp *active = pageant_active_op; active;
+         active = active->active_parent) {
+        if (active == pao)
+            return true;
+    }
+    return false;
+}
+
+static inline void pageant_async_op_destroy(PageantAsyncOp *pao)
+{
+    delete_callbacks_for_context(pao);
+    pao->vt->free(pao);
+}
+
+static inline void pageant_async_op_coroutine(PageantAsyncOp *pao)
+{
+    pao->active_parent = pageant_active_op;
+    pageant_active_op = pao;
+    pao->vt->coroutine(pao);
+    pageant_active_op = pao->active_parent;
+    if (pao->info == NULL)
+        pageant_async_op_destroy(pao);
+}
+
+static inline void pageant_async_op_free(PageantAsyncOp *pao)
+{
+    if (pageant_async_op_is_active(pao)) {
+        delete_callbacks_for_context(pao);
+        pao->info = NULL;
+        return;
+    }
+    pageant_async_op_destroy(pao);
+}
+#else
 static inline void pageant_async_op_coroutine(PageantAsyncOp *pao)
 { pao->vt->coroutine(pao); }
 static inline void pageant_async_op_free(PageantAsyncOp *pao)
@@ -74,6 +120,7 @@ static inline void pageant_async_op_free(PageantAsyncOp *pao)
     delete_callbacks_for_context(pao);
     pao->vt->free(pao);
 }
+#endif
 static inline void pageant_async_op_unlink(PageantAsyncOp *pao)
 {
     pao->cr.prev->next = pao->cr.next;
@@ -81,6 +128,10 @@ static inline void pageant_async_op_unlink(PageantAsyncOp *pao)
 }
 static inline void pageant_async_op_unlink_and_free(PageantAsyncOp *pao)
 {
+#ifdef PUTTY_CAC
+    if (pao->info == NULL)
+        return;
+#endif
     pageant_async_op_unlink(pao);
     pageant_async_op_free(pao);
 }
@@ -173,6 +224,10 @@ struct PageantPrivateKey {
      * prompt must reliably signal which file they're supposed to be
      * entering the passphrase for. */
     char *encrypted_key_comment;
+#ifdef PUTTY_CAC
+    bool provider_backed;
+    char *provider_selector;
+#endif
     bool decryption_prompt_active;
     PageantKeyRequestNode blocked_requests;
     PageantClientDialogId dlgid;
@@ -183,6 +238,10 @@ struct PageantPublicKey {
     PageantPublicKeySort sort;
     strbuf *base_pub;            /* the true owner of sort.priv.base_pub */
     strbuf *full_pub;            /* the true owner of sort.full_pub */
+#ifdef PUTTY_CAC
+    strbuf *provider_alt_pub;
+    bool provider_listed_alt;
+#endif
     char *comment;
 };
 static tree234 *pubkeytree;
@@ -195,9 +254,30 @@ struct PageantSignOp {
     int crLine;
     unsigned char failure_type;
 
+#ifdef PUTTY_CAC
+    bool provider_backed;
+    const ssh_keyalg *provider_keyalg;
+    char *provider_selector;
+    strbuf *provider_public_blob;
+    uint32_t provider_supported_flags;
+    char *provider_invalid;
+    char *confirmation_fingerprint;
+    char *confirmation_comment;
+#endif
+
     PageantKeyRequestNode pkr;
     PageantAsyncOp pao;
 };
+
+#ifdef PUTTY_CAC
+typedef struct PageantProviderAddOp PageantProviderAddOp;
+struct PageantProviderAddOp {
+    const ssh_keyalg *alg;
+    char *selector;
+    unsigned char failure_type;
+    PageantAsyncOp pao;
+};
+#endif
 
 /* Master lock that indicates whether a GUI request is currently in
  * progress */
@@ -225,6 +305,9 @@ static void pk_priv_free(PageantPrivateKey *priv)
         strbuf_free(priv->encrypted_key_file);
     if (priv->encrypted_key_comment)
         sfree(priv->encrypted_key_comment);
+#ifdef PUTTY_CAC
+    sfree(priv->provider_selector);
+#endif
     fail_requests_for_key(priv, "key deleted from Pageant while signing "
                           "request was pending");
     sfree(priv);
@@ -232,6 +315,12 @@ static void pk_priv_free(PageantPrivateKey *priv)
 
 static void pk_pub_free(PageantPublicKey *pub)
 {
+#ifdef PUTTY_CAC
+    if (pub->base_pub)
+        strbuf_free(pub->base_pub);
+    if (pub->provider_alt_pub)
+        strbuf_free(pub->provider_alt_pub);
+#endif
     if (pub->full_pub)
         strbuf_free(pub->full_pub);
     sfree(pub->comment);
@@ -259,6 +348,24 @@ static strbuf *makeblob2base(ssh_key *key)
     ssh_key_public_blob(ssh_key_base_key(key), BinarySink_UPCAST(blob));
     return blob;
 }
+
+#ifdef PUTTY_CAC
+/*
+ * Provider-backed identities must not share Pageant's private-key record
+ * with a PPK, or with another public representation of the same provider
+ * key. The provider selector and requested SSH algorithm are both needed
+ * when signing, so use an internal sort key derived from the exact public
+ * blob. Valid SSH public blobs begin with a uint32 string length, making
+ * this leading marker unambiguous.
+ */
+static strbuf *make_provider_base_pub(ptrlen full_pub)
+{
+    strbuf *blob = strbuf_new();
+    put_byte(blob, 0xFF);
+    put_datapl(blob, full_pub);
+    return blob;
+}
+#endif
 
 static PageantPrivateKey *pub_to_priv(PageantPublicKey *pub)
 {
@@ -320,6 +427,24 @@ static PageantPublicKey *findpubkey2(ptrlen full_pub)
     sort.full_pub = full_pub;
     strbuf *base_pub = make_base_pub_2(&sort);
     PageantPublicKey *toret = find234(pubkeytree, &sort, NULL);
+#ifdef PUTTY_CAC
+    if (!toret) {
+        strbuf *provider_base = make_provider_base_pub(full_pub);
+        sort.priv.base_pub = ptrlen_from_strbuf(provider_base);
+        toret = find234(pubkeytree, &sort, NULL);
+        strbuf_free(provider_base);
+    }
+    if (!toret) {
+        for (int i = 0; i < count234(pubkeytree); i++) {
+            PageantPublicKey *candidate = index234(pubkeytree, i);
+            if (candidate->provider_alt_pub && ptrlen_eq_ptrlen(
+                    ptrlen_from_strbuf(candidate->provider_alt_pub), full_pub)) {
+                toret = candidate;
+                break;
+            }
+        }
+    }
+#endif
     if (base_pub)
         strbuf_free(base_pub);
     return toret;
@@ -364,6 +489,18 @@ static bool pageant_add_key_common(PageantPublicKey *pub,
     pub->sort.full_pub = ptrlen_from_strbuf(pub->full_pub);
     priv->blocked_requests.next = priv->blocked_requests.prev =
         &priv->blocked_requests;
+
+#ifdef PUTTY_CAC
+    // Keep every provider-backed public blob globally unambiguous.
+    PageantPublicKey *same_pub = priv->sort.ssh_version == 2 ?
+        findpubkey2(pub->sort.full_pub) : NULL;
+    if (same_pub &&
+        (priv->provider_backed || pub_to_priv(same_pub)->provider_backed)) {
+        pk_pub_free(pub);
+        pk_priv_free(priv);
+        return false;
+    }
+#endif
 
     /*
      * Try to add the private key to privkeytree, or combine new parts
@@ -444,15 +581,6 @@ static bool pageant_add_ssh2_key(ssh2_userkey *skey)
         pub->comment = dupstr(skey->comment);
 
     /* Duplicate the ssh_key to go in priv */
-#ifdef PUTTY_CAC
-    if (cert_is_certpath(skey->comment))
-    {
-        ssh2_userkey * userkey = cert_load_key(skey->comment);
-        priv->skey = userkey->key;
-        priv->encrypted_key_comment = userkey->comment;
-        sfree(userkey);
-    } else
-#endif // PUTTY_CAC
     {
         strbuf *tmp = strbuf_new_nm();
         ssh_key_openssh_blob(skey->key, BinarySink_UPCAST(tmp));
@@ -464,6 +592,159 @@ static bool pageant_add_ssh2_key(ssh2_userkey *skey)
 
     return pageant_add_key_common(pub, priv);
 }
+
+#ifdef PUTTY_CAC
+static bool pageant_add_provider_ssh2_key(ssh2_userkey *skey)
+{
+    if (!skey || !skey->key || !skey->comment)
+        return false;
+
+    // Treat the provider selector as the stable logical identity.
+    for (int i = 0; i < count234(pubkeytree); i++) {
+        PageantPublicKey *existing = index234(pubkeytree, i);
+        PageantPrivateKey *existing_priv = pub_to_priv(existing);
+        if (existing_priv->provider_backed &&
+            !strcmp(existing_priv->provider_selector, skey->comment))
+            return false;
+    }
+
+    PageantPublicKey *pub = snew(PageantPublicKey);
+    memset(pub, 0, sizeof(PageantPublicKey));
+    PageantPrivateKey *priv = snew(PageantPrivateKey);
+    memset(priv, 0, sizeof(PageantPrivateKey));
+    priv->sort.ssh_version = 2;
+    pub->full_pub = makeblob2full(skey->key);
+    priv->base_pub = make_provider_base_pub(ptrlen_from_strbuf(pub->full_pub));
+    if (skey->comment)
+        pub->comment = dupstr(skey->comment);
+
+    /* Transfer the exact key that was validated while decoding the request. */
+    priv->skey = skey->key;
+    skey->key = NULL;
+    priv->provider_backed = true;
+    priv->provider_selector = dupstr(skey->comment);
+    return pageant_add_key_common(pub, priv);
+}
+
+static void pageant_provider_userkey_free(ssh2_userkey *key)
+{
+    if (!key)
+        return;
+    if (key->key)
+        ssh_key_free(key->key);
+    sfree(key->comment);
+    sfree(key);
+}
+
+bool pageant_public_blob_is_x509(ptrlen blob)
+{
+    const ssh_keyalg *alg = pubkey_blob_to_alg(blob);
+    return alg && alg->ssh_id && strstartswith(alg->ssh_id, "x509v3-");
+}
+
+ptrlen pageant_provider_public_blob(PageantPublicKey *pub, bool use_x509, bool remember)
+{
+    PageantPrivateKey *priv = pub_to_priv(pub);
+    ptrlen primary = pub->sort.full_pub;
+    if (remember)
+        pub->provider_listed_alt = false;
+    if (!priv->provider_backed || cert_is_fidopath(priv->provider_selector) ||
+        pageant_public_blob_is_x509(primary) == !!use_x509)
+        return primary;
+    if (pub->provider_alt_pub) {
+        if (remember)
+            pub->provider_listed_alt = true;
+        return ptrlen_from_strbuf(pub->provider_alt_pub);
+    }
+
+    // Resolve the alternate representation from one setting snapshot.
+    ssh2_userkey *key = cert_load_key_with_x509(priv->provider_selector, use_x509);
+    if (!key || !key->key) {
+        pageant_provider_userkey_free(key);
+        return primary;
+    }
+
+    strbuf *alternate = makeblob2full(key->key);
+    pageant_provider_userkey_free(key);
+    if (pageant_public_blob_is_x509(ptrlen_from_strbuf(alternate)) != !!use_x509 ||
+        ptrlen_eq_ptrlen(ptrlen_from_strbuf(alternate), primary)) {
+        strbuf_free(alternate);
+        return primary;
+    }
+
+    PageantPublicKey *owner = findpubkey2(ptrlen_from_strbuf(alternate));
+    if (owner && owner != pub) {
+        strbuf_free(alternate);
+        return primary;
+    }
+
+    pub->provider_alt_pub = alternate;
+    if (remember)
+        pub->provider_listed_alt = true;
+    return ptrlen_from_strbuf(pub->provider_alt_pub);
+}
+
+ptrlen pageant_listed_public_blob(PageantPublicKey *pub)
+{
+    return pub->provider_listed_alt && pub->provider_alt_pub ?
+        ptrlen_from_strbuf(pub->provider_alt_pub) : pub->sort.full_pub;
+}
+
+static void pageant_provider_addop_free(PageantAsyncOp *pao)
+{
+    PageantProviderAddOp *op = container_of(
+        pao, PageantProviderAddOp, pao);
+    sfree(op->selector);
+    sfree(op);
+}
+
+static void pageant_provider_addop_coroutine(PageantAsyncOp *pao)
+{
+    PageantProviderAddOp *op = container_of(
+        pao, PageantProviderAddOp, pao);
+    ssh2_userkey *key = cert_load_key_for_keyalg(op->selector, op->alg);
+    if (op->pao.info == NULL) {
+        pageant_provider_userkey_free(key);
+        return;
+    }
+
+    strbuf *response = strbuf_new();
+    if (!key) {
+        failure(op->pao.info->pc, op->pao.reqid, response,
+                op->failure_type, "key setup failed");
+    } else {
+        if (!op->pao.info->pc->suppress_logging) {
+            char *fingerprint = ssh2_fingerprint(
+                key->key, SSH_FPTYPE_DEFAULT);
+            pageant_client_log(op->pao.info->pc, op->pao.reqid,
+                               "submitted key: %s %s",
+                               fingerprint, key->comment);
+            sfree(fingerprint);
+        }
+
+        if (pageant_add_provider_ssh2_key(key)) {
+            keylist_update();
+            put_byte(response, SSH_AGENT_SUCCESS);
+            pageant_client_log(op->pao.info->pc, op->pao.reqid,
+                               "reply: SSH_AGENT_SUCCESS");
+        } else {
+            failure(op->pao.info->pc, op->pao.reqid, response,
+                    op->failure_type, "key already present");
+        }
+    }
+    pageant_provider_userkey_free(key);
+
+    pageant_client_got_response(op->pao.info->pc, op->pao.reqid,
+                                ptrlen_from_strbuf(response));
+    strbuf_free(response);
+    pageant_async_op_unlink_and_free(&op->pao);
+}
+
+static const PageantAsyncOpVtable pageant_provider_addop_vtable = {
+    .coroutine = pageant_provider_addop_coroutine,
+    .free = pageant_provider_addop_free,
+};
+#endif
 
 static bool pageant_add_ssh2_key_encrypted(PageantPublicKeySort sort,
                                            const char *comment, ptrlen keyfile)
@@ -540,6 +821,9 @@ static void list_keys(BinarySink *bs, int ssh_version, bool extended)
 {
     int i;
     PageantPublicKey *pub;
+#ifdef PUTTY_CAC
+    BOOL use_x509 = ssh_version == 2 && cert_auth_x509_enabled(CERT_QUERY);
+#endif
 
     put_uint32(bs, count_keys(ssh_version));
     for (i = find_first_pubkey_for_version(ssh_version);
@@ -547,10 +831,17 @@ static void list_keys(BinarySink *bs, int ssh_version, bool extended)
         if (pub->sort.priv.ssh_version != ssh_version)
             break;
 
+#ifdef PUTTY_CAC
+        if (ssh_version > 1)
+            put_stringpl(bs, pageant_provider_public_blob(pub, use_x509, true));
+        else
+            put_datapl(bs, pub->sort.full_pub); // no header
+#else
         if (ssh_version > 1)
             put_stringpl(bs, pub->sort.full_pub);
         else
             put_datapl(bs, pub->sort.full_pub); /* no header */
+#endif
 
         put_stringpl(bs, ptrlen_from_asciz(pub->comment));
 
@@ -601,6 +892,10 @@ void pageant_unregister_client(PageantClient *pc)
     while (pc->info->head.next != &pc->info->head) {
         PageantAsyncOp *pao = container_of(pc->info->head.next,
                                            PageantAsyncOp, cr);
+#ifdef PUTTY_CAC
+        if (pao->vt->cancel)
+            pao->vt->cancel(pao);
+#endif
         pageant_async_op_unlink_and_free(pao);
     }
 
@@ -662,6 +957,14 @@ static void signop_free(PageantAsyncOp *pao)
     PageantSignOp *so = container_of(pao, PageantSignOp, pao);
     signop_unlink(so);
     strbuf_free(so->data_to_sign);
+#ifdef PUTTY_CAC
+    sfree(so->provider_selector);
+    sfree(so->provider_invalid);
+    sfree(so->confirmation_fingerprint);
+    sfree(so->confirmation_comment);
+    if (so->provider_public_blob)
+        strbuf_free(so->provider_public_blob);
+#endif
     sfree(so);
 }
 
@@ -689,6 +992,65 @@ static void signop_coroutine(PageantAsyncOp *pao)
     strbuf *response;
 
     crBegin(so->crLine);
+
+#ifdef PUTTY_CAC
+    BOOL bConfirmed = cert_confirm_signing(
+        so->confirmation_fingerprint, so->confirmation_comment,
+        so->provider_backed);
+    if (so->pao.info == NULL)
+        return;
+    signop_unlink(so);
+    if (!bConfirmed) {
+        response = strbuf_new();
+        failure(so->pao.info->pc, so->pao.reqid, response,
+                so->failure_type, "signing operation blocked by user");
+        goto respond;
+    }
+
+    if (so->provider_backed) {
+        if (so->flags & ~so->provider_supported_flags) {
+            response = strbuf_new();
+            failure(so->pao.info->pc, so->pao.reqid, response,
+                    so->failure_type, "unsupported flag bits 0x%08"PRIx32,
+                    so->flags & ~so->provider_supported_flags);
+            goto respond;
+        }
+
+        char *invalid = so->provider_invalid;
+        so->provider_invalid = NULL;
+        if (invalid) {
+            response = strbuf_new();
+            failure(so->pao.info->pc, so->pao.reqid, response,
+                    so->failure_type, "key invalid: %s", invalid);
+            sfree(invalid);
+            goto respond;
+        }
+
+        strbuf *signature = strbuf_new();
+        BOOL bSigned = cert_sign_for_keyalg(
+            so->provider_selector, so->provider_keyalg,
+            so->provider_public_blob->u, so->provider_public_blob->len,
+            (LPCBYTE)so->data_to_sign->u, so->data_to_sign->len,
+            so->flags, signature);
+        if (so->pao.info == NULL) {
+            strbuf_free(signature);
+            return;
+        }
+        if (!bSigned) {
+            response = strbuf_new();
+            failure(so->pao.info->pc, so->pao.reqid, response,
+                    so->failure_type, "signing failed: %s",
+                    so->provider_selector);
+            strbuf_free(signature);
+            goto respond;
+        }
+
+        response = strbuf_new();
+        put_byte(response, SSH2_AGENT_SIGN_RESPONSE);
+        put_stringsb(response, signature);
+        goto respond;
+    }
+#endif
 
     while (!so->priv->skey && gui_request_in_progress) {
         signop_link_to_pending_gui_request(so);
@@ -735,35 +1097,6 @@ static void signop_coroutine(PageantAsyncOp *pao)
     }
 
     strbuf *signature = strbuf_new();
-#ifdef PUTTY_CAC
-    if (cert_is_certpath(so->priv->encrypted_key_comment))
-    {
-        ssh2_userkey* newkey = cert_load_key(so->priv->encrypted_key_comment);
-        if (newkey == NULL)
-        {
-            response = strbuf_new();
-            failure(so->pao.info->pc, so->pao.reqid, response, so->failure_type,
-                "key invalid: %s", so->priv->encrypted_key_comment);
-            goto respond;
-        }
-        const ssh_keyalg *orig_vt = newkey->key->vt;
-        // Temporarily override the key's vtable to match the requested signature format during signing
-        newkey->key->vt = so->priv->skey->vt;
-        BOOL bSigned = cert_sign(newkey, (LPCBYTE)so->data_to_sign->u, so->data_to_sign->len, so->flags, signature);
-        newkey->key->vt = orig_vt;
-        newkey->key->vt->freekey(newkey->key);
-        sfree(newkey->comment);
-        sfree(newkey);
-        if (!bSigned)
-        {
-            response = strbuf_new();
-            failure(so->pao.info->pc, so->pao.reqid, response, so->failure_type,
-                "signing failed: %s", so->priv->encrypted_key_comment);
-            goto respond;
-        }
-    }
-    else
-#endif // PUTTY_CAC
     ssh_key_sign(so->priv->skey, ptrlen_from_strbuf(so->data_to_sign),
                  so->flags, BinarySink_UPCAST(signature));
 
@@ -780,9 +1113,20 @@ static void signop_coroutine(PageantAsyncOp *pao)
     crFinishFreedV;
 }
 
+#ifdef PUTTY_CAC
+static void signop_cancel(PageantAsyncOp *pao)
+{
+    PageantSignOp *so = container_of(pao, PageantSignOp, pao);
+    signop_unlink(so);
+}
+#endif
+
 static const PageantAsyncOpVtable signop_vtable = {
     .coroutine = signop_coroutine,
     .free = signop_free,
+#ifdef PUTTY_CAC
+    .cancel = signop_cancel,
+#endif
 };
 
 static void fail_requests_for_key(PageantPrivateKey *priv, const char *reason)
@@ -1023,8 +1367,13 @@ static PageantAsyncOp *pageant_make_op(
             int i;
             PageantPublicKey *pub;
             for (i = 0; NULL != (pub = pageant_nth_pubkey(2, i)); i++) {
+#ifdef PUTTY_CAC
+                char *fingerprint = ssh2_double_fingerprint_blob(
+                    pageant_listed_public_blob(pub), SSH_FPTYPE_DEFAULT);
+#else
                 char *fingerprint = ssh2_double_fingerprint_blob(
                     pub->sort.full_pub, SSH_FPTYPE_DEFAULT);
+#endif
                 pageant_client_log(pc, reqid, "returned key: %s %s",
                                    fingerprint, pub->comment);
                 sfree(fingerprint);
@@ -1145,16 +1494,17 @@ static PageantAsyncOp *pageant_make_op(
             goto responded;
         }
 #ifdef PUTTY_CAC
-        char* fingerprint = ssh2_fingerprint_blob(keyblob, SSH_FPTYPE_DEFAULT);
-        BOOL bContinue = cert_confirm_signing(fingerprint, pub->comment);
-        sfree(fingerprint);
-        if (!bContinue)
-        {
-            fail("signed operation blocked by user");
-            goto responded;
+        PageantPrivateKey *request_priv = pub_to_priv(pub);
+        ssh_key *provider_request_key = NULL;
+        if (request_priv->provider_backed) {
+            const ssh_keyalg *request_alg = pubkey_blob_to_alg(keyblob);
+            provider_request_key = request_alg ? ssh_key_new_pub(request_alg, keyblob) : NULL;
+            if (!provider_request_key) {
+                fail("provider public key is invalid");
+                goto responded;
+            }
         }
-#endif // PUTTY_CAC
-
+#endif
         if (have_flags)
             pageant_client_log(pc, reqid, "signature flags = 0x%08"PRIx32,
                                flags);
@@ -1176,6 +1526,30 @@ static PageantAsyncOp *pageant_make_op(
         so->flags = flags;
         so->failure_type = failure_type;
         so->crLine = 0;
+#ifdef PUTTY_CAC
+        PageantPrivateKey *signing_priv = so->priv;
+        so->provider_backed = signing_priv->provider_backed;
+        so->provider_keyalg = so->provider_backed ?
+            provider_request_key->vt : NULL;
+        so->provider_selector = so->provider_backed ?
+            dupstr(signing_priv->provider_selector) : NULL;
+        so->provider_public_blob = so->provider_backed ?
+            strbuf_dup(keyblob) : NULL;
+        so->provider_supported_flags = so->provider_backed ?
+            ssh_key_supported_flags(provider_request_key) : 0;
+        so->provider_invalid = so->provider_backed &&
+            !(flags & ~so->provider_supported_flags) ?
+            ssh_key_invalid(provider_request_key, flags) : NULL;
+        so->confirmation_fingerprint = ssh2_fingerprint_blob(
+            keyblob, SSH_FPTYPE_DEFAULT);
+        const char *confirmation_comment = so->provider_backed ?
+            signing_priv->provider_selector : pub->comment;
+        so->confirmation_comment = dupstr(
+            confirmation_comment ? confirmation_comment : "");
+        if (provider_request_key)
+            ssh_key_free(provider_request_key);
+        signop_link_to_key(so);
+#endif
         return &so->pao;
         break;
       }
@@ -1247,24 +1621,33 @@ static PageantAsyncOp *pageant_make_op(
         }
 
 #ifdef PUTTY_CAC
-		/* scan the message looking for a capi, fido, or pkcs identifier */
         size_t current_pos = msg->pos;
-		for (ptrlen t = get_string(msg); t.len != 0; t = get_string(msg))
-		{
-            char * search = dupprintf("%.*s", (int) t.len, t.ptr);
-			if (cert_is_certpath(search))
-			{
-                ssh2_userkey * newkey = cert_load_key(search);
-                if (newkey == NULL) continue; else key = newkey;
-                BinarySource_REWIND_TO(msg, ((char *) t.ptr - (char*) msg->data) - 4);
-                sfree(search);
-                break;
-			}
-            sfree(search);
-		}
+        ptrlen selector = get_string(msg);
+        if (!get_err(msg) && get_avail(msg) == 0) {
+            char *selector_string = mkstr(selector);
+            bool is_cert_selector = cert_is_certpath(selector_string);
+            bool dynamic_selector = is_cert_selector &&
+                (!strcmp(IDEN_SPLIT(selector_string), "*") ||
+                 !strcmp(IDEN_SPLIT(selector_string), "**"));
+            if (is_cert_selector && !dynamic_selector) {
+                sfree(key);
+                strbuf_free(sb); /* no immediate response */
 
-        if (key->key == NULL) BinarySource_REWIND_TO(msg, current_pos);
-		if (key->key == NULL)
+                PageantProviderAddOp *op = snew(PageantProviderAddOp);
+                op->pao.vt = &pageant_provider_addop_vtable;
+                op->pao.info = pc->info;
+                op->pao.cr.prev = pc->info->head.prev;
+                op->pao.cr.next = &pc->info->head;
+                op->pao.cr.prev->next = op->pao.cr.next->prev = &op->pao.cr;
+                op->pao.reqid = reqid;
+                op->alg = alg;
+                op->selector = selector_string;
+                op->failure_type = failure_type;
+                return &op->pao;
+            }
+            sfree(selector_string);
+        }
+        BinarySource_REWIND_TO(msg, current_pos);
 #endif // PUTTY_CAC
         key->key = ssh_key_new_priv_openssh(alg, msg);
 
@@ -1527,6 +1910,13 @@ static PageantAsyncOp *pageant_make_op(
             sort.full_pub = ptrlen_from_strbuf(full_pub);
             base_pub = make_base_pub_2(&sort);
 
+#ifdef PUTTY_CAC
+            PageantPublicKey *existing = findpubkey2(sort.full_pub);
+            if (existing && pub_to_priv(existing)->provider_backed) {
+                fail("key already present with incompatible provenance");
+                goto add_ppk_cleanup;
+            }
+#endif
             pageant_add_ssh2_key_encrypted(sort, comment, keyfile);
             keylist_update();
             put_byte(sb, SSH_AGENT_SUCCESS);
@@ -1642,9 +2032,14 @@ static PageantAsyncOp *pageant_make_op(
                 int i;
                 PageantPublicKey *pub;
                 for (i = 0; NULL != (pub = pageant_nth_pubkey(2, i)); i++) {
+#ifdef PUTTY_CAC
+                    char *fingerprint = ssh2_double_fingerprint_blob(
+                        pageant_listed_public_blob(pub), SSH_FPTYPE_DEFAULT);
+#else
                     char *fingerprint = ssh2_double_fingerprint_blob(
                         ptrlen_from_strbuf(pub->full_pub),
                         SSH_FPTYPE_DEFAULT);
+#endif
                     pageant_client_log(pc, reqid, "returned key: %s %s",
                                        fingerprint, pub->comment);
                     sfree(fingerprint);
@@ -2515,7 +2910,29 @@ int pageant_add_keyfile(Filename *filename, const char *passphrase,
         PageantClientOp *pco = pageant_client_op_new();
         put_byte(pco, SSH2_AGENTC_ADD_IDENTITY);
         put_stringz(pco, ssh_key_ssh_id(skey->key));
+#ifdef PUTTY_CAC
+        /*
+         * Certificate-backed keys do not contain exportable private key
+         * material. The receiving PuTTY-CAC Pageant recognises the
+         * certificate selector in the following comment and reloads the
+         * key from its provider, so no OpenSSH private blob is required.
+         * Reject any other key type which unexpectedly lacks a serializer.
+         */
+        if (cert_is_certpath(filename->cpath)) {
+            /* The selector itself is the complete private-key reference. */
+        } else if (ssh_key_alg(skey->key)->openssh_blob) {
+            ssh_key_openssh_blob(skey->key, BinarySink_UPCAST(pco));
+        } else {
+            pageant_client_op_free(pco);
+            sfree(skey->comment);
+            ssh_key_free(skey->key);
+            sfree(skey);
+            *retstr = dupstr("Key type cannot be sent to Pageant.");
+            return PAGEANT_ACTION_FAILURE;
+        }
+#else
         ssh_key_openssh_blob(skey->key, BinarySink_UPCAST(pco));
+#endif
         put_stringz(pco, skey->comment);
         unsigned reply = pageant_client_op_query(pco);
         pageant_client_op_free(pco);
@@ -2769,7 +3186,11 @@ char* ssh2_pubkey_openssh_str_direct(const char* comment, const void* v_pub_blob
 char* pageant_nth_ssh2_string(int i)
 {
     PageantPublicKey* pkey = pageant_nth_pubkey(2, i);
-    return ssh2_pubkey_openssh_str_direct(pkey->comment, pkey->base_pub->s, pkey->base_pub->len);
+    if (pkey == NULL) return NULL;
+    ptrlen blob = pageant_provider_public_blob(
+        pkey, cert_auth_x509_enabled(CERT_QUERY), false);
+    return ssh2_pubkey_openssh_str_direct(
+        pkey->comment, blob.ptr, blob.len);
 }
 
 char* pageant_nth_ssh2_comment(int i)
@@ -2777,5 +3198,17 @@ char* pageant_nth_ssh2_comment(int i)
     PageantPublicKey* pkey = pageant_nth_pubkey(2, i);
     if (pkey == NULL) return NULL;
     return pkey->comment;
+}
+
+bool pageant_nth_ssh2_is_provider(int i)
+{
+    PageantPublicKey* pkey = pageant_nth_pubkey(2, i);
+    return pkey != NULL && pub_to_priv(pkey)->provider_backed;
+}
+
+bool pageant_ssh2_blob_is_provider(ptrlen blob)
+{
+    PageantPublicKey *pkey = findpubkey2(blob);
+    return pkey != NULL && pub_to_priv(pkey)->provider_backed;
 }
 #endif // PUTTY_CAC

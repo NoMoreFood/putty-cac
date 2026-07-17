@@ -36,6 +36,7 @@ PuTTY executables (putty.exe, pageant.exe, psftp.exe) support the following addi
 * Save key list between PuTTY executions: `-savecertlist`,`-savecertlistoff`
 * Enable supplementary PIN caching in Pageant: `-forcepincache`,`-forcepincacheoff`
 * Prompt when certificate signing operation is requested: `-certauthprompting`,`-certauthpromptingoff`
+* Attempt X.509v3 certificate authentication when the server advertises it per RFC 6187: `-x509`,`-x509off`
 * Only display trusted certificates in certificate selection dialogs: `-trustedcertsonly`,`-trustedcertsonlyoff`
 * Do not display expired certificates in certificate selection dialogs: `-ignoreexpiredcerts`,`-ignoreexpiredcertsoff`
 * Disable all filtering in certificate selection dialogs: `-allowanycert`,`-allowanycertoff`

@@ -1178,6 +1178,15 @@ void capi_event_handler(dlgcontrol* ctrl, dlgparam* dlg, void* data, int event)
 	}
 }
 
+void cert_x509_event_handler(dlgcontrol* ctrl, dlgparam* dlg, void* data, int event)
+{
+	// Global setting shared by PuTTY and Pageant, not per-session
+	if (event == EVENT_REFRESH)
+		dlg_checkbox_set(ctrl, dlg, cert_auth_x509_enabled(CERT_QUERY));
+	if (event == EVENT_VALCHANGE)
+		cert_auth_x509_enabled(dlg_checkbox_get(ctrl, dlg) ? CERT_SET : CERT_UNSET);
+}
+
 struct portable_data {
 	dlgcontrol* portable_export_button;
 	dlgcontrol* portable_import_button;
@@ -3536,6 +3545,16 @@ void setup_config_box(struct controlbox *b, bool midsession,
 			capid->capi_delete_key_button = ctrl_pushbutton(s, "Delete Key...",
 				NO_SHORTCUT, HELPCTX(no_help), capi_event_handler, P(capid));
 			capid->capi_delete_key_button->column = 2;
+
+			s = ctrl_getset(b, "Connection/SSH/Certificate/CAPI Tools",
+				"x509_options", "X.509v3 options");
+			if (!cert_auth_x509_enabled(CERT_ENFORCED))
+			{
+				ctrl_checkbox(s, "Attempt X.509v3 certificate authentication",
+					NO_SHORTCUT, HELPCTX(no_help), cert_x509_event_handler, P(NULL));
+			}
+			ctrl_text(s, "Note: This is a global setting (shared with Pageant), not per-session. " \
+				"Most SSH servers and devices do not support X.509v3 authentication per (RFC 6187).", HELPCTX(no_help));
 
 			/*
 			 * The Portable panel (root level).

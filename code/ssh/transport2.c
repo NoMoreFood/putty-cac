@@ -427,6 +427,13 @@ bool ssh2_common_filter_queue(PacketProtocolLayer *ppl)
              * such an illegal EXT_INFO won't have a chance to affect
              * the session before the BPP aborts it anyway.
              */
+#ifdef PUTTY_CAC
+            /* A later EXT_INFO replaces the earlier extension state. */
+            ppl->bpp->ext_info_rsa_sha256_ok = false;
+            ppl->bpp->ext_info_rsa_sha512_ok = false;
+            ppl->bpp->ext_info_x509_rsa_sha256_ok = false;
+#endif
+
             uint32_t nexts = get_uint32(pktin);
             for (uint32_t i = 0; i < nexts && !get_err(pktin); i++) {
                 ptrlen extname = get_string(pktin);
@@ -456,6 +463,11 @@ bool ssh2_common_filter_queue(PacketProtocolLayer *ppl)
                             ppl->bpp->ext_info_rsa_sha256_ok = true;
                         if (ptrlen_eq_string(algname, "rsa-sha2-512"))
                             ppl->bpp->ext_info_rsa_sha512_ok = true;
+#ifdef PUTTY_CAC
+                        if (ptrlen_eq_string(
+                                algname, "x509v3-rsa2048-sha256"))
+                            ppl->bpp->ext_info_x509_rsa_sha256_ok = true;
+#endif
                     }
                 }
             }

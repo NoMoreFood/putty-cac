@@ -1207,6 +1207,17 @@ void load_key_file(HWND hwnd, struct MainDlgState *state,
 void add_certificate(HWND hwnd, struct MainDlgState *state,
                      Filename *filename)
 {
+#ifdef PUTTY_CAC
+    if (!ssh_key_has_private(state->ssh2key.key)) {
+        message_box(
+            hwnd, "A hardware-backed key cannot be combined with a "
+            "detached certificate because its private key is not exportable.",
+            "PuTTYgen Error", MB_OK | MB_ICONERROR, false,
+            HELPCTXID(errors_cantloadkey));
+        return;
+    }
+#endif
+
     int type = key_type(filename);
     if (type != SSH_KEYTYPE_SSH2_PUBLIC_RFC4716 &&
         type != SSH_KEYTYPE_SSH2_PUBLIC_OPENSSH) {

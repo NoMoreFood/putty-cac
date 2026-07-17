@@ -111,6 +111,13 @@ void pageant_passphrase_request_refused(PageantClientDialogId *dlgid);
 void pageant_make_keylist1(BinarySink *);
 void pageant_make_keylist2(BinarySink *);
 
+#ifdef PUTTY_CAC
+struct PageantPublicKey;
+bool pageant_public_blob_is_x509(ptrlen blob);
+ptrlen pageant_provider_public_blob(struct PageantPublicKey *pub, bool use_x509, bool remember);
+ptrlen pageant_listed_public_blob(struct PageantPublicKey *pub);
+#endif
+
 /*
  * Accessor functions for Pageant's internal key lists, used by GUI
  * Pageant, to count the keys, to delete a key, or to re-encrypt a

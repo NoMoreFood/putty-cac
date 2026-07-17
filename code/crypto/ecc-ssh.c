@@ -2011,3 +2011,316 @@ bool ec_ed_alg_and_curve_by_bits(
     *curve = ((struct ecsign_extra *)(*alg)->extra)->curve();
     return true;
 }
+
+#ifdef PUTTY_CAC
+
+#include "cert_common.h"
+
+#define x509v3_base_id(ssh_id) ((ssh_id) + (sizeof("x509v3-") - 1))
+
+static WeierstrassPoint *parse_x509_ecdsa_pubkey(
+    ptrlen cert, const char *keyalg, const struct ec_curve *curve)
+{
+    LPCBYTE spk;
+    size_t spk_len;
+    if (!cert_x509_ecdsa_public_key(
+            keyalg, cert.ptr, cert.len, &spk, &spk_len))
+        return NULL;
+
+    size_t field_len = (curve->fieldBits + 7) / 8;
+    if (spk_len == 0 ||
+        !((spk[0] == 2 || spk[0] == 3) && spk_len == 1 + field_len) &&
+        !(spk[0] == 4 && spk_len == 1 + 2 * field_len))
+        return NULL;
+    return ecdsa_decode(make_ptrlen(spk, spk_len), curve);
+}
+
+static void x509_ecdsa_freekey(ssh_key *key);
+
+static ssh_key *x509_ecdsa_new_priv(
+    const ssh_keyalg *self, ptrlen pub, ptrlen priv)
+{
+    (void)self;
+    (void)pub;
+    (void)priv;
+    return NULL;
+}
+
+static ssh_key *x509_ecdsa_new_priv_openssh(
+    const ssh_keyalg *self, BinarySource *src)
+{
+    (void)self;
+    (void)src;
+    return NULL;
+}
+
+static bool x509_ecdsa_has_private(ssh_key *key)
+{
+    (void)key;
+    return false;
+}
+
+static ssh_key *x509_ecdsa_new_pub(const ssh_keyalg *self, ptrlen pub)
+{
+    LPCBYTE public_blob_body, cert;
+    size_t public_blob_body_len, cert_len;
+    if (!cert_parse_x509_public_blob(
+            self->ssh_id, pub.ptr, pub.len,
+            &public_blob_body, &public_blob_body_len,
+            &cert, &cert_len))
+        return NULL;
+
+    struct x509_ssh_ecdsa_key *xkey = snew(struct x509_ssh_ecdsa_key);
+    memset(xkey, 0, sizeof(*xkey));
+    xkey->ecdsa.sshk.vt = self;
+
+    /* Preserve the complete certificate chain and OCSP section verbatim. */
+    xkey->cert_len = public_blob_body_len;
+    xkey->cert_data = snewn(xkey->cert_len, unsigned char);
+    memcpy(xkey->cert_data, public_blob_body, xkey->cert_len);
+
+    const struct ecsign_extra *extra = (const struct ecsign_extra *)self->extra;
+    xkey->ecdsa.curve = extra->curve();
+
+    xkey->ecdsa.publicKey = parse_x509_ecdsa_pubkey(
+        make_ptrlen(cert, cert_len), self->ssh_id, xkey->ecdsa.curve);
+    if (!xkey->ecdsa.publicKey) {
+        x509_ecdsa_freekey(&xkey->ecdsa.sshk);
+        return NULL;
+    }
+
+    return &xkey->ecdsa.sshk;
+}
+
+static void x509_ecdsa_freekey(ssh_key *key)
+{
+    struct ecdsa_key *ec = container_of(key, struct ecdsa_key, sshk);
+    struct x509_ssh_ecdsa_key *xkey = container_of(ec, struct x509_ssh_ecdsa_key, ecdsa);
+    if (xkey->ecdsa.publicKey) {
+        ecc_weierstrass_point_free(xkey->ecdsa.publicKey);
+    }
+    if (xkey->ecdsa.privateKey) {
+        mp_free(xkey->ecdsa.privateKey);
+    }
+    sfree(xkey->cert_data);
+    sfree(xkey);
+}
+
+static void x509_ecdsa_public_blob(ssh_key *key, BinarySink *bs)
+{
+    struct ecdsa_key *ec = container_of(key, struct ecdsa_key, sshk);
+    struct x509_ssh_ecdsa_key *xkey = container_of(ec, struct x509_ssh_ecdsa_key, ecdsa);
+
+    put_stringz(bs, key->vt->ssh_id);
+    put_data(bs, xkey->cert_data, xkey->cert_len);
+}
+
+static void x509_ecdsa_sign(ssh_key *key, ptrlen data,
+                            unsigned flags, BinarySink *bs)
+{
+    struct ecdsa_key *ec = container_of(key, struct ecdsa_key, sshk);
+    const struct ecsign_extra *extra = (const struct ecsign_extra *)key->vt->extra;
+    assert(ec->privateKey);
+
+    mp_int *z = ecdsa_signing_exponent_from_data(ec->curve, extra, data);
+    mp_int *k = rfc6979(extra->hash, ec->curve->w.G_order, ec->privateKey, data);
+    WeierstrassPoint *kG = ecc_weierstrass_multiply(ec->curve->w.G, k);
+    mp_int *x;
+    ecc_weierstrass_get_affine(kG, &x, NULL);
+    ecc_weierstrass_point_free(kG);
+
+    mp_int *r = mp_mod(x, ec->curve->w.G_order);
+    mp_free(x);
+
+    mp_int *rPriv = mp_modmul(r, ec->privateKey, ec->curve->w.G_order);
+    mp_int *numerator = mp_modadd(z, rPriv, ec->curve->w.G_order);
+    mp_free(z);
+    mp_free(rPriv);
+    mp_int *kInv = mp_invert(k, ec->curve->w.G_order);
+    mp_free(k);
+    mp_int *s = mp_modmul(numerator, kInv, ec->curve->w.G_order);
+    mp_free(numerator);
+    mp_free(kInv);
+
+    // The signature blob names the base algorithm (e.g. "ecdsa-sha2-nistp256"), not the "x509v3-"-prefixed key id
+    put_stringz(bs, x509v3_base_id(key->vt->ssh_id));
+
+    strbuf *substr = strbuf_new();
+    put_mp_ssh2(substr, r);
+    put_mp_ssh2(substr, s);
+    put_stringsb(bs, substr);
+
+    mp_free(r);
+    mp_free(s);
+}
+
+static bool x509_ecdsa_verify(ssh_key *key, ptrlen sig, ptrlen data)
+{
+    struct ecdsa_key *ek = container_of(key, struct ecdsa_key, sshk);
+    const struct ecsign_extra *extra = (const struct ecsign_extra *)key->vt->extra;
+
+    BinarySource src[1];
+    BinarySource_BARE_INIT_PL(src, sig);
+
+    if (!ptrlen_eq_string(get_string(src), x509v3_base_id(key->vt->ssh_id)))
+        return false;
+
+    ptrlen sigstr = get_string(src);
+    if (get_err(src) || get_avail(src) != 0)
+        return false;
+    BinarySource_BARE_INIT_PL(src, sigstr);
+
+    mp_int *r = get_mp_ssh2(src);
+    mp_int *s = get_mp_ssh2(src);
+    if (get_err(src) || get_avail(src) != 0) {
+        mp_free(r);
+        mp_free(s);
+        return false;
+    }
+
+    unsigned invalid = 0;
+    invalid |= mp_eq_integer(r, 0);
+    invalid |= mp_eq_integer(s, 0);
+    invalid |= mp_cmp_hs(r, ek->curve->w.G_order);
+    invalid |= mp_cmp_hs(s, ek->curve->w.G_order);
+
+    mp_int *z = ecdsa_signing_exponent_from_data(ek->curve, extra, data);
+
+    mp_int *w = mp_invert(s, ek->curve->w.G_order);
+    mp_int *u1 = mp_modmul(z, w, ek->curve->w.G_order);
+    mp_free(z);
+    mp_int *u2 = mp_modmul(r, w, ek->curve->w.G_order);
+    mp_free(w);
+    WeierstrassPoint *u1G = ecc_weierstrass_multiply(ek->curve->w.G, u1);
+    mp_free(u1);
+    WeierstrassPoint *u2H = ecc_weierstrass_multiply(ek->publicKey, u2);
+    mp_free(u2);
+    // Must use the fully general addition: u1*G and u2*H may be equal or inverse, which the fast ecc_weierstrass_add cannot handle (matches the base ecdsa_verify)
+    WeierstrassPoint *u1Gu2H = ecc_weierstrass_add_general(u1G, u2H);
+    ecc_weierstrass_point_free(u1G);
+    ecc_weierstrass_point_free(u2H);
+    if (ecc_weierstrass_is_identity(u1Gu2H)) {
+        ecc_weierstrass_point_free(u1Gu2H);
+        mp_free(r);
+        mp_free(s);
+        return false;
+    }
+
+    mp_int *rx;
+    ecc_weierstrass_get_affine(u1Gu2H, &rx, NULL);
+    ecc_weierstrass_point_free(u1Gu2H);
+
+    mp_divmod_into(rx, ek->curve->w.G_order, NULL, rx);
+    invalid |= (1 ^ mp_cmp_eq(r, rx));
+    mp_free(rx);
+
+    mp_free(r);
+    mp_free(s);
+
+    return !invalid;
+}
+
+static key_components *x509_ecdsa_components(ssh_key *key)
+{
+    struct ecdsa_key *ek = container_of(key, struct ecdsa_key, sshk);
+    return ecdsa_components(&ek->sshk);
+}
+
+static char *x509_ecdsa_cache_str(ssh_key *key)
+{
+    struct ecdsa_key *ek = container_of(key, struct ecdsa_key, sshk);
+    return ecdsa_cache_str(&ek->sshk);
+}
+
+static int x509_ecdsa_pubkey_bits(const ssh_keyalg *self, ptrlen pub)
+{
+    ssh_key *sshk = x509_ecdsa_new_pub(self, pub);
+    if (!sshk)
+        return -1;
+    struct ecdsa_key *ek = container_of(sshk, struct ecdsa_key, sshk);
+    int ret = ek->curve->fieldBits;
+    x509_ecdsa_freekey(sshk);
+    return ret;
+}
+
+static char *x509_ecdsa_alg_desc(const ssh_keyalg *self)
+{
+    const struct ecsign_extra *extra = (const struct ecsign_extra *)self->extra;
+    return dupprintf("ECDSA %s (X.509v3)", extra->alg_desc);
+}
+
+const ssh_keyalg ssh_x509v3_ecdsa_nistp256 = {
+    .new_pub = x509_ecdsa_new_pub,
+    .new_priv = x509_ecdsa_new_priv,
+    .new_priv_openssh = x509_ecdsa_new_priv_openssh,
+    .freekey = x509_ecdsa_freekey,
+    .invalid = ec_signkey_invalid,
+    .sign = x509_ecdsa_sign,
+    .verify = x509_ecdsa_verify,
+    .public_blob = x509_ecdsa_public_blob,
+    .private_blob = NULL,
+    .openssh_blob = NULL,
+    .has_private = x509_ecdsa_has_private,
+    .cache_str = x509_ecdsa_cache_str,
+    .components = x509_ecdsa_components,
+    .base_key = nullkey_base_key,
+    .pubkey_bits = x509_ecdsa_pubkey_bits,
+    .supported_flags = nullkey_supported_flags,
+    .alternate_ssh_id = nullkey_alternate_ssh_id,
+    .alg_desc = x509_ecdsa_alg_desc,
+    .variable_size = nullkey_variable_size_no,
+    .ssh_id = "x509v3-ecdsa-sha2-nistp256",
+    .cache_id = "x509v3-ecdsa-sha2-nistp256",
+    .extra = &sign_extra_nistp256,
+};
+
+const ssh_keyalg ssh_x509v3_ecdsa_nistp384 = {
+    .new_pub = x509_ecdsa_new_pub,
+    .new_priv = x509_ecdsa_new_priv,
+    .new_priv_openssh = x509_ecdsa_new_priv_openssh,
+    .freekey = x509_ecdsa_freekey,
+    .invalid = ec_signkey_invalid,
+    .sign = x509_ecdsa_sign,
+    .verify = x509_ecdsa_verify,
+    .public_blob = x509_ecdsa_public_blob,
+    .private_blob = NULL,
+    .openssh_blob = NULL,
+    .has_private = x509_ecdsa_has_private,
+    .cache_str = x509_ecdsa_cache_str,
+    .components = x509_ecdsa_components,
+    .base_key = nullkey_base_key,
+    .pubkey_bits = x509_ecdsa_pubkey_bits,
+    .supported_flags = nullkey_supported_flags,
+    .alternate_ssh_id = nullkey_alternate_ssh_id,
+    .alg_desc = x509_ecdsa_alg_desc,
+    .variable_size = nullkey_variable_size_no,
+    .ssh_id = "x509v3-ecdsa-sha2-nistp384",
+    .cache_id = "x509v3-ecdsa-sha2-nistp384",
+    .extra = &sign_extra_nistp384,
+};
+
+const ssh_keyalg ssh_x509v3_ecdsa_nistp521 = {
+    .new_pub = x509_ecdsa_new_pub,
+    .new_priv = x509_ecdsa_new_priv,
+    .new_priv_openssh = x509_ecdsa_new_priv_openssh,
+    .freekey = x509_ecdsa_freekey,
+    .invalid = ec_signkey_invalid,
+    .sign = x509_ecdsa_sign,
+    .verify = x509_ecdsa_verify,
+    .public_blob = x509_ecdsa_public_blob,
+    .private_blob = NULL,
+    .openssh_blob = NULL,
+    .has_private = x509_ecdsa_has_private,
+    .cache_str = x509_ecdsa_cache_str,
+    .components = x509_ecdsa_components,
+    .base_key = nullkey_base_key,
+    .pubkey_bits = x509_ecdsa_pubkey_bits,
+    .supported_flags = nullkey_supported_flags,
+    .alternate_ssh_id = nullkey_alternate_ssh_id,
+    .alg_desc = x509_ecdsa_alg_desc,
+    .variable_size = nullkey_variable_size_no,
+    .ssh_id = "x509v3-ecdsa-sha2-nistp521",
+    .cache_id = "x509v3-ecdsa-sha2-nistp521",
+    .extra = &sign_extra_nistp521,
+};
+#endif

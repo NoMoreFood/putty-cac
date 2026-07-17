@@ -533,6 +533,7 @@ struct ecdsa_key {
     mp_int *privateKey;
     ssh_key sshk;
 #ifdef PUTTY_CAC
+#define PUTTY_CAC_SSH_TYPES_DEFINED
     char* appid;
     int flags;
     ptrlen publicKeyRaw;
