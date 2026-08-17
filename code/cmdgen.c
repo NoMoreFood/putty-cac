@@ -1327,6 +1327,15 @@ int main(int argc, char **argv)
                 RETURN(1);
             }
         } else {
+            char *err = ppk_params_bad(
+                &params,
+                new_passphrase != NULL,
+                new_passphrase ? strlen(new_passphrase) : 0);
+            if (err) {
+                fprintf(stderr, "puttygen: PPK parameters invalid: %s\n", err);
+                sfree(err);
+                RETURN(1);
+            }
             assert(ssh2key);
             ret = ppk_save_f(outfilename, ssh2key, new_passphrase, &params);
             if (!ret) {

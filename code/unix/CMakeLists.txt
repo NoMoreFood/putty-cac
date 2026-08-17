@@ -113,6 +113,7 @@ if(HAVE_ALIGNED_ALLOC)
   target_compile_definitions(overaligned_alloc PRIVATE ALLOCATION_ALIGNMENT=128)
   add_executable(testsc
     ${CMAKE_SOURCE_DIR}/test/testsc.c
+    ${CMAKE_SOURCE_DIR}/test/test_random.c
     $<TARGET_OBJECTS:overaligned_alloc>)
   target_link_libraries(testsc keygen crypto utils)
 endif()

@@ -25,13 +25,14 @@
 <li><a href="#feedback-vulns">B.3 Reporting security vulnerabilities</a></li>
 <li><a href="#feedback-features">B.4 Requesting extra features</a></li>
 <li><a href="#feedback-feature-priority">B.5 Requesting features that have already been requested</a></li>
-<li><a href="#feedback-workarounds">B.6 Workarounds for SSH server bugs</a></li>
-<li><a href="#feedback-support">B.7 Support requests</a></li>
-<li><a href="#feedback-webadmin">B.8 Web server administration</a></li>
-<li><a href="#feedback-permission">B.9 Asking permission for things</a></li>
-<li><a href="#feedback-mirrors">B.10 Mirroring the PuTTY web site</a></li>
-<li><a href="#feedback-compliments">B.11 Praise and compliments</a></li>
-<li><a href="#feedback-address">B.12 E-mail address</a></li>
+<li><a href="#feedback-patches">B.6 Contributing to the code</a></li>
+<li><a href="#feedback-workarounds">B.7 Workarounds for SSH server bugs</a></li>
+<li><a href="#feedback-support">B.8 Support requests</a></li>
+<li><a href="#feedback-webadmin">B.9 Web server administration</a></li>
+<li><a href="#feedback-permission">B.10 Asking permission for things</a></li>
+<li><a href="#feedback-mirrors">B.11 Mirroring the PuTTY web site</a></li>
+<li><a href="#feedback-compliments">B.12 Praise and compliments</a></li>
+<li><a href="#feedback-address">B.13 E-mail address</a></li>
 </ul></li>
 </ul>
 <h1><a name="feedback"></a><a name="AB"></a>Appendix B: <a name="i0"></a>Feedback and <a name="i1"></a>bug reporting</h1>
@@ -46,7 +47,7 @@ This is a guide to providing feedback to the PuTTY development team. It is provi
 The PuTTY development team gets a <em>lot</em> of mail. If you can possibly solve your own problem by reading the manual, reading the FAQ, reading the web site, asking a fellow user, or some other means, then it would make our lives much easier.
 </p>
 <p>
-We get so much e-mail that we literally do not have time to answer it all. We regret this, but there's nothing we can do about it. So if you can <em>possibly</em> avoid sending mail to the PuTTY team, we recommend you do so. In particular, support requests (<a href="#feedback-support">section B.7</a>) are probably better sent to some public forum, or passed to a local expert if possible.
+We get so much e-mail that we literally do not have time to answer it all. We regret this, but there's nothing we can do about it. So if you can <em>possibly</em> avoid sending mail to the PuTTY team, we recommend you do so. In particular, support requests (<a href="#feedback-support">section B.8</a>) are probably better sent to some public forum, or passed to a local expert if possible.
 </p>
 <p>
 The PuTTY contact email address is a private <a name="i2"></a>mailing list containing four or five core developers. Don't be put off by it being a mailing list: if you need to send confidential data as part of a bug report, you can trust the people on the list to respect that confidence. Also, the archives aren't publicly available, so you shouldn't be letting yourself in for any spam by sending us mail.
@@ -77,7 +78,10 @@ If you <em>must</em> mail a screen shot, don't send it as a <code>.BMP</code> fi
 Please don't mail us executables, at all. Our mail server blocks all incoming e-mail containing executables, as a defence against the vast numbers of e-mail viruses we receive every day. If you mail us an executable, it will just bounce.
 </p>
 <p>
-If you have made a tiny modification to the PuTTY code, please send us a <em>patch</em> to the source code if possible, rather than sending us a huge <code>.ZIP</code> file containing the complete sources plus your modification. If you've only changed 10 lines, we'd prefer to receive a mail that's 30 lines long than one containing multiple megabytes of data we already have.
+If you have made a tiny modification to the PuTTY code, please send us a &#8216;<code>git bundle</code>&#8217; file, or a patch file, or a URL to a clone of our git repository, in preference to modified versions of entire source files. (Even if the source files are in a <code>.zip</code> or similar.) If you've only changed 10 lines, we'd prefer to receive a mail that's at most the size of the <em>changes</em>, instead of one containing multiple megabytes of data we already have.
+</p>
+<p>
+(For more thoughts about sending patches, see <a href="#feedback-patches">section B.6</a>.)
 </p>
 <h2><a name="feedback-bugs"></a><a name="SB.2"></a>B.2 Reporting bugs</h2>
 <p>
@@ -158,7 +162,7 @@ If you can't find your feature in either the development snapshots <em>or</em> t
 Do as much of the design as you can. Think about &#8216;corner cases&#8217;; think about how your feature interacts with other existing features. Think about the user interface; if you can't come up with a simple and intuitive interface to your feature, you shouldn't be surprised if we can't either. Always imagine whether it's possible for there to be more than one, or less than one, of something you'd assumed there would be one of. (For example, if you were to want PuTTY to put an icon in the System tray rather than the Taskbar, you should think about what happens if there's more than one PuTTY active; how would the user tell which was which?)
 </li>
 <li>
-If you can program, it may be worth offering to write the feature yourself and send us a patch. However, it is likely to be helpful if you confer with us first; there may be design issues you haven't thought of, or we may be about to make big changes to the code which your patch would clash with, or something. If you check with the maintainers first, there is a better chance of your code actually being usable. Also, read the design principles listed in <a href="AppendixE.html#udp">appendix E</a>: if you do not conform to them, we will probably not be able to accept your patch.
+If you can program, it may be worth offering to write the feature yourself and send us a patch. See <a href="#feedback-patches">section B.6</a> for more about this.
 </li>
 </ul>
 <h2><a name="feedback-feature-priority"></a><a name="SB.5"></a>B.5 Requesting features that have already been requested</h2>
@@ -172,10 +176,65 @@ Mail us and vote for it. (Be sure to mention that you've seen it on the Wishlist
 Offer us money if we do the work sooner rather than later. This sometimes works, but not always. The PuTTY team all have full-time jobs and we're doing all of this work in our free time; we may sometimes be willing to give up some more of our free time in exchange for some money, but if you try to bribe us for a <em>big</em> feature it's entirely possible that we simply won't have the time to spare - whether you pay us or not. (Also, we don't accept bribes to add <em>bad</em> features to the Wishlist, because our desire to provide high-quality software to the users comes first.)
 </li>
 <li>
-Offer to help us write the code. This is probably the <em>only</em> way to get a feature implemented quickly, if it's a big one that we don't have time to do ourselves.
+Offer to help us write the code. This is probably the <em>only</em> way to get a feature implemented quickly, if it's a big one that we don't have time to do ourselves. See the next section for more about this.
 </li>
 </ul>
-<h2><a name="feedback-workarounds"></a><a name="SB.6"></a>B.6 Workarounds for SSH server bugs</h2>
+<h2><a name="feedback-patches"></a><a name="SB.6"></a>B.6 Contributing to the code</h2>
+<p>
+Patches to PuTTY are welcome, if they're good quality. But we have high standards for a good patch. Here are some guidelines.
+</p>
+<p>
+<strong>Talk to us if design changes are involved</strong>. If you're changing something fundamental about how PuTTY works, we might well not agree with the direction of the change. If you put a lot of effort into it and then we reject it, that's a waste of your own effort (apart from still being practice at programming). If you'd rather not waste that much time, checking with us before doing a lot of work can avoid it.
+</p>
+<p>
+<strong>Read the design principles</strong>. <a href="AppendixE.html#udp">Appendix E</a> in the manual explains some ground rules for the PuTTY code base in general, such as not adding Windows-specific code outside the <code>windows</code> subdirectory.
+</p>
+<p>
+<strong>Address the hard part of the problem</strong>. A lot of possible changes to PuTTY have an easy bit and a hard bit. If the patch only does the easy bit, this is not really different from a pure feature request (one without a patch at all). Before accepting a patch of that kind, <em>we</em> would still have to do the part that takes real work; if we already haven't found time to do that by ourselves, we're not going to suddenly find time just because you've done the easy part.
+</p>
+<p>
+On the other hand, a patch that does the <em>hard</em> part and leaves the <em>easy</em> parts to us is another matter. (For example, if some change ought to be user-configurable, but you implement it unconditionally, leaving to us the mechanics of adding an option to turn it on and off.) In that situation &#8211; if the hard part is done well &#8211; we might be quite willing to say &#8216;Thank you! Don't worry about the boring bits, we can take it from here.&#8217;
+</p>
+<p>
+Sometimes the hard part is a design question: is it better to do a thing <em>this</em> way, or <em>that</em> way? In that situation, we'd like to see arguments for <em>why</em> you decided to do it the way you did, considering the pros and cons of both. If you just pick one without even mentioning the decision &#8211; or if you only mention a single advantage of your choice, and don't comment on any disadvantages &#8211; it will look as if you didn't consider it properly at all. If we were happy to make the decision that way, we'd have done it already!
+</p>
+<p>
+<strong>Please don't write your code with a large language model</strong>. In general, we are not fans of LLM coding, or LLMs in general, and <em>we</em> don't use them to develop PuTTY. They're environmentally disastrous; they're based on appropriating large numbers of people's work without credit, compensation or even consent, and then turning round and using the results to deprive those same people of livelihood; they're run by companies who have already demonstrated lack of ethics, so they can't be trusted to have your best interests at heart in future, or ours. Also, there is still a question of copyright in the generated code; as of 2026-08 there was an initial USA court decision on the subject, but that isn't the last word, especially since we are not solely interested in <em>USA</em> law. (We aren't even <em>in</em> the USA.)
+</p>
+<p>
+We can't completely avoid engaging with some users of LLMs. In particular, reports of security vulnerabilies found by LLM techniques will still be accepted as vulnerabilities (assuming they're correct), and we'll fix them. We have no choice about that: if we didn't, those vulnerabilities would be exploited, sooner or later. But we'd prefer not to have LLM-generated <em>code</em> in PuTTY at all.
+</p>
+<p>
+Here are some <em>particular</em> bad things people seem to like to do with LLMs. Some of them are possible without an LLM, as well; please don't do them in that situation either.
+</p>
+<p>
+<strong>Don't send us 10&#215; more autogenerated code than you could sensibly write yourself</strong>. If you weren't able to write that much code even once, how do you imagine we'll maintain it when changes are needed? Maybe <em>you'd</em> expect to maintain it in future by further use of LLMs &#8211; but we don't think that's a good answer, so we won't accept a patch of that kind in the first place.
+</p>
+<p>
+We're not fans of LLMs in general, but we especially don't want to become <em>dependent</em> on LLMs to maintain code. (Or any other proprietary tool, either.) That is not <em>just</em> against our own interests: it's against the entire principle of free software, because it limits <em>other</em> people modifying and adapting our code as well.
+</p>
+<p>
+If you have a plan that requires autogenerating huge piles of code via some other method like a conventional computer program, then that <em>might</em> be acceptable (depending on what it's doing). But in that case, the autogenerated code doesn't belong in the patch: the <em>source code</em> in a case like this is the smaller program that did the generation (that's what you'd modify in order to make future changes), and the build system should be set up to run it and compile the result.
+</p>
+<p>
+<strong>Don't push lots of work on to other people, imagining you're saving work</strong>. In particular, running an LLM code generator and mailing us the results without having checked it over carefully. <em>Someone</em> has to check the code and make sure it's right; if you haven't done that work, then we would have to do it (if we accepted the patch at all), so you haven't saved effort, you've just pushed it on to us.
+</p>
+<p>
+Another example is autogenerating hugely verbose writeups (e.g. in a bug report), including lots of irrelevant information as well as the important things. Again, <em>somebody</em> has to discard the unimportant parts. If the writer won't do it, the reader must do it when they read the text. So, again, letting an LLM generate way too much text is pushing effort on to somebody else, not saving it overall.
+</p>
+<p>
+<strong>Don't rewrite the whole patch just because we requested a small change</strong>. Reviewing the rewritten code costs us a lot of effort, even if writing it cost you very little. Also, a rewrite risks introducing a fresh set of bugs to replace the ones found by the code review so far. After we've reviewed a patch once we'd rather not review the <em>whole</em> thing again, so don't make us do it if it isn't really necessary. Aim to make smaller and smaller changes until we accept the patch.
+</p>
+<p>
+<strong>Don't expect us to be patient and helpful if you're relying on an LLM</strong>. Not everyone is a top-tier programmer. Less skilled people might still want to send us patches, and we don't want to be completely hostile to those people. If you write a patch with your own brain and fingers, and you need some help making it good enough because you lack skills or knowledge, then we're prepared to work with you, because it will improve your skills and knowledge as a side effect, and that's also a good thing. But if you're just pasting our advice into your LLM, then it's <em>not</em> having that side effect, and we lose the motivation to help you out.
+</p>
+<p>
+<strong>Don't lie about using an LLM</strong>. If you have some reason why you think you absolutely <em>need</em> to use an LLM, then tell us so, and we'll see if we agree. Of course you could try just not telling us. But we'll definitely lose all patience with you if we find that out!
+</p>
+<p>
+We're sorry to have to say all of this. We know it all looks very hostile and unwelcoming. We'd <em>like</em> to cheerily say &#8216;patches welcome!&#8217;, and leave it at that. But in the 2020s, unfortunately, that is not an attitude that works any more, because too many people take advantage of it.
+</p>
+<h2><a name="feedback-workarounds"></a><a name="SB.7"></a>B.7 Workarounds for SSH server bugs</h2>
 <p>
 It's normal for SSH implementations to automatically enable workarounds for each other's bugs, using the software version strings that are exchanged at the start of the connection. Typically an SSH client will have a list of server version strings that it believes to have particular bugs, and auto-enable the appropriate set of workarounds when it sees one of those strings. (And servers will have a similar list of workarounds for <em>client</em> software they believe to be buggy.)
 </p>
@@ -194,7 +253,7 @@ An exception: if an SSH server is no longer maintained <em>at all</em> (e.g. the
 <p>
 We do recognise that sometimes it will be difficult to get the server maintainer to fix a bug, or even to answer support requests at all. Or it might take them a very long time to get round to doing anything about it. We're not completely unwilling to compromise: we're prepared to add <em>manually enabled</em> workarounds to PuTTY even for bugs that an implementation hasn't fixed yet. We just won't <em>automatically</em> enable the workaround unless the server maintainer has also done their part.
 </p>
-<h2><a name="feedback-support"></a><a name="SB.7"></a>B.7 <a name="i6"></a>Support requests</h2>
+<h2><a name="feedback-support"></a><a name="SB.8"></a>B.8 <a name="i6"></a>Support requests</h2>
 <p>
 If you're trying to make PuTTY do something for you and it isn't working, but you're not sure whether it's a bug or not, then <em>please</em> consider looking for help somewhere else. This is one of the most common types of mail the PuTTY team receives, and we simply don't have time to answer all the questions. Questions of this type include:
 </p>
@@ -214,7 +273,7 @@ If you have successfully made a connection to your server and now need to know w
 <p>
 If you absolutely cannot get a support question answered any other way, you can try mailing it to us, but we can't guarantee to have time to answer it.
 </p>
-<h2><a name="feedback-webadmin"></a><a name="SB.8"></a>B.8 Web server administration</h2>
+<h2><a name="feedback-webadmin"></a><a name="SB.9"></a>B.9 Web server administration</h2>
 <p>
 If the PuTTY <a name="i7"></a>web site is down (Connection Timed Out), please don't bother mailing us to tell us about it. Most of us read our e-mail on the same machines that host the web site, so if those machines are down then we will notice <em>before</em> we read our e-mail. So there's no point telling us our servers are down.
 </p>
@@ -224,7 +283,7 @@ Of course, if the web site has some other error (Connection Refused, 404 Not Fou
 <p>
 If you want to report a problem with our web site, check that you're looking at our <em>real</em> web site and not a mirror. The real web site is at <a href="https://www.chiark.greenend.org.uk/~sgtatham/putty/"><code>https://www.chiark.greenend.org.uk/~sgtatham/putty/</code></a>; if that's not where you're reading this, then don't report the problem to us until you've checked that it's really a problem with the main site. If it's only a problem with the mirror, you should try to contact the administrator of that mirror site first, and only contact us if that doesn't solve the problem (in case we need to remove the mirror from our list).
 </p>
-<h2><a name="feedback-permission"></a><a name="SB.9"></a>B.9 Asking permission for things</h2>
+<h2><a name="feedback-permission"></a><a name="SB.10"></a>B.10 Asking permission for things</h2>
 <p>
 PuTTY is distributed under the MIT Licence (see <a href="AppendixD.html#licence">appendix D</a> for details). This means you can do almost <em>anything</em> you like with our software, our source code, and our documentation. The only things you aren't allowed to do are to remove our copyright notices or the licence text itself, or to hold us legally responsible if something goes wrong.
 </p>
@@ -240,7 +299,7 @@ If you want to use parts of the PuTTY source code in another program, then it mi
 <p>
 If you just want to link to our web site, just go ahead. (It's not clear that we <em>could</em> stop you doing this, even if we wanted to!)
 </p>
-<h2><a name="feedback-mirrors"></a><a name="SB.10"></a>B.10 Mirroring the PuTTY web site</h2>
+<h2><a name="feedback-mirrors"></a><a name="SB.11"></a>B.11 Mirroring the PuTTY web site</h2>
 <p>
 If you want to set up a mirror of the PuTTY website, go ahead and set one up. Please don't bother asking us for permission before setting up a mirror. You already have permission.
 </p>
@@ -256,7 +315,7 @@ Also note that we link to all our mirror sites using the <code>rel="nofollow"</c
 <p>
 If you have technical questions about the process of mirroring, then you might want to mail us before setting up the mirror (see also the <a href="https://www.chiark.greenend.org.uk/~sgtatham/putty/mirrors.html#guidelines">guidelines on the Mirrors page</a>); but if you just want to ask for permission, you don't need to. You already have permission.
 </p>
-<h2><a name="feedback-compliments"></a><a name="SB.11"></a>B.11 Praise and compliments</h2>
+<h2><a name="feedback-compliments"></a><a name="SB.12"></a>B.12 Praise and compliments</h2>
 <p>
 One of the most rewarding things about maintaining free software is getting e-mails that just say &#8216;thanks&#8217;. We are always happy to receive e-mails of this type.
 </p>
@@ -266,11 +325,11 @@ Regrettably we don't have time to answer them all in person. If you mail us a co
 <p>
 To everyone who's ever sent us praise and compliments, in the past and the future: <em>you're welcome</em>!
 </p>
-<h2><a name="feedback-address"></a><a name="SB.12"></a>B.12 E-mail address</h2>
+<h2><a name="feedback-address"></a><a name="SB.13"></a>B.13 E-mail address</h2>
 <p>
 The actual address to mail is <code>&lt;<a href="mailto:putty@projects.tartarus.org">putty@projects.tartarus.org</a>&gt;</code>.
 </p>
 
 <hr><p>If you want to provide feedback on this manual or on the PuTTY tools themselves, see the <a href="https://www.chiark.greenend.org.uk/~sgtatham/putty/feedback.html">Feedback page</a>.</p><address>
-[PuTTY release 0.84]</address></body>
+[PuTTY release 0.85]</address></body>
 </html>

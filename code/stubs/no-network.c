@@ -147,4 +147,9 @@ Socket *platform_start_subprocess(
 #ifdef PUTTY_WINDOWS_PLATFORM_H
 void plug_closing_system_error(Plug *plug, DWORD error) {}
 void plug_closing_winsock_error(Plug *plug, DWORD error) {}
+
+Socket *new_named_pipe_client(const char *pipename, Plug *plug)
+{ return NULL; }
+Socket *new_named_pipe_listener(const char *pipename, Plug *plug)
+{ return NULL; }
 #endif

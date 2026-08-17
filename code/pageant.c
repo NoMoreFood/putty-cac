@@ -231,6 +231,7 @@ struct PageantPrivateKey {
     bool decryption_prompt_active;
     PageantKeyRequestNode blocked_requests;
     PageantClientDialogId dlgid;
+    bool moribund;       /* have we been unlinked from privkeytree? */
 };
 static tree234 *privkeytree;
 
@@ -290,26 +291,43 @@ static void failure(PageantClient *pc, PageantClientRequestId *reqid,
 static void fail_requests_for_key(PageantPrivateKey *priv, const char *reason);
 static PageantPublicKey *pageant_nth_pubkey(int ssh_version, int i);
 
-static void pk_priv_free(PageantPrivateKey *priv)
+static void pk_priv_free_private_material(PageantPrivateKey *priv)
 {
-    if (priv->base_pub)
-        strbuf_free(priv->base_pub);
     if (priv->sort.ssh_version == 1 && priv->rkey) {
         freersakey(priv->rkey);
         sfree(priv->rkey);
+        priv->rkey = NULL;
     }
     if (priv->sort.ssh_version == 2 && priv->skey) {
         ssh_key_free(priv->skey);
+        priv->skey = NULL;
     }
-    if (priv->encrypted_key_file)
+    if (priv->encrypted_key_file) {
         strbuf_free(priv->encrypted_key_file);
-    if (priv->encrypted_key_comment)
+        priv->encrypted_key_file = NULL;
+    }
+    if (priv->encrypted_key_comment) {
         sfree(priv->encrypted_key_comment);
+        priv->encrypted_key_comment = NULL;
+    }
 #ifdef PUTTY_CAC
     sfree(priv->provider_selector);
+    priv->provider_selector = NULL;
 #endif
     fail_requests_for_key(priv, "key deleted from Pageant while signing "
                           "request was pending");
+}
+
+static void pk_priv_free(PageantPrivateKey *priv)
+{
+    /* Expect no signing operations in progress, and also no active
+     * decryption prompt */
+    assert(priv->blocked_requests.next == &priv->blocked_requests);
+    assert(!priv->decryption_prompt_active);
+
+    if (priv->base_pub)
+        strbuf_free(priv->base_pub);
+    pk_priv_free_private_material(priv);
     sfree(priv);
 }
 
@@ -789,7 +807,10 @@ static void remove_pubkey_cleanup(PageantPublicKey *pub)
         PageantPrivateKey *priv = del234(privkeytree, &pub->sort.priv);
         assert(priv);
         assert(!privkey_cmpfn(&priv->sort, &pub->sort.priv));
-        pk_priv_free(priv);
+        pk_priv_free_private_material(priv);
+        priv->moribund = true;
+        if (!priv->decryption_prompt_active)
+            pk_priv_free(priv);
     }
 }
 
@@ -1171,6 +1192,11 @@ void pageant_passphrase_request_success(PageantClientDialogId *dlgid,
     assert(gui_request_in_progress);
     gui_request_in_progress = false;
     priv->decryption_prompt_active = false;
+
+    if (priv->moribund) {
+        pk_priv_free(priv);
+        return;
+    }
 
     if (!priv->skey) {
         const char *error;

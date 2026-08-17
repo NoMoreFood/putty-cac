@@ -366,9 +366,19 @@ static INT_PTR CALLBACK PPKParamsProc(HWND hwnd, UINT msg,
         return 0;
       case WM_COMMAND:
         switch (LOWORD(wParam)) {
-          case IDOK:
-            EndDialog(hwnd, 1);
+          case IDOK: {
+            /* Check these parameters for validity before we adopt
+             * them. At this stage we don't have the real passphrase
+             * length, so make one up. */
+            char *err = ppk_params_bad(&pp->params, true, 64);
+            if (err) {
+                MessageBox(hwnd, err, "Save parameters invalid",
+                           MB_OK | MB_ICONERROR);
+            } else {
+                EndDialog(hwnd, 1);
+            }
             return 0;
+          }
           case IDCANCEL:
             EndDialog(hwnd, 0);
             return 0;
@@ -2055,6 +2065,7 @@ static INT_PTR CALLBACK MainDlgProc(HWND hwnd, UINT msg,
                     (type==realtype ? FILTER_KEY_FILES : FILTER_ALL_FILES));
                 if (fn) {
                     int ret;
+                    char *err = NULL;
                     FILE *fp = f_open(fn, "r", false);
                     if (fp) {
                         char *buffer;
@@ -2088,10 +2099,23 @@ static INT_PTR CALLBACK MainDlgProc(HWND hwnd, UINT msg,
                         if (type != realtype)
                             ret = export_ssh2(fn, type, &state->ssh2key,
                                               *passphrase ? passphrase : NULL);
-                        else
-                            ret = ppk_save_f(fn, &state->ssh2key,
-                                             *passphrase ? passphrase : NULL,
-                                             &save_params);
+                        else {
+                            err = ppk_params_bad(&save_params,
+                                                 *passphrase != '\0',
+                                                 strlen(passphrase));
+                            if (err) {
+                                char *newerr = dupcat(
+                                    "PPK parameters invalid: ", err);
+                                sfree(err);
+                                err = newerr;
+                                ret = -1;
+                            } else {
+                                ret = ppk_save_f(
+                                    fn, &state->ssh2key,
+                                    *passphrase ? passphrase : NULL,
+                                    &save_params);
+                            }
+                        }
                     } else {
                         if (type != realtype)
                             ret = export_ssh1(fn, type, &state->key,
@@ -2101,9 +2125,10 @@ static INT_PTR CALLBACK MainDlgProc(HWND hwnd, UINT msg,
                                               *passphrase ? passphrase : NULL);
                     }
                     if (ret <= 0) {
-                        MessageBox(hwnd, "Unable to save key file",
+                        MessageBox(hwnd, err ? err : "Unable to save key file",
                                    "PuTTYgen Error", MB_OK | MB_ICONERROR);
                     }
+                    sfree(err);
                     filename_free(fn);
                 }
                 burnstr(passphrase);

@@ -2118,6 +2118,15 @@ culpa qui officia deserunt mollit anim id est laborum.
         self.assertFalse(ssh_key_verify(pubkey, badsig0, "hello, again"))
         self.assertFalse(ssh_key_verify(pubkey, badsigq, "hello, again"))
 
+    def testRSAEdgeCases(self):
+        # Check that a public key with exponent 1 is rejected. It
+        # doesn't matter in this case that the modulus is nonsense.
+        n = (1<<2048) // 3
+        goodblob = ssh_string(b"ssh-rsa") + b"".join(map(ssh2_mpint, [3, n]))
+        self.assertNotEqual(ssh_key_new_pub('rsa', goodblob), None)
+        badblob = ssh_string(b"ssh-rsa") + b"".join(map(ssh2_mpint, [1, n]))
+        self.assertEqual(ssh_key_new_pub('rsa', badblob), None)
+
     def testRFC6979(self):
         # The test case described in detail in RFC 6979 section A.1.
         # We can't actually do the _signature_ for this, because it's

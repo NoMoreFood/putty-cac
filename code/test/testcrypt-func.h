@@ -293,7 +293,8 @@ FUNC(void, aesgcm_set_prefix_lengths,
  * all the functions that output key and signature blobs do it by
  * returning a string.
  */
-FUNC(val_key, ssh_key_new_pub, ARG(keyalg, alg), ARG(val_string_ptrlen, pub))
+FUNC(opt_val_key, ssh_key_new_pub, ARG(keyalg, alg),
+     ARG(val_string_ptrlen, pub))
 FUNC(opt_val_key, ssh_key_new_priv, ARG(keyalg, alg),
      ARG(val_string_ptrlen, pub), ARG(val_string_ptrlen, priv))
 FUNC(opt_val_key, ssh_key_new_priv_openssh, ARG(keyalg, alg),

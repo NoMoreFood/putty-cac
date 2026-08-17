@@ -82,6 +82,21 @@ add_executable(testcrypt
 target_link_libraries(testcrypt
   keygen crypto utils ${platform_libraries})
 
+add_executable(test_bpp
+  test/test_bpp.c
+  test/test_random.c
+  callback.c
+  stubs/no-logging.c
+  stubs/no-network.c
+  stubs/no-agent.c
+  stubs/no-ldisc.c
+  stubs/no-timing.c
+  stubs/no-storage.c
+  stubs/no-ca-config.c
+  proxy/noproxy.c)
+target_link_libraries(test_bpp
+  sshclient crypto network utils ${platform_libraries})
+
 add_executable(test_host_strfoo
   utils/host_strchr_internal.c)
 target_compile_definitions(test_host_strfoo PRIVATE TEST)

@@ -12,7 +12,7 @@ void modalfatalbox(const char *p, ...)
     exit(1);
 }
 
-const char *const appname = "test_lineedit";
+const char *const appname = "test_terminal";
 
 char *platform_default_s(const char *name)
 { return NULL; }

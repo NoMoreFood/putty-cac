@@ -15,6 +15,9 @@ void log_packet(LogContext *ctx, int direction, int type,
                 int n_blanks, const struct logblank_t *blanks,
                 const unsigned long *seq,
                 unsigned downstream_id, const char *additional_log_text) {}
+void logfopen(LogContext *logctx) {}
+void logfclose(LogContext *logctx) {}
+LogPolicy *log_get_policy(LogContext *logctx) { return NULL; }
 
 LogContext *log_init(LogPolicy *lp, Conf *conf)
 { return NULL; }

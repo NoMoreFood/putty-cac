@@ -480,9 +480,11 @@ SeatPromptResult console_confirm_weak_cached_hostkey(
     SeatPromptResult result;
 
     const char *prompt = console_print_seatdialogtext(conio, text);
-    if (!prompt)
-        return SPR_SW_ABORT("Cannot confirm a weak cached host key "
-                            "in batch mode");
+    if (!prompt) {
+        result = SPR_SW_ABORT("Cannot confirm a weak cached host key "
+                              "in batch mode");
+        goto out;
+    }
 
     put_fmt(conio, "%s (y/n) ", prompt);
 
@@ -495,7 +497,7 @@ SeatPromptResult console_confirm_weak_cached_hostkey(
         put_dataz(conio, console_abandoned_msg);
         result = SPR_USER_ABORT;
     }
-
+  out:
     conio_free(conio);
     return result;
 }

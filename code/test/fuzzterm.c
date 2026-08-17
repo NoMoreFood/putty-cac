@@ -35,6 +35,8 @@ int main(int argc, char **argv)
         term_data(term, blk, len);
     }
     term_update(term);
+    term_free(term);
+    conf_free(conf);
     return 0;
 }
 
@@ -72,6 +74,7 @@ static int fuzz_char_width(TermWin *tw, int uc) { return 1; }
 static void fuzz_free_draw_ctx(TermWin *tw) {}
 static void fuzz_set_cursor_pos(TermWin *tw, int x, int y) {}
 static void fuzz_set_raw_mouse_mode(TermWin *tw, bool enable) {}
+static void fuzz_set_raw_mouse_mode_pointer(TermWin *tw, bool enable) {}
 static void fuzz_set_scrollbar(TermWin *tw, int total, int start, int page) {}
 static void fuzz_bell(TermWin *tw, int mode) {}
 static void fuzz_clip_write(
@@ -100,6 +103,7 @@ static const TermWinVtable fuzz_termwin_vt = {
     .free_draw_ctx = fuzz_free_draw_ctx,
     .set_cursor_pos = fuzz_set_cursor_pos,
     .set_raw_mouse_mode = fuzz_set_raw_mouse_mode,
+    .set_raw_mouse_mode_pointer = fuzz_set_raw_mouse_mode_pointer,
     .set_scrollbar = fuzz_set_scrollbar,
     .bell = fuzz_bell,
     .clip_write = fuzz_clip_write,

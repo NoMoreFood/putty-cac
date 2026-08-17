@@ -83,6 +83,7 @@
 #include "crypto/ecc.h"
 #include "crypto/ntru.h"
 #include "crypto/mlkem.h"
+#include "test.h"
 
 static NORETURN PRINTF_LIKE(1, 2) void fatal_error(const char *p, ...)
 {
@@ -96,71 +97,6 @@ static NORETURN PRINTF_LIKE(1, 2) void fatal_error(const char *p, ...)
 }
 
 void out_of_memory(void) { fatal_error("out of memory"); }
-
-/*
- * A simple deterministic PRNG, without any of the Fortuna
- * complexities, for generating test inputs in a way that's repeatable
- * between runs of the program, even if only a subset of test cases is
- * run.
- */
-static uint64_t random_counter = 0;
-static const char *random_seedstr = NULL;
-static uint8_t random_buf[MAX_HASH_LEN];
-static size_t random_buf_limit = 0;
-static ssh_hash *random_hash;
-
-static void random_seed(const char *seedstr)
-{
-    random_seedstr = seedstr;
-    random_counter = 0;
-    random_buf_limit = 0;
-}
-
-static void random_advance_counter(void)
-{
-    ssh_hash_reset(random_hash);
-    put_asciz(random_hash, random_seedstr);
-    put_uint64(random_hash, random_counter);
-    random_counter++;
-    random_buf_limit = ssh_hash_alg(random_hash)->hlen;
-    ssh_hash_digest(random_hash, random_buf);
-}
-
-void random_read(void *vbuf, size_t size)
-{
-    assert(random_seedstr);
-    uint8_t *buf = (uint8_t *)vbuf;
-    while (size-- > 0) {
-        if (random_buf_limit == 0)
-            random_advance_counter();
-        *buf++ = random_buf[random_buf_limit--];
-    }
-}
-
-struct random_state {
-    const char *seedstr;
-    uint64_t counter;
-    size_t limit;
-    uint8_t buf[MAX_HASH_LEN];
-};
-
-static struct random_state random_get_state(void)
-{
-    struct random_state st;
-    st.seedstr = random_seedstr;
-    st.counter = random_counter;
-    st.limit = random_buf_limit;
-    memcpy(st.buf, random_buf, sizeof(st.buf));
-    return st;
-}
-
-static void random_set_state(struct random_state st)
-{
-    random_seedstr = st.seedstr;
-    random_counter = st.counter;
-    random_buf_limit = st.limit;
-    memcpy(random_buf, st.buf, sizeof(random_buf));
-}
 
 /*
  * Macro that defines a function, and also a volatile function pointer
@@ -1641,8 +1577,8 @@ static void test_primegen(const PrimeGenerationPolicy *policy)
 
     for (size_t i = 0; i < looplimit(2); i++) {
         while (true) {
-            random_advance_counter();
-            struct random_state st = random_get_state();
+            testrandom_advance_counter();
+            struct testrandom_state st = testrandom_get_state();
 
             PrimeCandidateSource *pcs = pcs_new(128);
             pcs_set_oneshot(pcs);
@@ -1653,7 +1589,7 @@ static void test_primegen(const PrimeGenerationPolicy *policy)
                 mp_copy_into(pcopy, p);
                 sfree(p);
 
-                random_set_state(st);
+                testrandom_set_state(st);
 
                 log_start();
                 PrimeCandidateSource *pcs = pcs_new(128);
@@ -1694,8 +1630,8 @@ static void test_ntru(void)
 
     for (size_t i = 0; i < looplimit(32); i++) {
         while (true) {
-            random_advance_counter();
-            struct random_state st = random_get_state();
+            testrandom_advance_counter();
+            struct testrandom_state st = testrandom_get_state();
 
             NTRUKeyPair *keypair = ntru_keygen_attempt(p, q, w);
 
@@ -1704,7 +1640,7 @@ static void test_ntru(void)
                        p*sizeof(*pubkey_orig));
                 ntru_keypair_free(keypair);
 
-                random_set_state(st);
+                testrandom_set_state(st);
 
                 log_start();
                 NTRUKeyPair *keypair = ntru_keygen_attempt(p, q, w);
@@ -1760,7 +1696,7 @@ static void test_mlkem(const mlkem_params *params)
     random_read(rho, 32);
 
     for (size_t i = 0; i < looplimit(32); i++) {
-        random_advance_counter();
+        testrandom_advance_counter();
         random_read(sigma, 32);
         random_read(z, 32);
         random_read(m, 32);
@@ -1885,7 +1821,7 @@ int main(int argc, char **argv)
     enable_dit();
 
     memset(tests_to_run, 1, sizeof(tests_to_run));
-    random_hash = ssh_hash_new(&ssh_sha256);
+    testrandom_init();
 
     while (--argc > 0) {
         char *p = *++argv;
@@ -1967,7 +1903,7 @@ int main(int argc, char **argv)
         fflush(stdout);
 
         test_skipped = false;
-        random_seed(test->testname);
+        testrandom_seed(test->testname);
         test_basename = test->testname;
         test_index = 0;
 
@@ -2055,7 +1991,7 @@ int main(int argc, char **argv)
         }
     }
 
-    ssh_hash_free(random_hash);
+    testrandom_cleanup();
 
     if (npass == nrun) {
         printf("All tests passed\n");

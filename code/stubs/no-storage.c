@@ -4,6 +4,7 @@
  */
 
 #include "putty.h"
+#include "storage.h"
 
 settings_w *open_settings_w(const char *sessionname, char **errmsg)
 { return NULL; }
@@ -38,3 +39,23 @@ bool enum_settings_next(settings_e *handle, strbuf *out)
 { unreachable("where did you get a settings_e from?"); }
 void enum_settings_finish(settings_e *handle)
 { unreachable("where did you get a settings_e from?"); }
+
+int check_stored_host_key(const char *hostname, int port,
+                          const char *keytype, const char *key) { return 0; }
+void store_host_key(Seat *seat, const char *hostname, int port,
+                    const char *keytype, const char *key) {}
+bool have_ssh_host_key(const char *host, int port, const char *keytype) { return false; }
+
+void read_random_seed(noise_consumer_t consumer) {}
+void write_random_seed(void *data, int len) {}
+
+host_ca_enum *enum_host_ca_start(void) { return NULL; }
+bool enum_host_ca_next(host_ca_enum *handle, strbuf *out) { return false; }
+void enum_host_ca_finish(host_ca_enum *handle) {}
+
+host_ca *host_ca_load(const char *name) { return NULL; }
+char *host_ca_save(host_ca *hca) { return NULL; }
+char *host_ca_delete(const char *name) { return NULL; }
+
+host_ca *host_ca_new(void) { return NULL; }
+void host_ca_free(host_ca *hca) {}

@@ -35,7 +35,7 @@ module putty
 ifeq "$(RELEASE)" "" set Ndate $(!builddate)
 ifneq "$(Ndate)" "" in . do echo $(Ndate) | perl -pe 's/(....)(..)(..)/$$1-$$2-$$3/' > date
 ifneq "$(Ndate)" "" read Date date
-set Epoch 19587 # update this at every release
+set Epoch 19679 # update this at every release
 ifneq "$(Ndate)" "" in . do echo $(Ndate) | perl -ne 'use Time::Local; /(....)(..)(..)/ and print timegm(0,0,0,$$3,$$2-1,$$1) / 86400 - $(Epoch)' > days
 ifneq "$(Ndate)" "" read Days days
 
@@ -143,6 +143,8 @@ in putty do python3 test/cryptsuite.py
 in putty do ./test_lineedit
 in putty do ./test_terminal
 in putty do ./test_conf
+in putty do ./test_bpp
+in putty do echo 'smoke test to catch easy crashes' | ./fuzzterm > /dev/null
 enddelegate
 
 delegate -

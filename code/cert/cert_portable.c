@@ -10,6 +10,8 @@
 
 #include "cert_portable.h"
 
+#pragma comment(lib,"shlwapi.lib")
+
 static const WCHAR sPuttyRoot[] = L"Software\\SimonTatham";
 static const WCHAR sSoftwareRoot[] = L"Software";
 

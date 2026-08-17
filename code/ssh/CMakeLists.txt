@@ -11,6 +11,7 @@ add_library(sshcommon OBJECT
   crc-attack-detector.c
   gssc.c
   login1.c
+  nocompress.c
   pgssapi.c
   portfwd.c
   ../sshpubk.c
