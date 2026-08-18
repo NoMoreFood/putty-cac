@@ -3546,15 +3546,21 @@ void setup_config_box(struct controlbox *b, bool midsession,
 				NO_SHORTCUT, HELPCTX(no_help), capi_event_handler, P(capid));
 			capid->capi_delete_key_button->column = 2;
 
-			s = ctrl_getset(b, "Connection/SSH/Certificate/CAPI Tools",
+			/*
+			 * The Connection/SSH/Certificate/X509 Options panel.
+			 */
+			ctrl_settitle(b, "Connection/SSH/Certificate/X509 Options",
+				"Options controlling X.509v3 certificate authentication");
+			s = ctrl_getset(b, "Connection/SSH/Certificate/X509 Options",
 				"x509_options", "X.509v3 options");
 			if (!cert_auth_x509_enabled(CERT_ENFORCED))
 			{
 				ctrl_checkbox(s, "Attempt X.509v3 certificate authentication",
 					NO_SHORTCUT, HELPCTX(no_help), cert_x509_event_handler, P(NULL));
 			}
-			ctrl_text(s, "Note: This is a global setting (shared with Pageant), not per-session. " \
-				"Most SSH servers and devices do not support X.509v3 authentication per (RFC 6187).", HELPCTX(no_help));
+			ctrl_text(s, "Note: X.509v3 certificate authentication is experimental. This is a global " \
+				"setting (shared with Pageant), not per-session. Most SSH servers and devices do not support " \
+				"X.509v3 authentication as specified in RFC 6187.", HELPCTX(no_help));
 
 			/*
 			 * The Portable panel (root level).
