@@ -991,7 +991,10 @@ void fido_event_handler(dlgcontrol* ctrl, dlgparam* dlg, void* data, int event)
 		int bVerificationRequired = (dlg_radiobutton_get(fidod->fido_verification_radio, dlg) == 1);
 
 		// attempt to create key
-		if (fido_create_key(szAlgId, szDisplayName, szAppId, bResidentKey, bVerificationRequired))
+		cert_set_busy_cursor(dlg->hwnd, TRUE);
+		BOOL bCreated = fido_create_key(szAlgId, szDisplayName, szAppId, bResidentKey, bVerificationRequired);
+		cert_set_busy_cursor(dlg->hwnd, FALSE);
+		if (bCreated)
 		{
 			// alert user of success and ask about assignment
 			if (MessageBoxW(NULL, L"FIDO key creation was successful and has been added to the FIDO cache. " \
@@ -1129,7 +1132,9 @@ void capi_event_handler(dlgcontrol* ctrl, dlgparam* dlg, void* data, int event)
 		}
 
         // attempt to create certificate
+        cert_set_busy_cursor(dlg->hwnd, TRUE);
         char* szCert = cert_capi_create_key(szAlgId, szSubjectName, bHardwareToken);
+        cert_set_busy_cursor(dlg->hwnd, FALSE);
         if (szCert != NULL)
         {
             if (MessageBoxW(NULL, L"Certificate was successfully created. " \

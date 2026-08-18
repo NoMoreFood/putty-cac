@@ -104,6 +104,7 @@ EXTERN BOOL cert_sign_for_keyalg(LPCSTR szCert,
 	LPCBYTE pDataToSign, int iDataToSignLen, int iAgentFlags, struct strbuf * pSignature);
 
 // functions used by putty code 
+EXTERN VOID cert_set_busy_cursor(HWND hWnd, BOOL bBusy);
 EXTERN LPSTR cert_key_string(LPCSTR szCert);
 EXTERN LPSTR cert_subject_string(LPCSTR szCert);
 EXTERN LPSTR cert_prompt(LPCSTR szIden, BOOL bAutoSelect, LPCWSTR sCustomPrompt);

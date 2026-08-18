@@ -27,6 +27,13 @@
 #define PUTTY_REG_POS "Software\\SimonTatham\\PuTTY"
 #endif
 
+VOID cert_set_busy_cursor(HWND hWnd, BOOL bBusy)
+{
+	HCURSOR hCursor = LoadCursor(NULL, bBusy ? IDC_WAIT : IDC_ARROW);
+	SetClassLongPtr(hWnd, GCLP_HCURSOR, (LONG_PTR)hCursor);
+	SetCursor(hCursor);
+}
+
 static BOOL cert_keyalg_is_x509(const ssh_keyalg* vt)
 {
 	return vt != NULL && vt->ssh_id != NULL && strstartswith(vt->ssh_id, "x509v3-");
