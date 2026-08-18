@@ -19,7 +19,12 @@ param(
     [switch]$UseSmartCard,
     [string]$SmartCardProvider = 'Microsoft Smart Card Key Storage Provider',
     [string]$Pkcs11Library,
-    [string]$Pkcs11Pin = '1234'
+    [string]$Pkcs11Pin = '1234',
+    [string]$TectiaHost,
+    [string]$TectiaUser,
+    [ValidateRange(1024, 65532)]
+    [int]$TectiaBasePort = 2230,
+    [string[]]$TectiaHostKey
 )
 
 Set-StrictMode -Version Latest
@@ -55,6 +60,8 @@ $ClientAuthEku = '1.3.6.1.5.5.7.3.2'
 $SecureShellClientEku = '1.3.6.1.5.5.7.3.21'
 $ServerAuthEku = '1.3.6.1.5.5.7.3.1'
 $SmartCardLogonEku = '1.3.6.1.4.1.311.20.2.2'
+$TectiaCaSubject = 'CN=PuTTYCAC Tectia Test Root'
+$TectiaCaFriendlyName = 'PuTTYCAC Tectia Test Root'
 
 # Add test result entry to the results collection and write to host
 function Add-Result([string]$Name, [string]$Status, [string]$Detail, [hashtable]$Data = @{}) {
@@ -360,6 +367,211 @@ function New-ChainedTestCertificate {
         Intermediate = $Intermediate
         Root         = $Root
         EcdsaLeaves  = $EcdsaLeaves.ToArray()
+    }
+}
+
+# Create a short-lived client certificate issued by a Tectia test CA.
+function New-TectiaClientCertificate(
+    [X509Certificate2]$Signer,
+    [string]$Name,
+    [string]$Account,
+    [string]$KeyAlgorithm,
+    [int]$KeyLength
+) {
+    $Now = Get-Date
+    $CertificateArguments = @{
+        Type              = 'Custom'
+        CertStoreLocation = 'Cert:\CurrentUser\My'
+        Signer            = $Signer
+        Subject           = "CN=$Account"
+        FriendlyName      = "PuTTYCAC Tectia Test $Name"
+        Provider          = $CngProvider
+        KeyAlgorithm      = $KeyAlgorithm
+        HashAlgorithm     = 'SHA256'
+        KeyUsage          = 'DigitalSignature'
+        KeyUsageProperty  = 'Sign'
+        TextExtension     = @(
+            '2.5.29.19={critical}{text}ca=false',
+            "2.5.29.37={text}$ClientAuthEku"
+        )
+        NotBefore         = $Now.AddMinutes(-5)
+        NotAfter          = $Now.AddDays(1)
+    }
+
+    if ($KeyAlgorithm -eq 'RSA') {
+        $CertificateArguments.KeyLength = $KeyLength
+    }
+    else {
+        $CertificateArguments.CurveExport = 'CurveName'
+    }
+
+    $Certificate = New-SelfSignedCertificate @CertificateArguments
+    $script:State.CreatedThumbprints.Add($Certificate.Thumbprint) | Out-Null
+    return $Certificate
+}
+
+# Discover the fingerprint reported by a loopback Tectia listener without caching or accepting it.
+function Get-TectiaHostKeys([string]$Server, [int]$ServerPort) {
+    if ($Server -notin @('127.0.0.1', 'localhost', '::1', '[::1]')) {
+        throw 'TectiaHostKey is required for a non-loopback Tectia host.'
+    }
+
+    $InvalidHostKey = 'SHA256:' + [Convert]::ToBase64String([byte[]]::new(32)).TrimEnd('=')
+    $Arguments = @(
+        '-batch', '-ssh', '-P', $ServerPort.ToString(),
+        '-hostkey', $InvalidHostKey,
+        $Server, 'exit'
+    )
+    $Result = Invoke-Native -FilePath $script:Paths.Plink -ArgumentList $Arguments -IgnoreExitCode
+    $Output = "$($Result.StdOut)`n$($Result.StdErr)"
+    $Fingerprints = @(
+        [regex]::Matches($Output, 'SHA256:[A-Za-z0-9+/]{43}=?') |
+            ForEach-Object Value |
+            Where-Object { $_ -ne $InvalidHostKey } |
+            Select-Object -Unique
+    )
+
+    if ($Fingerprints.Count -eq 0) {
+        throw "Unable to discover the Tectia host key on ${Server}:$ServerPort. Exit=$($Result.ExitCode) $Output"
+    }
+
+    return $Fingerprints
+}
+
+# Exercise PuTTY-CAC X.509 authentication against the optional live Tectia target.
+function Test-TectiaInteroperability(
+    [string]$Server,
+    [string]$Account,
+    [int]$BasePort,
+    [string[]]$ConfiguredHostKeys
+) {
+    $Now = Get-Date
+    $Root = Get-ChildItem Cert:\CurrentUser\My |
+        Where-Object {
+            $BasicConstraints = $_.Extensions |
+                Where-Object { $_.Oid -and $_.Oid.Value -eq '2.5.29.19' } |
+                Select-Object -First 1
+            $_.Subject -eq $TectiaCaSubject -and
+            $_.FriendlyName -eq $TectiaCaFriendlyName -and
+            $_.HasPrivateKey -and
+            $_.NotBefore -le $Now -and
+            $_.NotAfter -gt $Now.AddDays(1) -and
+            $BasicConstraints -and
+            ([X509BasicConstraintsExtension]$BasicConstraints).CertificateAuthority
+        } |
+        Sort-Object NotAfter -Descending |
+        Select-Object -First 1
+    if (-not $Root) {
+        throw 'The PuTTYCAC Tectia test root was not found. Run Initialize-TectiaTestServer.ps1 first.'
+    }
+
+    $Definitions = @(
+        [PSCustomObject]@{
+            Name = 'RSA-SHA256'; Algorithm = 'x509v3-rsa2048-sha256'; KeyAlgorithm = 'RSA'; Bits = 2048; Offset = 0
+        }
+        [PSCustomObject]@{
+            Name = 'ECDSA-P256'; Algorithm = 'x509v3-ecdsa-sha2-nistp256'; KeyAlgorithm = 'ECDSA_nistP256';
+            Bits = 256; Offset = 1
+        }
+        [PSCustomObject]@{
+            Name = 'ECDSA-P384'; Algorithm = 'x509v3-ecdsa-sha2-nistp384'; KeyAlgorithm = 'ECDSA_nistP384';
+            Bits = 384; Offset = 2
+        }
+        [PSCustomObject]@{
+            Name = 'ECDSA-P521'; Algorithm = 'x509v3-ecdsa-sha2-nistp521'; KeyAlgorithm = 'ECDSA_nistP521';
+            Bits = 521; Offset = 3
+        }
+    )
+    $Cases = [List[object]]::new()
+    foreach ($Definition in $Definitions) {
+        $Certificate = New-TectiaClientCertificate -Signer $Root -Name $Definition.Name -Account $Account `
+            -KeyAlgorithm $Definition.KeyAlgorithm -KeyLength $Definition.Bits
+        $Cases.Add([PSCustomObject]@{
+                Name      = $Definition.Name
+                Algorithm = $Definition.Algorithm
+                Port      = $BasePort + $Definition.Offset
+                CertId    = "CAPI:$($Certificate.Thumbprint.ToLowerInvariant())"
+            }) | Out-Null
+    }
+
+    $UntrustedRoot = New-SelfSignedCertificate `
+        -Type Custom `
+        -CertStoreLocation 'Cert:\CurrentUser\My' `
+        -Subject "CN=PuTTYCAC Tectia Untrusted Root $([Guid]::NewGuid().ToString('N'))" `
+        -FriendlyName 'PuTTYCAC Tectia Untrusted Test Root' `
+        -Provider $CngProvider `
+        -KeyAlgorithm RSA `
+        -KeyLength 2048 `
+        -HashAlgorithm SHA256 `
+        -KeyUsage CertSign, CRLSign `
+        -TextExtension @('2.5.29.19={critical}{text}ca=true&pathlength=0') `
+        -NotBefore $Now.AddMinutes(-5) `
+        -NotAfter $Now.AddDays(1)
+    $script:State.CreatedThumbprints.Add($UntrustedRoot.Thumbprint) | Out-Null
+    $UntrustedCertificate = New-TectiaClientCertificate -Signer $UntrustedRoot -Name 'UNTRUSTED' `
+        -Account $Account -KeyAlgorithm 'RSA' -KeyLength 2048
+
+    $HostKeys = @($ConfiguredHostKeys | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+    if ($HostKeys.Count -eq 0) {
+        $HostKeys = @(Get-TectiaHostKeys -Server $Server -ServerPort $BasePort)
+        Add-Result -Name 'TECTIA-HOSTKEY' -Status 'Pass' `
+            -Detail "Discovered the loopback Tectia host key without caching it: $($HostKeys -join ', ')"
+    }
+
+    $RegistryPath = 'HKCU:\Software\SimonTatham\PuTTY'
+    $PreviousAuthX509 = Get-RegistryDword -Path $RegistryPath -Name 'AuthX509'
+    New-Item -Path $RegistryPath -Force | Out-Null
+    New-ItemProperty -LiteralPath $RegistryPath -Name 'AuthX509' -PropertyType DWord -Value 1 -Force | Out-Null
+
+    try {
+        $ExpectedAccount = $Account
+        if ($ExpectedAccount.Contains('\')) { $ExpectedAccount = ($ExpectedAccount -split '\\')[-1] }
+        elseif ($ExpectedAccount.Contains('@')) { $ExpectedAccount = ($ExpectedAccount -split '@')[0] }
+        $ExpectedIdentity = "(?i)(^|\\)$([regex]::Escape($ExpectedAccount))$"
+
+        foreach ($Case in $Cases) {
+            $Arguments = @('-batch', '-ssh', '-P', $Case.Port.ToString(), '-l', $Account) +
+                ($HostKeys | ForEach-Object { @('-hostkey', $_) }) +
+                @('-i', $Case.CertId, $Server, 'whoami')
+            $Result = Invoke-Native -FilePath $script:Paths.Plink -ArgumentList $Arguments -IgnoreExitCode
+            if ($Result.ExitCode -ne 0) {
+                throw "Tectia $($Case.Algorithm) authentication failed. $($Result.StdOut)`n$($Result.StdErr)"
+            }
+
+            $ReportedIdentities = @($Result.StdOut -split "`r?`n" | ForEach-Object Trim |
+                Where-Object { $_ -match $ExpectedIdentity })
+            if ($ReportedIdentities.Count -eq 0) {
+                throw "Tectia returned unexpected whoami output for $Account`: $($Result.StdOut)"
+            }
+
+            Add-Result -Name "TECTIA-X509-$($Case.Name)" -Status 'Pass' `
+                -Detail "Authenticated on port $($Case.Port) using only $($Case.Algorithm)."
+        }
+
+        $NegativeCase = $Cases | Where-Object Algorithm -eq 'x509v3-rsa2048-sha256' | Select-Object -First 1
+        $Arguments = @('-batch', '-ssh', '-P', $NegativeCase.Port.ToString(), '-l', $Account) +
+            ($HostKeys | ForEach-Object { @('-hostkey', $_) }) +
+            @('-i', "CAPI:$($UntrustedCertificate.Thumbprint.ToLowerInvariant())", $Server, 'whoami')
+        $Result = Invoke-Native -FilePath $script:Paths.Plink -ArgumentList $Arguments -IgnoreExitCode
+        if ($Result.ExitCode -eq 0) {
+            throw 'Tectia unexpectedly accepted a username-matching certificate from an untrusted issuer.'
+        }
+
+        $FailureText = "$($Result.StdOut)`n$($Result.StdErr)"
+        if ($FailureText -notmatch '(?i)(authenticat|refused our key|public[ -]?key)') {
+            throw "The Tectia negative control failed for a reason unrelated to authentication: $FailureText"
+        }
+        Add-Result -Name 'TECTIA-X509-UNTRUSTED-REJECTED' -Status 'Pass' `
+            -Detail 'Tectia rejected a username-matching certificate outside its configured CA hierarchy.'
+    }
+    finally {
+        if ($null -eq $PreviousAuthX509) {
+            Remove-ItemProperty -LiteralPath $RegistryPath -Name 'AuthX509' -Force -ErrorAction SilentlyContinue
+        }
+        else {
+            New-ItemProperty -LiteralPath $RegistryPath -Name 'AuthX509' -PropertyType DWord `
+                -Value $PreviousAuthX509 -Force | Out-Null
+        }
     }
 }
 
@@ -1889,14 +2101,29 @@ function Test-PkixAuthMismatch([object]$Case, [string[]]$HostKeys, [string]$Rest
         @('-i', $Case.CertId, $HostName, 'whoami')
 
         $Result = Invoke-Native -FilePath $script:Paths.Plink -ArgumentList $ArgList -IgnoreExitCode
-        $Succeeded = $Result.ExitCode -eq 0 -and $Result.StdOut -match [regex]::Escape($UserName)
+        if ($Result.ExitCode -eq 0) {
+            $Detail = if ($Result.StdOut -match [regex]::Escape($UserName)) {
+                "Expected auth failure with intentionally mismatched PubkeyAcceptedAlgorithms " +
+                "($MismatchAlgorithm), but authentication succeeded."
+            }
+            else {
+                "Expected auth failure with intentionally mismatched PubkeyAcceptedAlgorithms " +
+                "($MismatchAlgorithm), but plink exited successfully with unexpected output: $($Result.StdOut)"
+            }
+            Add-Result -Name 'PKIX-AUTH-MISMATCH' -Status 'Fail' -Detail $Detail
+            return
+        }
 
-        if ($Succeeded) {
-            Add-Result -Name 'PKIX-AUTH-MISMATCH' -Status 'Fail' -Detail "Expected auth failure with intentionally mismatched PubkeyAcceptedAlgorithms ($MismatchAlgorithm), but authentication succeeded."
+        $FailureText = "$($Result.StdOut)`n$($Result.StdErr)"
+        if ($FailureText -notmatch '(?i)(authenticat|refused our key|public[ -]?key)') {
+            Add-Result -Name 'PKIX-AUTH-MISMATCH' -Status 'Fail' `
+                -Detail "The mismatch test failed for a reason unrelated to authentication: $FailureText"
+            return
         }
-        else {
-            Add-Result -Name 'PKIX-AUTH-MISMATCH' -Status 'Pass' -Detail "Intentionally mismatched PubkeyAcceptedAlgorithms ($MismatchAlgorithm); authentication failed as expected."
-        }
+
+        $Detail = "Intentionally mismatched PubkeyAcceptedAlgorithms ($MismatchAlgorithm); " +
+            'authentication failed as expected.'
+        Add-Result -Name 'PKIX-AUTH-MISMATCH' -Status 'Pass' -Detail $Detail
     }
     finally {
         Set-AcceptedAlgorithms -CustomAlgorithm $RestoreAlgorithm
@@ -2346,6 +2573,17 @@ try {
         -PropertyType DWord -Value 0 -Force | Out-Null
 
     $Matrix = New-TestMatrix
+
+    if ($TectiaHost) {
+        if ([string]::IsNullOrWhiteSpace($TectiaUser)) {
+            throw 'TectiaUser is required when TectiaHost is supplied.'
+        }
+        Test-TectiaInteroperability -Server $TectiaHost -Account $TectiaUser `
+            -BasePort $TectiaBasePort -ConfiguredHostKeys $TectiaHostKey
+    }
+    elseif ($TectiaUser -or @($TectiaHostKey).Count -gt 0) {
+        throw 'TectiaHost is required when TectiaUser or TectiaHostKey is supplied.'
+    }
 
     # Test CAPI argument passing on all resolved executables
     $FirstCert = $Matrix.Positive | Select-Object -First 1

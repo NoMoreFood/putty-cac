@@ -198,7 +198,7 @@ $CaElement = New-Element -Document $Document -Name 'ca-certificate' -Attributes 
 }
 [void]$CertificateValidation.AppendChild($CaElement)
 
-$AuthenticationAnchor = $AuthenticationMethods.FirstChild
+$AuthenticationAnchor = $AuthenticationMethods.SelectSingleNode('authentication')
 foreach ($Entry in $Algorithms) {
     $ListenerId = "puttycac-$($Entry.Name)"
     $Listener = New-Element -Document $Document -Name 'listener' -Attributes @{

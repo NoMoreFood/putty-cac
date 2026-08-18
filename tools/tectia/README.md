@@ -49,9 +49,9 @@ pwsh ./tools/Test-PuTTYCAC.ps1 `
 ```
 
 `-TectiaBasePort` defaults to 2230. `-TectiaHostKey` can contain one or more
-console-verified SHA-256 fingerprints. When omitted, the suite discovers the
-fingerprint reported by Tectia; explicit pinning is preferable for a remote
-test host.
+console-verified SHA-256 fingerprints. When omitted for a loopback target, the
+suite discovers the fingerprint reported by Tectia without caching it. A
+non-loopback target requires an explicit fingerprint.
 
 The suite creates short-lived RSA and ECDSA certificates under the persistent
 test root, authenticates a real `whoami` command on every exclusive listener,
