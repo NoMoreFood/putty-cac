@@ -2,6 +2,12 @@ name: Publish releases to WinGet and Chocolatey
 on:
   release:
     types: [released]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag to publish
+        required: true
+        type: string
 permissions:
   contents: read
 jobs:
@@ -15,7 +21,7 @@ jobs:
       - name: Get version
         id: get-version
         run: |
-          $tag = "${{ github.ref_name }}"
+          $tag = "${{ inputs.tag || github.ref_name }}"
           if ($tag -imatch '^(\d+\.\d+)u(\d+)$')
           {
               $version = "$($Matches[1]).$($Matches[2]).0"
@@ -63,6 +69,8 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.get-version.outputs.tag }}
       - name: Update package files
         run: |
           $tag = "${{ needs.get-version.outputs.tag }}"
