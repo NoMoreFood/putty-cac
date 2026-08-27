@@ -646,6 +646,25 @@ static ssh_key *ecdsa_new_pub(const ssh_keyalg *alg, ptrlen data)
         return NULL;
     }
 
+#ifdef PUTTY_CAC
+    if (alg == &ssh_ecdsa_nistp256_sk ||
+        alg == &ssh_ecdsa_nistp384_sk ||
+        alg == &ssh_ecdsa_nistp521_sk)
+    {
+        ptrlen appid = get_string(src);
+        if (get_err(src) || get_avail(src) ||
+            (appid.len && memchr(appid.ptr, '\0', appid.len)))
+        {
+            ecdsa_freekey(&ek->sshk);
+            return NULL;
+        }
+
+        ek->appid = mkstr(appid);
+        ek->flags = 0;
+        ek->publicKeyRaw = ek->credId = make_ptrlen(NULL, 0);
+    }
+#endif
+
     return &ek->sshk;
 }
 
@@ -670,6 +689,23 @@ static ssh_key *eddsa_new_pub(const ssh_keyalg *alg, ptrlen data)
         eddsa_freekey(&ek->sshk);
         return NULL;
     }
+
+#ifdef PUTTY_CAC
+    if (alg == &ssh_ecdsa_ed25519_sk)
+    {
+        ptrlen appid = get_string(src);
+        if (get_err(src) || get_avail(src) ||
+            (appid.len && memchr(appid.ptr, '\0', appid.len)))
+        {
+            eddsa_freekey(&ek->sshk);
+            return NULL;
+        }
+
+        ek->appid = mkstr(appid);
+        ek->flags = 0;
+        ek->publicKeyRaw = ek->credId = make_ptrlen(NULL, 0);
+    }
+#endif
 
     return &ek->sshk;
 }
@@ -1411,6 +1447,14 @@ const ssh_keyalg ssh_ecdsa_nistp521 = {
 };
 
 #ifdef PUTTY_CAC
+static ssh_key *sk_new_priv(const ssh_keyalg *alg, ptrlen pub, ptrlen priv)
+{
+    (void)alg;
+    (void)pub;
+    (void)priv;
+    return NULL;
+}
+
 static ssh_key* ecdsa_new_priv_openssh_sk(
     const ssh_keyalg* alg, BinarySource* src)
 {
@@ -1471,7 +1515,7 @@ static void ecdsa_public_blob_sk(ssh_key* key, BinarySink* bs)
 
 const ssh_keyalg ssh_ecdsa_nistp256_sk = {
     .new_pub = ecdsa_new_pub,
-    .new_priv = ecdsa_new_priv,
+    .new_priv = sk_new_priv,
     .new_priv_openssh = ecdsa_new_priv_openssh_sk,
     .freekey = ecdsa_freekey_sk,
     .invalid = ec_signkey_invalid,
@@ -1496,7 +1540,7 @@ const ssh_keyalg ssh_ecdsa_nistp256_sk = {
 
 const ssh_keyalg ssh_ecdsa_nistp384_sk = {
     .new_pub = ecdsa_new_pub,
-    .new_priv = ecdsa_new_priv,
+    .new_priv = sk_new_priv,
     .new_priv_openssh = ecdsa_new_priv_openssh_sk,
     .freekey = ecdsa_freekey_sk,
     .invalid = ec_signkey_invalid,
@@ -1521,7 +1565,7 @@ const ssh_keyalg ssh_ecdsa_nistp384_sk = {
 
 const ssh_keyalg ssh_ecdsa_nistp521_sk = {
     .new_pub = ecdsa_new_pub,
-    .new_priv = ecdsa_new_priv,
+    .new_priv = sk_new_priv,
     .new_priv_openssh = ecdsa_new_priv_openssh_sk,
     .freekey = ecdsa_freekey_sk,
     .invalid = ec_signkey_invalid,
@@ -1596,7 +1640,7 @@ static void eddsa_public_blob_sk(ssh_key* key, BinarySink* bs)
 
 const ssh_keyalg ssh_ecdsa_ed25519_sk = {
     .new_pub = eddsa_new_pub,
-    .new_priv = eddsa_new_priv,
+    .new_priv = sk_new_priv,
     .new_priv_openssh = eddsa_new_priv_openssh_sk,
     .freekey = eddsa_freekey_sk,
     .invalid = ec_signkey_invalid,
