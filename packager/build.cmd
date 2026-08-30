@@ -33,7 +33,8 @@ FOR %%A IN (arm64 x86 x64) DO (
   SET ARCH=%%A
   IF /I "%%A" EQU "X86" SET ARCH=Win32
   CMAKE -S ..\code -A !ARCH! -B %BLDDIR%\%%A -D PUTTY_CAC=1 -D PUTTY_EMBEDDED_CHM_FILE=%BASEDIR%\doc\putty.chm
-  CMAKE --build %BLDDIR%\%%A --parallel --config Release --target pageant plink pscp psftp pterm putty puttygen puttyimp puttytel
+  CMAKE --build %BLDDIR%\%%A --parallel --config Release --target pageant plink pscp psftp pterm putty puttygen ^
+    puttyimp puttytab puttytel
   MKDIR "%BINDIR%\%%A"
   COPY /Y %BLDDIR%\%%A\Release\*.exe "%BINDIR%\%%A"	
 )

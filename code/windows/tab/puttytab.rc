@@ -1,0 +1,40 @@
+/*
+ * Windows resources for PuTTYTab.
+ */
+
+#include "../rcstuff.h"
+#include "puttytab-rc.h"
+
+#define APPNAME "PuTTYTab"
+#define APPDESC "Tabbed PuTTY session manager"
+
+IDI_PUTTYTAB ICON "../putty.ico"
+
+IDD_COMMAND_LINE DIALOGEX 0, 0, 296, 79
+STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | DS_CENTER | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "Open PuTTY with Arguments"
+FONT 9, "Segoe UI"
+BEGIN
+    LTEXT "Arguments passed to putty.exe:", -1, 7, 8, 282, 10
+    EDITTEXT IDC_TEXT_VALUE, 7, 22, 282, 14, ES_AUTOHSCROLL
+    LTEXT "Example: -ssh user@example.com -P 22", -1, 7, 41, 190, 10
+    DEFPUSHBUTTON "&Open", IDOK, 184, 58, 50, 14
+    PUSHBUTTON "&Cancel", IDCANCEL, 239, 58, 50, 14
+END
+
+IDD_RENAME_TAB DIALOGEX 0, 0, 296, 61
+STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | DS_CENTER | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "Rename Tab"
+FONT 9, "Segoe UI"
+BEGIN
+    LTEXT "Tab name (leave blank to use the PuTTY window title):", -1, 7, 8, 282, 10
+    EDITTEXT IDC_TEXT_VALUE, 7, 22, 282, 14, ES_AUTOHSCROLL
+    DEFPUSHBUTTON "&OK", IDOK, 184, 40, 50, 14
+    PUSHBUTTON "&Cancel", IDCANCEL, 239, 40, 50, 14
+END
+
+#ifndef NO_MANIFESTS
+1 RT_MANIFEST "puttytab.mft"
+#endif /* NO_MANIFESTS */
+
+#include "../version.rc2"

@@ -241,4 +241,20 @@ set_target_properties(puttyimp PROPERTIES
   WIN32_EXECUTABLE OFF
   LINK_FLAGS "/MANIFESTUAC:\"level='requireAdministrator' uiAccess='false'\"")
 installed_program(puttyimp)
+
+add_executable(puttytab
+  tab/puttytab.cpp tab/theme.cpp ../cert/cert_portable.c tab/puttytab.rc)
+add_dependencies(puttytab generated_licence_h)
+target_compile_definitions(puttytab PRIVATE UNICODE _UNICODE)
+target_compile_features(puttytab PRIVATE cxx_std_20)
+target_include_directories(puttytab PRIVATE ../cert)
+target_link_libraries(puttytab
+  comctl32.lib
+  dwmapi.lib
+  ntdll.lib
+  shlwapi.lib
+  uxtheme.lib
+  ${platform_libraries})
+set_target_properties(puttytab PROPERTIES WIN32_EXECUTABLE ON)
+installed_program(puttytab)
 endif()

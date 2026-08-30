@@ -20,6 +20,24 @@ You can find basic usage instructions on the US Government ID Management website
 
 [https://www.idmanagement.gov/implement/scl-ssh](https://www.idmanagement.gov/implement/scl-ssh/)
 
+### Tabbed Sessions
+
+PuTTYTab (`puttytab.exe`) hosts independent PuTTY processes in one tabbed window. It includes saved-session and
+arbitrary-argument launchers, saved-session autocomplete from its Connect Bar, exact duplication of a running session,
+tab rename/reorder/close-protection actions, PuTTY's runtime session commands, full-screen and always-on-top modes, and
+graceful multi-session shutdown. Double-click a tab to rename it, drag tabs to reorder them, middle-click a tab to close
+it, or double-click empty tab-strip space to open a new session. Locked tabs ignore tab-level close actions but still
+close after explicit whole-application exit confirmation.
+
+Run `puttytab.exe` without arguments to open PuTTY's standard configuration dialog, or pass any normal PuTTY command
+line, such as `puttytab.exe -load "My Session"` or `puttytab.exe -ssh user@example.com`. PuTTYTab and `putty.exe` must
+remain in the same directory.
+
+The main shortcuts are Alt+R for the Connect Bar, Ctrl+Shift+T for a new session, Ctrl+Shift+D to duplicate the current
+session, Ctrl+Shift+R to reconnect an inactive session, Ctrl+Shift+W or Ctrl+F4 to close a tab, Ctrl+Tab and
+Ctrl+Shift+Tab to switch tabs, Ctrl+Shift+Page Up/Page Down to reorder tabs, Ctrl+1 through Ctrl+9 to select a tab, and
+F11 for full screen.
+
 ## Command Line Usage
 PuTTY CAC supports the same command line options as PuTTY, plus additional PuTTY CAC-specific options.
 

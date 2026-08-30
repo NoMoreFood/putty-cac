@@ -38,6 +38,7 @@
   <?define Path_Component_GUID = "A0CFC986-489D-452B-8A8F-F9DBEF6916F4" ?>
   <?define ProgramMenuDir_GUID = "3B2B7A2B-25F1-4EC4-987F-75BFD038632E" ?>
   <?define Desktop_Shortcut_Component_GUID = "0A715416-EA6E-4A1C-8670-838307083EE5" ?>
+  <?define PuTTYtab_Component_GUID = "A7E2C8F1-0D34-4B71-9C5E-623D940FA8B6" ?>
 <?elseif $(var.RealPlatform) = x86 ?>
   <?define ProductNameSuffix = "" ?>
   <?define UpgradeCode_GUID = "DCE70C63-8808-4646-B16B-A677BD298385" ?>
@@ -55,6 +56,7 @@
   <?define Path_Component_GUID = "D1F68AAA-D20D-4047-828F-D0AC443FAF64" ?>
   <?define ProgramMenuDir_GUID = "C12C3BB3-EC24-4883-8349-4AC8017C9E6A" ?>
   <?define Desktop_Shortcut_Component_GUID = "D039E3D1-CE42-488D-96CC-90E1DE3796F8" ?>
+  <?define PuTTYtab_Component_GUID = "4B806E0A-5DCC-4B4B-BC4B-22642759491A" ?>
 <?elseif $(var.RealPlatform) = Arm ?>
   <?define ProductNameSuffix = " (32-bit Arm)" ?>
   <?define UpgradeCode_GUID = "B8E49D4D-7C56-400D-85B4-DF953C227207" ?>
@@ -72,6 +74,7 @@
   <?define Path_Component_GUID = "425860FA-B31E-440E-99AD-C2CCFC195092" ?>
   <?define ProgramMenuDir_GUID = "0F2F67F1-FB69-4D0F-8A7F-A6BA2CD79F00" ?>
   <?define Desktop_Shortcut_Component_GUID = "63CA2A72-4B56-4207-9E2B-1FC4E3C883AE" ?>
+  <?define PuTTYtab_Component_GUID = "917CEF9B-2E7A-446A-A295-F31064C022CB" ?>
 <?elseif $(var.RealPlatform) = Arm64 ?>
   <?define ProductNameSuffix = " (64-bit Arm)" ?>
   <?define UpgradeCode_GUID = "2125AD39-A960-4377-AD41-99E50D842AE5" ?>
@@ -89,6 +92,7 @@
   <?define Path_Component_GUID = "12E0B4AA-C8AF-4917-AFB5-DD8143A1A784" ?>
   <?define ProgramMenuDir_GUID = "A9C3DFD6-682F-4B9F-B6AE-B2FFA8050CB5" ?>
   <?define Desktop_Shortcut_Component_GUID = "8999BBE1-F99E-4301-B7A6-480C19DE13B9" ?>
+  <?define PuTTYtab_Component_GUID = "D87DA695-0C65-4704-9FFB-3FAD234D66F0" ?>
 <?endif ?>
 
 <?ifndef HelpFilePath ?>
@@ -338,6 +342,19 @@ https://msdn.microsoft.com/en-us/library/windows/desktop/dd391569(v=vs.85).aspx
             <File Id="PuTTYimp_File"
                   Source="$(var.Builddir)puttyimp.exe" KeyPath="yes" />
           </Component>
+          <Component Id="PuTTYtab_Component"
+                     Guid="$(var.PuTTYtab_Component_GUID)">
+            <File Id="PuTTYtab_File"
+                  Source="$(var.Builddir)puttytab.exe" KeyPath="yes">
+              <Shortcut Id="startmenuPuTTYtab" Directory="ProgramMenuDir"
+                        WorkingDirectory="INSTALLDIR"
+                        Name="PuTTYTab" Advertise="no">
+                <ShortcutProperty
+                    Key="{9F4C2855-9F79-4B39-A8D0-E1D42DE1D5F3}, 5"
+                    Value="NoMoreFood.PuTTYTab" />
+              </Shortcut>
+            </File>
+          </Component>
           <?endif ?>
         </Directory>
       </Directory>
@@ -458,6 +475,7 @@ https://msdn.microsoft.com/en-us/library/windows/desktop/dd391569(v=vs.85).aspx
       <ComponentRef Id="ProgramMenuDir" />
       <?ifdef PUTTY_CAC ?>
       <ComponentRef Id="PuTTYimp_Component" />
+      <ComponentRef Id="PuTTYtab_Component" />
       <?endif ?>
     </Feature>
     <Feature Id="DesktopFeature" Level="2" Absent="allow" AllowAdvertise="no"
