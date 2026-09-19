@@ -74,7 +74,37 @@ struct GetAttestationThreadParams
 	PCWEBAUTHN_CLIENT_DATA pWebAuthNClientData;
 	PCWEBAUTHN_AUTHENTICATOR_GET_ASSERTION_OPTIONS pWebAuthNGetAssertionOptions;
 	PWEBAUTHN_ASSERTION ppWebAuthNAssertion;
+	HRESULT hResult;
 };
+
+static HRESULT fido_last_webauthn_error = S_OK;
+
+HRESULT fido_get_last_error(VOID)
+{
+	return fido_last_webauthn_error;
+}
+
+LPCWSTR fido_get_last_error_name(VOID)
+{
+	return WebAuthNGetErrorName(fido_last_webauthn_error);
+}
+
+static HWND cert_fido_get_assertion_hwnd(VOID)
+{
+	HWND hWnd = GetForegroundWindow();
+	if (hWnd != NULL && IsWindow(hWnd) && IsWindowVisible(hWnd))
+		return hWnd;
+
+	hWnd = cert_get_parent_hwnd();
+	if (hWnd != NULL && IsWindow(hWnd))
+		return hWnd;
+
+	hWnd = GetActiveWindow();
+	if (hWnd != NULL && IsWindow(hWnd))
+		return hWnd;
+
+	return GetDesktopWindow();
+}
 
 static INIT_ONCE fido_webauthn_once = INIT_ONCE_STATIC_INIT;
 static BOOL fido_webauthn_loaded = FALSE;
@@ -107,16 +137,14 @@ DWORD WINAPI WebAuthNAuthenticatorGetAssertionThread(LPVOID lpParam)
 {
 	struct GetAttestationThreadParams* pParams = lpParam;
 
-	HRESULT hMakeResult = WebAuthNAuthenticatorGetAssertion(pParams->hWnd, pParams->pwszRpId,
+	pParams->hResult = WebAuthNAuthenticatorGetAssertion(pParams->hWnd, pParams->pwszRpId,
 		pParams->pWebAuthNClientData, pParams->pWebAuthNGetAssertionOptions, &pParams->ppWebAuthNAssertion);
-	if (hMakeResult != S_OK)
+	if (pParams->hResult != S_OK)
 	{
-		if (pParams->hWnd != NULL) PostMessage(pParams->hWnd, WM_USER, 0, 0);
 		ExitThread(1);
 		return FALSE;
 	}
 
-	if (pParams->hWnd != NULL) PostMessage(pParams->hWnd, WM_USER, 0, 0);
 	ExitThread(0);
 	return TRUE;
 }
@@ -571,7 +599,7 @@ BYTE* cert_fido_sign(struct ssh2_userkey* userkey, LPCBYTE pDataToSign, int iDat
 
 	//  fetch assertion 
 	struct GetAttestationThreadParams pParams = { 0 };
-	pParams.hWnd = GetForegroundWindow();
+	pParams.hWnd = cert_fido_get_assertion_hwnd();
 	pParams.pWebAuthNClientData = &tClientData;
 	pParams.pWebAuthNGetAssertionOptions = &tAssertionOptions;
 	pParams.pwszRpId = szAppIdUnicode;
@@ -582,12 +610,20 @@ BYTE* cert_fido_sign(struct ssh2_userkey* userkey, LPCBYTE pDataToSign, int iDat
 		return NULL;
 	}
 
-	// wait for message to complete
-	if (pParams.hWnd != NULL && GetWindowThreadProcessId(pParams.hWnd, NULL) == GetCurrentThreadId())
+	// wait for thread to complete while dispatching messages
+	BOOL bQuit = FALSE;
+	int iQuitCode = 0;
+	while (MsgWaitForMultipleObjects(1, &hThread, FALSE, INFINITE, QS_ALLINPUT) == (WAIT_OBJECT_0 + 1))
 	{
-		for (MSG tMsg; GetMessage(&tMsg, NULL, 0, 0) > 0;)
+		MSG tMsg;
+		while (PeekMessage(&tMsg, NULL, 0, 0, PM_REMOVE))
 		{
-			if (tMsg.message == WM_USER) break;
+			if (tMsg.message == WM_QUIT)
+			{
+				bQuit = TRUE;
+				iQuitCode = (int)tMsg.wParam;
+				continue;
+			}
 			TranslateMessage(&tMsg);
 			DispatchMessage(&tMsg);
 		}
@@ -595,16 +631,16 @@ BYTE* cert_fido_sign(struct ssh2_userkey* userkey, LPCBYTE pDataToSign, int iDat
 
 	// wait for thread to complete
 	DWORD iExitCode;
-	WaitForSingleObject(hThread, INFINITE);
 	GetExitCodeThread(hThread, &iExitCode);
 	CloseHandle(hThread);
-	if (iExitCode != 0)
+	if (bQuit) PostQuitMessage(iQuitCode);
+	fido_last_webauthn_error = pParams.hResult;
+	if (iExitCode != 0 || pParams.ppWebAuthNAssertion == NULL)
 	{
-		free(pCredentialId);
-		return NULL;
-	}
-	if (pParams.ppWebAuthNAssertion == NULL)
-	{
+		WCHAR szDbg[256];
+		wsprintfW(szDbg, L"PuTTY-CAC FIDO: WebAuthNAuthenticatorGetAssertion failed: 0x%08lX (%ls)\n",
+			pParams.hResult, WebAuthNGetErrorName(pParams.hResult));
+		OutputDebugStringW(szDbg);
 		free(pCredentialId);
 		return NULL;
 	}
@@ -798,23 +834,22 @@ struct MakeCredentialThreadParams
 	PCWEBAUTHN_CLIENT_DATA pWebAuthNClientData;
 	PCWEBAUTHN_AUTHENTICATOR_MAKE_CREDENTIAL_OPTIONS pWebAuthNMakeCredentialOptions;
 	PWEBAUTHN_CREDENTIAL_ATTESTATION ppWebAuthNCredentialAttestation;
+	HRESULT hResult;
 };
 
 DWORD WINAPI WebAuthNAuthenticatorMakeCredentialThread(LPVOID lpParam)
 {
 	struct MakeCredentialThreadParams* pParams = lpParam;
 
-	HRESULT hMakeResult = WebAuthNAuthenticatorMakeCredential(pParams->hWnd, pParams->pRpInformation,
+	pParams->hResult = WebAuthNAuthenticatorMakeCredential(pParams->hWnd, pParams->pRpInformation,
 		pParams->pUserInformation, pParams->pPubKeyCredParams, pParams->pWebAuthNClientData,
 		pParams->pWebAuthNMakeCredentialOptions, &pParams->ppWebAuthNCredentialAttestation);
-	if (hMakeResult != S_OK)
+	if (pParams->hResult != S_OK)
 	{
-		if (pParams->hWnd != NULL) PostMessage(pParams->hWnd, WM_USER, 0, 0);
 		ExitThread(1);
 		return FALSE;
 	}
 
-	if (pParams->hWnd != NULL) PostMessage(pParams->hWnd, WM_USER, 0, 0);
 	ExitThread(0);
 	return TRUE;
 }
@@ -910,7 +945,7 @@ BOOL fido_create_key(LPCSTR szAlgName, LPCSTR szDisplayName, LPCSTR szApplicatio
 
 	//  create new credential on the key on a seperate thread
 	struct MakeCredentialThreadParams pParams = { 0 };
-	pParams.hWnd = GetForegroundWindow();
+	pParams.hWnd = cert_fido_get_assertion_hwnd();
 	pParams.pPubKeyCredParams = &WebAuthNCredentialParameters;
 	pParams.pRpInformation = &tEntityInfo;
 	pParams.pUserInformation = &tUserInfo;
@@ -919,12 +954,20 @@ BOOL fido_create_key(LPCSTR szAlgName, LPCSTR szDisplayName, LPCSTR szApplicatio
 	HANDLE hThread = CreateThread(NULL, 0, WebAuthNAuthenticatorMakeCredentialThread, &pParams, 0, NULL);
 	if (hThread == NULL) return FALSE;
 
-	// wait for message to complete
-	if (pParams.hWnd != NULL && GetWindowThreadProcessId(pParams.hWnd, NULL) == GetCurrentThreadId())
+	// wait for thread to complete while dispatching messages
+	BOOL bQuit = FALSE;
+	int iQuitCode = 0;
+	while (MsgWaitForMultipleObjects(1, &hThread, FALSE, INFINITE, QS_ALLINPUT) == (WAIT_OBJECT_0 + 1))
 	{
-		for (MSG tMsg; GetMessage(&tMsg, NULL, 0, 0) > 0; )
+		MSG tMsg;
+		while (PeekMessage(&tMsg, NULL, 0, 0, PM_REMOVE))
 		{
-			if (tMsg.message == WM_USER) break;
+			if (tMsg.message == WM_QUIT)
+			{
+				bQuit = TRUE;
+				iQuitCode = (int)tMsg.wParam;
+				continue;
+			}
 			TranslateMessage(&tMsg);
 			DispatchMessage(&tMsg);
 		}
@@ -932,10 +975,18 @@ BOOL fido_create_key(LPCSTR szAlgName, LPCSTR szDisplayName, LPCSTR szApplicatio
 
 	// wait for thread to complete
 	DWORD iExitCode;
-	WaitForSingleObject(hThread, INFINITE);
 	GetExitCodeThread(hThread, &iExitCode);
 	CloseHandle(hThread);
-	if (iExitCode != 0) return FALSE;
+	if (bQuit) PostQuitMessage(iQuitCode);
+	fido_last_webauthn_error = pParams.hResult;
+	if (iExitCode != 0)
+	{
+		WCHAR szDbg[256];
+		wsprintfW(szDbg, L"PuTTY-CAC FIDO: WebAuthNAuthenticatorMakeCredential failed: 0x%08lX (%ls)\n",
+			pParams.hResult, WebAuthNGetErrorName(pParams.hResult));
+		OutputDebugStringW(szDbg);
+		return FALSE;
+	}
 
 	PWEBAUTHN_CREDENTIAL_ATTESTATION pAttestation = pParams.ppWebAuthNCredentialAttestation;
 	if (pAttestation == NULL || pAttestation->pbAuthenticatorData == NULL || pAttestation->pbCredentialId == NULL ||

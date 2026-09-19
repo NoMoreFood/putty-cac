@@ -105,6 +105,10 @@ EXTERN BOOL cert_sign_for_keyalg(LPCSTR szCert,
 
 // functions used by putty code 
 EXTERN VOID cert_set_busy_cursor(HWND hWnd, BOOL bBusy);
+EXTERN VOID cert_set_parent_hwnd(HWND hWnd);
+EXTERN HWND cert_get_parent_hwnd(VOID);
+EXTERN HRESULT fido_get_last_error(VOID);
+EXTERN LPCWSTR fido_get_last_error_name(VOID);
 EXTERN LPSTR cert_key_string(LPCSTR szCert);
 EXTERN LPSTR cert_subject_string(LPCSTR szCert);
 EXTERN LPSTR cert_prompt(LPCSTR szIden, BOOL bAutoSelect, LPCWSTR sCustomPrompt);

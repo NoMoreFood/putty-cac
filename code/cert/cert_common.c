@@ -27,6 +27,20 @@
 #define PUTTY_REG_POS "Software\\SimonTatham\\PuTTY"
 #endif
 
+static HWND g_cert_parent_hwnd = NULL;
+
+VOID cert_set_parent_hwnd(HWND hWnd)
+{
+	g_cert_parent_hwnd = hWnd;
+}
+
+HWND cert_get_parent_hwnd(VOID)
+{
+	if (g_cert_parent_hwnd != NULL && IsWindow(g_cert_parent_hwnd))
+		return g_cert_parent_hwnd;
+	return NULL;
+}
+
 VOID cert_set_busy_cursor(HWND hWnd, BOOL bBusy)
 {
 	HCURSOR hCursor = LoadCursor(NULL, bBusy ? IDC_WAIT : IDC_ARROW);
@@ -864,6 +878,14 @@ BOOL cert_hash_alg(LPCSTR szAlgo, DWORD iHashRequest,
 BOOL cert_confirm_signing(LPCSTR sFingerPrint, LPCSTR sComment,
 	BOOL bProviderBacked)
 {
+	HWND hWndOwner = GetForegroundWindow();
+	if (hWndOwner == NULL || !IsWindow(hWndOwner))
+		hWndOwner = cert_get_parent_hwnd();
+	if (hWndOwner == NULL || !IsWindow(hWndOwner))
+		hWndOwner = GetActiveWindow();
+	if (hWndOwner != NULL && IsWindow(hWndOwner))
+		cert_set_parent_hwnd(hWndOwner);
+
 	// prompt if usage prompting is enabled
 	if (!cert_auth_prompting(CERT_QUERY)) return TRUE;
 
@@ -882,7 +904,8 @@ BOOL cert_confirm_signing(LPCSTR sFingerPrint, LPCSTR sComment,
 		bIsCert ? "Subject" : "Comment", sDescription,
 		"Fingerprint", sFingerPrint != NULL ? sFingerPrint : "",
 		"Would you like to permit this signing operation?");
-	int iResponse = MessageBox(NULL, sMessage, "Certificate & Key Usage Confirmation - Pageant",
+
+	int iResponse = MessageBox(hWndOwner, sMessage, "Certificate & Key Usage Confirmation - Pageant",
 		MB_SYSTEMMODAL | MB_ICONQUESTION | MB_YESNO);
 	sfree(sMessage);
 	sfree(sDescription);
