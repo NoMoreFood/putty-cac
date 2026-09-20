@@ -20,6 +20,9 @@ You can find basic usage instructions on the US Government ID Management website
 
 [https://www.idmanagement.gov/implement/scl-ssh](https://www.idmanagement.gov/implement/scl-ssh/)
 
+The "Copy To Clipboard" buttons in PuTTY's Connection/SSH/Certificate panel and Pageant's key list include the
+certificate subject in the copied key's comment by default. Hold Shift while activating either button to omit the subject.
+
 ### Tabbed Sessions
 
 PuTTYTab (`puttytab.exe`) hosts independent PuTTY processes in one tabbed window. It includes saved-session and

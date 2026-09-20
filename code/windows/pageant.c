@@ -24,7 +24,7 @@
 #ifdef PUTTY_CAC
 #include "cert_common.h"
 char* pageant_nth_ssh2_comment(int i);
-char* pageant_nth_ssh2_string(int i);
+char* pageant_nth_ssh2_string(int i, bool include_subject);
 bool pageant_nth_ssh2_is_provider(int i);
 bool pageant_ssh2_blob_is_provider(ptrlen blob);
 #endif // PUTTY_CAC
@@ -855,6 +855,7 @@ static INT_PTR CALLBACK KeyListProc(HWND hwnd, UINT msg,
         case IDC_KEYLIST_CLIP_THUMB: /* copy thumbprint to clipboard */
 		{
             BOOL clipkey = LOWORD(wParam) == IDC_KEYLIST_CLIP_KEY;
+			bool include_subject = GetKeyState(VK_SHIFT) >= 0;
 			int numSelected = SendDlgItemMessage(hwnd, IDC_KEYLIST_LISTBOX, LB_GETSELCOUNT, 0, 0);
 			if (numSelected == 0) return 0;
 
@@ -878,7 +879,7 @@ static INT_PTR CALLBACK KeyListProc(HWND hwnd, UINT msg,
 				// handle request for the key format
 				LPSTR szClipStringAddon = NULL;
 				if (clipkey)
-					szClipStringAddon = pageant_nth_ssh2_string(ssh2Index);
+					szClipStringAddon = pageant_nth_ssh2_string(ssh2Index, include_subject);
 
 				// handle request for the comment
 				else if (provider_backed && comment && cert_is_certpath(comment))

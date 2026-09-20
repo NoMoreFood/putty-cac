@@ -109,7 +109,7 @@ EXTERN VOID cert_set_parent_hwnd(HWND hWnd);
 EXTERN HWND cert_get_parent_hwnd(VOID);
 EXTERN HRESULT fido_get_last_error(VOID);
 EXTERN LPCWSTR fido_get_last_error_name(VOID);
-EXTERN LPSTR cert_key_string(LPCSTR szCert);
+EXTERN LPSTR cert_key_string(LPCSTR szCert, BOOL bIncludeSubject);
 EXTERN LPSTR cert_subject_string(LPCSTR szCert);
 EXTERN LPSTR cert_prompt(LPCSTR szIden, BOOL bAutoSelect, LPCWSTR sCustomPrompt);
 EXTERN BOOL cert_test_hash(LPCSTR szCert, DWORD iHashRequest);

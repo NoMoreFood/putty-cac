@@ -1426,7 +1426,7 @@ struct ssh2_userkey* cert_load_key(LPCSTR szCert)
 	return cert_load_key_with_x509(szCert, cert_auth_x509_enabled(CERT_QUERY));
 }
 
-LPSTR cert_key_string(LPCSTR szCert)
+LPSTR cert_key_string(LPCSTR szCert, BOOL bIncludeSubject)
 {
 	// sanity check
 	if (szCert == NULL)
@@ -1454,11 +1454,12 @@ LPSTR cert_key_string(LPCSTR szCert)
 
 	// fetch the elements of the string
 	LPSTR szKey = ssh2_pubkey_openssh_str(pUserKey);
-	LPSTR szName = cert_subject_string(szCert);
+	LPSTR szName = bIncludeSubject ? cert_subject_string(szCert) : NULL;
 	LPSTR szHash = cert_get_cert_thumbprint(cert_iden(szCert), pCertContext);
 
-	// append the ssh string, identifier:thumbprint, and certificate subject
-	LPSTR szKeyWithComment = dupprintf("%s %s %s", szKey, szHash, szName);
+	// append the ssh string, identifier:thumbprint, and optional certificate subject
+	LPSTR szKeyWithComment = szName != NULL ?
+		dupprintf("%s %s %s", szKey, szHash, szName) : dupprintf("%s %s", szKey, szHash);
 
 	// clean and return
 	pUserKey->key->vt->freekey(pUserKey->key);

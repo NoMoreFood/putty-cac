@@ -3209,14 +3209,20 @@ void pageant_pubkey_free(struct pageant_pubkey *key)
 // defined in sshpubk
 char* ssh2_pubkey_openssh_str_direct(const char* comment, const void* v_pub_blob, int pub_len);
 
-char* pageant_nth_ssh2_string(int i)
+char* pageant_nth_ssh2_string(int i, bool include_subject)
 {
     PageantPublicKey* pkey = pageant_nth_pubkey(2, i);
     if (pkey == NULL) return NULL;
     ptrlen blob = pageant_provider_public_blob(
         pkey, cert_auth_x509_enabled(CERT_QUERY), false);
-    return ssh2_pubkey_openssh_str_direct(
-        pkey->comment, blob.ptr, blob.len);
+    char* subject = include_subject && pub_to_priv(pkey)->provider_backed ?
+        cert_subject_string(pkey->comment) : NULL;
+    char* comment = subject != NULL ? dupcat(pkey->comment, " ", subject) : NULL;
+    char* ret = ssh2_pubkey_openssh_str_direct(
+        comment != NULL ? comment : pkey->comment, blob.ptr, blob.len);
+    sfree(comment);
+    sfree(subject);
+    return ret;
 }
 
 char* pageant_nth_ssh2_comment(int i)
