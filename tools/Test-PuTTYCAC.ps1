@@ -205,51 +205,55 @@ function Resolve-PuTTYRoot {
 }
 
 # Backup current PuTTY registry settings to file
-function Backup-PuTTYRegistry {
-    $RegPath = 'HKCU:\Software\SimonTatham\PuTTY'
-    $script:State.PuTTYRegistryBackup = Join-Path $script:Paths.Run 'putty-registry-backup.clixml'
-
-    $Payload = if (Test-Path -LiteralPath $RegPath) {
-        Get-ItemProperty -LiteralPath $RegPath | Select-Object *
+function Backup-PuTTYRegistry([string]$RegistryPath = 'Software\SimonTatham\PuTTY') {
+    $BackupPath = Join-Path $script:Paths.Run ("putty-registry-{0}.reg" -f [guid]::NewGuid().ToString('N'))
+    $Key = [Microsoft.Win32.Registry]::CurrentUser.OpenSubKey($RegistryPath)
+    try {
+        $Existed = $null -ne $Key
+        $ValueNames = @(if ($Existed) { $Key.GetValueNames() })
+        if ($Existed) {
+            Invoke-Native -FilePath 'reg.exe' -ArgumentList @(
+                'export', "HKCU\$RegistryPath", $BackupPath
+            ) | Out-Null
+        }
+        $script:State.PuTTYRegistryBackup = @{
+            RegistryPath = $RegistryPath
+            Path = $BackupPath
+            Existed = $Existed
+            ValueNames = @($ValueNames)
+            Hash = if ($Existed) { (Get-FileHash -LiteralPath $BackupPath).Hash } else { $null }
+        }
     }
-    else {
-        $null
+    finally {
+        if ($Key) { $Key.Dispose() }
     }
-
-    $Payload | Export-Clixml -LiteralPath $script:State.PuTTYRegistryBackup
 }
 
 # Restore PuTTY registry settings from backup file
 function Restore-PuTTYRegistry {
-    $RegPath = 'HKCU:\Software\SimonTatham\PuTTY'
+    $Backup = $script:State.PuTTYRegistryBackup
+    if ($null -eq $Backup) { return }
 
-    if (-not $script:State.PuTTYRegistryBackup -or -not (Test-Path -LiteralPath $script:State.PuTTYRegistryBackup -PathType Leaf)) {
-        return
+    if ($Backup.Existed) {
+        if ((Get-FileHash -LiteralPath $Backup.Path).Hash -ne $Backup.Hash) {
+            throw "Registry backup failed integrity verification: $($Backup.Path)."
+        }
+        Invoke-Native -FilePath 'reg.exe' -ArgumentList @('import', $Backup.Path) | Out-Null
     }
 
-    $Backup = Import-Clixml -LiteralPath $script:State.PuTTYRegistryBackup
-
-    if ($null -eq $Backup) {
-        Remove-Item -LiteralPath $RegPath -Recurse -Force -ErrorAction SilentlyContinue
-        return
+    $Key = [Microsoft.Win32.Registry]::CurrentUser.OpenSubKey($Backup.RegistryPath, $true)
+    if ($null -eq $Key) { return }
+    try {
+        # Remove properties that were added during testing
+        foreach ($Name in $Key.GetValueNames()) {
+            if ($Name -notin $Backup.ValueNames) { $Key.DeleteValue($Name) }
+        }
+        $RemoveEmptyKey = -not $Backup.Existed -and $Key.SubKeyCount -eq 0 -and $Key.ValueCount -eq 0
     }
-
-    New-Item -Path $RegPath -Force | Out-Null
-    $Keep = @('PSPath', 'PSParentPath', 'PSChildName', 'PSDrive', 'PSProvider')
-
-    # Remove properties that were added during testing
-    $Current = if (Test-Path -LiteralPath $RegPath) { Get-ItemProperty -LiteralPath $RegPath } else { $null }
-
-    if ($Current) { foreach ($Prop in $Current.PSObject.Properties.Name | Where-Object { $_ -notin $Keep }) { Remove-ItemProperty -LiteralPath $RegPath -Name $Prop -Force -ErrorAction SilentlyContinue } }
-
-    # Restore original properties
-    foreach ($Prop in $Backup.PSObject.Properties | Where-Object { $_.Name -notin $Keep }) {
-        $Kind = if ($Prop.Value -is [int]) { 'DWord' }
-        elseif ($Prop.Value -is [string[]]) { 'MultiString' }
-        else { 'String' }
-
-        New-ItemProperty -LiteralPath $RegPath -Name $Prop.Name -Value $Prop.Value -PropertyType $Kind -Force | Out-Null
+    finally {
+        $Key.Dispose()
     }
+    if ($RemoveEmptyKey) { [Microsoft.Win32.Registry]::CurrentUser.DeleteSubKey($Backup.RegistryPath, $false) }
 }
 
 # Create a self-signed test certificate with configurable parameters
@@ -520,7 +524,7 @@ function Test-TectiaInteroperability(
 
     $RegistryPath = 'HKCU:\Software\SimonTatham\PuTTY'
     $PreviousAuthX509 = Get-RegistryDword -Path $RegistryPath -Name 'AuthX509'
-    New-Item -Path $RegistryPath -Force | Out-Null
+    [Microsoft.Win32.Registry]::CurrentUser.CreateSubKey('Software\SimonTatham\PuTTY').Dispose()
     New-ItemProperty -LiteralPath $RegistryPath -Name 'AuthX509' -PropertyType DWord -Value 1 -Force | Out-Null
 
     try {
@@ -2186,7 +2190,12 @@ function Test-ShaVariantAlgorithms([object[]]$Cases, [string[]]$HostKeys, [strin
 }
 
 # Start Pageant with specified arguments and wait for initialization
-function Start-Pageant([string[]]$Arguments) {
+function Start-Pageant([string[]]$Arguments, [switch]$ClearSavedList) {
+    if ($ClearSavedList) {
+        Stop-Pageants
+        Remove-ItemProperty -LiteralPath 'HKCU:\Software\SimonTatham\PuTTY' -Name 'SaveCertList' `
+            -ErrorAction SilentlyContinue
+    }
     $Config = Join-Path $script:Paths.Run ("pageant-{0}.conf" -f ([guid]::NewGuid().ToString('N')))
     $ArgList = @('--openssh-config', $Config) + $Arguments
     $Process = Start-Process -FilePath $script:Paths.Pageant -ArgumentList $ArgList -PassThru -WindowStyle Hidden
@@ -2216,7 +2225,16 @@ function Start-Pageant([string[]]$Arguments) {
 # Stop all running Pageant processes
 function Stop-Pageants {
     foreach ($Process in $script:State.PageantProcesses) {
-        if ($Process -and -not $Process.HasExited) { Stop-Process -Id $Process.Id -Force -ErrorAction SilentlyContinue }
+        if ($Process -and -not $Process.HasExited) {
+            try {
+                $Process.Kill()
+                [void]$Process.WaitForExit(5000)
+            }
+            catch { }
+        }
+    }
+    if (@($script:State.PageantProcesses | Where-Object { -not $_.HasExited }).Count) {
+        throw 'Unable to stop all test Pageant processes.'
     }
 }
 
@@ -2269,14 +2287,17 @@ function Test-PageantFilters([object[]]$Positive, [object[]]$Negative, [object]$
     }
 
     $ExpiredCase = $Negative | Where-Object Name -eq 'NEG-EXPIRED' | Select-Object -First 1
+    Remove-ItemProperty -LiteralPath 'HKCU:\Software\SimonTatham\PuTTY' -Name 'IgnoreCertName' `
+        -ErrorAction SilentlyContinue
+    $FilterArgs = @('-x509off', '-allowanycertoff',
+        ($TrustTestRoots ? '-trustedcertsonly' : '-trustedcertsonlyoff'))
 
     # Test autoload with expiry and optional trust filters
     $AutoloadArgs = [List[string]]::new()
-    $AutoloadArgs.Add('-autoload') | Out-Null
-    $AutoloadArgs.Add('-ignoreexpiredcerts') | Out-Null
-    if ($TrustTestRoots) { $AutoloadArgs.Add('-trustedcertsonly') | Out-Null }
+    $AutoloadArgs.AddRange([string[]]($FilterArgs + @(
+        '-autoload', '-ignoreexpiredcerts', '-smartcardlogoncertsonlyoff')))
 
-    $Bridge = Start-Pageant -Arguments $AutoloadArgs
+    $Bridge = Start-Pageant -Arguments $AutoloadArgs -ClearSavedList
 
     try {
         $Keys = @(Get-PageantKeys -Agent $Bridge.Agent | ForEach-Object { Get-KeyId $_ })
@@ -2318,11 +2339,10 @@ function Test-PageantFilters([object[]]$Positive, [object[]]$Negative, [object]$
     # listed. Mirror the trust filter so the chain path is checked too (issue #166).
     if ($ExpiredCase) {
         $ShowExpiredArgs = [List[string]]::new()
-        $ShowExpiredArgs.Add('-autoload') | Out-Null
-        $ShowExpiredArgs.Add('-ignoreexpiredcertsoff') | Out-Null
-        if ($TrustTestRoots) { $ShowExpiredArgs.Add('-trustedcertsonly') | Out-Null }
+        $ShowExpiredArgs.AddRange([string[]]($FilterArgs + @(
+            '-autoload', '-ignoreexpiredcertsoff', '-smartcardlogoncertsonlyoff')))
 
-        $Bridge = Start-Pageant -Arguments $ShowExpiredArgs
+        $Bridge = Start-Pageant -Arguments $ShowExpiredArgs -ClearSavedList
 
         try {
             $Keys = @(Get-PageantKeys -Agent $Bridge.Agent | ForEach-Object { Get-KeyId $_ })
@@ -2337,7 +2357,8 @@ function Test-PageantFilters([object[]]$Positive, [object[]]$Negative, [object]$
     # -smartcardlogoncertsonly must list only certs with the Smart Card Logon EKU:
     # the SC-logon cert stays, an ordinary client-auth cert is filtered out.
     if ($SmartCardLogon) {
-        $Bridge = Start-Pageant -Arguments @('-autoload', '-smartcardlogoncertsonly')
+        $Bridge = Start-Pageant -Arguments ($FilterArgs + @(
+            '-autoload', '-smartcardlogoncertsonly', '-ignoreexpiredcerts')) -ClearSavedList
 
         try {
             $Keys = @(Get-PageantKeys -Agent $Bridge.Agent | ForEach-Object { Get-KeyId $_ })
@@ -2359,21 +2380,21 @@ function Test-PageantFilters([object[]]$Positive, [object[]]$Negative, [object]$
     }
 
     # Test certificate list persistence in registry
-    $SaveList = $Positive | Select-Object -First ([Math]::Min(2, $Positive.Count))
+    $SaveList = @($Positive | Select-Object -First ([Math]::Min(2, $Positive.Count)))
 
     if ($SaveList.Count -gt 0) {
-        New-Item -Path 'HKCU:\Software\SimonTatham\PuTTY' -Force | Out-Null
+        Stop-Pageants
+        [Microsoft.Win32.Registry]::CurrentUser.CreateSubKey('Software\SimonTatham\PuTTY').Dispose()
         New-ItemProperty -LiteralPath 'HKCU:\Software\SimonTatham\PuTTY' -Name 'SaveCertListEnabled' -PropertyType DWord -Value 1 -Force | Out-Null
         New-ItemProperty -LiteralPath 'HKCU:\Software\SimonTatham\PuTTY' -Name 'SaveCertList' -PropertyType MultiString -Value ($SaveList.CertId) -Force | Out-Null
 
-        $Bridge = Start-Pageant -Arguments @()
+        $Bridge = Start-Pageant -Arguments @('-autoloadoff')
 
         try {
             $Keys = @(Get-PageantKeys -Agent $Bridge.Agent | ForEach-Object { Get-KeyId $_ })
 
-            foreach ($Case in $SaveList) {
-                if ($Keys -notcontains (Get-KeyId $Case.AuthorizedKey)) { throw "Saved certificate $($Case.Name) was not restored into Pageant." }
-            }
+            $ExpectedKeys = @($SaveList | ForEach-Object { Get-KeyId $_.AuthorizedKey })
+            if (Compare-Object $ExpectedKeys $Keys) { throw 'Pageant did not restore exactly the saved certificate list.' }
 
             Add-Result -Name 'PAGEANT-SAVELIST' -Status 'Pass' -Detail 'Pageant restored saved certificate list from registry.'
         }
@@ -2561,13 +2582,16 @@ try {
     $script:Paths.SshExe = Get-CommandPath (Join-Path $OpenSSHRoot 'ssh.exe')
     $script:Paths.SshAdd = Get-CommandPath (Join-Path $OpenSSHRoot 'ssh-add.exe')
 
+    if (Get-Process -Name pageant -ErrorAction SilentlyContinue) {
+        throw 'Close existing Pageant processes before running the integration suite.'
+    }
     Backup-PuTTYRegistry
 
     # Baseline tests exercise raw SSH algorithms regardless of the user's
     # pre-existing global X.509 setting. Cleanup restores the original value.
     $BaselineRegPath = 'HKCU:\Software\SimonTatham\PuTTY'
     if (-not (Test-Path -LiteralPath $BaselineRegPath)) {
-        New-Item -Path $BaselineRegPath -Force | Out-Null
+        [Microsoft.Win32.Registry]::CurrentUser.CreateSubKey('Software\SimonTatham\PuTTY').Dispose()
     }
     New-ItemProperty -LiteralPath $BaselineRegPath -Name 'AuthX509' `
         -PropertyType DWord -Value 0 -Force | Out-Null
@@ -2581,7 +2605,7 @@ try {
         Test-TectiaInteroperability -Server $TectiaHost -Account $TectiaUser `
             -BasePort $TectiaBasePort -ConfiguredHostKeys $TectiaHostKey
     }
-    elseif ($TectiaUser -or @($TectiaHostKey).Count -gt 0) {
+    elseif ($TectiaUser -or $TectiaHostKey) {
         throw 'TectiaHost is required when TectiaUser or TectiaHostKey is supplied.'
     }
 
@@ -2771,7 +2795,7 @@ try {
         $X509RegPath = 'HKCU:\Software\SimonTatham\PuTTY'
         try {
             if (-not (Test-Path -LiteralPath $X509RegPath)) {
-                New-Item -Path $X509RegPath -Force | Out-Null
+                [Microsoft.Win32.Registry]::CurrentUser.CreateSubKey('Software\SimonTatham\PuTTY').Dispose()
             }
             # Enable AuthX509 globally
             New-ItemProperty -LiteralPath $X509RegPath -Name 'AuthX509' -PropertyType DWord -Value 1 -Force | Out-Null
@@ -2911,23 +2935,34 @@ catch {
     }
 }
 finally {
-    Stop-Pageants
+    try { Stop-Pageants }
+    catch { Add-Result -Name 'PAGEANT-CLEANUP' -Status 'Fail' -Detail $_.Exception.Message }
 
-    # Stop and remove the Docker container
-    $DockerCmd = Get-Command docker -ErrorAction SilentlyContinue
-    if ($DockerCmd) {
-        Invoke-Native -FilePath $DockerCmd.Source -ArgumentList @('rm', '-f', $PkixContainerName) -IgnoreExitCode | Out-Null
-        Invoke-Native -FilePath $DockerCmd.Source -ArgumentList @('rm', '-f', $WolfSshContainerName) -IgnoreExitCode | Out-Null
-        Invoke-Native -FilePath $DockerCmd.Source -ArgumentList @('rm', '-f', $AsyncSshContainerName) -IgnoreExitCode | Out-Null
+    try {
+        # Stop and remove the Docker container
+        $DockerCmd = Get-Command docker -ErrorAction SilentlyContinue
+        if ($DockerCmd) {
+            Invoke-Native -FilePath $DockerCmd.Source -ArgumentList @('rm', '-f', $PkixContainerName) -IgnoreExitCode | Out-Null
+            Invoke-Native -FilePath $DockerCmd.Source -ArgumentList @('rm', '-f', $WolfSshContainerName) -IgnoreExitCode | Out-Null
+            Invoke-Native -FilePath $DockerCmd.Source -ArgumentList @('rm', '-f', $AsyncSshContainerName) -IgnoreExitCode | Out-Null
+        }
+
+        # Clean up temporary files
+        if ($PkixAuthKeysPath -and (Test-Path -LiteralPath $PkixAuthKeysPath)) { Remove-Item -LiteralPath $PkixAuthKeysPath -Force -ErrorAction SilentlyContinue }
+        if ($script:Paths.PkixHostKeys -and (Test-Path -LiteralPath $script:Paths.PkixHostKeys)) { Remove-Item -LiteralPath $script:Paths.PkixHostKeys -Recurse -Force -ErrorAction SilentlyContinue }
+        if ($script:Paths.PkixChainRoot -and (Test-Path -LiteralPath $script:Paths.PkixChainRoot)) { Remove-Item -LiteralPath $script:Paths.PkixChainRoot -Force -ErrorAction SilentlyContinue }
     }
+    catch { Add-Result -Name 'CLEANUP' -Status 'Fail' -Detail $_.Exception.Message }
 
-    # Clean up temporary files
-    if ($PkixAuthKeysPath -and (Test-Path -LiteralPath $PkixAuthKeysPath)) { Remove-Item -LiteralPath $PkixAuthKeysPath -Force -ErrorAction SilentlyContinue }
-    if ($script:Paths.PkixHostKeys -and (Test-Path -LiteralPath $script:Paths.PkixHostKeys)) { Remove-Item -LiteralPath $script:Paths.PkixHostKeys -Recurse -Force -ErrorAction SilentlyContinue }
-    if ($script:Paths.PkixChainRoot -and (Test-Path -LiteralPath $script:Paths.PkixChainRoot)) { Remove-Item -LiteralPath $script:Paths.PkixChainRoot -Force -ErrorAction SilentlyContinue }
-
-    Restore-PuTTYRegistry
-    Remove-TestCertificates
+    try {
+        if (@($script:State.PageantProcesses | Where-Object { -not $_.HasExited }).Count) {
+            throw 'Test Pageant processes are still running; the registry backup has been retained for recovery.'
+        }
+        Restore-PuTTYRegistry
+    }
+    catch { Add-Result -Name 'REGISTRY-RESTORE' -Status 'Fail' -Detail $_.Exception.Message }
+    try { Remove-TestCertificates }
+    catch { Add-Result -Name 'CERTIFICATE-CLEANUP' -Status 'Fail' -Detail $_.Exception.Message }
 
     Write-Summary
 }
