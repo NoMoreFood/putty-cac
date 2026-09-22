@@ -15,8 +15,8 @@
 CComPtr<IObjectId> GetObjectId(_bstr_t sAlgName)
 {
     CComPtr<IObjectId> oAlgOid;
-    if (FAILED(CoCreateInstance(__uuidof(CObjectId), NULL, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&oAlgOid)))) exit(0);
-    oAlgOid->InitializeFromValue(sAlgName);
+    if (FAILED(CoCreateInstance(__uuidof(CObjectId), NULL, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&oAlgOid))) ||
+        FAILED(oAlgOid->InitializeFromValue(sAlgName))) return nullptr;
     return oAlgOid;
 }
 
@@ -41,6 +41,13 @@ EXTERN_C LPSTR cert_capi_create_key(LPCSTR szAlgName, LPCSTR sSubjectName, BOOL 
     // initialize com
     HRESULT iInit = CoInitializeEx(NULL, COINIT_APARTMENTTHREADED);
     if (iInit != S_OK && iInit != S_FALSE) return NULL;
+    struct ComCleanup
+    {
+        ~ComCleanup()
+        {
+            CoUninitialize();
+        }
+    } tComCleanup;
 
     // create provider information structure
     CComPtr<ICspInformation> oProviderInfo = nullptr;
@@ -71,6 +78,15 @@ EXTERN_C LPSTR cert_capi_create_key(LPCSTR szAlgName, LPCSTR sSubjectName, BOOL 
     {
         return NULL;
     }
+
+    struct KeyCleanup
+    {
+        IX509PrivateKey* pKey;
+        ~KeyCleanup()
+        {
+            if (pKey != nullptr) pKey->Delete();
+        }
+    } tKeyCleanup = { oPrivateKey.p };
 
     // give the certificate a long lifetime
     DOUBLE iNotBefore = 0, iNotAfter = 0;
@@ -131,24 +147,24 @@ EXTERN_C LPSTR cert_capi_create_key(LPCSTR szAlgName, LPCSTR sSubjectName, BOOL 
 
     // create and submit self-signed enrollment request
     CComPtr<IX509Enrollment2> oEnrollment = nullptr;
-    BSTR sRequestString;
-    BSTR sInstalledCert;
+    CComBSTR sRequestString;
+    CComBSTR sInstalledCert;
     if (FAILED(CoCreateInstance(__uuidof(CX509Enrollment), NULL, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&oEnrollment))) ||
         FAILED(oEnrollment->InitializeFromRequest(oRequest)) ||
         FAILED(oEnrollment->CreateRequest(XCN_CRYPT_STRING_BASE64, &sRequestString)) ||
-        FAILED(oEnrollment->InstallResponse(AllowUntrustedCertificate, sRequestString, XCN_CRYPT_STRING_BASE64, _bstr_t(L""))) ||
-        FAILED(oEnrollment->get_Certificate(XCN_CRYPT_STRING_BINARY, &sInstalledCert)))
+        FAILED(oEnrollment->InstallResponse(AllowUntrustedCertificate,
+            sRequestString, XCN_CRYPT_STRING_BASE64, _bstr_t(L""))))
     {
         return NULL;
     }
-    SysFreeString(sRequestString);
+    tKeyCleanup.pKey = nullptr;
+    if (FAILED(oEnrollment->get_Certificate(XCN_CRYPT_STRING_BINARY, &sInstalledCert))) return NULL;
 
     // fetch dummy context so we can lookup the thumbprint
     PCCERT_CONTEXT tDummyCertContext = CertCreateCertificateContext(
         X509_ASN_ENCODING | PKCS_7_ASN_ENCODING,
-        &((LPBYTE)sInstalledCert)[sizeof(UINT)],
+        (LPCBYTE)sInstalledCert.m_str,
         SysStringByteLen(sInstalledCert));
-    SysFreeString(sInstalledCert);
 
     // now use the public key to find the unified certificate in the cer store
     LPSTR szThumbprint = NULL;

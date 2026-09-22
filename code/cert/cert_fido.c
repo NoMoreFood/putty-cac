@@ -1037,6 +1037,16 @@ LPWSTR fido_get_user_id()
 	return sSidString;
 }
 
+static BOOL fido_get_importer_path(WCHAR* sPath)
+{
+	DWORD iLen = GetModuleFileNameW(NULL, sPath, MAX_PATH);
+	if (iLen == 0 || iLen >= MAX_PATH) return FALSE;
+	WCHAR* sSlash = wcsrchr(sPath, L'\\');
+	if (sSlash == NULL || sSlash + 1 - sPath + _countof(L"puttyimp.exe") > MAX_PATH) return FALSE;
+	wcscpy(sSlash + 1, L"puttyimp.exe");
+	return TRUE;
+}
+
 BOOL fido_delete_key(LPCSTR szCert)
 {
 	// split on the hint symbol to get the appid
@@ -1050,11 +1060,14 @@ BOOL fido_delete_key(LPCSTR szCert)
 
 	// construct path to puttyimp from the current directory
 	WCHAR szProgPath[MAX_PATH];
-	GetModuleFileNameW(NULL, szProgPath, MAX_PATH);
-	wcsrchr(szProgPath, '\\')[1] = '\0';
-	wcscat(szProgPath, L"puttyimp.exe");
-	WCHAR szParams[MAX_PATH];
-	wsprintfW(szParams, L"--delete-fido \"%s\" \"%s\"", szAppIdUnicode, sSidString);
+	if (!fido_get_importer_path(szProgPath))
+	{
+		LocalFree(sSidString);
+		return FALSE;
+	}
+	size_t iParamsLen = wcslen(szAppIdUnicode) + wcslen(sSidString) + _countof(L"--delete-fido \"\" \"\"");
+	WCHAR* szParams = snewn(iParamsLen, WCHAR);
+	swprintf_s(szParams, iParamsLen, L"--delete-fido \"%s\" \"%s\"", szAppIdUnicode, sSidString);
 	LocalFree(sSidString);
 
 	// warn user about elevation prompt user
@@ -1063,8 +1076,10 @@ BOOL fido_delete_key(LPCSTR szCert)
 		L"system settings.", L"FIDO Key Delete", MB_SYSTEMMODAL | MB_ICONINFORMATION | MB_OK);
 
 	// launch importer
-	if ((INT_PTR)ShellExecuteW(GetForegroundWindow(),
-		L"runas", szProgPath, szParams, NULL, SW_SHOW) <= 32)
+	INT_PTR iResult = (INT_PTR)ShellExecuteW(GetForegroundWindow(),
+		L"runas", szProgPath, szParams, NULL, SW_SHOW);
+	sfree(szParams);
+	if (iResult <= 32)
 	{
 		// notify user upon error
 		MessageBoxW(NULL, L"The PuTTYImp process failed to launch properly. You may "
@@ -1085,11 +1100,13 @@ VOID fido_import_keys()
 
 	// construct path to puttyimp from the current directory
 	WCHAR szProgPath[MAX_PATH];
-	GetModuleFileNameW(NULL, szProgPath, MAX_PATH);
-	wcsrchr(szProgPath, '\\')[1] = '\0';
-	wcscat(szProgPath, L"puttyimp.exe");
+	if (!fido_get_importer_path(szProgPath))
+	{
+		LocalFree(sSidString);
+		return;
+	}
 	WCHAR szParams[MAX_PATH];
-	wsprintfW(szParams, L"--import-fido %s", sSidString);
+	swprintf_s(szParams, _countof(szParams), L"--import-fido %s", sSidString);
 	LocalFree(sSidString);
 
 	// warn user about elevation prompt user

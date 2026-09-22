@@ -516,6 +516,20 @@ static void ssh2_userauth_process_queue(PacketProtocolLayer *ppl)
      * Load the public half of any configured public key file for
      * later use.
      */
+#ifdef PUTTY_CAC
+    {
+        const char *selector = filename_to_str(s->keyfile);
+        if (cert_is_certpath(selector) &&
+            (!strcmp(IDEN_SPLIT(selector), "*") || !strcmp(IDEN_SPLIT(selector), "**")))
+        {
+            char *resolved = cert_prompt(selector, !strcmp(IDEN_SPLIT(selector), "**"), NULL);
+            Filename *keyfile = filename_from_str(resolved != NULL ? resolved : "");
+            filename_free(s->keyfile);
+            s->keyfile = keyfile;
+            sfree(resolved);
+        }
+    }
+#endif // PUTTY_CAC
     if (!filename_is_null(s->keyfile)) {
         int keytype;
         ppl_logevent("Reading key file \"%s\"",

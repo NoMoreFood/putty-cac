@@ -17,16 +17,18 @@
 #pragma comment(lib,"cryptui.lib")
 #pragma comment(lib,"ncrypt.lib")
 
-static BOOL cert_capi_ncrypt_key_matches(PCCERT_CONTEXT pCertCtx, NCRYPT_KEY_HANDLE hKey)
+static BOOL cert_capi_key_matches(PCCERT_CONTEXT pCertCtx,
+	HCRYPTPROV_OR_NCRYPT_KEY_HANDLE hKey, DWORD iKeySpec)
 {
 	DWORD iPublicKeyInfoSize = 0;
-	if (!CryptExportPublicKeyInfo(hKey, 0, X509_ASN_ENCODING, NULL, &iPublicKeyInfoSize) || iPublicKeyInfoSize == 0)
+	if (!CryptExportPublicKeyInfo(hKey, iKeySpec, X509_ASN_ENCODING,
+		NULL, &iPublicKeyInfoSize) || iPublicKeyInfoSize == 0)
 	{
 		return FALSE;
 	}
 
 	PCERT_PUBLIC_KEY_INFO pPublicKeyInfo = (PCERT_PUBLIC_KEY_INFO)snewn(iPublicKeyInfoSize, BYTE);
-	BOOL bMatches = CryptExportPublicKeyInfo(hKey, 0, X509_ASN_ENCODING, pPublicKeyInfo, &iPublicKeyInfoSize) &&
+	BOOL bMatches = CryptExportPublicKeyInfo(hKey, iKeySpec, X509_ASN_ENCODING, pPublicKeyInfo, &iPublicKeyInfoSize) &&
 		CertComparePublicKeyInfo(X509_ASN_ENCODING, pPublicKeyInfo, &pCertCtx->pCertInfo->SubjectPublicKeyInfo);
 	sfree(pPublicKeyInfo);
 	return bMatches;
@@ -51,7 +53,7 @@ static BOOL cert_capi_open_ncrypt_key(PCCERT_CONTEXT pCertCtx, PCRYPT_KEY_PROV_I
 	{
 		if (NCryptOpenStorageProvider(phProvider, szProviders[iProvider], 0) == ERROR_SUCCESS &&
 			NCryptOpenKey(*phProvider, phKey, pProviderInfo->pwszContainerName, iKeySpec, iOpenFlags) == ERROR_SUCCESS &&
-			cert_capi_ncrypt_key_matches(pCertCtx, *phKey))
+			cert_capi_key_matches(pCertCtx, *phKey, 0))
 		{
 			return TRUE;
 		}
@@ -200,7 +202,7 @@ BYTE* cert_capi_sign(struct ssh2_userkey* userkey, LPCBYTE pDataToSign, int iDat
 			// set pin prompt
 			WCHAR* szPin = NULL;
 			if (cert_cache_enabled(CERT_QUERY) &&
-				(szPin = cert_pin(userkey->comment, TRUE, NULL)) != NULL)
+				(szPin = cert_pin(userkey->comment, TRUE, NULL, NULL)) != NULL)
 			{
 				DWORD iLength = (1 + wcslen(szPin)) * sizeof(WCHAR);
 				(void)NCryptSetProperty(hNCryptKey, NCRYPT_PIN_PROPERTY, (PBYTE)szPin, iLength, 0);
@@ -229,9 +231,9 @@ BYTE* cert_capi_sign(struct ssh2_userkey* userkey, LPCBYTE pDataToSign, int iDat
 				pSig = NULL;
 
 				// add pin to cache if cache is enabled
-				if (cert_cache_enabled(CERT_QUERY))
+				if (cert_cache_enabled(CERT_QUERY) && szPin != NULL)
 				{
-					cert_pin(userkey->comment, TRUE, szPin);
+					cert_pin(userkey->comment, TRUE, szPin, NULL);
 				}
 			}
 
@@ -246,7 +248,7 @@ BYTE* cert_capi_sign(struct ssh2_userkey* userkey, LPCBYTE pDataToSign, int iDat
 			// set pin prompt
 			LPSTR szPin = NULL;
 			if (cert_cache_enabled(CERT_QUERY) &&
-				(szPin = cert_pin(userkey->comment, FALSE, NULL)) != NULL)
+				(szPin = cert_pin(userkey->comment, FALSE, NULL, NULL)) != NULL)
 			{
 				CryptSetProvParam(hCryptProv, (pProviderInfo->dwKeySpec ==
 					AT_SIGNATURE) ? PP_SIGNATURE_PIN : PP_KEYEXCHANGE_PIN, (LPCBYTE)szPin, 0);
@@ -265,9 +267,9 @@ BYTE* cert_capi_sign(struct ssh2_userkey* userkey, LPCBYTE pDataToSign, int iDat
 				pSig = NULL;
 
 				// add pin to cache if cache is enabled
-				if (cert_cache_enabled(CERT_QUERY))
+				if (cert_cache_enabled(CERT_QUERY) && szPin != NULL)
 				{
-					cert_pin(userkey->comment, FALSE, szPin);
+					cert_pin(userkey->comment, FALSE, szPin, NULL);
 				}
 			}
 
@@ -320,11 +322,29 @@ BOOL cert_capi_delete_key(LPCSTR szCert)
 			bSuccess = NCryptDeleteKey(hNCryptKey, 0) == ERROR_SUCCESS;
 			if (bSuccess) hNCryptKey = 0;
 		}
-		else if (CryptAcquireContextW(&hCryptProv, pProviderInfo->pwszContainerName,
-			pProviderInfo->pwszProvName, pProviderInfo->dwProvType, CRYPT_DELETEKEYSET |
-			((pProviderInfo->dwFlags & CRYPT_MACHINE_KEYSET) ? CRYPT_MACHINE_KEYSET : 0)) != FALSE)
+		else if ((pProviderInfo->dwKeySpec == AT_SIGNATURE || pProviderInfo->dwKeySpec == AT_KEYEXCHANGE) &&
+			CryptAcquireContextW(&hCryptProv, pProviderInfo->pwszContainerName, pProviderInfo->pwszProvName,
+				pProviderInfo->dwProvType, pProviderInfo->dwFlags & CRYPT_MACHINE_KEYSET))
 		{
-			bSuccess = TRUE;
+			BOOL bCanDelete = cert_capi_key_matches(pCertCtx, hCryptProv, pProviderInfo->dwKeySpec);
+			HCRYPTKEY hCompanionKey = 0;
+			DWORD iCompanionSpec = pProviderInfo->dwKeySpec == AT_SIGNATURE ? AT_KEYEXCHANGE : AT_SIGNATURE;
+			if (CryptGetUserKey(hCryptProv, iCompanionSpec, &hCompanionKey))
+			{
+				CryptDestroyKey(hCompanionKey);
+				bCanDelete = FALSE;
+			}
+			else if (GetLastError() != NTE_NO_KEY) bCanDelete = FALSE;
+			CryptReleaseContext(hCryptProv, 0);
+			hCryptProv = 0;
+
+			if (bCanDelete)
+			{
+				HCRYPTPROV hDeletedProvider = 0;
+				bSuccess = CryptAcquireContextW(&hDeletedProvider, pProviderInfo->pwszContainerName,
+					pProviderInfo->pwszProvName, pProviderInfo->dwProvType,
+					CRYPT_DELETEKEYSET | (pProviderInfo->dwFlags & CRYPT_MACHINE_KEYSET));
+			}
 		}
 
 		// cleanup crypto structures and intermediate signing data

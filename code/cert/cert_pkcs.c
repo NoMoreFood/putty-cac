@@ -313,7 +313,8 @@ BYTE * cert_pkcs_sign(struct ssh2_userkey * userkey, LPCBYTE pDataToSign, int iD
 	// Authenticate through the token's protected path or a software PIN.
 	if (iCertListSize == 0)
 	{
-		LPSTR szPin = bProtectedAuthentication ? NULL : cert_pin(userkey->comment, FALSE, NULL);
+		BOOL bCached = FALSE;
+		LPSTR szPin = bProtectedAuthentication ? NULL : cert_pin(userkey->comment, FALSE, NULL, &bCached);
 		if (!bProtectedAuthentication && szPin == NULL)
 		{
 			// error
@@ -325,6 +326,19 @@ BYTE * cert_pkcs_sign(struct ssh2_userkey * userkey, LPCBYTE pDataToSign, int iD
 		// login to the card to unlock the private key
 		CK_RV iLoginResult = pFunctionList->C_Login(hSession, CKU_USER, (CK_UTF8CHAR_PTR)szPin,
 			szPin != NULL ? strlen(szPin) : 0);
+		if (bCached && iLoginResult != CKR_OK && iLoginResult != CKR_USER_ALREADY_LOGGED_IN)
+		{
+			cert_pin_clear(userkey->comment);
+			if (iLoginResult == CKR_PIN_INCORRECT || iLoginResult == CKR_PIN_INVALID ||
+				iLoginResult == CKR_PIN_LEN_RANGE)
+			{
+				SecureZeroMemory(szPin, strlen(szPin));
+				free(szPin);
+				szPin = cert_prompt_pin(FALSE);
+				iLoginResult = szPin != NULL ? pFunctionList->C_Login(hSession, CKU_USER,
+					(CK_UTF8CHAR_PTR)szPin, strlen(szPin)) : CKR_CANCEL;
+			}
+		}
 		if (iLoginResult != CKR_OK && iLoginResult != CKR_USER_ALREADY_LOGGED_IN)
 		{
 			// error
@@ -338,7 +352,7 @@ BYTE * cert_pkcs_sign(struct ssh2_userkey * userkey, LPCBYTE pDataToSign, int iD
 		// add to pin cache if enabled
 		if (szPin != NULL && cert_cache_enabled(CERT_QUERY))
 		{
-			cert_pin(userkey->comment, FALSE, szPin);
+			cert_pin(userkey->comment, FALSE, szPin, NULL);
 		}
 
 		// cleanup creds

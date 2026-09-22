@@ -1674,6 +1674,11 @@ static PageantAsyncOp *pageant_make_op(
             sfree(selector_string);
         }
         BinarySource_REWIND_TO(msg, current_pos);
+        if (strstartswith(alg->ssh_id, "sk-"))
+        {
+            fail("security keys require a provider selector");
+            goto add2_cleanup;
+        }
 #endif // PUTTY_CAC
         key->key = ssh_key_new_priv_openssh(alg, msg);
 

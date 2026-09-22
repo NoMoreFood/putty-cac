@@ -1084,19 +1084,19 @@ void capi_event_handler(dlgcontrol* ctrl, dlgparam* dlg, void* data, int event)
 	if (ctrl == capid->capi_no_expired_checkbox && event == EVENT_REFRESH)
 		dlg_checkbox_set(ctrl, dlg, cert_ignore_expired_certs(CERT_QUERY));
 	if (ctrl == capid->capi_no_expired_checkbox && event == EVENT_VALCHANGE)
-		cert_ignore_expired_certs(dlg_checkbox_get(ctrl, dlg));
+		cert_ignore_expired_certs(dlg_checkbox_get(ctrl, dlg) ? CERT_SET : CERT_UNSET);
 
 	// handle certificate filter - smartcard only expired
 	if (ctrl == capid->capi_smartcard_only_checkbox && event == EVENT_REFRESH)
 		dlg_checkbox_set(ctrl, dlg, cert_smartcard_certs_only(CERT_QUERY));
 	if (ctrl == capid->capi_smartcard_only_checkbox && event == EVENT_VALCHANGE)
-		cert_smartcard_certs_only(dlg_checkbox_get(ctrl, dlg));
+		cert_smartcard_certs_only(dlg_checkbox_get(ctrl, dlg) ? CERT_SET : CERT_UNSET);
 
 	// handle certificate filter - trusted only
 	if (ctrl == capid->capi_trusted_certs_checkbox && event == EVENT_REFRESH)
 		dlg_checkbox_set(ctrl, dlg, cert_trusted_certs_only(CERT_QUERY));
 	if (ctrl == capid->capi_trusted_certs_checkbox && event == EVENT_VALCHANGE)
-		cert_trusted_certs_only(dlg_checkbox_get(ctrl, dlg));
+		cert_trusted_certs_only(dlg_checkbox_get(ctrl, dlg) ? CERT_SET : CERT_UNSET);
 
 	// handle key algorithm key combo box population
 	if (ctrl == capid->capi_algo_combobox && event == EVENT_REFRESH)

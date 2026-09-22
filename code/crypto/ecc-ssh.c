@@ -1449,7 +1449,21 @@ static ssh_key* ecdsa_new_priv_openssh_sk(
     struct ec_curve* curve = extra->curve();
     assert(curve->type == EC_WEIERSTRASS);
 
-    get_string(src);
+    ptrlen curve_name = get_string(src);
+    ptrlen public_key = get_string(src);
+    ptrlen appid = get_string(src);
+    unsigned flags = get_byte(src);
+    ptrlen cred_id = get_string(src);
+    get_string(src); // reserved
+    if (get_err(src) || !ptrlen_eq_string(curve_name, curve->name) ||
+        public_key.len != 1 + 2 * ((curve->fieldBits + 7) / 8) ||
+        ((const unsigned char *)public_key.ptr)[0] != 4 ||
+        (appid.len && memchr(appid.ptr, '\0', appid.len)))
+        return NULL;
+
+    WeierstrassPoint *point = ecdsa_decode(public_key, curve);
+    if (!point)
+        return NULL;
 
     struct ecdsa_key* ek = snew(struct ecdsa_key);
     ek->sshk.vt = alg;
@@ -1457,24 +1471,19 @@ static ssh_key* ecdsa_new_priv_openssh_sk(
     ek->privateKey = NULL;
 
     // get the raw key since their no way to extract it later
-    ek->publicKeyRaw = get_string(src);
-    BinarySource_REWIND_TO(src, src->pos - ek->publicKeyRaw.len - sizeof(int));
-    ek->publicKey = get_wpoint(src, curve);
+    ek->publicKeyRaw = public_key;
+    ek->publicKey = point;
 
-    // the raw key will be preceded by byte indicating the compression type 
-    // which we will assume is uncompressed and will throw away
+    // Remove the validated uncompressed-point marker from the raw key.
     ek->publicKeyRaw.ptr = ((char*) ek->publicKeyRaw.ptr) + 1;
     ek->publicKeyRaw.len--;
     ek->publicKeyRaw.ptr = mkstr(ek->publicKeyRaw);
 
     // get appid and cred id
-    ek->appid = mkstr(get_string(src));
-    ek->flags = get_byte(src);
-    ek->credId = get_string(src);
+    ek->appid = mkstr(appid);
+    ek->flags = flags;
+    ek->credId = cred_id;
     ek->credId.ptr = mkstr(ek->credId);
-    
-    // reserved
-    get_string(src);
 
     return &ek->sshk;
 }
@@ -1499,6 +1508,42 @@ static void ecdsa_public_blob_sk(ssh_key* key, BinarySink* bs)
     put_stringz(bs, ek->appid);
 }
 
+static bool sk_verify(ssh_key *key, ptrlen sig, ptrlen data)
+{
+    const struct ecsign_extra *extra = (const struct ecsign_extra *)key->vt->extra;
+    bool edwards = extra->curve()->type == EC_EDWARDS;
+    const char *appid = edwards ? container_of(key, struct eddsa_key, sshk)->appid :
+        container_of(key, struct ecdsa_key, sshk)->appid;
+    BinarySource src[1];
+    BinarySource_BARE_INIT_PL(src, sig);
+    if (!ptrlen_eq_string(get_string(src), key->vt->ssh_id))
+        return false;
+
+    ptrlen signature = get_string(src);
+    unsigned flags = get_byte(src);
+    uint32_t counter = get_uint32(src);
+    if (get_err(src) || get_avail(src))
+        return false;
+    if (!edwards)
+    {
+        BinarySource_BARE_INIT_PL(src, signature);
+        get_string(src);
+        get_string(src);
+        if (get_err(src) || get_avail(src))
+            return false;
+    }
+
+    // Security keys sign SHA256(application) || flags || counter || hash(message).
+    const ssh_hashalg *message_hash = edwards ? &ssh_sha256 : extra->hash;
+    unsigned char signed_data[32 + 1 + 4 + MAX_HASH_LEN];
+    hash_simple(&ssh_sha256, ptrlen_from_asciz(appid), signed_data);
+    signed_data[32] = flags;
+    PUT_32BIT_MSB_FIRST(signed_data + 33, counter);
+    hash_simple(message_hash, data, signed_data + 37);
+    ptrlen preimage = make_ptrlen(signed_data, 37 + message_hash->hlen);
+    return edwards ? eddsa_verify(key, sig, preimage) : ecdsa_verify(key, sig, preimage);
+}
+
 const ssh_keyalg ssh_ecdsa_nistp256_sk = {
     .new_pub = ecdsa_new_pub_sk,
     .new_priv = sk_new_priv,
@@ -1506,7 +1551,7 @@ const ssh_keyalg ssh_ecdsa_nistp256_sk = {
     .freekey = ecdsa_freekey_sk,
     .invalid = ec_signkey_invalid,
     .sign = ecdsa_sign,
-    .verify = ecdsa_verify,
+    .verify = sk_verify,
     .public_blob = ecdsa_public_blob_sk,
     .private_blob = ecdsa_private_blob,
     .openssh_blob = ecdsa_openssh_blob,
@@ -1531,7 +1576,7 @@ const ssh_keyalg ssh_ecdsa_nistp384_sk = {
     .freekey = ecdsa_freekey_sk,
     .invalid = ec_signkey_invalid,
     .sign = ecdsa_sign,
-    .verify = ecdsa_verify,
+    .verify = sk_verify,
     .public_blob = ecdsa_public_blob_sk,
     .private_blob = ecdsa_private_blob,
     .openssh_blob = ecdsa_openssh_blob,
@@ -1556,7 +1601,7 @@ const ssh_keyalg ssh_ecdsa_nistp521_sk = {
     .freekey = ecdsa_freekey_sk,
     .invalid = ec_signkey_invalid,
     .sign = ecdsa_sign,
-    .verify = ecdsa_verify,
+    .verify = sk_verify,
     .public_blob = ecdsa_public_blob_sk,
     .private_blob = ecdsa_private_blob,
     .openssh_blob = ecdsa_openssh_blob,
@@ -1603,24 +1648,34 @@ static ssh_key* eddsa_new_priv_openssh_sk(
     struct ec_curve* curve = extra->curve();
     assert(curve->type == EC_EDWARDS);
 
+    ptrlen public_key = get_string(src);
+    ptrlen appid = get_string(src);
+    unsigned flags = get_byte(src);
+    ptrlen cred_id = get_string(src);
+    get_string(src); // reserved
+    if (get_err(src) || public_key.len != curve->fieldBytes ||
+        (appid.len && memchr(appid.ptr, '\0', appid.len)))
+        return NULL;
+
+    EdwardsPoint *point = eddsa_decode(public_key, curve);
+    if (!point)
+        return NULL;
+
     struct eddsa_key* ek = snew(struct eddsa_key);
     ek->sshk.vt = alg;
     ek->curve = curve;
     ek->privateKey = NULL;
 
     // get the raw key since their no way to extract it later
-    ek->publicKeyRaw = get_string(src);
-    ek->publicKey = eddsa_decode(ek->publicKeyRaw, curve);
+    ek->publicKeyRaw = public_key;
+    ek->publicKey = point;
     ek->publicKeyRaw.ptr = mkstr(ek->publicKeyRaw);
 
     // get appid and cred id
-    ek->appid = mkstr(get_string(src));
-    ek->flags = get_byte(src);
-    ek->credId = get_string(src);
+    ek->appid = mkstr(appid);
+    ek->flags = flags;
+    ek->credId = cred_id;
     ek->credId.ptr = mkstr(ek->credId);
-
-    // reserved
-    get_string(src);
 
     return &ek->sshk;
 }
@@ -1652,7 +1707,7 @@ const ssh_keyalg ssh_ecdsa_ed25519_sk = {
     .freekey = eddsa_freekey_sk,
     .invalid = ec_signkey_invalid,
     .sign = eddsa_sign,
-    .verify = eddsa_verify,
+    .verify = sk_verify,
     .public_blob = eddsa_public_blob_sk,
     .private_blob = eddsa_private_blob,
     .openssh_blob = eddsa_openssh_blob,

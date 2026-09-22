@@ -377,17 +377,17 @@ BOOL cert_x509_subject_public_key(LPCBYTE pCert, size_t iCertLen,
 	p = pTbs;
 	pEnd = pTbs + iTbsLen;
 
-	// Require the explicit X.509v3 version field.
-	if (!cert_der_read_tlv(&p, pEnd, &iTag, &pValue, &iValueLen) || iTag != 0xA0)
+	// The version is optional for raw keys; the RFC 6187 blob parser requires v3.
+	if (p < pEnd && *p == 0xA0)
 	{
-		return FALSE;
-	}
-	LPCBYTE pVersion = pValue;
-	LPCBYTE pVersionEnd = pValue + iValueLen;
-	if (!cert_der_read_tlv(&pVersion, pVersionEnd, &iTag, &pValue, &iValueLen) || iTag != 0x02 ||
-		iValueLen != 1 || pValue[0] != 2 || pVersion != pVersionEnd)
-	{
-		return FALSE;
+		if (!cert_der_read_tlv(&p, pEnd, &iTag, &pValue, &iValueLen)) return FALSE;
+		LPCBYTE pVersion = pValue;
+		LPCBYTE pVersionEnd = pValue + iValueLen;
+		if (!cert_der_read_tlv(&pVersion, pVersionEnd, &iTag, &pValue, &iValueLen) || iTag != 0x02 ||
+			iValueLen != 1 || pValue[0] > 2 || pVersion != pVersionEnd)
+		{
+			return FALSE;
+		}
 	}
 
 	// Skip the serial number and four fields preceding SPKI.
@@ -1842,29 +1842,58 @@ PVOID cert_prompt_pin(BOOL bWide)
 	return szReturn;
 }
 
-PVOID cert_pin(LPSTR szCert, BOOL bWide, LPVOID szPin)
+typedef struct CACHE_ITEM
 {
-	typedef struct CACHE_ITEM
-	{
-		struct CACHE_ITEM* NextItem;
-		LPSTR szCert;
-		VOID* szPin;
-		DWORD iLength;
-		BOOL bWide;
-		DWORD iSize;
-	}
-	CACHE_ITEM;
+	struct CACHE_ITEM* NextItem;
+	LPSTR szCert;
+	VOID* szPin;
+	DWORD iLength;
+	BOOL bWide;
+}
+CACHE_ITEM;
 
-	static CACHE_ITEM* PinCacheList = NULL;
+static CACHE_ITEM* PinCacheList = NULL;
+
+VOID cert_pin_clear(LPCSTR szCert)
+{
+	CACHE_ITEM** ppItem = &PinCacheList;
+	while (*ppItem != NULL)
+	{
+		CACHE_ITEM* hItem = *ppItem;
+		if (szCert != NULL && strcmp(hItem->szCert, szCert) != 0)
+		{
+			ppItem = &hItem->NextItem;
+			continue;
+		}
+		*ppItem = hItem->NextItem;
+		SecureZeroMemory(hItem->szPin, hItem->iLength);
+		sfree(hItem->szPin);
+		sfree(hItem->szCert);
+		sfree(hItem);
+	}
+}
+
+PVOID cert_pin(LPSTR szCert, BOOL bWide, LPVOID szPin, PBOOL pbCached)
+{
+	if (pbCached != NULL) *pbCached = FALSE;
+	if (!cert_cache_enabled(CERT_QUERY)) return szPin == NULL ? cert_prompt_pin(bWide) : NULL;
+	if (szPin != NULL) cert_pin_clear(szCert);
 
 	// attempt to locate the item in the pin cache
 	for (CACHE_ITEM* hCurItem = PinCacheList; hCurItem != NULL; hCurItem = hCurItem->NextItem)
 	{
 		if (strcmp(hCurItem->szCert, szCert) == 0 && hCurItem->bWide == bWide)
 		{
-			VOID* pEncrypted = memcpy(malloc(hCurItem->iLength), hCurItem->szPin, hCurItem->iLength);
-			CryptUnprotectMemory(pEncrypted, hCurItem->iLength, CRYPTPROTECTMEMORY_SAME_PROCESS);
-			return pEncrypted;
+			VOID* pEncrypted = memcpy(snewn(hCurItem->iLength, BYTE), hCurItem->szPin, hCurItem->iLength);
+			if (CryptUnprotectMemory(pEncrypted, hCurItem->iLength, CRYPTPROTECTMEMORY_SAME_PROCESS))
+			{
+				if (pbCached != NULL) *pbCached = TRUE;
+				return pEncrypted;
+			}
+			SecureZeroMemory(pEncrypted, hCurItem->iLength);
+			sfree(pEncrypted);
+			cert_pin_clear(szCert);
+			break;
 		}
 	}
 
@@ -1876,15 +1905,21 @@ PVOID cert_pin(LPSTR szCert, BOOL bWide, LPVOID szPin)
 			(1 + ((bWide) ? wcslen(szPin) : strlen(szPin)));
 		const DWORD iCryptLength = CRYPTPROTECTMEMORY_BLOCK_SIZE *
 			((iLength / CRYPTPROTECTMEMORY_BLOCK_SIZE) + 1);
-		VOID* pEncrypted = memcpy(calloc(1, iCryptLength), szPin, iLength);
+		VOID* pEncrypted = snewn(iCryptLength, BYTE);
+		memset(pEncrypted, 0, iCryptLength);
+		memcpy(pEncrypted, szPin, iLength);
 
 		// encrypt memory
-		CryptProtectMemory(pEncrypted, iCryptLength,
-			CRYPTPROTECTMEMORY_SAME_PROCESS);
+		if (!CryptProtectMemory(pEncrypted, iCryptLength, CRYPTPROTECTMEMORY_SAME_PROCESS))
+		{
+			SecureZeroMemory(pEncrypted, iCryptLength);
+			sfree(pEncrypted);
+			return NULL;
+		}
 
 		// allocate new item in cache and commit the change
-		CACHE_ITEM* hItem = (CACHE_ITEM*)calloc(1, sizeof(struct CACHE_ITEM));
-		hItem->szCert = _strdup(szCert);
+		CACHE_ITEM* hItem = snew(CACHE_ITEM);
+		hItem->szCert = dupstr(szCert);
 		hItem->szPin = pEncrypted;
 		hItem->iLength = iCryptLength;
 		hItem->bWide = bWide;
@@ -1959,7 +1994,9 @@ BOOL cert_cache_enabled(CERT_SETCMD iCommand)
 {
 	const LPSTR sSetting = "ForcePinCaching";
 	if (iCommand & (CERT_SET | CERT_UNSET)) cert_registry_setting_set(sSetting, iCommand);
-	return cert_registry_setting_load(sSetting, FALSE, iCommand);
+	BOOL bEnabled = cert_registry_setting_load(sSetting, FALSE, iCommand);
+	if (iCommand != CERT_ENFORCED && !bEnabled) cert_pin_clear(NULL);
+	return bEnabled;
 }
 
 BOOL cert_auth_prompting(CERT_SETCMD iCommand)

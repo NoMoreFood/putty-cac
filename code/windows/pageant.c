@@ -94,6 +94,8 @@ static int initial_menuitems_count;
 #define IDM_SCONLY   0x0180
 #define IDM_NOEXPR   0x0190
 #define IDM_TRUSTED  0x01A0
+static bool cert_list_loading = true;
+static bool cert_list_save_pending = false;
 #endif // PUTTY_CAC
 
 /*
@@ -508,6 +510,11 @@ void keylist_update(void)
 #ifdef PUTTY_CAC
     if (cert_save_cert_list_enabled(CERT_QUERY))
     {
+        if (cert_list_loading)
+        {
+            cert_list_save_pending = true;
+            return;
+        }
         /* initialize a double-null terminated string */
         char* slist = snewn(2, char);
         int slistsize = 0;
@@ -1576,6 +1583,7 @@ static LRESULT CALLBACK TrayWndProc(HWND hwnd, UINT message,
 		  CheckMenuItem(systray_menu, IDM_SAVELIST, iNewState);
 		  DWORD SaveCertListEnabled = (iNewState == MF_CHECKED);
 		  cert_save_cert_list_enabled(SaveCertListEnabled ? CERT_SET : CERT_UNSET);
+		  if (SaveCertListEnabled) keylist_update();
 		  RegSetKeyValue(HKEY_CURRENT_USER, PUTTY_REG_POS, "SaveCertListEnabled", REG_DWORD, &SaveCertListEnabled, sizeof(DWORD));
 	  } break;
 	  case IDM_PINCACHE: {
@@ -2207,6 +2215,9 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
         }
         sfree(szKey);
     }
+
+    cert_list_loading = false;
+    if (cert_list_save_pending) keylist_update();
 
     AppendMenu(systray_menu, MF_ENABLED, IDM_VIEWKEYS, "&View Keys && Certs");
 	AppendMenu(systray_menu, MF_ENABLED, IDM_ADDKEY, "Add PuTTY &Key");

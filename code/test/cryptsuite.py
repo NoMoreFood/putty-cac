@@ -2757,6 +2757,91 @@ culpa qui officia deserunt mollit anim id est laborum.
                         self.assertFalse(ssh_key_verify(
                             key, badsig, test_message))
 
+    def testSecurityKeyMethods(self):
+        if childprocess.funcall("checkenum", ["keyalg", "sk-ed25519"]) != [b"ok"]:
+            self.skipTest("Security keys require PUTTY_CAC")
+
+        keys = []
+        for bits, curve in [(256, p256), (384, p384), (521, p521)]:
+            alg = "p{:d}".format(bits)
+            curve_name = b"nist" + alg.encode("ascii")
+            point = (b"\x04" + be_integer(curve.G.x.n, (bits + 7) // 8 * 8) +
+                     be_integer(curve.G.y.n, (bits + 7) // 8 * 8))
+            pubblob = (ssh_string(b"ecdsa-sha2-" + curve_name) +
+                       ssh_string(curve_name) + ssh_string(point))
+            keys.append((alg, pubblob, ssh2_mpint(1)))
+        keys.append((
+            "ed25519",
+            b64("AAAAC3NzaC1lZDI1NTE5AAAAIM7jupzef6CD0ps2JYxJp9IlwY49oorOseV5z5JFDFKn"),
+            b64("AAAAIAf4/WRtypofgdNF2vbZOUFE1h4hvjw4tkGJZyOzI7c3")))
+
+        appid, message = b"ssh:test-security-key", b"test security key signature"
+        flags_counter = ssh_byte(1) + ssh_uint32(0x12345678)
+        for alg, pubblob, privblob in keys:
+            with self.subTest(algorithm=alg):
+                base = ssh_key_new_priv(alg, pubblob, privblob)
+                base_id, pubdata = ssh_decode_string(pubblob, True)
+                sk_id = b"sk-" + base_id + b"@openssh.com"
+                sk_alg = "sk-" + alg
+                sk_blob = ssh_string(sk_id) + pubdata + ssh_string(appid)
+                public = ssh_key_new_pub(sk_alg, sk_blob)
+                self.assertIsNotNone(public)
+
+                def sk_signature(data):
+                    hash_name = {"p256": "sha256", "p384": "sha384",
+                                 "p521": "sha512", "ed25519": "sha256"}[alg]
+                    preimage = (hashlib.sha256(appid).digest() + flags_counter +
+                                hashlib.new(hash_name, data).digest())
+                    _, signature = ssh_decode_string(base.sign(preimage, 0), True)
+                    return ssh_string(sk_id) + signature + flags_counter
+
+                signature = sk_signature(message)
+                self.assertTrue(public.verify(signature, message))
+                self.assertFalse(public.verify(signature, message + b"!"))
+                other_app = ssh_key_new_pub(
+                    sk_alg, ssh_string(sk_id) + pubdata + ssh_string(appid + b"!"))
+                self.assertFalse(other_app.verify(signature, message))
+                _, plain_signature = ssh_decode_string(base.sign(message, 0), True)
+                self.assertFalse(public.verify(
+                    ssh_string(sk_id) + plain_signature + flags_counter, message))
+                for tail in [flags_counter[:4], b"\0" + flags_counter[1:],
+                             flags_counter[:-1] + b"\0", flags_counter + b"\0"]:
+                    self.assertFalse(public.verify(signature[:-5] + tail, message))
+                if alg != "ed25519":
+                    inner = ssh_decode_string(ssh_decode_string(signature, True)[1])
+                    self.assertFalse(public.verify(
+                        ssh_string(sk_id) + ssh_string(inner + b"\0") + flags_counter, message))
+
+                cert_data = make_signature_preimage(
+                    key_to_certify=pubblob, ca_key=sk_blob, certtype=CertType.host,
+                    keyid=b"sk-ca", serial=1, principals=[b"host.example"],
+                    valid_after=1000, valid_before=2000, nonce=b"test nonce")
+                certificate = ssh_key_new_pub(
+                    alg + "-cert", cert_data + ssh_string(sk_signature(cert_data)))
+                self.assertIsNotNone(certificate)
+                valid, error = certificate.check_cert(True, b"host.example", 1500, b"")
+                self.assertTrue(valid, error)
+
+                suffix = ssh_string(appid) + ssh_byte(1) + ssh_string(b"credential") + ssh_string(b"")
+                private_blob = pubdata + suffix
+                imported = ssh_key_new_priv_openssh(sk_alg, private_blob)
+                self.assertIsNotNone(imported)
+                self.assertEqual(imported.public_blob(), sk_blob)
+                for length in range(len(private_blob)):
+                    self.assertIsNone(ssh_key_new_priv_openssh(sk_alg, private_blob[:length]))
+                prefix = b"" if alg == "ed25519" else ssh_string(b"nist" + alg.encode("ascii"))
+                point = ssh_decode_string(pubdata[len(prefix):])
+                bad_points = [b"", point[:-1], b"\xff" * len(point)]
+                if alg != "ed25519":
+                    bad_points.extend([b"\0", b"\x04" + b"\0" * (len(point) - 1)])
+                    self.assertIsNone(ssh_key_new_priv_openssh(
+                        sk_alg, ssh_string(b"wrong-curve") + ssh_string(point) + suffix))
+                for bad_point in bad_points:
+                    self.assertIsNone(ssh_key_new_priv_openssh(
+                        sk_alg, prefix + ssh_string(bad_point) + suffix))
+                self.assertIsNone(ssh_key_new_priv_openssh(
+                    sk_alg, pubdata + suffix.replace(appid, b"\0" + appid[1:], 1)))
+
     def testShortRSASignatures(self):
         key = ssh_key_new_priv('rsa', b64("""
 AAAAB3NzaC1yc2EAAAADAQABAAABAQDeoTvwEDg46K7vYrQFFwbo2sBPahNoiw7i

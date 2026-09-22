@@ -71,7 +71,7 @@ static void cert_portable_cleanup(void)
 
 	for (size_t i = 0; i < _countof(suffixes); ++i)
 	{		
-		WCHAR sLog[MAX_PATH];
+		WCHAR sLog[MAX_PATH + _countof(L".tmp.LOG1") - 1];
 		wcscpy(sLog, sPortablePath);
 		wcscat(sLog, suffixes[i]);
 		DeleteFileW(sLog);
@@ -94,10 +94,19 @@ static BOOL CALLBACK cert_portable_init(PINIT_ONCE pInitOnce, PVOID pParam, PVOI
 		LSTATUS iStatus = RegLoadAppKeyW(sPath, &hPortableRoot, KEY_ALL_ACCESS, 0, 0);
 		if (iStatus == ERROR_REGISTRY_IO_FAILED)
 		{
-			DeleteFileW(sPath);
-			RegLoadAppKeyW(sPath, &hPortableRoot, KEY_ALL_ACCESS, 0, 0);
+			HANDLE hFile = CreateFileW(sPath, GENERIC_READ | DELETE, 0, NULL,
+				OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+			if (hFile != INVALID_HANDLE_VALUE)
+			{
+				LARGE_INTEGER iSize;
+				FILE_DISPOSITION_INFO tDisposition = { TRUE };
+				BOOL bDeleted = GetFileSizeEx(hFile, &iSize) && iSize.QuadPart == 0 &&
+					SetFileInformationByHandle(hFile, FileDispositionInfo, &tDisposition, sizeof(tDisposition));
+				CloseHandle(hFile);
+				if (bDeleted) iStatus = RegLoadAppKeyW(sPath, &hPortableRoot, KEY_ALL_ACCESS, 0, 0);
+			}
 		}
-		else if (iStatus != ERROR_SUCCESS)
+		if (iStatus != ERROR_SUCCESS)
 		{
 			WCHAR sError[256] = L"";
 			WCHAR sMessage[MAX_PATH + 512];
@@ -209,6 +218,32 @@ static BOOL cert_portable_redirect(HKEY hKey, LPCWSTR sSubKey, HKEY* phKey, LPCW
 
 	*phKey = hPortableRoot;
 	*psSubKey = sPortableSubKey;
+	return TRUE;
+}
+
+static BOOL cert_portable_redirect_a(HKEY hKey, LPCSTR sSubKey, HKEY* phKey, LPCSTR* psSubKey)
+{
+	if (!cert_portable_enabled() || sSubKey == NULL) return FALSE;
+	if (hKey == HKEY_USERS)
+	{
+		sSubKey = strchr(sSubKey, '\\');
+		if (sSubKey == NULL) return FALSE;
+		sSubKey++;
+	}
+	else if (hKey != HKEY_CURRENT_USER) return FALSE;
+
+	size_t iPrefixLen = sizeof("Software\\SimonTatham") - 1;
+	if (_strnicmp(sSubKey, "Software\\SimonTatham", iPrefixLen) == 0 &&
+		(sSubKey[iPrefixLen] == '\0' || sSubKey[iPrefixLen] == '\\'))
+	{
+		sSubKey += iPrefixLen;
+		if (*sSubKey == '\\') sSubKey++;
+	}
+	else if (_stricmp(sSubKey, "Software") == 0) sSubKey = "";
+	else return FALSE;
+
+	*phKey = hPortableRoot;
+	*psSubKey = sSubKey;
 	return TRUE;
 }
 
@@ -421,17 +456,12 @@ LONG WINAPI cert_portable_RegGetValueW(HKEY hkey, LPCWSTR lpSubKey, LPCWSTR lpVa
 LONG WINAPI cert_portable_RegGetValueA(HKEY hkey, LPCSTR lpSubKey, LPCSTR lpValue,
 	DWORD dwFlags, LPDWORD pdwType, PVOID pvData, LPDWORD pcbData)
 {
-	LPWSTR sSubKey, sValue;
-	LONG iResult;
+	HKEY hUseKey;
+	LPCSTR sUseSubKey;
 
-	if (!cert_portable_enabled())
-		return RegGetValueA(hkey, lpSubKey, lpValue, dwFlags, pdwType, pvData, pcbData);
-	sSubKey = cert_portable_from_mb(lpSubKey);
-	sValue = cert_portable_from_mb(lpValue);
-	iResult = cert_portable_RegGetValueW(hkey, sSubKey, sValue, dwFlags, pdwType, pvData, pcbData);
-	free(sSubKey);
-	free(sValue);
-	return iResult;
+	if (cert_portable_redirect_a(hkey, lpSubKey, &hUseKey, &sUseSubKey))
+		return RegGetValueA(hUseKey, sUseSubKey, lpValue, dwFlags, pdwType, pvData, pcbData);
+	return RegGetValueA(hkey, lpSubKey, lpValue, dwFlags, pdwType, pvData, pcbData);
 }
 
 LONG WINAPI cert_portable_RegSetKeyValueW(HKEY hKey, LPCWSTR lpSubKey, LPCWSTR lpValueName,
@@ -448,29 +478,12 @@ LONG WINAPI cert_portable_RegSetKeyValueW(HKEY hKey, LPCWSTR lpSubKey, LPCWSTR l
 LONG WINAPI cert_portable_RegSetKeyValueA(HKEY hKey, LPCSTR lpSubKey, LPCSTR lpValueName,
 	DWORD dwType, LPCVOID lpData, DWORD cbData)
 {
-	LPWSTR sSubKey, sValueName;
-	LONG iResult;
+	HKEY hUseKey;
+	LPCSTR sUseSubKey;
 
-	if (!cert_portable_enabled())
-		return RegSetKeyValueA(hKey, lpSubKey, lpValueName, dwType, lpData, cbData);
-	sSubKey = cert_portable_from_mb(lpSubKey);
-	sValueName = cert_portable_from_mb(lpValueName);
-
-	if ((dwType == REG_SZ || dwType == REG_EXPAND_SZ) && lpData != NULL)
-	{
-		LPWSTR sData = cert_portable_from_mb((LPCSTR)lpData);
-		DWORD cbWide = (DWORD)((wcslen(sData) + 1) * sizeof(WCHAR));
-		iResult = cert_portable_RegSetKeyValueW(hKey, sSubKey, sValueName, dwType, sData, cbWide);
-		free(sData);
-	}
-	else
-	{
-		iResult = cert_portable_RegSetKeyValueW(hKey, sSubKey, sValueName, dwType, lpData, cbData);
-	}
-
-	free(sSubKey);
-	free(sValueName);
-	return iResult;
+	if (cert_portable_redirect_a(hKey, lpSubKey, &hUseKey, &sUseSubKey))
+		return RegSetKeyValueA(hUseKey, sUseSubKey, lpValueName, dwType, lpData, cbData);
+	return RegSetKeyValueA(hKey, lpSubKey, lpValueName, dwType, lpData, cbData);
 }
 
 static BOOL cert_portable_copy_to_new_file(HKEY hSrc, LPCWSTR sPath)

@@ -57,6 +57,12 @@ BEGIN_ENUM_TYPE(keyalg)
     ENUM_VALUE("p256", &ssh_ecdsa_nistp256)
     ENUM_VALUE("p384", &ssh_ecdsa_nistp384)
     ENUM_VALUE("p521", &ssh_ecdsa_nistp521)
+#ifdef PUTTY_CAC
+    ENUM_VALUE("sk-ed25519", &ssh_ecdsa_ed25519_sk)
+    ENUM_VALUE("sk-p256", &ssh_ecdsa_nistp256_sk)
+    ENUM_VALUE("sk-p384", &ssh_ecdsa_nistp384_sk)
+    ENUM_VALUE("sk-p521", &ssh_ecdsa_nistp521_sk)
+#endif
     ENUM_VALUE("dsa-cert", &opensshcert_ssh_dsa)
     ENUM_VALUE("rsa-cert", &opensshcert_ssh_rsa)
     ENUM_VALUE("ed25519-cert", &opensshcert_ssh_ecdsa_ed25519)
