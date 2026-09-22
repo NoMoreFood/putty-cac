@@ -794,7 +794,7 @@ struct sessionsaver_data {
 #ifdef PUTTY_CAC
 struct cert_data {
 	dlgcontrol* cert_set_pkcs_button, * cert_set_fido_button, * cert_set_capi_button, * cert_clear_button, * cert_view_button,
-		* cert_thumbprint_text, * cert_copy_clipboard_button, * cert_enable_auth, * cert_auth_checkbox;
+		* cert_thumbprint_text, * cert_copy_clipboard_button, * cert_auth_checkbox;
 };
 
 void cert_event_handler(dlgcontrol* ctrl, dlgparam* dlg, void* data, int event)
@@ -838,40 +838,22 @@ void cert_event_handler(dlgcontrol* ctrl, dlgparam* dlg, void* data, int event)
 		dlg_checkbox_set(certd->cert_auth_checkbox, dlg, 0);
 	}
 
-	// handle capi certificate set button press
-	if (ctrl == certd->cert_set_capi_button && event == EVENT_ACTION)
+	// handle certificate set button press
+	const char* szProvider = ctrl == certd->cert_set_capi_button ? IDEN_CAPI :
+		ctrl == certd->cert_set_pkcs_button ? IDEN_PKCS :
+		ctrl == certd->cert_set_fido_button ? IDEN_FIDO : NULL;
+	if (szProvider != NULL && event == EVENT_ACTION)
 	{
-		char* szCert = cert_prompt(IDEN_CAPI, FALSE, NULL);
+		char* szCert = cert_prompt(szProvider, FALSE, NULL);
 		if (szCert == NULL) return;
 		conf_set_str(conf, CONF_cert_fingerprint, szCert);
 		conf_set_bool(conf, CONF_cert_attempt_auth, 1);
 		dlg_checkbox_set(certd->cert_auth_checkbox, dlg, 1);
-		dlg_text_set(certd->cert_thumbprint_text, dlg, szCert);
-		sfree(szCert);
-	}
-
-	// handle pkcs certificate set button press
-	if (ctrl == certd->cert_set_pkcs_button && event == EVENT_ACTION)
-	{
-		char* szCert = cert_prompt(IDEN_PKCS, FALSE, NULL);
-		if (szCert == NULL) return;
-		conf_set_str(conf, CONF_cert_fingerprint, szCert);
-		conf_set_bool(conf, CONF_cert_attempt_auth, 1);
-		dlg_checkbox_set(certd->cert_auth_checkbox, dlg, 1);
-		char* equals = strrchr(szCert, '=');
-		if (equals != NULL) *equals = '\0';
-		dlg_text_set(certd->cert_thumbprint_text, dlg, szCert);
-		sfree(szCert);
-	}
-
-	// handle fido certificate set button press
-	if (ctrl == certd->cert_set_fido_button && event == EVENT_ACTION)
-	{
-		char* szCert = cert_prompt(IDEN_FIDO, FALSE, NULL);
-		if (szCert == NULL) return;
-		conf_set_str(conf, CONF_cert_fingerprint, szCert);
-		conf_set_bool(conf, CONF_cert_attempt_auth, 1);
-		dlg_checkbox_set(certd->cert_auth_checkbox, dlg, 1);
+		if (ctrl == certd->cert_set_pkcs_button)
+		{
+			char* equals = strrchr(szCert, '=');
+			if (equals != NULL) *equals = '\0';
+		}
 		dlg_text_set(certd->cert_thumbprint_text, dlg, szCert);
 		sfree(szCert);
 	}
@@ -3484,7 +3466,7 @@ void setup_config_box(struct controlbox *b, bool midsession,
 			 */
 			ctrl_settitle(b, "Connection/SSH/Certificate/CAPI Tools",
 				"Wizard for managing CAPI certificates");
-			struct capi_data* capid = (struct capi_data*)ctrl_alloc(b, sizeof(struct cert_data));
+			struct capi_data* capid = (struct capi_data*)ctrl_alloc(b, sizeof(*capid));
 
 			// section for capi creation
 			s = ctrl_getset(b, "Connection/SSH/Certificate/CAPI Tools", "params", "Creation parameters");

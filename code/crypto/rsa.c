@@ -1147,18 +1147,6 @@ static bool x509_ssh_rsa_verify(ssh_key *key, ptrlen sig, ptrlen data)
     return diff == 0;
 }
 
-static key_components *x509_ssh_rsa_components(ssh_key *key)
-{
-    RSAKey *rsa = container_of(key, RSAKey, sshk);
-    return rsa_components(rsa);
-}
-
-static char *x509_ssh_rsa_cache_str(ssh_key *key)
-{
-    RSAKey *rsa = container_of(key, RSAKey, sshk);
-    return rsastr_fmt(rsa);
-}
-
 static int x509_ssh_rsa_pubkey_bits(const ssh_keyalg *self, ptrlen pub)
 {
     ssh_key *sshk = x509_ssh_rsa_new_pub(self, pub);
@@ -1217,8 +1205,8 @@ const ssh_keyalg ssh_x509v3_ssh_rsa = {
     .private_blob = NULL,
     .openssh_blob = NULL,
     .has_private = x509_ssh_rsa_has_private,
-    .cache_str = x509_ssh_rsa_cache_str,
-    .components = x509_ssh_rsa_components,
+    .cache_str = rsa2_cache_str,
+    .components = rsa2_components,
     .base_key = nullkey_base_key,
     .pubkey_bits = x509_ssh_rsa_pubkey_bits,
     .alg_desc = x509_ssh_rsa_alg_desc,
@@ -1241,8 +1229,8 @@ const ssh_keyalg ssh_x509v3_rsa2048_sha256 = {
     .private_blob = NULL,
     .openssh_blob = NULL,
     .has_private = x509_ssh_rsa_has_private,
-    .cache_str = x509_ssh_rsa_cache_str,
-    .components = x509_ssh_rsa_components,
+    .cache_str = rsa2_cache_str,
+    .components = rsa2_components,
     .base_key = nullkey_base_key,
     .pubkey_bits = x509_ssh_rsa_pubkey_bits,
     .alg_desc = x509_ssh_rsa_alg_desc,

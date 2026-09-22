@@ -2326,18 +2326,6 @@ static bool x509_ecdsa_verify(ssh_key *key, ptrlen sig, ptrlen data)
     return !invalid;
 }
 
-static key_components *x509_ecdsa_components(ssh_key *key)
-{
-    struct ecdsa_key *ek = container_of(key, struct ecdsa_key, sshk);
-    return ecdsa_components(&ek->sshk);
-}
-
-static char *x509_ecdsa_cache_str(ssh_key *key)
-{
-    struct ecdsa_key *ek = container_of(key, struct ecdsa_key, sshk);
-    return ecdsa_cache_str(&ek->sshk);
-}
-
 static int x509_ecdsa_pubkey_bits(const ssh_keyalg *self, ptrlen pub)
 {
     ssh_key *sshk = x509_ecdsa_new_pub(self, pub);
@@ -2367,8 +2355,8 @@ const ssh_keyalg ssh_x509v3_ecdsa_nistp256 = {
     .private_blob = NULL,
     .openssh_blob = NULL,
     .has_private = x509_ecdsa_has_private,
-    .cache_str = x509_ecdsa_cache_str,
-    .components = x509_ecdsa_components,
+    .cache_str = ecdsa_cache_str,
+    .components = ecdsa_components,
     .base_key = nullkey_base_key,
     .pubkey_bits = x509_ecdsa_pubkey_bits,
     .supported_flags = nullkey_supported_flags,
@@ -2392,8 +2380,8 @@ const ssh_keyalg ssh_x509v3_ecdsa_nistp384 = {
     .private_blob = NULL,
     .openssh_blob = NULL,
     .has_private = x509_ecdsa_has_private,
-    .cache_str = x509_ecdsa_cache_str,
-    .components = x509_ecdsa_components,
+    .cache_str = ecdsa_cache_str,
+    .components = ecdsa_components,
     .base_key = nullkey_base_key,
     .pubkey_bits = x509_ecdsa_pubkey_bits,
     .supported_flags = nullkey_supported_flags,
@@ -2417,8 +2405,8 @@ const ssh_keyalg ssh_x509v3_ecdsa_nistp521 = {
     .private_blob = NULL,
     .openssh_blob = NULL,
     .has_private = x509_ecdsa_has_private,
-    .cache_str = x509_ecdsa_cache_str,
-    .components = x509_ecdsa_components,
+    .cache_str = ecdsa_cache_str,
+    .components = ecdsa_components,
     .base_key = nullkey_base_key,
     .pubkey_bits = x509_ecdsa_pubkey_bits,
     .supported_flags = nullkey_supported_flags,

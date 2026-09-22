@@ -1957,6 +1957,12 @@ BOOL cert_registry_setting_load(LPCSTR sSetting, DWORD iDefault, CERT_SETCMD bPo
 	return iDefault;
 }
 
+static BOOL cert_registry_setting(LPCSTR sSetting, CERT_SETCMD iCommand)
+{
+	if (iCommand & (CERT_SET | CERT_UNSET)) cert_registry_setting_set(sSetting, iCommand);
+	return cert_registry_setting_load(sSetting, FALSE, iCommand);
+}
+
 VOID cert_registry_setting_set_str(LPCSTR sSetting, LPCSTR sValue)
 {
 	RegSetKeyValue(HKEY_CURRENT_USER, PUTTY_REG_POS, sSetting, REG_SZ, sValue, strlen(sValue) + 1);
@@ -1978,67 +1984,49 @@ LPCSTR cert_registry_setting_load_str(LPCSTR sSetting, LPCSTR sDefault)
 
 BOOL cert_trusted_certs_only(CERT_SETCMD iCommand)
 {
-	const LPSTR sSetting = "TrustedCertsOnly";
-	if (iCommand & (CERT_SET | CERT_UNSET)) cert_registry_setting_set(sSetting, iCommand);
-	return cert_registry_setting_load(sSetting, FALSE, iCommand);
+	return cert_registry_setting("TrustedCertsOnly", iCommand);
 }
 
 BOOL cert_save_cert_list_enabled(CERT_SETCMD iCommand)
 {
-	const LPSTR sSetting = "SaveCertListEnabled";
-	if (iCommand & (CERT_SET | CERT_UNSET)) cert_registry_setting_set(sSetting, iCommand);
-	return cert_registry_setting_load(sSetting, FALSE, iCommand);
+	return cert_registry_setting("SaveCertListEnabled", iCommand);
 }
 
 BOOL cert_cache_enabled(CERT_SETCMD iCommand)
 {
-	const LPSTR sSetting = "ForcePinCaching";
-	if (iCommand & (CERT_SET | CERT_UNSET)) cert_registry_setting_set(sSetting, iCommand);
-	BOOL bEnabled = cert_registry_setting_load(sSetting, FALSE, iCommand);
+	BOOL bEnabled = cert_registry_setting("ForcePinCaching", iCommand);
 	if (iCommand != CERT_ENFORCED && !bEnabled) cert_pin_clear(NULL);
 	return bEnabled;
 }
 
 BOOL cert_auth_prompting(CERT_SETCMD iCommand)
 {
-	const LPSTR sSetting = "CertAuthPrompting";
-	if (iCommand & (CERT_SET | CERT_UNSET)) cert_registry_setting_set(sSetting, iCommand);
-	return cert_registry_setting_load(sSetting, FALSE, iCommand);
+	return cert_registry_setting("CertAuthPrompting", iCommand);
 }
 
 BOOL cert_smartcard_certs_only(CERT_SETCMD iCommand)
 {
-	const LPSTR sSetting = "SmartCardLogonCertsOnly";
-	if (iCommand & (CERT_SET | CERT_UNSET)) cert_registry_setting_set(sSetting, iCommand);
-	return cert_registry_setting_load(sSetting, FALSE, iCommand);
+	return cert_registry_setting("SmartCardLogonCertsOnly", iCommand);
 }
 
 BOOL cert_ignore_expired_certs(CERT_SETCMD iCommand)
 {
-	const LPSTR sSetting = "IgnoreExpiredCerts";
-	if (iCommand & (CERT_SET | CERT_UNSET)) cert_registry_setting_set(sSetting, iCommand);
-	return cert_registry_setting_load(sSetting, FALSE, iCommand);
+	return cert_registry_setting("IgnoreExpiredCerts", iCommand);
 }
 
 BOOL cert_allow_any_cert(CERT_SETCMD iCommand)
 {
-	const LPSTR sSetting = "AllowAnyCert";
-	if (iCommand & (CERT_SET | CERT_UNSET)) cert_registry_setting_set(sSetting, iCommand);
-	return cert_registry_setting_load(sSetting, FALSE, iCommand);
+	return cert_registry_setting("AllowAnyCert", iCommand);
 }
 
 BOOL cert_auto_load_certs(CERT_SETCMD iCommand)
 {
-	const LPSTR sSetting = "AutoloadCerts";
-	if (iCommand & (CERT_SET | CERT_UNSET)) cert_registry_setting_set(sSetting, iCommand);
-	return cert_registry_setting_load(sSetting, FALSE, iCommand);
+	return cert_registry_setting("AutoloadCerts", iCommand);
 }
 
 BOOL cert_auth_x509_enabled(CERT_SETCMD iCommand)
 {
-	const LPSTR sSetting = "AuthX509";
-	if (iCommand & (CERT_SET | CERT_UNSET)) cert_registry_setting_set(sSetting, iCommand);
-	return cert_registry_setting_load(sSetting, FALSE, iCommand);
+	return cert_registry_setting("AuthX509", iCommand);
 }
 
 DWORD cert_menu_flags(BOOL(*func)(CERT_SETCMD iCommand))

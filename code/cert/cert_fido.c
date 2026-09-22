@@ -50,6 +50,8 @@ fido_public_key_buffer_t;
 typedef struct _fido_algorithm_details_t
 {
 	LPCSTR sAlgorithm;
+	LPCSTR sCreateAlgorithm;
+	LPSTR sCertAlgorithm;
 	LPCWSTR sHashAlgorithm;
 	DWORD iSignaturePartSize;
 	BOOL bEd25519;
@@ -106,6 +108,35 @@ static HWND cert_fido_get_assertion_hwnd(VOID)
 	return GetDesktopWindow();
 }
 
+static DWORD cert_fido_wait_for_thread(HANDLE hThread)
+{
+	// wait for thread to complete while dispatching messages
+	BOOL bQuit = FALSE;
+	int iQuitCode = 0;
+	while (MsgWaitForMultipleObjects(1, &hThread, FALSE, INFINITE, QS_ALLINPUT) == (WAIT_OBJECT_0 + 1))
+	{
+		MSG tMsg;
+		while (PeekMessage(&tMsg, NULL, 0, 0, PM_REMOVE))
+		{
+			if (tMsg.message == WM_QUIT)
+			{
+				bQuit = TRUE;
+				iQuitCode = (int)tMsg.wParam;
+				continue;
+			}
+			TranslateMessage(&tMsg);
+			DispatchMessage(&tMsg);
+		}
+	}
+
+	// wait for thread to complete
+	DWORD iExitCode;
+	GetExitCodeThread(hThread, &iExitCode);
+	CloseHandle(hThread);
+	if (bQuit) PostQuitMessage(iQuitCode);
+	return iExitCode;
+}
+
 static INIT_ONCE fido_webauthn_once = INIT_ONCE_STATIC_INIT;
 static BOOL fido_webauthn_loaded = FALSE;
 
@@ -150,14 +181,14 @@ DWORD WINAPI WebAuthNAuthenticatorGetAssertionThread(LPVOID lpParam)
 }
 
 static const fido_algorithm_details_t fido_algorithms[] = {
-	{ "sk-ecdsa-sha2-nistp256@openssh.com", WEBAUTHN_HASH_ALGORITHM_SHA_256, 32, FALSE, -7, 2, 1,
-		BCRYPT_ECDSA_PUBLIC_P256_MAGIC },
-	{ "sk-ecdsa-sha2-nistp384@openssh.com", WEBAUTHN_HASH_ALGORITHM_SHA_384, 48, FALSE, -35, 2, 2,
-		BCRYPT_ECDSA_PUBLIC_P384_MAGIC },
-	{ "sk-ecdsa-sha2-nistp521@openssh.com", WEBAUTHN_HASH_ALGORITHM_SHA_512, 66, FALSE, -36, 2, 3,
-		BCRYPT_ECDSA_PUBLIC_P521_MAGIC },
-	{ "sk-ssh-ed25519@openssh.com", WEBAUTHN_HASH_ALGORITHM_SHA_256, 32, TRUE, -8, 1, 6,
-		BCRYPT_ECDSA_PUBLIC_GENERIC_MAGIC },
+	{ "sk-ecdsa-sha2-nistp256@openssh.com", "ecdsa-sha2-nistp256", szOID_ECDSA_SHA256,
+		WEBAUTHN_HASH_ALGORITHM_SHA_256, 32, FALSE, -7, 2, 1, BCRYPT_ECDSA_PUBLIC_P256_MAGIC },
+	{ "sk-ecdsa-sha2-nistp384@openssh.com", "ecdsa-sha2-nistp384", szOID_ECDSA_SHA384,
+		WEBAUTHN_HASH_ALGORITHM_SHA_384, 48, FALSE, -35, 2, 2, BCRYPT_ECDSA_PUBLIC_P384_MAGIC },
+	{ "sk-ecdsa-sha2-nistp521@openssh.com", "ecdsa-sha2-nistp521", szOID_ECDSA_SHA512,
+		WEBAUTHN_HASH_ALGORITHM_SHA_512, 66, FALSE, -36, 2, 3, BCRYPT_ECDSA_PUBLIC_P521_MAGIC },
+	{ "sk-ssh-ed25519@openssh.com", "ssh-ed25519", szOID_ED25519,
+		WEBAUTHN_HASH_ALGORITHM_SHA_256, 32, TRUE, -8, 1, 6, BCRYPT_ECDSA_PUBLIC_GENERIC_MAGIC },
 };
 
 static const fido_algorithm_details_t* cert_fido_lookup_algorithm(LPCSTR sAlgorithm)
@@ -611,29 +642,7 @@ BYTE* cert_fido_sign(struct ssh2_userkey* userkey, LPCBYTE pDataToSign, int iDat
 	}
 
 	// wait for thread to complete while dispatching messages
-	BOOL bQuit = FALSE;
-	int iQuitCode = 0;
-	while (MsgWaitForMultipleObjects(1, &hThread, FALSE, INFINITE, QS_ALLINPUT) == (WAIT_OBJECT_0 + 1))
-	{
-		MSG tMsg;
-		while (PeekMessage(&tMsg, NULL, 0, 0, PM_REMOVE))
-		{
-			if (tMsg.message == WM_QUIT)
-			{
-				bQuit = TRUE;
-				iQuitCode = (int)tMsg.wParam;
-				continue;
-			}
-			TranslateMessage(&tMsg);
-			DispatchMessage(&tMsg);
-		}
-	}
-
-	// wait for thread to complete
-	DWORD iExitCode;
-	GetExitCodeThread(hThread, &iExitCode);
-	CloseHandle(hThread);
-	if (bQuit) PostQuitMessage(iQuitCode);
+	DWORD iExitCode = cert_fido_wait_for_thread(hThread);
 	fido_last_webauthn_error = pParams.hResult;
 	if (iExitCode != 0 || pParams.ppWebAuthNAssertion == NULL)
 	{
@@ -701,14 +710,9 @@ static BOOL cert_fido_get_cert(PBCRYPT_ECCKEY_BLOB pPubKeyBlob, DWORD iPublicKey
 
 	//  determine algorithm for cert creation
 	fido_public_key_buffer_t tPublicKeyTemp = { 0 };
-	LPSTR sAlgo = NULL;
-	if (pPubKeyBlob->dwMagic == BCRYPT_ECDSA_PUBLIC_P256_MAGIC) sAlgo = szOID_ECDSA_SHA256;
-	if (pPubKeyBlob->dwMagic == BCRYPT_ECDSA_PUBLIC_P384_MAGIC) sAlgo = szOID_ECDSA_SHA384;
-	if (pPubKeyBlob->dwMagic == BCRYPT_ECDSA_PUBLIC_P521_MAGIC) sAlgo = szOID_ECDSA_SHA512;
-	if (pPubKeyBlob->dwMagic == BCRYPT_ECDSA_PUBLIC_GENERIC_MAGIC)
+	if (pAlgorithm->bEd25519)
 	{
 		// windows does not support eddsa so we mark it ecdsa and adjust in other functions
-		sAlgo = szOID_ED25519;
 		memcpy(&tPublicKeyTemp, pPubKeyBlob, iPublicKeyBufferSize);
 		pPubKeyBlob = &tPublicKeyTemp.tHeader;
 		pPubKeyBlob->dwMagic = BCRYPT_ECDSA_PUBLIC_P256_MAGIC;
@@ -741,7 +745,7 @@ static BOOL cert_fido_get_cert(PBCRYPT_ECCKEY_BLOB pPubKeyBlob, DWORD iPublicKey
 		// create the certificate and add to store
 		SYSTEMTIME tSystemTime;
 		GetSystemTime(&tSystemTime);
-		CRYPT_ALGORITHM_IDENTIFIER SignatureAlgorithm = { sAlgo, 0 };
+		CRYPT_ALGORITHM_IDENTIFIER SignatureAlgorithm = { pAlgorithm->sCertAlgorithm, 0 };
 		*ppCertCtx = CertCreateSelfSignCertificate(hKeyHandle, &SubjectName,
 			CERT_CREATE_SELFSIGN_NO_SIGN | CERT_CREATE_SELFSIGN_NO_KEY_INFO, NULL,
 			&SignatureAlgorithm, &tSystemTime, &tSystemTime, NULL);
@@ -865,34 +869,15 @@ BOOL fido_create_key(LPCSTR szAlgName, LPCSTR szDisplayName, LPCSTR szApplicatio
 	if (MultiByteToWideChar(CP_UTF8, 0, szApplication, -1, szAppIdUnicode, _countof(szAppIdUnicode)) == 0) return FALSE;
 	if (MultiByteToWideChar(CP_UTF8, 0, szDisplayName, -1, szAppDisplayUnicode, _countof(szAppDisplayUnicode)) == 0) return FALSE;
 
-	LONG iWebAuthAlt = 0;
-	LPCSTR sSecurityKeyAlgorithm = NULL;
-	if (strcmp(szAlgName, "ecdsa-sha2-nistp256") == 0)
+	const fido_algorithm_details_t* pAlgorithm = NULL;
+	for (size_t i = 0; i < _countof(fido_algorithms); i++)
 	{
-		iWebAuthAlt = WEBAUTHN_COSE_ALGORITHM_ECDSA_P256_WITH_SHA256;
-		sSecurityKeyAlgorithm = "sk-ecdsa-sha2-nistp256@openssh.com";
+		if (strcmp(szAlgName, fido_algorithms[i].sCreateAlgorithm) == 0)
+		{
+			pAlgorithm = &fido_algorithms[i];
+			break;
+		}
 	}
-	else if (strcmp(szAlgName, "ecdsa-sha2-nistp384") == 0)
-	{
-		iWebAuthAlt = WEBAUTHN_COSE_ALGORITHM_ECDSA_P384_WITH_SHA384;
-		sSecurityKeyAlgorithm = "sk-ecdsa-sha2-nistp384@openssh.com";
-	}
-	else if (strcmp(szAlgName, "ecdsa-sha2-nistp521") == 0)
-	{
-		iWebAuthAlt = WEBAUTHN_COSE_ALGORITHM_ECDSA_P521_WITH_SHA512;
-		sSecurityKeyAlgorithm = "sk-ecdsa-sha2-nistp521@openssh.com";
-	}
-	else if (strcmp(szAlgName, "ssh-ed25519") == 0)
-	{
-		iWebAuthAlt = WEBAUTHN_COSE_ALGORITHM_EDDSA_ED25519;
-		sSecurityKeyAlgorithm = "sk-ssh-ed25519@openssh.com";
-	}
-	else
-	{
-		return FALSE;
-	}
-	const fido_algorithm_details_t* pAlgorithm =
-		cert_fido_lookup_algorithm(sSecurityKeyAlgorithm);
 	if (pAlgorithm == NULL) return FALSE;
 	DWORD iSigBytes = pAlgorithm->iSignaturePartSize;
 
@@ -909,7 +894,7 @@ BOOL fido_create_key(LPCSTR szAlgName, LPCSTR szDisplayName, LPCSTR szApplicatio
 	tUserInfo.pwszIcon = NULL;
 
 	WEBAUTHN_COSE_CREDENTIAL_PARAMETER tCoseParam = { WEBAUTHN_COSE_CREDENTIAL_PARAMETER_CURRENT_VERSION };
-	tCoseParam.lAlg = iWebAuthAlt;
+	tCoseParam.lAlg = pAlgorithm->iCoseAlgorithm;
 	tCoseParam.pwszCredentialType = WEBAUTHN_CREDENTIAL_TYPE_PUBLIC_KEY;
 
 	WEBAUTHN_COSE_CREDENTIAL_PARAMETERS WebAuthNCredentialParameters = { 0 };
@@ -955,29 +940,7 @@ BOOL fido_create_key(LPCSTR szAlgName, LPCSTR szDisplayName, LPCSTR szApplicatio
 	if (hThread == NULL) return FALSE;
 
 	// wait for thread to complete while dispatching messages
-	BOOL bQuit = FALSE;
-	int iQuitCode = 0;
-	while (MsgWaitForMultipleObjects(1, &hThread, FALSE, INFINITE, QS_ALLINPUT) == (WAIT_OBJECT_0 + 1))
-	{
-		MSG tMsg;
-		while (PeekMessage(&tMsg, NULL, 0, 0, PM_REMOVE))
-		{
-			if (tMsg.message == WM_QUIT)
-			{
-				bQuit = TRUE;
-				iQuitCode = (int)tMsg.wParam;
-				continue;
-			}
-			TranslateMessage(&tMsg);
-			DispatchMessage(&tMsg);
-		}
-	}
-
-	// wait for thread to complete
-	DWORD iExitCode;
-	GetExitCodeThread(hThread, &iExitCode);
-	CloseHandle(hThread);
-	if (bQuit) PostQuitMessage(iQuitCode);
+	DWORD iExitCode = cert_fido_wait_for_thread(hThread);
 	fido_last_webauthn_error = pParams.hResult;
 	if (iExitCode != 0)
 	{
@@ -1000,7 +963,7 @@ BOOL fido_create_key(LPCSTR szAlgName, LPCSTR szDisplayName, LPCSTR szApplicatio
 	// Decode and persist only a fully validated credential.
 	fido_public_key_buffer_t tPublicKey;
 	DWORD iPublicKeyLen = 0;
-	BOOL bDecoded = cert_fido_decode_credential(sSecurityKeyAlgorithm, pAttestation->pbAuthenticatorData,
+	BOOL bDecoded = cert_fido_decode_credential(pAlgorithm->sAlgorithm, pAttestation->pbAuthenticatorData,
 		pAttestation->cbAuthenticatorData, pAttestation->pbCredentialId, pAttestation->cbCredentialId,
 		&tPublicKey, &iPublicKeyLen);
 	BOOL bStored = bDecoded && cert_fido_store_credential(szAppIdUnicode, (LPCBYTE)&tPublicKey, iPublicKeyLen,

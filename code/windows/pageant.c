@@ -1584,7 +1584,6 @@ static LRESULT CALLBACK TrayWndProc(HWND hwnd, UINT message,
 		  DWORD SaveCertListEnabled = (iNewState == MF_CHECKED);
 		  cert_save_cert_list_enabled(SaveCertListEnabled ? CERT_SET : CERT_UNSET);
 		  if (SaveCertListEnabled) keylist_update();
-		  RegSetKeyValue(HKEY_CURRENT_USER, PUTTY_REG_POS, "SaveCertListEnabled", REG_DWORD, &SaveCertListEnabled, sizeof(DWORD));
 	  } break;
 	  case IDM_PINCACHE: {
 		  DWORD iItem = CheckMenuItem(systray_menu, IDM_PINCACHE, MF_CHECKED);
@@ -1592,7 +1591,6 @@ static LRESULT CALLBACK TrayWndProc(HWND hwnd, UINT message,
 		  CheckMenuItem(systray_menu, IDM_PINCACHE, iNewState);
 		  DWORD ForcePinCaching = (iNewState == MF_CHECKED);
 		  cert_cache_enabled(ForcePinCaching ? CERT_SET : CERT_UNSET);
-		  RegSetKeyValue(HKEY_CURRENT_USER, PUTTY_REG_POS, "ForcePinCaching", REG_DWORD, &ForcePinCaching, sizeof(DWORD));
 	  } break;
 	  case IDM_X509AUTH: {
 		  BOOL bEnabled = cert_auth_x509_enabled(cert_auth_x509_enabled(CERT_QUERY) ? CERT_UNSET : CERT_SET);
@@ -1606,7 +1604,6 @@ static LRESULT CALLBACK TrayWndProc(HWND hwnd, UINT message,
 		  CheckMenuItem(systray_menu, IDM_CERTAUTH, iNewState);
 		  DWORD CertAuthPrompting = (iNewState == MF_CHECKED);
 		  cert_auth_prompting(CertAuthPrompting ? CERT_SET : CERT_UNSET);
-		  RegSetKeyValue(HKEY_CURRENT_USER, PUTTY_REG_POS, "CertAuthPrompting", REG_DWORD, &CertAuthPrompting, sizeof(DWORD));
 	  } break;
 	  case IDM_SCONLY: {
 		  DWORD iItem = CheckMenuItem(systray_menu, IDM_SCONLY, MF_CHECKED);
@@ -1614,7 +1611,6 @@ static LRESULT CALLBACK TrayWndProc(HWND hwnd, UINT message,
 		  CheckMenuItem(systray_menu, IDM_SCONLY, iNewState);
 		  DWORD SmartCardLogonCertsOnly = (iNewState == MF_CHECKED);
 		  cert_smartcard_certs_only(SmartCardLogonCertsOnly ? CERT_SET : CERT_UNSET);
-		  RegSetKeyValue(HKEY_CURRENT_USER, PUTTY_REG_POS, "SmartCardLogonCertsOnly", REG_DWORD, &SmartCardLogonCertsOnly, sizeof(DWORD));
 	  } break;
       case IDM_TRUSTED: {
           DWORD iItem = CheckMenuItem(systray_menu, IDM_TRUSTED, MF_CHECKED);
@@ -1622,7 +1618,6 @@ static LRESULT CALLBACK TrayWndProc(HWND hwnd, UINT message,
           CheckMenuItem(systray_menu, IDM_TRUSTED, iNewState);
           DWORD TrustedCertsOnly = (iNewState == MF_CHECKED);
           cert_trusted_certs_only(TrustedCertsOnly ? CERT_SET : CERT_UNSET);
-          RegSetKeyValue(HKEY_CURRENT_USER, PUTTY_REG_POS, "TrustedCertsOnly", REG_DWORD, &TrustedCertsOnly, sizeof(DWORD));
       } break;
 	  case IDM_NOEXPR: {
 		  DWORD iItem = CheckMenuItem(systray_menu, IDM_NOEXPR, MF_CHECKED);
@@ -1630,7 +1625,6 @@ static LRESULT CALLBACK TrayWndProc(HWND hwnd, UINT message,
 		  CheckMenuItem(systray_menu, IDM_NOEXPR, iNewState);
 		  DWORD IgnoreExpiredCerts = (iNewState == MF_CHECKED);
 		  cert_ignore_expired_certs(IgnoreExpiredCerts ? CERT_SET : CERT_UNSET);
-		  RegSetKeyValue(HKEY_CURRENT_USER, PUTTY_REG_POS, "IgnoreExpiredCerts", REG_DWORD, &IgnoreExpiredCerts, sizeof(DWORD));
 	  } break;
 #endif // PUTTY_CAC
           case IDM_REMOVE_ALL:

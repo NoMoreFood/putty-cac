@@ -471,6 +471,42 @@ BYTE * cert_pkcs_sign(struct ssh2_userkey * userkey, LPCBYTE pDataToSign, int iD
 	return pSignature;
 }
 
+static void pkcs_add_token_certs(CK_FUNCTION_LIST_PTR pFunctionList, CK_SESSION_HANDLE hSession,
+	LPCSTR szLibrary, HCERTSTORE hStore, DWORD iDisposition)
+{
+	CK_BBOOL bFalse = CK_FALSE;
+	CK_BBOOL bTrue = CK_TRUE;
+	CK_OBJECT_CLASS iObjectType = CKO_CERTIFICATE;
+	CK_ATTRIBUTE aFindCriteria[] = {
+		{ CKA_CLASS, &iObjectType, sizeof(iObjectType) },
+		{ CKA_TOKEN, &bTrue, sizeof(bTrue) },
+		{ CKA_PRIVATE, &bFalse, sizeof(bFalse) }
+	};
+	if (pFunctionList->C_FindObjectsInit(hSession, aFindCriteria, _countof(aFindCriteria)) != CKR_OK) return;
+
+	// Enumerate every certificate batch in the slot.
+	for (;;)
+	{
+		CK_OBJECT_HANDLE aCertList[16];
+		CK_ULONG iCertListSize = 0;
+		if (pFunctionList->C_FindObjects(hSession, aCertList, _countof(aCertList), &iCertListSize) != CKR_OK ||
+			iCertListSize == 0)
+		{
+			break;
+		}
+
+		for (CK_ULONG iCert = 0; iCert < iCertListSize; iCert++)
+		{
+			PCCERT_CONTEXT pCertContext = pkcs_get_cert_from_token(
+				pFunctionList, hSession, aCertList[iCert], szLibrary);
+			if (pCertContext == NULL) continue;
+			CertAddCertificateContextToStore(hStore, pCertContext, iDisposition, NULL);
+			CertFreeCertificateContext(pCertContext);
+		}
+	}
+	pFunctionList->C_FindObjectsFinal(hSession);
+}
+
 void cert_pkcs_load_cert(LPCSTR szCert, PCCERT_CONTEXT* ppCertCtx, HCERTSTORE* phStore)
 {
 	BYTE pbThumb[SHA1_BINARY_SIZE];
@@ -524,43 +560,7 @@ void cert_pkcs_load_cert(LPCSTR szCert, PCCERT_CONTEXT* ppCertCtx, HCERTSTORE* p
 				hMemoryStore, *ppCertCtx, CERT_STORE_ADD_REPLACE_EXISTING,
 				NULL);
 
-			CK_BBOOL bFalse = CK_FALSE;
-			CK_BBOOL bTrue = CK_TRUE;
-			CK_OBJECT_CLASS iCertType = CKO_CERTIFICATE;
-			CK_ATTRIBUTE aAllCerts[] = {
-				{ CKA_CLASS,   &iCertType, sizeof(iCertType) },
-				{ CKA_TOKEN,   &bTrue,     sizeof(bTrue) },
-				{ CKA_PRIVATE, &bFalse,    sizeof(bFalse) }
-			};
-
-			if (pFunctionList->C_FindObjectsInit(hSession, aAllCerts, _countof(aAllCerts)) == CKR_OK)
-			{
-				for (;;)
-				{
-					CK_OBJECT_HANDLE aCerts[16];
-					CK_ULONG iCertCount = 0;
-					if (pFunctionList->C_FindObjects(
-						hSession, aCerts, _countof(aCerts),
-						&iCertCount) != CKR_OK || iCertCount == 0)
-					{
-						break;
-					}
-
-					for (CK_ULONG iCert = 0; iCert < iCertCount; iCert++)
-					{
-						PCCERT_CONTEXT pTokenCert = pkcs_get_cert_from_token(
-							pFunctionList, hSession, aCerts[iCert], szLibrary);
-						if (pTokenCert != NULL)
-						{
-							CertAddCertificateContextToStore(
-								hMemoryStore, pTokenCert,
-								CERT_STORE_ADD_REPLACE_EXISTING, NULL);
-							CertFreeCertificateContext(pTokenCert);
-						}
-					}
-				}
-				pFunctionList->C_FindObjectsFinal(hSession);
-			}
+			pkcs_add_token_certs(pFunctionList, hSession, szLibrary, hMemoryStore, CERT_STORE_ADD_REPLACE_EXISTING);
 
 			*phStore = hMemoryStore;
 		}
@@ -699,42 +699,7 @@ HCERTSTORE cert_pkcs_get_cert_store()
 			continue;
 		}
 
-		CK_BBOOL bFalse = CK_FALSE;
-		CK_BBOOL bTrue = CK_TRUE;
-		CK_OBJECT_CLASS iObjectType = CKO_CERTIFICATE;
-		CK_ATTRIBUTE aFindCriteria[] = {
-			{ CKA_CLASS,    &iObjectType, sizeof(CK_OBJECT_CLASS) },
-			{ CKA_TOKEN,    &bTrue,       sizeof(CK_BBOOL) },
-			{ CKA_PRIVATE,  &bFalse,      sizeof(CK_BBOOL) }
-		};
-
-		if (pFunctionList->C_FindObjectsInit(hSession, aFindCriteria, _countof(aFindCriteria)) != CKR_OK)
-		{
-			pFunctionList->C_CloseSession(hSession);
-			continue;
-		}
-
-		// Enumerate every certificate batch in the slot.
-		for (;;)
-		{
-			CK_OBJECT_HANDLE aCertList[16];
-			CK_ULONG iCertListSize = 0;
-			if (pFunctionList->C_FindObjects(hSession, aCertList, _countof(aCertList), &iCertListSize) != CKR_OK ||
-				iCertListSize == 0)
-			{
-				break;
-			}
-
-			for (CK_ULONG iCert = 0; iCert < iCertListSize; iCert++)
-			{
-				PCCERT_CONTEXT pCertContext = pkcs_get_cert_from_token(
-					pFunctionList, hSession, aCertList[iCert], tFileNameInfo.lpstrFile);
-				if (pCertContext == NULL) continue;
-				CertAddCertificateContextToStore(hMemoryStore, pCertContext, CERT_STORE_ADD_ALWAYS, NULL);
-				CertFreeCertificateContext(pCertContext);
-			}
-		}
-		pFunctionList->C_FindObjectsFinal(hSession);
+		pkcs_add_token_certs(pFunctionList, hSession, tFileNameInfo.lpstrFile, hMemoryStore, CERT_STORE_ADD_ALWAYS);
 
 		// cleanup 
 		pFunctionList->C_CloseSession(hSession);

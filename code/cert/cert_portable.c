@@ -320,11 +320,6 @@ LONG WINAPI cert_portable_RegCreateKeyExA(HKEY hKey, LPCSTR lpSubKey, DWORD Rese
 	return iResult;
 }
 
-LONG WINAPI cert_portable_RegCloseKey(HKEY hKey)
-{
-	return RegCloseKey(hKey);
-}
-
 LONG WINAPI cert_portable_RegDeleteKeyW(HKEY hKey, LPCWSTR lpSubKey)
 {
 	HKEY hUseKey;
@@ -392,54 +387,6 @@ LONG WINAPI cert_portable_RegDeleteKeyValueA(HKEY hKey, LPCSTR lpSubKey, LPCSTR 
 	free(sSubKey);
 	free(sValueName);
 	return iResult;
-}
-
-LONG WINAPI cert_portable_RegEnumKeyW(HKEY hKey, DWORD dwIndex, LPWSTR lpName, DWORD cchName)
-{
-	return RegEnumKeyW(hKey, dwIndex, lpName, cchName);
-}
-
-LONG WINAPI cert_portable_RegEnumKeyA(HKEY hKey, DWORD dwIndex, LPSTR lpName, DWORD cchName)
-{
-	return RegEnumKeyA(hKey, dwIndex, lpName, cchName);
-}
-
-LONG WINAPI cert_portable_RegEnumValueW(HKEY hKey, DWORD dwIndex, LPWSTR lpValueName,
-	LPDWORD lpcchValueName, LPDWORD lpReserved, LPDWORD lpType, LPBYTE lpData, LPDWORD lpcbData)
-{
-	return RegEnumValueW(hKey, dwIndex, lpValueName, lpcchValueName, lpReserved,
-		lpType, lpData, lpcbData);
-}
-
-LONG WINAPI cert_portable_RegEnumValueA(HKEY hKey, DWORD dwIndex, LPSTR lpValueName,
-	LPDWORD lpcchValueName, LPDWORD lpReserved, LPDWORD lpType, LPBYTE lpData, LPDWORD lpcbData)
-{
-	return RegEnumValueA(hKey, dwIndex, lpValueName, lpcchValueName, lpReserved,
-		lpType, lpData, lpcbData);
-}
-
-LONG WINAPI cert_portable_RegQueryValueExW(HKEY hKey, LPCWSTR lpValueName, LPDWORD lpReserved,
-	LPDWORD lpType, LPBYTE lpData, LPDWORD lpcbData)
-{
-	return RegQueryValueExW(hKey, lpValueName, lpReserved, lpType, lpData, lpcbData);
-}
-
-LONG WINAPI cert_portable_RegQueryValueExA(HKEY hKey, LPCSTR lpValueName, LPDWORD lpReserved,
-	LPDWORD lpType, LPBYTE lpData, LPDWORD lpcbData)
-{
-	return RegQueryValueExA(hKey, lpValueName, lpReserved, lpType, lpData, lpcbData);
-}
-
-LONG WINAPI cert_portable_RegSetValueExW(HKEY hKey, LPCWSTR lpValueName, DWORD Reserved,
-	DWORD dwType, const BYTE *lpData, DWORD cbData)
-{
-	return RegSetValueExW(hKey, lpValueName, Reserved, dwType, lpData, cbData);
-}
-
-LONG WINAPI cert_portable_RegSetValueExA(HKEY hKey, LPCSTR lpValueName, DWORD Reserved,
-	DWORD dwType, const BYTE *lpData, DWORD cbData)
-{
-	return RegSetValueExA(hKey, lpValueName, Reserved, dwType, lpData, cbData);
 }
 
 LONG WINAPI cert_portable_RegGetValueW(HKEY hkey, LPCWSTR lpSubKey, LPCWSTR lpValue,
