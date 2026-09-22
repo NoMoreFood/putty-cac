@@ -1884,14 +1884,17 @@ PVOID cert_pin(LPSTR szCert, BOOL bWide, LPVOID szPin, PBOOL pbCached)
 	{
 		if (strcmp(hCurItem->szCert, szCert) == 0 && hCurItem->bWide == bWide)
 		{
-			VOID* pEncrypted = memcpy(snewn(hCurItem->iLength, BYTE), hCurItem->szPin, hCurItem->iLength);
+			// Provider callers release returned PINs with free.
+			VOID* pEncrypted = malloc(hCurItem->iLength);
+			if (pEncrypted == NULL) return NULL;
+			memcpy(pEncrypted, hCurItem->szPin, hCurItem->iLength);
 			if (CryptUnprotectMemory(pEncrypted, hCurItem->iLength, CRYPTPROTECTMEMORY_SAME_PROCESS))
 			{
 				if (pbCached != NULL) *pbCached = TRUE;
 				return pEncrypted;
 			}
 			SecureZeroMemory(pEncrypted, hCurItem->iLength);
-			sfree(pEncrypted);
+			free(pEncrypted);
 			cert_pin_clear(szCert);
 			break;
 		}
