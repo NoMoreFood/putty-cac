@@ -25,7 +25,7 @@ void ApplyControl(HWND window, ControlTheme controlTheme = ControlTheme::Explore
 void ApplyWindowTree(HWND window);
 void ApplyMenuBar(HWND window, HMENU menu);
 bool MeasureMenuItem(HWND owner, MEASUREITEMSTRUCT &item);
-bool DrawMenuItem(const DRAWITEMSTRUCT &item);
+bool DrawMenuItem(HWND owner, const DRAWITEMSTRUCT &item);
 HBRUSH BackgroundBrush();
 HBRUSH HandleCtlColor(UINT message, HDC deviceContext, HWND control);
 }

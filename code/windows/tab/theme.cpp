@@ -74,6 +74,7 @@ struct State
     HBRUSH borderBrush = nullptr;
     bool initialised = false;
     bool dark = false;
+    bool highContrast = false;
 };
 
 static State state;
@@ -88,9 +89,9 @@ static bool SystemRequestsDarkMode()
 {
     // High contrast takes precedence over application colour preferences.
     HIGHCONTRASTW highContrast{sizeof(highContrast)};
-    if (SystemParametersInfoW(SPI_GETHIGHCONTRAST, sizeof(highContrast), &highContrast, 0) &&
-        (highContrast.dwFlags & HCF_HIGHCONTRASTON) != 0)
-        return false;
+    state.highContrast = SystemParametersInfoW(SPI_GETHIGHCONTRAST, sizeof(highContrast), &highContrast, 0) &&
+        (highContrast.dwFlags & HCF_HIGHCONTRASTON) != 0;
+    if (state.highContrast) return false;
 
     // Prefer the documented user setting, falling back to the immersive theme API when unavailable.
     DWORD value = 1, size = sizeof(value);
@@ -125,22 +126,60 @@ static HBRUSH ControlBrush()
     return IsDark() && state.controlBrush ? state.controlBrush : GetSysColorBrush(COLOR_BTNFACE);
 }
 
-static int Scale(HDC deviceContext, int value)
+static int Scale(HWND window, int value)
 {
-    int dpi = GetDeviceCaps(deviceContext, LOGPIXELSX);
+    int dpi = GetDpiForWindow(window);
     return std::max(1, MulDiv(value, dpi > 0 ? dpi : 96, 96));
 }
 
-static HFONT CreateMenuFont()
+static HFONT CreateMenuFont(HWND window)
 {
     NONCLIENTMETRICSW metrics{sizeof(metrics)};
-    if (!SystemParametersInfoW(SPI_GETNONCLIENTMETRICS, sizeof(metrics), &metrics, 0)) return nullptr;
+    if (!SystemParametersInfoForDpi(SPI_GETNONCLIENTMETRICS, sizeof(metrics), &metrics, 0, GetDpiForWindow(window)))
+        return nullptr;
     return CreateFontIndirectW(&metrics.lfMenuFont);
 }
 
 static void Fill(HDC deviceContext, const RECT &rectangle, HBRUSH brush)
 {
     if (brush) FillRect(deviceContext, &rectangle, brush);
+}
+
+static void PaintTabColors(HWND tabs, HDC deviceContext)
+{
+    if (!deviceContext || state.highContrast) return;
+    int saved = SaveDC(deviceContext);
+    if (!saved) return;
+    RECT client{};
+    GetClientRect(tabs, &client);
+    IntersectClipRect(deviceContext, client.left, client.top, client.right, client.bottom);
+    for (HWND child = GetWindow(tabs, GW_CHILD); child; child = GetWindow(child, GW_HWNDNEXT))
+    {
+        if (!IsWindowVisible(child)) continue;
+        RECT rectangle{};
+        GetWindowRect(child, &rectangle);
+        MapWindowPoints(nullptr, tabs, reinterpret_cast<POINT *>(&rectangle), 2);
+        ExcludeClipRect(deviceContext, rectangle.left, rectangle.top, rectangle.right, rectangle.bottom);
+    }
+    int inset = Scale(tabs, 3);
+    int selected = TabCtrl_GetCurSel(tabs);
+    for (int index = 0; index < TabCtrl_GetItemCount(tabs); ++index)
+    {
+        TCITEMW item{};
+        item.mask = TCIF_PARAM;
+        RECT rectangle{};
+        if (!TabCtrl_GetItem(tabs, index, &item) || !TabCtrl_GetItemRect(tabs, index, &rectangle)) continue;
+        COLORREF color = static_cast<COLORREF>(item.lParam);
+        if (color == CLR_INVALID && state.dark && index == selected) color = GetSysColor(COLOR_HIGHLIGHT);
+        if (color == CLR_INVALID) continue;
+        int height = Scale(tabs, index == selected ? 3 : 2);
+        RECT accent{rectangle.left + inset, rectangle.bottom - height - inset, rectangle.right - inset,
+            rectangle.bottom - inset};
+        COLORREF previous = SetDCBrushColor(deviceContext, color);
+        FillRect(deviceContext, &accent, reinterpret_cast<HBRUSH>(GetStockObject(DC_BRUSH)));
+        SetDCBrushColor(deviceContext, previous);
+    }
+    RestoreDC(deviceContext, saved);
 }
 
 static void PaintDarkTabs(HWND tabs, HDC deviceContext)
@@ -159,8 +198,7 @@ static void PaintDarkTabs(HWND tabs, HDC deviceContext)
     int hovered = static_cast<int>(reinterpret_cast<DWORD_PTR>(GetPropW(tabs, TabHoverProperty))) - 2;
     int selected = TabCtrl_GetCurSel(tabs);
     int count = TabCtrl_GetItemCount(tabs);
-    int padding = Scale(deviceContext, 8);
-    int accentHeight = Scale(deviceContext, 2);
+    int padding = Scale(tabs, 8);
 
     // Paint each tab surface, selection accent, border, and clipped label.
     for (int index = 0; index < count; ++index)
@@ -169,17 +207,11 @@ static void PaintDarkTabs(HWND tabs, HDC deviceContext)
         if (!TabCtrl_GetItemRect(tabs, index, &item)) continue;
 
         HBRUSH brush = BackgroundBrush();
-        if (index == selected) brush = SurfaceBrush();
+        if (index == selected) brush = ControlBrush();
         else if (index == hovered && state.hoverBrush) brush = state.hoverBrush;
         Fill(deviceContext, item, brush);
         if (index == selected || index == hovered)
             FrameRect(deviceContext, &item, state.borderBrush ? state.borderBrush : ControlBrush());
-        if (index == selected)
-        {
-            RECT accent{item.left + 1, item.top, item.right - 1, item.top + accentHeight};
-            HBRUSH accentBrush = GetSysColorBrush(COLOR_HIGHLIGHT);
-            Fill(deviceContext, accent, accentBrush);
-        }
 
         wchar_t text[256]{};
         TCITEMW tabItem{};
@@ -190,9 +222,12 @@ static void PaintDarkTabs(HWND tabs, HDC deviceContext)
         RECT textRectangle = item;
         textRectangle.left += padding;
         textRectangle.right -= padding;
+        textRectangle.bottom -= Scale(tabs, 3);
         DrawTextW(deviceContext, text, -1, &textRectangle,
-            DT_CENTER | DT_END_ELLIPSIS | DT_NOPREFIX | DT_SINGLELINE | DT_VCENTER);
+            DT_CENTER | DT_END_ELLIPSIS | DT_HIDEPREFIX | DT_SINGLELINE | DT_VCENTER);
     }
+
+    PaintTabColors(tabs, deviceContext);
 
     // Finish the shared lower edge and restore the caller's drawing state.
     RECT border{client.left, client.bottom - 1, client.right, client.bottom};
@@ -210,7 +245,7 @@ static void DrawSizeGrip(HWND status, HDC deviceContext, const RECT &client)
     HPEN pen = CreatePen(PS_SOLID, 1, IsDark() ? DarkBorder : GetSysColor(COLOR_3DSHADOW));
     if (!pen) return;
     HGDIOBJ previousPen = SelectObject(deviceContext, pen);
-    int step = Scale(deviceContext, 4);
+    int step = Scale(status, 4);
     for (int offset = step; offset <= step * 3; offset += step)
     {
         MoveToEx(deviceContext, client.right - offset, client.bottom - 1, nullptr);
@@ -232,7 +267,7 @@ static void PaintDarkStatus(HWND status, HDC deviceContext)
     HGDIOBJ previousFont = SelectObject(deviceContext, font);
     int previousBackgroundMode = SetBkMode(deviceContext, TRANSPARENT);
     COLORREF previousTextColor = SetTextColor(deviceContext, TextColor());
-    int padding = Scale(deviceContext, 6);
+    int padding = Scale(status, 6);
     int count = static_cast<int>(SendMessageW(status, SB_GETPARTS, 0, 0));
 
     // Paint each status part and its separator using the live control text.
@@ -271,6 +306,15 @@ static LRESULT CALLBACK ControlSubclassProc(HWND window, UINT message, WPARAM wP
         if (subclassId == TabSubclassId) RemovePropW(window, TabHoverProperty);
         RemoveWindowSubclass(window, ControlSubclassProc, subclassId);
         return DefSubclassProc(window, message, wParam, lParam);
+    }
+
+    if (subclassId == TabSubclassId && !IsDark() && (message == WM_PAINT || message == WM_PRINTCLIENT))
+    {
+        LRESULT result = DefSubclassProc(window, message, wParam, lParam);
+        HDC deviceContext = message == WM_PAINT ? GetDC(window) : reinterpret_cast<HDC>(wParam);
+        PaintTabColors(window, deviceContext);
+        if (message == WM_PAINT && deviceContext) ReleaseDC(window, deviceContext);
+        return result;
     }
 
     // Preserve native control behavior outside custom dark-mode painting.
@@ -488,14 +532,14 @@ bool MeasureMenuItem(HWND owner, MEASUREITEMSTRUCT &item)
     if (!deviceContext) return false;
 
     // Measure owner-drawn text with the current system menu font and DPI.
-    HFONT font = CreateMenuFont();
+    HFONT font = CreateMenuFont(owner);
     HGDIOBJ previousFont = SelectObject(deviceContext,
         font ? font : reinterpret_cast<HFONT>(GetStockObject(DEFAULT_GUI_FONT)));
     RECT textRectangle{};
     DrawTextW(deviceContext, reinterpret_cast<const wchar_t *>(item.itemData), -1, &textRectangle,
         DT_CALCRECT | DT_SINGLELINE);
-    item.itemWidth = textRectangle.right - textRectangle.left + Scale(deviceContext, 16);
-    item.itemHeight = std::max(static_cast<int>(textRectangle.bottom - textRectangle.top) + Scale(deviceContext, 4),
+    item.itemWidth = textRectangle.right - textRectangle.left + Scale(owner, 16);
+    item.itemHeight = std::max(static_cast<int>(textRectangle.bottom - textRectangle.top) + Scale(owner, 4),
         GetSystemMetricsForDpi(SM_CYMENU, GetDpiForWindow(owner)));
     if (previousFont) SelectObject(deviceContext, previousFont);
     if (font) DeleteObject(font);
@@ -503,7 +547,7 @@ bool MeasureMenuItem(HWND owner, MEASUREITEMSTRUCT &item)
     return true;
 }
 
-bool DrawMenuItem(const DRAWITEMSTRUCT &item)
+bool DrawMenuItem(HWND owner, const DRAWITEMSTRUCT &item)
 {
     if (item.CtlType != ODT_MENU || !item.itemData || !item.hDC) return false;
 
@@ -515,7 +559,7 @@ bool DrawMenuItem(const DRAWITEMSTRUCT &item)
         GetSysColorBrush(selected ? COLOR_MENUHILIGHT : COLOR_MENU);
     FillRect(item.hDC, &item.rcItem, brush);
 
-    HFONT font = CreateMenuFont();
+    HFONT font = CreateMenuFont(owner);
     HGDIOBJ previousFont = SelectObject(
         item.hDC, font ? font : reinterpret_cast<HFONT>(GetStockObject(DEFAULT_GUI_FONT)));
     int previousMode = SetBkMode(item.hDC, TRANSPARENT);
@@ -523,7 +567,7 @@ bool DrawMenuItem(const DRAWITEMSTRUCT &item)
         GetSysColor(disabled ? COLOR_GRAYTEXT : selected ? COLOR_HIGHLIGHTTEXT : COLOR_MENUTEXT);
     COLORREF previousColor = SetTextColor(item.hDC, textColor);
     RECT textRectangle = item.rcItem;
-    int padding = Scale(item.hDC, 8);
+    int padding = Scale(owner, 8);
     textRectangle.left += padding;
     textRectangle.right -= padding;
     UINT format = DT_LEFT | DT_SINGLELINE | DT_VCENTER;

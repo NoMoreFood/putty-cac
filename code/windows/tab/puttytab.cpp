@@ -14,6 +14,7 @@
 
 #include <algorithm>
 #include <array>
+#include <cwctype>
 #include <iterator>
 #include <memory>
 #include <string>
@@ -58,10 +59,16 @@ constexpr WPARAM PuttyAbout = 0x0150;
 constexpr WPARAM PuttyCopyAll = 0x0170;
 constexpr WPARAM PuttyCopy = 0x0190;
 constexpr WPARAM PuttyPaste = 0x01A0;
+constexpr WPARAM PuttyFocus = 0x01B0;
 
 using UniqueHandle = std::unique_ptr<void, decltype([](HANDLE handle)
 {
     if (handle && handle != INVALID_HANDLE_VALUE) CloseHandle(handle);
+})>;
+
+using UniqueGdiObject = std::unique_ptr<void, decltype([](void *object)
+{
+    if (object) DeleteObject(object);
 })>;
 
 struct ProcessWindows
@@ -79,6 +86,23 @@ enum class KeyState : BYTE
     Consumed
 };
 
+struct TabGroup
+{
+    std::wstring name;
+    COLORREF color = CLR_INVALID;
+};
+
+struct TabColor
+{
+    const wchar_t *name;
+    COLORREF color;
+};
+
+constexpr TabColor TabColors[] = {
+    {L"&Red", RGB(220, 75, 75)}, {L"&Orange", RGB(230, 135, 50)}, {L"&Yellow", RGB(205, 175, 35)},
+    {L"&Green", RGB(75, 175, 95)}, {L"&Teal", RGB(40, 175, 175)}, {L"&Blue", RGB(70, 145, 230)},
+    {L"&Purple", RGB(160, 110, 220)}, {L"Pin&k", RGB(220, 110, 170)}};
+
 struct Session
 {
     DWORD processId = 0;
@@ -91,6 +115,8 @@ struct Session
     std::wstring title = L"Starting PuTTY...";
     std::wstring detectedTitle = title;
     std::wstring customTitle;
+    std::shared_ptr<TabGroup> group;
+    COLORREF color = CLR_INVALID;
     ULONGLONG closeRequestedAt = 0;
     ULONGLONG scrollbarMissingSince = 0;
     bool attached = false;
@@ -109,6 +135,22 @@ static std::wstring WindowText(HWND window)
     int copied = GetWindowTextW(window, text.data(), static_cast<int>(text.size()));
     text.resize(copied > 0 ? static_cast<size_t>(copied) : 0);
     return text;
+}
+
+static SIZE MeasureControlText(HWND control, const std::wstring &text, UINT format = DT_NOPREFIX, int width = 0)
+{
+    HDC deviceContext = GetDC(control);
+    if (!deviceContext) return {};
+    HFONT font = reinterpret_cast<HFONT>(SendMessageW(control, WM_GETFONT, 0, 0));
+    HGDIOBJ previousFont = SelectObject(deviceContext, font ? font : GetStockObject(DEFAULT_GUI_FONT));
+    RECT bounds{0, 0, width, 0};
+    DrawTextW(deviceContext, text.c_str(), static_cast<int>(text.size()), &bounds,
+        DT_CALCRECT | (width > 0 ? DT_WORDBREAK : DT_SINGLELINE) | format);
+    TEXTMETRICW metrics{};
+    GetTextMetricsW(deviceContext, &metrics);
+    if (previousFont) SelectObject(deviceContext, previousFont);
+    ReleaseDC(control, deviceContext);
+    return {bounds.right, std::max(bounds.bottom, metrics.tmHeight)};
 }
 
 static bool IsPuttyTerminal(HWND window)
@@ -233,6 +275,13 @@ static bool AppendTopMenu(HMENU parent, HMENU submenu, const wchar_t *label)
     return InsertMenuItemW(parent, GetMenuItemCount(parent), TRUE, &item) != FALSE;
 }
 
+static std::wstring EscapeLabel(std::wstring label)
+{
+    for (size_t offset = 0; (offset = label.find(L'&', offset)) != std::wstring::npos; offset += 2)
+        label.insert(offset, 1, L'&');
+    return label;
+}
+
 static int HexValue(wchar_t character)
 {
     if (character >= L'0' && character <= L'9') return character - L'0';
@@ -287,11 +336,88 @@ static std::wstring ErrorText(const wchar_t *operation, DWORD error = GetLastErr
     return result;
 }
 
+struct TextDialogState
+{
+    std::wstring *value = nullptr;
+    UniqueGdiObject font;
+    std::vector<HWND> controls;
+};
+
+static void LayoutTextDialog(HWND dialog, TextDialogState &state, const RECT *suggested = nullptr)
+{
+    UINT dpi = GetDpiForWindow(dialog);
+    NONCLIENTMETRICSW metrics{sizeof(metrics)};
+    if (!SystemParametersInfoForDpi(SPI_GETNONCLIENTMETRICS, sizeof(metrics), &metrics, 0, dpi)) return;
+    UniqueGdiObject font(CreateFontIndirectW(&metrics.lfMessageFont));
+    if (!font) return;
+    SendMessageW(dialog, WM_SETFONT, reinterpret_cast<WPARAM>(font.get()), FALSE);
+    for (HWND control : state.controls) SendMessageW(control, WM_SETFONT, reinterpret_cast<WPARAM>(font.get()), FALSE);
+    state.font = std::move(font);
+
+    RECT position{};
+    if (suggested) position = *suggested;
+    else GetWindowRect(dialog, &position);
+    MONITORINFO monitor{sizeof(monitor)};
+    if (!GetMonitorInfoW(MonitorFromRect(&position, MONITOR_DEFAULTTONEAREST), &monitor)) return;
+    RECT border{};
+    AdjustWindowRectExForDpi(&border, static_cast<DWORD>(GetWindowLongPtrW(dialog, GWL_STYLE)), FALSE,
+        static_cast<DWORD>(GetWindowLongPtrW(dialog, GWL_EXSTYLE)), dpi);
+    int margin = MulDiv(12, dpi, USER_DEFAULT_SCREEN_DPI);
+    int gap = MulDiv(8, dpi, USER_DEFAULT_SCREEN_DPI);
+    int textHeight = MeasureControlText(GetDlgItem(dialog, IDC_TEXT_VALUE), L"Mg").cy;
+    int buttonWidth = MulDiv(80, dpi, USER_DEFAULT_SCREEN_DPI);
+    int width = MulDiv(440, dpi, USER_DEFAULT_SCREEN_DPI);
+    for (HWND control : state.controls)
+    {
+        int id = GetDlgCtrlID(control);
+        int textWidth = MeasureControlText(control, WindowText(control), 0).cx;
+        if (id == IDOK || id == IDCANCEL) buttonWidth = std::max(buttonWidth, textWidth + margin * 2);
+        else if (id != IDC_TEXT_VALUE) width = std::max(width, textWidth + margin * 2);
+    }
+    int available = monitor.rcWork.right - monitor.rcWork.left - (border.right - border.left) - margin * 2;
+    width = std::min(width, available);
+    width = std::max(width, buttonWidth * 2 + gap + margin * 2);
+    int y = margin;
+    for (HWND control : state.controls)
+    {
+        int id = GetDlgCtrlID(control);
+        if (id == IDOK || id == IDCANCEL) continue;
+        int height = id == IDC_TEXT_VALUE ? textHeight + gap :
+            static_cast<int>(MeasureControlText(control, WindowText(control), 0, width - margin * 2).cy);
+        SetWindowPos(control, nullptr, margin, y, width - margin * 2, height, SWP_NOACTIVATE | SWP_NOZORDER);
+        y += height + gap;
+    }
+    int buttonHeight = textHeight + margin;
+    SetWindowPos(GetDlgItem(dialog, IDOK), nullptr, width - margin - buttonWidth * 2 - gap, y,
+        buttonWidth, buttonHeight, SWP_NOACTIVATE | SWP_NOZORDER);
+    SetWindowPos(GetDlgItem(dialog, IDCANCEL), nullptr, width - margin - buttonWidth, y,
+        buttonWidth, buttonHeight, SWP_NOACTIVATE | SWP_NOZORDER);
+    int height = y + buttonHeight + margin + border.bottom - border.top;
+    width += border.right - border.left;
+    int left = (position.left + position.right - width) / 2;
+    int top = (position.top + position.bottom - height) / 2;
+    left = std::clamp(left, static_cast<int>(monitor.rcWork.left),
+        std::max(static_cast<int>(monitor.rcWork.left), static_cast<int>(monitor.rcWork.right) - width));
+    top = std::clamp(top, static_cast<int>(monitor.rcWork.top),
+        std::max(static_cast<int>(monitor.rcWork.top), static_cast<int>(monitor.rcWork.bottom) - height));
+    SetWindowPos(dialog, nullptr, left, top, width, height, SWP_NOACTIVATE | SWP_NOZORDER);
+    RedrawWindow(dialog, nullptr, nullptr, RDW_INVALIDATE | RDW_ERASE | RDW_ALLCHILDREN);
+}
+
 static INT_PTR CALLBACK TextDialogProc(HWND dialog, UINT message, WPARAM wParam, LPARAM lParam)
 {
-    // Reapply themed dialog controls when Windows changes colour preferences.
-    if (theme::IsSystemThemeChange(message, lParam))
+    auto *state = reinterpret_cast<TextDialogState *>(GetWindowLongPtrW(dialog, GWLP_USERDATA));
+    if (message == WM_NCDESTROY)
     {
+        std::unique_ptr<TextDialogState> cleanup(state);
+        SetWindowLongPtrW(dialog, GWLP_USERDATA, 0);
+        return FALSE;
+    }
+    // Reapply themed dialog controls when Windows changes colour preferences.
+    if (message == WM_SETTINGCHANGE || theme::IsSystemThemeChange(message, lParam) || message == WM_DPICHANGED)
+    {
+        if (state)
+            LayoutTextDialog(dialog, *state, message == WM_DPICHANGED ? reinterpret_cast<RECT *>(lParam) : nullptr);
         theme::Refresh();
         theme::ApplyWindowTree(dialog);
         return TRUE;
@@ -300,10 +426,16 @@ static INT_PTR CALLBACK TextDialogProc(HWND dialog, UINT message, WPARAM wParam,
     // Theme and center the modal text-entry dialog over its owner.
     if (message == WM_INITDIALOG)
     {
-        SetWindowLongPtrW(dialog, GWLP_USERDATA, lParam);
-        auto &value = *reinterpret_cast<std::wstring *>(lParam);
-        SetWindowTextW(GetDlgItem(dialog, IDC_TEXT_VALUE), value.c_str());
+        auto data = std::make_unique<TextDialogState>();
+        data->value = reinterpret_cast<std::wstring *>(lParam);
+        for (HWND control = GetWindow(dialog, GW_CHILD); control; control = GetWindow(control, GW_HWNDNEXT))
+            data->controls.push_back(control);
+        state = data.release();
+        SetWindowLongPtrW(dialog, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(state));
+        SetDialogDpiChangeBehavior(dialog, DDC_DISABLE_ALL, DDC_DISABLE_ALL);
+        SetWindowTextW(GetDlgItem(dialog, IDC_TEXT_VALUE), state->value->c_str());
         SendDlgItemMessageW(dialog, IDC_TEXT_VALUE, EM_SETSEL, 0, -1);
+        LayoutTextDialog(dialog, *state);
         theme::ApplyWindowTree(dialog);
         HWND owner = GetWindow(dialog, GW_OWNER);
         RECT dialogRect{}, ownerRect{};
@@ -336,8 +468,7 @@ static INT_PTR CALLBACK TextDialogProc(HWND dialog, UINT message, WPARAM wParam,
     // Return the entered text only when the user accepts the dialog.
     UINT command = LOWORD(wParam);
     if (message != WM_COMMAND || (command != IDOK && command != IDCANCEL)) return FALSE;
-    auto *value = reinterpret_cast<std::wstring *>(GetWindowLongPtrW(dialog, GWLP_USERDATA));
-    if (command == IDOK) *value = WindowText(GetDlgItem(dialog, IDC_TEXT_VALUE));
+    if (command == IDOK && state) *state->value = WindowText(GetDlgItem(dialog, IDC_TEXT_VALUE));
     EndDialog(dialog, command);
     return TRUE;
 }
@@ -444,6 +575,17 @@ class App
         MSG message{};
         while (GetMessageW(&message, nullptr, 0, 0) > 0)
         {
+            bool connectControl = message.hwnd == connectButton_ || message.hwnd == connectCombo_ ||
+                IsChild(connectCombo_, message.hwnd);
+            bool tabKey = message.message == WM_KEYDOWN && message.wParam == VK_TAB &&
+                !(GetKeyState(VK_CONTROL) & 0x8000) && !(GetKeyState(VK_MENU) & 0x8000);
+            if (connectControl && (tabKey || message.message == WM_SYSCHAR) && IsDialogMessageW(frame_, &message))
+                continue;
+            if (message.hwnd == connectButton_ && message.message == WM_KEYDOWN && message.wParam == VK_RETURN)
+            {
+                if (!(message.lParam & (1LL << 30))) ConnectFromBar();
+                continue;
+            }
             TranslateMessage(&message);
             DispatchMessageW(&message);
         }
@@ -506,22 +648,38 @@ class App
         }
         case WM_SETTINGCHANGE:
         case WM_SYSCOLORCHANGE:
-            if (theme::IsSystemThemeChange(message, lParam))
+            if (message == WM_SETTINGCHANGE || theme::IsSystemThemeChange(message, lParam))
             {
                 theme::Refresh();
                 theme::ApplyWindowTree(frame_);
                 theme::ApplyControl(TabCtrl_GetToolTips(tabs_));
                 theme::ApplyControl(connectList_);
                 theme::ApplyMenuBar(frame_, menu_);
+                UpdateTabMetrics();
+                Layout();
                 SyncScrollbar();
                 return 0;
             }
             break;
+        case WM_MENUCHAR:
+        {
+            HMENU menu = reinterpret_cast<HMENU>(lParam);
+            if (menu != menu_) break;
+            for (int index = 0; index < GetMenuItemCount(menu); ++index)
+            {
+                wchar_t label[64]{};
+                GetMenuStringW(menu, index, label, static_cast<int>(std::size(label)), MF_BYPOSITION);
+                const wchar_t *mnemonic = wcschr(label, L'&');
+                if (mnemonic && std::towupper(mnemonic[1]) == std::towupper(LOWORD(wParam)))
+                    return MAKELRESULT(index, MNC_EXECUTE);
+            }
+            return MAKELRESULT(0, MNC_IGNORE);
+        }
         case WM_MEASUREITEM:
             if (theme::MeasureMenuItem(frame_, *reinterpret_cast<MEASUREITEMSTRUCT *>(lParam))) return TRUE;
             break;
         case WM_DRAWITEM:
-            if (theme::DrawMenuItem(*reinterpret_cast<DRAWITEMSTRUCT *>(lParam))) return TRUE;
+            if (theme::DrawMenuItem(frame_, *reinterpret_cast<DRAWITEMSTRUCT *>(lParam))) return TRUE;
             break;
         case WM_CTLCOLORDLG:
         case WM_CTLCOLORSTATIC:
@@ -563,6 +721,8 @@ class App
         case WM_NOTIFY: return HandleNotification(*reinterpret_cast<NMHDR *>(lParam));
         case WM_INITMENUPOPUP:
             if (reinterpret_cast<HMENU>(wParam) == savedMenu_) RebuildSavedSessionsMenu();
+            else if (reinterpret_cast<HMENU>(wParam) == tabColorMenu_) BuildColorMenu(tabColorMenu_, false);
+            else if (reinterpret_cast<HMENU>(wParam) == groupMenu_) BuildGroupMenu(groupMenu_);
             UpdateMenuState();
             return 0;
         case WM_CONTEXTMENU:
@@ -582,6 +742,7 @@ class App
             SetWindowPos(frame_, nullptr, suggested->left, suggested->top, suggested->right - suggested->left,
                 suggested->bottom - suggested->top, SWP_NOACTIVATE | SWP_NOZORDER);
             UpdateTabMetrics();
+            theme::ApplyMenuBar(frame_, menu_);
             Layout();
             return 0;
         }
@@ -630,8 +791,13 @@ class App
         HMENU fileMenu = CreatePopupMenu();
         savedMenu_ = CreatePopupMenu();
         HMENU sessionMenu = CreatePopupMenu();
+        tabColorMenu_ = CreatePopupMenu();
+        groupMenu_ = CreatePopupMenu();
         HMENU viewMenu = CreatePopupMenu();
-        if (!menu_ || !fileMenu || !savedMenu_ || !sessionMenu || !viewMenu) return false;
+        if (!menu_ || !fileMenu || !savedMenu_ || !sessionMenu || !viewMenu || !tabColorMenu_ || !groupMenu_)
+            return false;
+        BuildColorMenu(tabColorMenu_, false);
+        BuildGroupMenu(groupMenu_);
 
         AppendMenuW(fileMenu, MF_STRING, IDM_FILE_NEW, L"&New Session...\tCtrl+Shift+T");
         AppendMenuW(fileMenu, MF_POPUP, reinterpret_cast<UINT_PTR>(savedMenu_), L"Open &Saved Session");
@@ -650,6 +816,8 @@ class App
         AppendMenuW(sessionMenu, MF_SEPARATOR, 0, nullptr);
         AppendMenuW(sessionMenu, MF_STRING, IDM_SESSION_RENAME, L"Re&name Tab...");
         AppendMenuW(sessionMenu, MF_STRING, IDM_SESSION_RESET_NAME, L"Reset Tab Na&me");
+        AppendMenuW(sessionMenu, MF_POPUP, reinterpret_cast<UINT_PTR>(tabColorMenu_), L"Ta&b Color");
+        AppendMenuW(sessionMenu, MF_POPUP, reinterpret_cast<UINT_PTR>(groupMenu_), L"Tab Gro&up");
         AppendMenuW(sessionMenu, MF_STRING, IDM_SESSION_LOCK, L"Loc&k Tab");
         AppendMenuW(sessionMenu, MF_STRING, IDM_SESSION_MOVE_LEFT, L"Move Tab Le&ft\tCtrl+Shift+PgUp");
         AppendMenuW(sessionMenu, MF_STRING, IDM_SESSION_MOVE_RIGHT, L"Move Tab R&ight\tCtrl+Shift+PgDn");
@@ -678,7 +846,7 @@ class App
 
         // Create the connect bar, tab host, terminal page, status bar, and fullscreen control.
         DWORD connectStyle = WS_CHILD | (connectBarVisible_ ? WS_VISIBLE : 0);
-        connectLabel_ = CreateWindowExW(0, L"STATIC", L"Session or host:", connectStyle | SS_CENTERIMAGE, 0, 0, 0, 0,
+        connectLabel_ = CreateWindowExW(0, L"STATIC", L"Session / Host:", connectStyle | SS_CENTERIMAGE, 0, 0, 0, 0,
             frame_, nullptr, instance_, nullptr);
         connectCombo_ = CreateWindowExW(0, WC_COMBOBOXW, L"", connectStyle | WS_TABSTOP | WS_VSCROLL | CBS_DROPDOWN |
             CBS_AUTOHSCROLL,
@@ -709,11 +877,6 @@ class App
             !SetWindowSubclass(connectEdit_, ConnectProc, ConnectBarSubclass, reinterpret_cast<DWORD_PTR>(this)))
             return false;
 
-        HFONT font = reinterpret_cast<HFONT>(GetStockObject(DEFAULT_GUI_FONT));
-        for (HWND control : {connectLabel_, connectCombo_, connectButton_, tabs_})
-            SendMessageW(control, WM_SETFONT, reinterpret_cast<WPARAM>(font), TRUE);
-        SendMessageW(status_, WM_SETFONT, reinterpret_cast<WPARAM>(font), TRUE);
-        SendMessageW(fullscreenExit_, WM_SETFONT, reinterpret_cast<WPARAM>(font), TRUE);
         UpdateTabMetrics();
         theme::ApplyWindowTree(frame_);
         HWND tabTooltips = TabCtrl_GetToolTips(tabs_);
@@ -735,6 +898,29 @@ class App
         {
             size_t index = command - IDM_SAVED_SESSION_FIRST;
             if (index < savedSessions_.size()) Launch(L"-load " + QuoteArgument(savedSessions_[index]));
+            return;
+        }
+
+        if (command >= IDM_TAB_COLOR_FIRST && command <= IDM_TAB_COLOR_FIRST + std::size(TabColors))
+        {
+            if (Session *session = CurrentSession())
+                session->color = command == IDM_TAB_COLOR_FIRST ? CLR_INVALID :
+                    TabColors[command - IDM_TAB_COLOR_FIRST - 1].color;
+            RefreshTabs();
+            return;
+        }
+        if (command >= IDM_GROUP_COLOR_FIRST && command <= IDM_GROUP_COLOR_FIRST + std::size(TabColors))
+        {
+            if (Session *session = CurrentSession(); session && session->group)
+                session->group->color = command == IDM_GROUP_COLOR_FIRST ? CLR_INVALID :
+                    TabColors[command - IDM_GROUP_COLOR_FIRST - 1].color;
+            RefreshTabs();
+            return;
+        }
+        if (command >= IDM_GROUP_FIRST && command <= IDM_GROUP_LAST)
+        {
+            size_t index = command - IDM_GROUP_FIRST;
+            if (index < groups_.size()) AssignCurrentGroup(groups_[index]);
             return;
         }
 
@@ -766,6 +952,22 @@ class App
         case IDM_SESSION_RESTART:
             if (Session *session = CurrentSession(); session && IsDisconnectedTerminal(*session))
                 ForwardToPutty(PuttyRestart);
+            break;
+        case IDM_GROUP_NONE: AssignCurrentGroup(nullptr); break;
+        case IDM_GROUP_NEW: EditCurrentGroup(false); break;
+        case IDM_GROUP_RENAME: EditCurrentGroup(true); break;
+        case IDM_GROUP_GATHER:
+            if (Session *session = CurrentSession(); session && session->group) GatherGroup(session->group);
+            break;
+        case IDM_GROUP_REMOVE:
+            if (Session *session = CurrentSession(); session && session->group)
+            {
+                auto group = session->group;
+                for (auto &member : sessions_)
+                    if (member.group == group) member.group.reset();
+                std::erase(groups_, group);
+                RefreshTabs();
+            }
             break;
         case IDM_SESSION_RENAME: RenameCurrentSession(); break;
         case IDM_SESSION_RESET_NAME:
@@ -830,6 +1032,16 @@ class App
             if (index >= sessions_.size()) return 0;
             const Session &session = sessions_[index];
             tooltipText_ = session.title;
+            if (session.group) tooltipText_ += L"\nGroup: " + session.group->name;
+            COLORREF color = session.color != CLR_INVALID ? session.color :
+                session.group ? session.group->color : CLR_INVALID;
+            for (const auto &entry : TabColors)
+            {
+                if (entry.color != color) continue;
+                std::wstring name = entry.name;
+                std::erase(name, L'&');
+                tooltipText_ += L"\nColor: " + name;
+            }
             if (!session.customTitle.empty() && session.detectedTitle != session.customTitle)
                 tooltipText_ += L"\nPuTTY title: " + session.detectedTitle;
             if (session.locked) tooltipText_ += L"\nLocked against accidental closure";
@@ -877,6 +1089,12 @@ class App
         AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
         AppendMenuW(menu, MF_STRING, IDM_SESSION_RENAME, L"Rename Tab...");
         AppendMenuW(menu, MF_STRING, IDM_SESSION_RESET_NAME, L"Reset Tab Name");
+        HMENU colorMenu = CreatePopupMenu();
+        HMENU groupMenu = CreatePopupMenu();
+        BuildColorMenu(colorMenu, false);
+        BuildGroupMenu(groupMenu);
+        AppendMenuW(menu, MF_POPUP, reinterpret_cast<UINT_PTR>(colorMenu), L"Tab Color");
+        AppendMenuW(menu, MF_POPUP, reinterpret_cast<UINT_PTR>(groupMenu), L"Tab Group");
         AppendMenuW(menu, MF_STRING, IDM_SESSION_LOCK, L"Lock Tab");
         AppendMenuW(menu, MF_STRING, IDM_SESSION_MOVE_LEFT, L"Move Tab Left");
         AppendMenuW(menu, MF_STRING, IDM_SESSION_MOVE_RIGHT, L"Move Tab Right");
@@ -1013,17 +1231,21 @@ class App
             return 0;
         }
         if (message == WM_CHAR && (wParam == L'\r' || wParam == L'\x1B')) return 0;
-        return DefSubclassProc(window, message, wParam, lParam);
+        bool insertion = message == WM_PASTE || (message == WM_CHAR && wParam >= L' ' && wParam != 0x7F);
+        bool previous = std::exchange(completingConnectInput_, insertion);
+        LRESULT result = DefSubclassProc(window, message, wParam, lParam);
+        completingConnectInput_ = previous;
+        return result;
     }
 
     void AutoCompleteConnectBar()
     {
         // Complete typed prefixes from the portable-aware saved-session list.
-        if (autocompletingConnectBar_) return;
+        if (autocompletingConnectBar_ || !completingConnectInput_) return;
         std::wstring typed = WindowText(connectCombo_);
         if (typed.empty()) return;
         DWORD selection = static_cast<DWORD>(SendMessageW(connectCombo_, CB_GETEDITSEL, 0, 0));
-        if (LOWORD(selection) != HIWORD(selection)) return;
+        if (LOWORD(selection) != HIWORD(selection) || HIWORD(selection) != typed.size()) return;
         auto match = std::ranges::find_if(savedSessions_, [&typed](const std::wstring &candidate)
             {
                 return candidate.size() >= typed.size() &&
@@ -1110,6 +1332,144 @@ class App
         ActivateSession(index);
     }
 
+    void BuildColorMenu(HMENU menu, bool groupColor)
+    {
+        while (GetMenuItemCount(menu) > 0) DeleteMenu(menu, 0, MF_BYPOSITION);
+        Session *session = CurrentSession();
+        bool enabled = session && (!groupColor || session->group);
+        UINT flags = MF_STRING | (enabled ? MF_ENABLED : MF_GRAYED);
+        UINT first = groupColor ? IDM_GROUP_COLOR_FIRST : IDM_TAB_COLOR_FIRST;
+        COLORREF color = !enabled ? CLR_INVALID : groupColor ? session->group->color : session->color;
+        const wchar_t *defaultName = groupColor ? L"&None" :
+            session && session->group ? L"&Default (Group Color)" : L"&Default";
+        AppendMenuW(menu, flags, first, defaultName);
+        UINT selected = first;
+        for (size_t index = 0; index < std::size(TabColors); ++index)
+        {
+            UINT command = first + static_cast<UINT>(index) + 1;
+            AppendMenuW(menu, flags, command, TabColors[index].name);
+            SetMenuColor(menu, command, TabColors[index].color);
+            if (color == TabColors[index].color) selected = command;
+        }
+        CheckMenuRadioItem(menu, first, first + static_cast<UINT>(std::size(TabColors)), selected, MF_BYCOMMAND);
+    }
+
+    void BuildGroupMenu(HMENU menu)
+    {
+        while (GetMenuItemCount(menu) > 0) DeleteMenu(menu, 0, MF_BYPOSITION);
+        Session *session = CurrentSession();
+        auto group = session ? session->group : nullptr;
+        UINT flags = MF_STRING | (session ? MF_ENABLED : MF_GRAYED);
+        UINT groupFlags = MF_STRING | (group ? MF_ENABLED : MF_GRAYED);
+        AppendMenuW(menu, flags | (group ? 0 : MF_CHECKED), IDM_GROUP_NONE, L"No &Group");
+        AppendMenuW(menu, flags, IDM_GROUP_NEW, L"&New Group...");
+        AppendMenuW(menu, groupFlags, IDM_GROUP_RENAME, L"&Rename Group...");
+        HMENU colorMenu = CreatePopupMenu();
+        BuildColorMenu(colorMenu, true);
+        AppendMenuW(menu, MF_POPUP | (group ? MF_ENABLED : MF_GRAYED),
+            reinterpret_cast<UINT_PTR>(colorMenu), L"Group &Color");
+        AppendMenuW(menu, groupFlags, IDM_GROUP_GATHER, L"Gather &Tabs");
+        AppendMenuW(menu, groupFlags, IDM_GROUP_REMOVE, L"&Ungroup All Tabs");
+        if (groups_.empty()) return;
+        AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
+        for (size_t index = 0; index < groups_.size(); ++index)
+        {
+            std::wstring label = EscapeLabel(groups_[index]->name);
+            AppendMenuW(menu, flags | (groups_[index] == group ? MF_CHECKED : 0),
+                IDM_GROUP_FIRST + index, label.c_str());
+            SetMenuColor(menu, IDM_GROUP_FIRST + static_cast<UINT>(index), groups_[index]->color);
+        }
+    }
+
+    void SetMenuColor(HMENU menu, UINT command, COLORREF color)
+    {
+        for (size_t index = 0; index < std::size(TabColors); ++index)
+        {
+            if (TabColors[index].color != color || !colorSwatches_[index]) continue;
+            MENUITEMINFOW item{sizeof(item)};
+            item.fMask = MIIM_BITMAP;
+            item.hbmpItem = reinterpret_cast<HBITMAP>(colorSwatches_[index].get());
+            SetMenuItemInfoW(menu, command, FALSE, &item);
+            return;
+        }
+    }
+
+    void EditCurrentGroup(bool rename)
+    {
+        Session *session = CurrentSession();
+        if (!session || (rename && !session->group)) return;
+        DWORD processId = session->processId;
+        auto group = rename ? session->group : nullptr;
+        std::wstring name = group ? group->name : L"";
+        for (;;)
+        {
+            INT_PTR result = DialogBoxParamW(instance_,
+                MAKEINTRESOURCEW(rename ? IDD_RENAME_GROUP : IDD_NEW_GROUP), frame_, TextDialogProc,
+                reinterpret_cast<LPARAM>(&name));
+            size_t index = SessionIndex(processId);
+            if (index >= sessions_.size()) return;
+            ActivateSession(index);
+            if (result != IDOK) return;
+            size_t first = name.find_first_not_of(L" \t\r\n");
+            if (first != std::wstring::npos)
+                name = name.substr(first, name.find_last_not_of(L" \t\r\n") - first + 1);
+            if (first == std::wstring::npos || name.size() > 64 || name.find_first_of(L"\t\r\n") != std::wstring::npos)
+            {
+                MessageBoxW(frame_, L"Enter a group name of 1 to 64 characters on one line.",
+                    WindowTitle, MB_OK | MB_ICONINFORMATION);
+                continue;
+            }
+            auto existing = std::ranges::find_if(groups_, [&name](const auto &candidate)
+                { return _wcsicmp(candidate->name.c_str(), name.c_str()) == 0; });
+            if (rename && existing != groups_.end() && *existing != group)
+            {
+                MessageBoxW(frame_, L"A group with that name already exists.", WindowTitle, MB_OK | MB_ICONINFORMATION);
+                continue;
+            }
+            if (rename) group->name = name;
+            else if (existing != groups_.end()) group = *existing;
+            else
+            {
+                if (groups_.size() >= IDM_GROUP_LAST - IDM_GROUP_FIRST + 1)
+                {
+                    MessageBoxW(frame_, L"Unable to create any more tab groups.", WindowTitle, MB_OK | MB_ICONERROR);
+                    return;
+                }
+                group = std::make_shared<TabGroup>(name, TabColors[groups_.size() % std::size(TabColors)].color);
+                groups_.push_back(group);
+            }
+            AssignCurrentGroup(group);
+            return;
+        }
+    }
+
+    void AssignCurrentGroup(std::shared_ptr<TabGroup> group)
+    {
+        Session *session = CurrentSession();
+        if (!session) return;
+        session->group = group;
+        if (group) GatherGroup(group);
+        else RefreshTabs();
+    }
+
+    void GatherGroup(std::shared_ptr<TabGroup> group)
+    {
+        Session *session = CurrentSession();
+        if (!session || !group) return;
+        DWORD activeProcess = session->processId;
+        auto member = [&group](const Session &candidate) { return candidate.group == group; };
+        auto first = std::ranges::find_if(sessions_, member);
+        std::stable_partition(first, sessions_.end(), member);
+        TabCtrl_SetCurSel(tabs_, static_cast<int>(SessionIndex(activeProcess)));
+        RefreshTabs();
+    }
+
+    void RefreshTabs()
+    {
+        for (size_t index = 0; index < sessions_.size(); ++index) UpdateTab(index);
+        ActivateSession(CurrentIndex(), false);
+    }
+
     void MoveCurrentSession(int direction)
     {
         size_t current = CurrentIndex();
@@ -1133,12 +1493,7 @@ class App
         size_t first = std::min(from, to);
         size_t last = std::max(from, to);
         for (size_t index = first; index <= last; ++index)
-        {
-            TCITEMW item{};
-            item.mask = TCIF_TEXT;
-            item.pszText = sessions_[index].title.data();
-            TabCtrl_SetItem(tabs_, static_cast<int>(index), &item);
-        }
+            UpdateTab(index);
         size_t selected = activeProcess ? SessionIndex(activeProcess) : to;
         TabCtrl_SetCurSel(tabs_, static_cast<int>(selected));
         LayoutChildren();
@@ -1199,8 +1554,9 @@ class App
         Session session{.processId = processId, .process = std::move(process), .closing = exiting_};
 
         TCITEMW item{};
-        item.mask = TCIF_TEXT;
+        item.mask = TCIF_TEXT | TCIF_PARAM;
         item.pszText = session.title.data();
+        item.lParam = CLR_INVALID;
         int index = TabCtrl_InsertItem(tabs_, static_cast<int>(sessions_.size()), &item);
         if (index < 0) return;
         sessions_.push_back(std::move(session));
@@ -1481,6 +1837,9 @@ class App
         if (!targetSize && !GetClientRect(frame_, &client)) return;
         int width = targetSize ? targetSize->cx : client.right;
         int height = targetSize ? targetSize->cy : client.bottom;
+        UINT dpi = GetDpiForWindow(frame_);
+        int gap = MulDiv(6, dpi, USER_DEFAULT_SCREEN_DPI);
+        int buttonPadding = MulDiv(24, dpi, USER_DEFAULT_SCREEN_DPI);
         Session *session = CurrentSession();
         int scrollbarWidth = session && session->attached && session->hasScrollbar && IsSessionTerminal(*session)
             ? GetSystemMetricsForDpi(SM_CXVSCROLL, GetDpiForWindow(session->terminal)) : 0;
@@ -1531,9 +1890,14 @@ class App
         if (fullscreen_)
         {
             RECT page{0, 0, std::max(0, width - scrollbarWidth), height};
-            move(page_, page.left, page.top, page.right - page.left, page.bottom - page.top, true, scrollbar_);
-            moveScrollbar(page, fullscreenExit_);
-            move(fullscreenExit_, std::max(4, width - 120), 4, 116, 26, true);
+            move(page_, page.left, page.top, page.right - page.left, page.bottom - page.top, true);
+            moveScrollbar(page, HWND_TOP);
+            SIZE text = MeasureControlText(fullscreenExit_, WindowText(fullscreenExit_), 0);
+            int buttonWidth = std::max(MulDiv(116, dpi, USER_DEFAULT_SCREEN_DPI),
+                static_cast<int>(text.cx) + buttonPadding);
+            int buttonHeight = std::max(MulDiv(26, dpi, USER_DEFAULT_SCREEN_DPI),
+                static_cast<int>(text.cy) + MulDiv(8, dpi, USER_DEFAULT_SCREEN_DPI));
+            move(fullscreenExit_, std::max(gap, width - buttonWidth - gap), gap, buttonWidth, buttonHeight, true);
             bool terminalPrepositioned = prepositionTerminal(page);
             commit();
             ShowWindow(fullscreenExit_, SW_SHOW);
@@ -1550,20 +1914,30 @@ class App
             GetWindowRect(status_, &statusRect);
             statusHeight = statusRect.bottom - statusRect.top;
         }
-        UINT dpi = GetDpiForWindow(frame_);
-        int connectHeight = connectBarVisible_ ? MulDiv(36, dpi, USER_DEFAULT_SCREEN_DPI) : 0;
+        int connectHeight = 0;
         if (connectBarVisible_)
         {
-            int gap = MulDiv(6, dpi, USER_DEFAULT_SCREEN_DPI);
-            int labelWidth = MulDiv(96, dpi, USER_DEFAULT_SCREEN_DPI);
-            int buttonWidth = MulDiv(76, dpi, USER_DEFAULT_SCREEN_DPI);
-            int controlHeight = MulDiv(24, dpi, USER_DEFAULT_SCREEN_DPI);
-            int comboLeft = gap + labelWidth;
-            int comboWidth = std::max(MulDiv(80, dpi, USER_DEFAULT_SCREEN_DPI),
-                width - comboLeft - buttonWidth - gap * 3);
-            move(connectLabel_, gap, gap, labelWidth, controlHeight);
-            move(connectCombo_, comboLeft, gap, comboWidth, MulDiv(240, dpi, USER_DEFAULT_SCREEN_DPI));
-            move(connectButton_, comboLeft + comboWidth + gap, gap, buttonWidth, controlHeight);
+            SIZE labelText = MeasureControlText(connectLabel_, WindowText(connectLabel_));
+            SIZE buttonText = MeasureControlText(connectButton_, WindowText(connectButton_), 0);
+            SIZE inputText = MeasureControlText(connectCombo_, L"example.com");
+            RECT comboRect{};
+            GetWindowRect(connectCombo_, &comboRect);
+            int comboHeight = comboRect.bottom - comboRect.top;
+            int labelWidth = labelText.cx;
+            int buttonWidth = std::max(MulDiv(76, dpi, USER_DEFAULT_SCREEN_DPI),
+                static_cast<int>(buttonText.cx) + buttonPadding);
+            int controlHeight = std::max(comboHeight,
+                static_cast<int>(buttonText.cy) + MulDiv(8, dpi, USER_DEFAULT_SCREEN_DPI));
+            int minimumInputWidth = inputText.cx + GetSystemMetricsForDpi(SM_CXVSCROLL, dpi) + gap * 2;
+            bool wrapLabel = width < labelWidth + minimumInputWidth + buttonWidth + gap * 4;
+            int controlTop = wrapLabel ? gap * 2 + labelText.cy : gap;
+            int comboLeft = wrapLabel ? gap : labelWidth + gap * 2;
+            int comboWidth = std::max(0, width - comboLeft - buttonWidth - gap * 2);
+            int dropdownHeight = std::max(MulDiv(240, dpi, USER_DEFAULT_SCREEN_DPI), controlHeight * 8);
+            connectHeight = controlTop + controlHeight + gap;
+            move(connectLabel_, gap, gap, labelWidth, wrapLabel ? labelText.cy : controlHeight);
+            move(connectCombo_, comboLeft, controlTop + (controlHeight - comboHeight) / 2, comboWidth, dropdownHeight);
+            move(connectButton_, comboLeft + comboWidth + gap, controlTop, buttonWidth, controlHeight);
         }
         int tabHeight = std::max(0, height - statusHeight - connectHeight);
         move(tabs_, 0, connectHeight, width, tabHeight);
@@ -1571,13 +1945,12 @@ class App
         TabCtrl_AdjustRect(tabs_, FALSE, &display);
         OffsetRect(&display, 0, connectHeight);
         display.right = std::max(display.left, display.right - scrollbarWidth);
-        move(page_, display.left, display.top, display.right - display.left, display.bottom - display.top, true,
-            scrollbar_);
+        // Raise the page before its scrollbar so moving the scrollbar cannot leave the page behind the tabs.
+        move(page_, display.left, display.top, display.right - display.left, display.bottom - display.top, true);
         moveScrollbar(display, HWND_TOP);
         bool terminalPrepositioned = prepositionTerminal(display);
         commit();
-        int parts[] = {std::max(120, width / 4), std::max(300, width / 2), -1};
-        SendMessageW(status_, SB_SETPARTS, static_cast<WPARAM>(std::size(parts)), reinterpret_cast<LPARAM>(parts));
+        LayoutStatusParts(width);
         LayoutChildren(terminalPrepositioned ? false : refreshFrame);
     }
 
@@ -1596,13 +1969,49 @@ class App
 
     void UpdateTabMetrics()
     {
-        // Scale tab padding and width for the current monitor DPI.
+        // Size controls using the Windows text font and DPI-scaled padding.
         if (!tabs_) return;
         UINT dpi = GetDpiForWindow(tabs_);
-        int horizontalPadding = MulDiv(8, dpi, USER_DEFAULT_SCREEN_DPI);
-        int verticalPadding = MulDiv(4, dpi, USER_DEFAULT_SCREEN_DPI);
+        NONCLIENTMETRICSW metrics{sizeof(metrics)};
+        UniqueGdiObject font;
+        if (SystemParametersInfoForDpi(SPI_GETNONCLIENTMETRICS, sizeof(metrics), &metrics, 0, dpi))
+            font.reset(CreateFontIndirectW(&metrics.lfMessageFont));
+        HFONT controlFont = font ? reinterpret_cast<HFONT>(font.get()) :
+            reinterpret_cast<HFONT>(GetStockObject(DEFAULT_GUI_FONT));
+        for (HWND control : {connectLabel_, connectCombo_, connectButton_, tabs_, status_, fullscreenExit_})
+            SendMessageW(control, WM_SETFONT, reinterpret_cast<WPARAM>(controlFont), TRUE);
+        controlFont_ = std::move(font);
+        int textHeight = MeasureControlText(tabs_, L"Mg").cy;
+        int itemHeight = textHeight + MulDiv(4, dpi, USER_DEFAULT_SCREEN_DPI);
+        SendMessageW(connectCombo_, CB_SETITEMHEIGHT, 0, itemHeight);
+        SendMessageW(connectCombo_, CB_SETITEMHEIGHT, static_cast<WPARAM>(-1), itemHeight);
+        SendMessageW(status_, SB_SETMINHEIGHT, itemHeight, 0);
+        int horizontalPadding = MulDiv(12, dpi, USER_DEFAULT_SCREEN_DPI);
+        int verticalPadding = MulDiv(8, dpi, USER_DEFAULT_SCREEN_DPI);
+        int tabHeight = std::max(MulDiv(32, dpi, USER_DEFAULT_SCREEN_DPI),
+            textHeight + MulDiv(14, dpi, USER_DEFAULT_SCREEN_DPI));
         SendMessageW(tabs_, TCM_SETPADDING, 0, MAKELPARAM(horizontalPadding, verticalPadding));
-        TabCtrl_SetMinTabWidth(tabs_, MulDiv(180, dpi, USER_DEFAULT_SCREEN_DPI));
+        SendMessageW(tabs_, TCM_SETITEMSIZE, 0, MAKELPARAM(0, tabHeight));
+        TabCtrl_SetMinTabWidth(tabs_, MulDiv(200, dpi, USER_DEFAULT_SCREEN_DPI));
+
+        if (swatchDpi_ == dpi) return;
+        swatchDpi_ = dpi;
+        int size = MulDiv(16, dpi, USER_DEFAULT_SCREEN_DPI);
+        int inset = MulDiv(2, dpi, USER_DEFAULT_SCREEN_DPI);
+        for (size_t index = 0; index < std::size(TabColors); ++index)
+        {
+            BITMAPINFO info{};
+            info.bmiHeader = {sizeof(BITMAPINFOHEADER), size, -size, 1, 32, BI_RGB};
+            DWORD *pixels = nullptr;
+            colorSwatches_[index].reset(CreateDIBSection(nullptr, &info, DIB_RGB_COLORS,
+                reinterpret_cast<void **>(&pixels), nullptr, 0));
+            if (!pixels) continue;
+            std::fill_n(pixels, size * size, 0);
+            COLORREF color = TabColors[index].color;
+            DWORD pixel = 0xFF000000 | (GetRValue(color) << 16) | (GetGValue(color) << 8) | GetBValue(color);
+            for (int y = inset; y < size - inset; ++y)
+                std::fill_n(pixels + y * size + inset, size - inset * 2, pixel);
+        }
     }
 
     void LayoutChildren(bool refreshFrame = false)
@@ -1720,7 +2129,7 @@ class App
     {
         // Prefer active dialogs, then embedded or separate terminal windows.
         Session *session = CurrentSession();
-        if (!session) return;
+        if (!session || (IsSessionTerminal(*session) && IsHungAppWindow(session->terminal))) return;
         ProcessWindows windows = WindowsForProcess(session->processId);
         if (windows.dialog && (!IsSessionTerminal(*session) || !IsWindowEnabled(session->terminal)))
         {
@@ -1730,12 +2139,9 @@ class App
         }
         if (session->attached && IsSessionTerminal(*session))
         {
-            SetForegroundWindow(frame_);
-            DWORD hostThread = GetCurrentThreadId();
-            DWORD terminalThread = GetWindowThreadProcessId(session->terminal, nullptr);
-            bool attachedThreads = terminalThread != hostThread && AttachThreadInput(hostThread, terminalThread, TRUE);
-            SetFocus(session->terminal);
-            if (attachedThreads) AttachThreadInput(hostThread, terminalThread, FALSE);
+            if (!HostForeground()) SetForegroundWindow(frame_);
+            // Let PuTTY change focus on its own thread; discard stale requests if the user moves focus meanwhile.
+            PostMessageW(session->terminal, WM_SYSCOMMAND, PuttyFocus, reinterpret_cast<LPARAM>(GetFocus()));
             return;
         }
         HWND target = windows.dialog ? windows.dialog : windows.terminal ? windows.terminal : windows.visible;
@@ -1764,6 +2170,20 @@ class App
         if (session.customTitle.empty()) SetSessionTitle(index, session.detectedTitle);
     }
 
+    void UpdateTab(size_t index)
+    {
+        const Session &session = sessions_[index];
+        std::wstring label = EscapeLabel(
+            session.group ? L"[" + session.group->name + L"] " + session.title : session.title);
+        TCITEMW item{};
+        item.mask = TCIF_TEXT | TCIF_PARAM;
+        item.pszText = label.data();
+        item.lParam = session.color != CLR_INVALID ? session.color :
+            session.group ? session.group->color : CLR_INVALID;
+        TabCtrl_SetItem(tabs_, static_cast<int>(index), &item);
+        InvalidateRect(tabs_, nullptr, FALSE);
+    }
+
     void SetSessionTitle(size_t index, const std::wstring &title)
     {
         // Keep the tab label and active host title synchronized.
@@ -1771,10 +2191,7 @@ class App
         Session &session = sessions_[index];
         session.title = title.empty() ? L"PuTTY" : title;
 
-        TCITEMW item{};
-        item.mask = TCIF_TEXT;
-        item.pszText = session.title.data();
-        TabCtrl_SetItem(tabs_, static_cast<int>(index), &item);
+        UpdateTab(index);
         if (index == CurrentIndex())
         {
             std::wstring frameTitle = WindowTitle;
@@ -2011,6 +2428,17 @@ class App
         CheckMenuItem(menu_, IDM_VIEW_CONNECT_BAR, MF_BYCOMMAND | (connectBarVisible_ ? MF_CHECKED : MF_UNCHECKED));
     }
 
+    void LayoutStatusParts(int width)
+    {
+        UINT dpi = GetDpiForWindow(status_);
+        int padding = MulDiv(20, dpi, USER_DEFAULT_SCREEN_DPI);
+        int countWidth = std::min(width / 3, std::max(MulDiv(120, dpi, USER_DEFAULT_SCREEN_DPI),
+            static_cast<int>(MeasureControlText(status_, statusText_[0]).cx) + padding));
+        int stateWidth = MeasureControlText(status_, statusText_[1]).cx + padding;
+        int parts[] = {countWidth, std::min(width, std::max(countWidth + stateWidth, width / 2)), -1};
+        SendMessageW(status_, SB_SETPARTS, static_cast<WPARAM>(std::size(parts)), reinterpret_cast<LPARAM>(parts));
+    }
+
     void UpdateStatus()
     {
         // Summarize the session count and active PuTTY lifecycle state.
@@ -2031,16 +2459,27 @@ class App
             else if (IsHungAppWindow(session->terminal)) state = L"PuTTY is not responding";
             else if (IsDisconnectedTerminal(*session)) state = L"Session inactive";
             else state = L"PuTTY terminal active";
+            if (session->group) state += L" | Group: " + session->group->name;
             if (session->locked) state += L" | Tab locked";
         }
         if (exiting_) state = L"Waiting for sessions to close...";
 
         std::array text{count, state, std::wstring(L"Alt+R: connect   Ctrl+Shift+T: new   F11: full screen")};
+        bool changed = false;
         for (size_t part = 0; part < text.size(); ++part)
         {
             if (text[part] == statusText_[part]) continue;
             if (SendMessageW(status_, SB_SETTEXTW, part, reinterpret_cast<LPARAM>(text[part].c_str())))
+            {
                 statusText_[part] = std::move(text[part]);
+                changed = true;
+            }
+        }
+        if (changed)
+        {
+            RECT client{};
+            GetClientRect(status_, &client);
+            LayoutStatusParts(client.right);
         }
     }
 
@@ -2163,9 +2602,15 @@ class App
     HWND fullscreenExit_ = nullptr;
     HMENU menu_ = nullptr;
     HMENU savedMenu_ = nullptr;
+    HMENU tabColorMenu_ = nullptr;
+    HMENU groupMenu_ = nullptr;
     HHOOK keyboardHook_ = nullptr;
     UniqueHandle job_;
+    UniqueGdiObject controlFont_;
+    std::array<UniqueGdiObject, std::size(TabColors)> colorSwatches_;
+    UINT swatchDpi_ = 0;
     std::vector<Session> sessions_;
+    std::vector<std::shared_ptr<TabGroup>> groups_;
     std::vector<std::wstring> savedSessions_;
     std::wstring puttyPath_;
     std::wstring puttyDirectory_;
@@ -2181,6 +2626,7 @@ class App
     bool statusVisible_ = true;
     bool connectBarVisible_ = true;
     bool autocompletingConnectBar_ = false;
+    bool completingConnectInput_ = false;
     bool draggingTab_ = false;
     bool scrollbarTracking_ = false;
     bool exiting_ = false;

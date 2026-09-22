@@ -50,6 +50,7 @@
 #define IDM_FULLSCREEN  0x0180
 #define IDM_COPY      0x0190
 #define IDM_PASTE     0x01A0
+#define IDM_TABFOCUS  0x01B0
 #define IDM_SPECIALSEP 0x0200
 
 #define IDM_SPECIAL_MIN 0x0400
@@ -2242,6 +2243,13 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
       case WM_COMMAND:
       case WM_SYSCOMMAND:
         switch (wParam & ~0xF) {       /* low 4 bits reserved to Windows */
+          case IDM_TABFOCUS:
+            // PuTTYTab posts focus requests so its UI thread never waits for this terminal.
+            if ((GetWindowLongPtr(hwnd, GWL_STYLE) & WS_CHILD) &&
+                IsWindowVisible(hwnd) && IsWindowEnabled(hwnd) &&
+                GetForegroundWindow() == GetAncestor(hwnd, GA_ROOT) && GetFocus() == (HWND)lParam)
+                SetFocus(hwnd);
+            return 0;
           case SC_VSCROLL:
           case SC_HSCROLL:
             if (message == WM_SYSCOMMAND) {
