@@ -9,3 +9,4 @@
 *.nupkg
 Temp
 Build
+/binaries/
