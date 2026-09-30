@@ -55,7 +55,7 @@ jobs:
           Invoke-WebRequest -Uri "https://github.com/microsoft/winget-create/releases/latest/download/wingetcreate.exe" -OutFile $wc -UseBasicParsing
           $tag = "${{ needs.get-version.outputs.tag }}"
           $version = "${{ needs.get-version.outputs.version }}"
-          $base = "https://github.com/NoMoreFood/putty-cac/raw/$tag/binaries"
+          $base = "https://github.com/NoMoreFood/putty-cac/releases/download/$tag"
           & $wc update NoMoreFood.PuTTY-CAC `
             --version $version `
             --urls "$base/puttycac-$tag-x64.msi|x64" "$base/puttycac-$tag-x86.msi|x86" "$base/puttycac-$tag-arm64.msi|arm64" `
@@ -75,7 +75,7 @@ jobs:
         run: |
           $tag = "${{ needs.get-version.outputs.tag }}"
           $version = "${{ needs.get-version.outputs.version }}"
-          $base = "https://github.com/NoMoreFood/putty-cac/raw/$tag/binaries"
+          $base = "https://github.com/NoMoreFood/putty-cac/releases/download/$tag"
           $x86Url = "$base/puttycac-$tag-x86.msi"
           $x64Url = "$base/puttycac-$tag-x64.msi"
 

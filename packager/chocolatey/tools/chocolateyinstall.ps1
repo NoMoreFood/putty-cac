@@ -2,8 +2,8 @@
 
 $packageName= $env:ChocolateyPackageName
 $toolsDir   = "$(Split-Path -parent $MyInvocation.MyCommand.Definition)"
-$url        = 'https://github.com/NoMoreFood/putty-cac/raw/0.0/binaries/puttycac-0.0-x86.msi'
-$url64      = 'https://github.com/NoMoreFood/putty-cac/raw/0.0/binaries/puttycac-0.0-x64.msi'
+$url        = 'https://github.com/NoMoreFood/putty-cac/releases/download/0.0/puttycac-0.0-x86.msi'
+$url64      = 'https://github.com/NoMoreFood/putty-cac/releases/download/0.0/puttycac-0.0-x64.msi'
 
 $packageArgs = @{
   packageName   = $packageName
