@@ -570,7 +570,7 @@ class App
     int Run(const std::wstring &initialArguments)
     {
         // Launch the requested session and pump host messages until shutdown.
-        Launch(initialArguments);
+        if (initialArguments.find_first_not_of(L" \t\r\n") != std::wstring::npos) Launch(initialArguments);
 
         MSG message{};
         while (GetMessageW(&message, nullptr, 0, 0) > 0)

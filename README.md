@@ -32,9 +32,10 @@ graceful multi-session shutdown. Double-click a tab to rename it, drag tabs to r
 it, or double-click empty tab-strip space to open a new session. Locked tabs ignore tab-level close actions but still
 close after explicit whole-application exit confirmation.
 
-Run `puttytab.exe` without arguments to open PuTTY's standard configuration dialog, or pass any normal PuTTY command
-line, such as `puttytab.exe -load "My Session"` or `puttytab.exe -ssh user@example.com`. PuTTYTab and `putty.exe` must
-remain in the same directory.
+Run `puttytab.exe` without arguments to open an empty tabbed window. Choose New Session (Ctrl+Shift+T) to open
+PuTTY's standard configuration dialog, or pass any normal PuTTY command line, such as
+`puttytab.exe -load "My Session"` or `puttytab.exe -ssh user@example.com`. PuTTYTab and `putty.exe` must remain in
+the same directory.
 
 The main shortcuts are Alt+R for the Connect Bar, Ctrl+Shift+T for a new session, Ctrl+Shift+D to duplicate the current
 session, Ctrl+Shift+R to reconnect an inactive session, Ctrl+Shift+W or Ctrl+F4 to close a tab, Ctrl+Tab and
