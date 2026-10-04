@@ -1,9 +1,8 @@
 /*
  * puttytab.cpp - a tabbed host for independent PuTTY processes.
  *
- * Keeping each terminal in its own process lets this program provide tabs
- * without depending on PuTTY internals. In particular, configuration dialogs,
- * authentication prompts, and protocol handling remain entirely in PuTTY.
+ * Keeping each terminal in its own process leaves configuration dialogs,
+ * authentication prompts, and protocol handling entirely in PuTTY.
  */
 
 #define WIN32_LEAN_AND_MEAN
@@ -11,6 +10,7 @@
 #include <windows.h>
 #include <windowsx.h>
 #include <commctrl.h>
+#include <shellapi.h>
 
 #include <algorithm>
 #include <array>
@@ -27,6 +27,7 @@ extern "C"
 }
 #include "puttytab-rc.h"
 #include "theme.h"
+#include "urls.h"
 
 constexpr wchar_t WindowClassName[] = L"PuTTYTab";
 constexpr wchar_t WindowTitle[] = L"PuTTYTab";
@@ -35,6 +36,7 @@ constexpr wchar_t SettingsRegistryPath[] = L"Software\\SimonTatham\\PuTTY\\PuTTY
 constexpr wchar_t AlwaysOnTopSetting[] = L"AlwaysOnTop";
 constexpr wchar_t StatusBarVisibleSetting[] = L"StatusBarVisible";
 constexpr wchar_t ConnectBarVisibleSetting[] = L"ConnectBarVisible";
+constexpr wchar_t ClickableUrlsSetting[] = L"ClickableUrls";
 
 constexpr UINT_PTR PollTimer = 1;
 constexpr UINT PollInterval = 200;
@@ -44,6 +46,8 @@ constexpr UINT WmShortcut = WM_APP + 1;
 constexpr UINT WmActivateTab = WM_APP + 2;
 constexpr UINT WmMenuMnemonic = WM_APP + 3;
 constexpr UINT WmFocusConnectBar = WM_APP + 4;
+constexpr UINT WmOpenUrl = WM_APP + 5;
+constexpr UINT WmUpdateUrlCursor = WM_APP + 6;
 constexpr UINT_PTR TabHostSubclass = 101;
 constexpr UINT_PTR ConnectBarSubclass = 102;
 
@@ -485,6 +489,7 @@ class App
     ~App()
     {
         if (keyboardHook_) UnhookWindowsHookEx(keyboardHook_);
+        if (mouseHook_) UnhookWindowsHookEx(mouseHook_);
         theme::Shutdown();
         current_ = nullptr;
     }
@@ -497,6 +502,7 @@ class App
         alwaysOnTop_ = ReadBooleanSetting(AlwaysOnTopSetting, false);
         statusVisible_ = ReadBooleanSetting(StatusBarVisibleSetting, true);
         connectBarVisible_ = ReadBooleanSetting(ConnectBarVisibleSetting, true);
+        clickableUrls_ = ReadBooleanSetting(ClickableUrlsSetting, false);
 
         // Resolve the sibling PuTTY executable and initialise host integration state.
         wchar_t modulePath[32768]{};
@@ -548,9 +554,10 @@ class App
 
         // Start shortcut and session monitoring before showing the interface.
         keyboardHook_ = SetWindowsHookExW(WH_KEYBOARD_LL, KeyboardProc, instance_, 0);
-        if (!keyboardHook_)
+        if (keyboardHook_) mouseHook_ = SetWindowsHookExW(WH_MOUSE_LL, MouseProc, instance_, 0);
+        if (!keyboardHook_ || !mouseHook_)
         {
-            MessageBoxW(frame_, ErrorText(L"Installing PuTTYTab keyboard shortcuts").c_str(), WindowTitle,
+            MessageBoxW(frame_, ErrorText(L"Installing PuTTYTab input shortcuts").c_str(), WindowTitle,
                 MB_OK | MB_ICONERROR);
             DestroyWindow(frame_);
             return false;
@@ -613,6 +620,12 @@ class App
     {
         if (code < 0 || !current_) return CallNextHookEx(nullptr, code, wParam, lParam);
         return current_->HandleKeyboard(code, wParam, *reinterpret_cast<KBDLLHOOKSTRUCT *>(lParam));
+    }
+
+    static LRESULT CALLBACK MouseProc(int code, WPARAM wParam, LPARAM lParam)
+    {
+        if (code >= 0 && current_) current_->HandleMouse(wParam, *reinterpret_cast<MSLLHOOKSTRUCT *>(lParam));
+        return CallNextHookEx(nullptr, code, wParam, lParam);
     }
 
     static LRESULT CALLBACK TabProc(HWND window, UINT message, WPARAM wParam, LPARAM lParam, UINT_PTR, DWORD_PTR data)
@@ -703,6 +716,9 @@ class App
         }
         case WM_SIZE: Layout(); return 0;
         case WM_SETFOCUS: FocusCurrentSession(); return 0;
+        case WM_SETCURSOR:
+            if (LOWORD(lParam) == HTCLIENT && SetUrlCursor(reinterpret_cast<HWND>(wParam))) return TRUE;
+            break;
         case WM_COMMAND:
             if (LOWORD(wParam) == IDC_CONNECT_BUTTON && HIWORD(wParam) == BN_CLICKED) ConnectFromBar();
             else if (LOWORD(wParam) == IDC_CONNECT_SESSION && HIWORD(wParam) == CBN_EDITCHANGE)
@@ -734,7 +750,11 @@ class App
             }
             break;
         case WM_TIMER:
-            if (wParam == PollTimer) PollSessions();
+            if (wParam == PollTimer)
+            {
+                PollSessions();
+                if (clickableUrls_) UpdateUrlCursor();
+            }
             return 0;
         case WM_DPICHANGED:
         {
@@ -768,6 +788,25 @@ class App
             if (fullscreen_) ToggleFullscreen();
             return DefWindowProcW(frame_, WM_SYSCOMMAND, SC_KEYMENU, static_cast<LPARAM>(wParam));
         case WmFocusConnectBar: FocusConnectBar(); return 0;
+        case WmOpenUrl:
+        {
+            // Resolve queued clicks against the active terminal before reading its text.
+            Session *session = CurrentSession();
+            if (!clickableUrls_ || !HostForeground() || !session || session->processId != wParam ||
+                !session->attached || !IsSessionTerminal(*session)) return 0;
+
+            // Permit focus notifications to reach the host while PuTTY focuses its terminal.
+            DWORD_PTR result = 0;
+            if (!SendMessageTimeoutW(session->terminal, WM_SYSCOMMAND, PuttyFocus,
+                reinterpret_cast<LPARAM>(GetFocus()), SMTO_ABORTIFHUNG | SMTO_ERRORONEXIT, 50, &result))
+                return 0;
+            std::wstring url = urls::AtPoint(session->terminal, {GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam)});
+            if (!url.empty() && reinterpret_cast<INT_PTR>(
+                ShellExecuteW(frame_, L"open", url.c_str(), nullptr, nullptr, SW_SHOWNORMAL)) <= 32)
+                MessageBoxW(frame_, L"Unable to open the URL.", WindowTitle, MB_OK | MB_ICONERROR);
+            return 0;
+        }
+        case WmUpdateUrlCursor: UpdateUrlCursor(); return 0;
         case WM_QUERYENDSESSION: return TRUE;
         case WM_ENDSESSION:
             if (wParam) RequestCloseAll(true);
@@ -838,6 +877,7 @@ class App
         AppendMenuW(viewMenu, MF_STRING, IDM_VIEW_FULLSCREEN, L"&Full Screen\tF11");
         AppendMenuW(viewMenu, MF_STRING, IDM_VIEW_STATUS_BAR, L"&Status Bar");
         AppendMenuW(viewMenu, MF_STRING, IDM_VIEW_CONNECT_BAR, L"&Connect Bar\tAlt+R");
+        AppendMenuW(viewMenu, MF_STRING, IDM_VIEW_CLICKABLE_URLS, L"&Make URLs Clickable");
 
         if (!AppendTopMenu(menu_, fileMenu, L"&File") || !AppendTopMenu(menu_, sessionMenu, L"&Session") ||
             !AppendTopMenu(menu_, viewMenu, L"&View"))
@@ -1018,6 +1058,11 @@ class App
             connectBarVisible_ = !connectBarVisible_;
             ShowConnectBar(connectBarVisible_);
             WriteBooleanSetting(ConnectBarVisibleSetting, connectBarVisible_);
+            break;
+        case IDM_VIEW_CLICKABLE_URLS:
+            clickableUrls_ = !clickableUrls_;
+            WriteBooleanSetting(ClickableUrlsSetting, clickableUrls_);
+            PostMessageW(frame_, WmUpdateUrlCursor, 0, 0);
             break;
         }
         UpdateMenuState();
@@ -2422,6 +2467,7 @@ class App
         EnableMenuItem(menu_, IDM_VIEW_NEXT, MF_BYCOMMAND | (sessions_.size() > 1 ? MF_ENABLED : MF_GRAYED));
         EnableMenuItem(menu_, IDM_VIEW_PREVIOUS, MF_BYCOMMAND | (sessions_.size() > 1 ? MF_ENABLED : MF_GRAYED));
         CheckMenuItem(menu_, IDM_SESSION_LOCK, MF_BYCOMMAND | (session && session->locked ? MF_CHECKED : MF_UNCHECKED));
+        CheckMenuItem(menu_, IDM_VIEW_CLICKABLE_URLS, MF_BYCOMMAND | (clickableUrls_ ? MF_CHECKED : MF_UNCHECKED));
         CheckMenuItem(menu_, IDM_VIEW_ALWAYS_ON_TOP, MF_BYCOMMAND | (alwaysOnTop_ ? MF_CHECKED : MF_UNCHECKED));
         CheckMenuItem(menu_, IDM_VIEW_FULLSCREEN, MF_BYCOMMAND | (fullscreen_ ? MF_CHECKED : MF_UNCHECKED));
         CheckMenuItem(menu_, IDM_VIEW_STATUS_BAR, MF_BYCOMMAND | (statusVisible_ ? MF_CHECKED : MF_UNCHECKED));
@@ -2507,6 +2553,80 @@ class App
         return foreground && (foreground == frame_ || IsChild(frame_, foreground));
     }
 
+    bool UrlClickAvailable() const
+    {
+        return clickableUrls_ && HostForeground() && !(GetAsyncKeyState(VK_CONTROL) & 0x8000) &&
+            !(GetAsyncKeyState(VK_SHIFT) & 0x8000) && !(GetAsyncKeyState(VK_MENU) & 0x8000) &&
+            !(GetAsyncKeyState(VK_LWIN) & 0x8000) && !(GetAsyncKeyState(VK_RWIN) & 0x8000) &&
+            !(GetAsyncKeyState(VK_RBUTTON) & 0x8000) && !(GetAsyncKeyState(VK_MBUTTON) & 0x8000);
+    }
+
+    bool SetUrlCursor(HWND terminal)
+    {
+        // Show the link cursor while a plain click can open a URL.
+        Session *session = CurrentSession();
+        POINT point{};
+        if (!UrlClickAvailable() || !session || terminal != session->terminal ||
+            !session->attached || !IsSessionTerminal(*session) || (GetAsyncKeyState(VK_LBUTTON) & 0x8000) ||
+            !GetCursorPos(&point) || WindowFromPoint(point) != terminal ||
+            !ScreenToClient(terminal, &point) || urls::AtPoint(terminal, point).empty()) return false;
+        SetCursor(LoadCursorW(nullptr, IDC_HAND));
+        return true;
+    }
+
+    void UpdateUrlCursor()
+    {
+        // Refresh a stationary pointer after modifier, preference, or terminal changes.
+        Session *session = CurrentSession();
+        POINT point{};
+        if (!session || !session->attached || !IsSessionTerminal(*session) || !GetCursorPos(&point) ||
+            WindowFromPoint(point) != session->terminal) return;
+        DWORD_PTR result = 0;
+        SendMessageTimeoutW(session->terminal, WM_SETCURSOR, reinterpret_cast<WPARAM>(session->terminal),
+            MAKELPARAM(HTCLIENT, WM_MOUSEMOVE), SMTO_ABORTIFHUNG | SMTO_ERRORONEXIT, 50, &result);
+    }
+
+    void HandleMouse(WPARAM message, const MSLLHOOKSTRUCT &mouse)
+    {
+        // Let PuTTY select text normally and open URLs only after a click without dragging.
+        if (message == WM_MOUSEMOVE && !urlClickProcess_) return;
+        if ((message != WM_LBUTTONDOWN && message != WM_LBUTTONUP && message != WM_MOUSEMOVE) ||
+            !UrlClickAvailable())
+        {
+            urlClickProcess_ = 0;
+            return;
+        }
+        Session *session = CurrentSession();
+        POINT point = mouse.pt;
+        if (message == WM_LBUTTONDOWN)
+        {
+            urlClickProcess_ = 0;
+            if (!session || !session->attached || !IsSessionTerminal(*session) ||
+                WindowFromPoint(point) != session->terminal || !ScreenToClient(session->terminal, &point) ||
+                urls::AtPoint(session->terminal, point).empty()) return;
+            urlClickProcess_ = session->processId;
+            urlClickPoint_ = mouse.pt;
+            return;
+        }
+        if (!urlClickProcess_) return;
+
+        // Cancel the pending link as soon as the gesture becomes a drag.
+        UINT dpi = GetDpiForWindow(frame_);
+        if (abs(mouse.pt.x - urlClickPoint_.x) > GetSystemMetricsForDpi(SM_CXDRAG, dpi) ||
+            abs(mouse.pt.y - urlClickPoint_.y) > GetSystemMetricsForDpi(SM_CYDRAG, dpi))
+        {
+            urlClickProcess_ = 0;
+            return;
+        }
+        if (message != WM_LBUTTONUP) return;
+
+        // Defer URL activation until the input hook returns.
+        DWORD processId = std::exchange(urlClickProcess_, 0);
+        if (session && session->processId == processId && WindowFromPoint(point) == session->terminal &&
+            ScreenToClient(session->terminal, &point))
+            PostMessageW(frame_, WmOpenUrl, processId, MAKELPARAM(point.x, point.y));
+    }
+
     LRESULT HandleKeyboard(int code, WPARAM message, const KBDLLHOOKSTRUCT &key)
     {
         // Translate host-wide shortcuts while keyboard focus belongs to embedded PuTTY.
@@ -2515,6 +2635,10 @@ class App
             return CallNextHookEx(keyboardHook_, code, message, reinterpret_cast<LPARAM>(&key));
         };
         if (key.vkCode >= keys_.size()) return pass();
+        if (key.vkCode == VK_LCONTROL || key.vkCode == VK_RCONTROL || key.vkCode == VK_LSHIFT ||
+            key.vkCode == VK_RSHIFT || key.vkCode == VK_LMENU || key.vkCode == VK_RMENU ||
+            key.vkCode == VK_LWIN || key.vkCode == VK_RWIN)
+            PostMessageW(frame_, WmUpdateUrlCursor, 0, 0);
 
         // Preserve each key's pass-through decision across auto-repeat and key-up.
         KeyState &state = keys_[key.vkCode];
@@ -2605,6 +2729,7 @@ class App
     HMENU tabColorMenu_ = nullptr;
     HMENU groupMenu_ = nullptr;
     HHOOK keyboardHook_ = nullptr;
+    HHOOK mouseHook_ = nullptr;
     UniqueHandle job_;
     UniqueGdiObject controlFont_;
     std::array<UniqueGdiObject, std::size(TabColors)> colorSwatches_;
@@ -2619,12 +2744,15 @@ class App
     std::array<KeyState, 256> keys_{};
     WINDOWPLACEMENT normalPlacement_{sizeof(normalPlacement_)};
     POINT dragOrigin_{};
+    POINT urlClickPoint_{};
     LONG_PTR normalFrameStyle_ = 0;
     DWORD draggedProcess_ = 0;
+    DWORD urlClickProcess_ = 0;
     bool alwaysOnTop_ = false;
     bool fullscreen_ = false;
     bool statusVisible_ = true;
     bool connectBarVisible_ = true;
+    bool clickableUrls_ = false;
     bool autocompletingConnectBar_ = false;
     bool completingConnectInput_ = false;
     bool draggingTab_ = false;
