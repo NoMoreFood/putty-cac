@@ -5,25 +5,7 @@
 #include <memory>
 #include <string>
 #include <vector>
-
-// Import the sibling's C layouts with C++-compatible declarations.
-#pragma push_macro("private")
-#pragma push_macro("plug_log")
-#pragma push_macro("min")
-#pragma push_macro("max")
-#define private private_value
-#define plug_log(...) \
-    plug_log(Plug *p, Socket *s, PlugLogType type, SockAddr *addr, int port, const char *msg, int code)
-extern "C"
-{
-#include "putty.h"
-#include "terminal.h"
-#include "win-gui-seat.h"
-}
-#pragma pop_macro("max")
-#pragma pop_macro("min")
-#pragma pop_macro("plug_log")
-#pragma pop_macro("private")
+#include "terminaltext.h"
 
 namespace urls
 {
@@ -154,25 +136,7 @@ inline std::wstring AtPoint(HWND terminal, POINT point)
             termchar glyph = characters[cell];
             for (int count = 0; count <= CC_LIMIT; ++count)
             {
-                unsigned long character = glyph.chr;
-                switch (character & CSET_MASK)
-                {
-                case CSET_ASCII: character = seat.ucsdata.unitab_line[character & 0xFF]; break;
-                case CSET_LINEDRW: character = seat.ucsdata.unitab_xterm[character & 0xFF]; break;
-                case CSET_SCOACS: character = seat.ucsdata.unitab_scoacs[character & 0xFF]; break;
-                }
-                switch (character & CSET_MASK)
-                {
-                case CSET_ACP: character = seat.ucsdata.unitab_font[character & 0xFF]; break;
-                case CSET_OEMCP: character = seat.ucsdata.unitab_oemcp[character & 0xFF]; break;
-                }
-                if (character > 0x10FFFF || (character >= 0xD800 && character <= 0xDFFF)) character = L' ';
-                if (character > 0xFFFF)
-                {
-                    text += static_cast<wchar_t>(0xD800 + ((character - 0x10000) >> 10));
-                    text += static_cast<wchar_t>(0xDC00 + ((character - 0x10000) & 0x3FF));
-                }
-                else text += static_cast<wchar_t>(character);
+                terminaltext::Append(text, glyph.chr, seat.ucsdata);
                 int next = glyph.cc_next;
                 if (!next) break;
                 if (count == CC_LIMIT || next < -cell || next >= line.cols * (CC_LIMIT + 1) - cell) return {};

@@ -28,6 +28,7 @@ extern "C"
 #include "puttytab-rc.h"
 #include "theme.h"
 #include "urls.h"
+#include "search.h"
 
 constexpr wchar_t WindowClassName[] = L"PuTTYTab";
 constexpr wchar_t WindowTitle[] = L"PuTTYTab";
@@ -490,6 +491,7 @@ class App
     {
         if (keyboardHook_) UnhookWindowsHookEx(keyboardHook_);
         if (mouseHook_) UnhookWindowsHookEx(mouseHook_);
+        search_.Shutdown();
         theme::Shutdown();
         current_ = nullptr;
     }
@@ -582,6 +584,7 @@ class App
         MSG message{};
         while (GetMessageW(&message, nullptr, 0, 0) > 0)
         {
+            if (search_.Translate(message)) continue;
             bool connectControl = message.hwnd == connectButton_ || message.hwnd == connectCombo_ ||
                 IsChild(connectCombo_, message.hwnd);
             bool tabKey = message.message == WM_KEYDOWN && message.wParam == VK_TAB &&
@@ -753,6 +756,9 @@ class App
             if (wParam == PollTimer)
             {
                 PollSessions();
+                Session *session = CurrentSession();
+                search_.Update(session && session->attached && IsSessionTerminal(*session) ?
+                    session->terminal : nullptr);
                 if (clickableUrls_) UpdateUrlCursor();
             }
             return 0;
@@ -814,6 +820,7 @@ class App
         case WM_CLOSE: BeginExit(); return 0;
         case WM_DESTROY:
             KillTimer(frame_, PollTimer);
+            search_.Shutdown();
             if (tabs_) RemoveWindowSubclass(tabs_, TabProc, TabHostSubclass);
             if (connectEdit_) RemoveWindowSubclass(connectEdit_, ConnectProc, ConnectBarSubclass);
             DetachAll();
@@ -864,6 +871,9 @@ class App
         AppendMenuW(sessionMenu, MF_STRING, IDM_SESSION_COPY, L"&Copy");
         AppendMenuW(sessionMenu, MF_STRING, IDM_SESSION_PASTE, L"&Paste");
         AppendMenuW(sessionMenu, MF_STRING, IDM_SESSION_COPY_ALL, L"C&opy All to Clipboard");
+        AppendMenuW(sessionMenu, MF_STRING, IDM_SESSION_FIND, L"&Find...\tCtrl+F");
+        AppendMenuW(sessionMenu, MF_STRING, IDM_SESSION_FIND_NEXT, L"Find Ne&xt\tF3");
+        AppendMenuW(sessionMenu, MF_STRING, IDM_SESSION_FIND_PREVIOUS, L"Find Pre&vious\tShift+F3");
         AppendMenuW(sessionMenu, MF_STRING, IDM_SESSION_CLEAR_SCROLLBACK, L"C&lear Scrollback");
         AppendMenuW(sessionMenu, MF_STRING, IDM_SESSION_RESET, L"Rese&t Terminal");
         AppendMenuW(sessionMenu, MF_SEPARATOR, 0, nullptr);
@@ -992,6 +1002,13 @@ class App
         case IDM_SESSION_RESTART:
             if (Session *session = CurrentSession(); session && IsDisconnectedTerminal(*session))
                 ForwardToPutty(PuttyRestart);
+            break;
+        case IDM_SESSION_FIND:
+        case IDM_SESSION_FIND_NEXT:
+        case IDM_SESSION_FIND_PREVIOUS:
+            if (Session *session = CurrentSession(); session && session->attached && IsSessionTerminal(*session))
+                search_.Open(instance_, frame_, session->terminal,
+                    command == IDM_SESSION_FIND_NEXT ? 1 : command == IDM_SESSION_FIND_PREVIOUS ? -1 : 0);
             break;
         case IDM_GROUP_NONE: AssignCurrentGroup(nullptr); break;
         case IDM_GROUP_NEW: EditCurrentGroup(false); break;
@@ -2159,12 +2176,15 @@ class App
         // Synchronize the selected tab, terminal visibility, captions, status, and focus.
         if (index >= sessions_.size())
         {
+            search_.Update(nullptr);
             UpdateStatus();
             return;
         }
 
         TabCtrl_SetCurSel(tabs_, static_cast<int>(index));
         Layout();
+        Session &session = sessions_[index];
+        search_.Update(session.attached && IsSessionTerminal(session) ? session.terminal : nullptr);
         UpdateStatus();
         SetSessionTitle(index, sessions_[index].title);
         if (focus) FocusCurrentSession();
@@ -2446,6 +2466,9 @@ class App
             IDM_SESSION_LOG,   IDM_SESSION_RECONFIGURE, IDM_SESSION_COPY, IDM_SESSION_PASTE, IDM_SESSION_COPY_ALL,
             IDM_SESSION_CLEAR_SCROLLBACK, IDM_SESSION_RESET, IDM_SESSION_HELP, IDM_SESSION_ABOUT};
         for (UINT command : terminalCommands) EnableMenuItem(menu_, command, MF_BYCOMMAND | hasTerminal);
+        for (UINT command : {IDM_SESSION_FIND, IDM_SESSION_FIND_NEXT, IDM_SESSION_FIND_PREVIOUS})
+            EnableMenuItem(menu_, command, MF_BYCOMMAND |
+                (session && session->attached && IsSessionTerminal(*session) ? MF_ENABLED : MF_GRAYED));
 
         EnableMenuItem(menu_, IDM_FILE_DUPLICATE, MF_BYCOMMAND | hasTerminal);
         EnableMenuItem(menu_, IDM_SESSION_RESTART,
@@ -2550,7 +2573,7 @@ class App
     bool HostForeground() const
     {
         HWND foreground = GetForegroundWindow();
-        return foreground && (foreground == frame_ || IsChild(frame_, foreground));
+        return foreground && (foreground == frame_ || IsChild(frame_, foreground) || search_.Owns(foreground));
     }
 
     bool UrlClickAvailable() const
@@ -2661,21 +2684,26 @@ class App
         bool alt = (GetAsyncKeyState(VK_MENU) & 0x8000) != 0;
         bool windowsKey = (GetAsyncKeyState(VK_LWIN) & 0x8000) != 0 || (GetAsyncKeyState(VK_RWIN) & 0x8000) != 0;
         if (windowsKey) return pass();
-        bool menuMnemonic = !control && !shift && alt && (key.vkCode == 'F' || key.vkCode == 'S' || key.vkCode == 'V');
+        bool findFocused = search_.Owns(GetForegroundWindow());
+        bool menuMnemonic = !findFocused && !control && !shift && alt &&
+            (key.vkCode == 'F' || key.vkCode == 'S' || key.vkCode == 'V');
         if (menuMnemonic || (!control && !shift && !alt && key.vkCode == VK_F10))
         {
             state = KeyState::Consumed;
             PostMessageW(frame_, WmMenuMnemonic, menuMnemonic ? key.vkCode : 0, 0);
             return 1;
         }
-        if (!control && !shift && alt && key.vkCode == 'R')
+        if (!findFocused && !control && !shift && alt && key.vkCode == 'R')
         {
             state = KeyState::Consumed;
             PostMessageW(frame_, WmFocusConnectBar, 0, 0);
             return 1;
         }
         UINT command = 0;
-        if (control && shift && !alt && key.vkCode == 'T') command = IDM_FILE_NEW;
+        if (control && !shift && !alt && key.vkCode == 'F') command = IDM_SESSION_FIND;
+        else if (!control && !alt && key.vkCode == VK_F3)
+            command = shift ? IDM_SESSION_FIND_PREVIOUS : IDM_SESSION_FIND_NEXT;
+        else if (control && shift && !alt && key.vkCode == 'T') command = IDM_FILE_NEW;
         else if (control && shift && !alt && key.vkCode == 'D') command = IDM_FILE_DUPLICATE;
         else if (control && shift && !alt && key.vkCode == 'N') command = IDM_FILE_ARGUMENTS;
         else if (control && shift && !alt && key.vkCode == 'R') command = IDM_SESSION_RESTART;
@@ -2690,7 +2718,8 @@ class App
         else if ((!control && !shift && !alt && key.vkCode == VK_F11) ||
             (!control && !shift && alt && key.vkCode == VK_RETURN))
             command = IDM_VIEW_FULLSCREEN;
-        else if (fullscreen_ && !control && !shift && !alt && key.vkCode == VK_ESCAPE) command = IDM_VIEW_FULLSCREEN;
+        else if (fullscreen_ && !findFocused && !control && !shift && !alt && key.vkCode == VK_ESCAPE)
+            command = IDM_VIEW_FULLSCREEN;
         if (control && !shift && !alt && key.vkCode >= '1' && key.vkCode <= '9' &&
             static_cast<size_t>(key.vkCode - '1') < sessions_.size())
         {
@@ -2705,7 +2734,8 @@ class App
         state = KeyState::Consumed;
         Session *target = CurrentSession();
         LPARAM targetProcess = command == IDM_FILE_DUPLICATE || command == IDM_FILE_CLOSE ||
-            command == IDM_SESSION_RESTART || command == IDM_SESSION_MOVE_LEFT || command == IDM_SESSION_MOVE_RIGHT
+            command == IDM_SESSION_RESTART || command == IDM_SESSION_MOVE_LEFT || command == IDM_SESSION_MOVE_RIGHT ||
+            command == IDM_SESSION_FIND || command == IDM_SESSION_FIND_NEXT || command == IDM_SESSION_FIND_PREVIOUS
             ? static_cast<LPARAM>(target ? target->processId : 0)
             : 0;
         PostMessageW(frame_, WmShortcut, command, targetProcess);
@@ -2732,6 +2762,7 @@ class App
     HHOOK mouseHook_ = nullptr;
     UniqueHandle job_;
     UniqueGdiObject controlFont_;
+    TerminalSearch search_;
     std::array<UniqueGdiObject, std::size(TabColors)> colorSwatches_;
     UINT swatchDpi_ = 0;
     std::vector<Session> sessions_;
