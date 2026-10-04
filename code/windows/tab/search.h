@@ -7,7 +7,9 @@
 #include <mutex>
 #include <optional>
 #include <regex>
+#include <string_view>
 #include <thread>
+#include <utility>
 
 #include "puttytab-rc.h"
 #include "terminaltext.h"
@@ -211,54 +213,43 @@ class TerminalSearch
     {
         // Size native controls from the system message font, text scaling, and current monitor DPI.
         UINT dpi = GetDpiForWindow(dialog_);
-        NONCLIENTMETRICSW metrics{sizeof(metrics)};
-        if (SystemParametersInfoForDpi(SPI_GETNONCLIENTMETRICS, sizeof(metrics), &metrics, 0, dpi))
+        if (auto font = CreateMessageFont(dialog_))
         {
-            std::unique_ptr<void, decltype(&DeleteObject)> font(
-                CreateFontIndirectW(&metrics.lfMessageFont), DeleteObject);
             for (HWND control = GetWindow(dialog_, GW_CHILD); control; control = GetWindow(control, GW_HWNDNEXT))
                 SendMessageW(control, WM_SETFONT, reinterpret_cast<WPARAM>(font.get()), TRUE);
             font_ = std::move(font);
         }
         theme::ApplyWindowTree(dialog_);
-        HDC context = GetDC(dialog_);
-        HGDIOBJ previous = SelectObject(context, font_ ? font_.get() : GetStockObject(DEFAULT_GUI_FONT));
         auto size = [&](int id)
         {
-            wchar_t text[128]{};
-            GetDlgItemTextW(dialog_, id, text, static_cast<int>(std::size(text)));
-            RECT bounds{};
-            DrawTextW(context, text, -1, &bounds, DT_CALCRECT | DT_SINGLELINE);
-            return SIZE{bounds.right, bounds.bottom};
+            HWND control = GetDlgItem(dialog_, id);
+            return MeasureControlText(control, WindowText(control), 0);
         };
-        TEXTMETRICW text{};
-        GetTextMetricsW(context, &text);
+        int textHeight = MeasureControlText(GetDlgItem(dialog_, IDC_TEXT_VALUE), L"Mg").cy;
         int gap = MulDiv(8, dpi, USER_DEFAULT_SCREEN_DPI);
         int margin = gap + gap / 2;
-        int controlHeight = text.tmHeight + gap;
-        int caseWidth = size(IDC_FIND_CASE).cx + text.tmHeight + gap;
-        int regexWidth = size(IDC_FIND_REGEX).cx + text.tmHeight + gap;
+        int controlHeight = textHeight + gap;
+        int caseWidth = size(IDC_FIND_CASE).cx + textHeight + gap;
+        int regexWidth = size(IDC_FIND_REGEX).cx + textHeight + gap;
         int buttonWidth = std::max({size(IDOK).cx, size(IDCANCEL).cx, size(IDC_FIND_PREVIOUS).cx}) + margin * 2;
         int width = std::max({MulDiv(460, dpi, USER_DEFAULT_SCREEN_DPI), caseWidth + regexWidth + gap + margin * 2,
             buttonWidth * 3 + gap * 2 + margin * 2});
-        SelectObject(context, previous);
-        ReleaseDC(dialog_, context);
         auto move = [&](int id, int x, int y, int controlWidth, int height)
         {
             SetWindowPos(GetDlgItem(dialog_, id), nullptr, x, y, controlWidth, height,
                 SWP_NOACTIVATE | SWP_NOZORDER);
         };
         HWND label = GetWindow(dialog_, GW_CHILD);
-        SetWindowPos(label, nullptr, margin, margin + gap / 2, text.tmHeight * 2, text.tmHeight,
+        SetWindowPos(label, nullptr, margin, margin + gap / 2, textHeight * 2, textHeight,
             SWP_NOACTIVATE | SWP_NOZORDER);
-        int inputLeft = margin + text.tmHeight * 2 + gap;
+        int inputLeft = margin + textHeight * 2 + gap;
         move(IDC_TEXT_VALUE, inputLeft, margin, width - inputLeft - margin, controlHeight);
         int optionsTop = margin + controlHeight + gap;
         move(IDC_FIND_CASE, margin, optionsTop, caseWidth, controlHeight);
         move(IDC_FIND_REGEX, margin + caseWidth + gap, optionsTop, regexWidth, controlHeight);
         int statusTop = optionsTop + controlHeight + gap;
-        move(IDC_FIND_STATUS, margin, statusTop, width - margin * 2, text.tmHeight * 2);
-        int buttonsTop = statusTop + text.tmHeight * 2 + gap;
+        move(IDC_FIND_STATUS, margin, statusTop, width - margin * 2, textHeight * 2);
+        int buttonsTop = statusTop + textHeight * 2 + gap;
         move(IDC_FIND_PREVIOUS, width - margin - buttonWidth * 3 - gap * 2, buttonsTop, buttonWidth, controlHeight);
         move(IDOK, width - margin - buttonWidth * 2 - gap, buttonsTop, buttonWidth, controlHeight);
         move(IDCANCEL, width - margin - buttonWidth, buttonsTop, buttonWidth, controlHeight);
@@ -379,6 +370,7 @@ class TerminalSearch
                 else
                 {
                     std::wstring query = task.query;
+                    std::wstring folded;
                     if (!task.matchCase && !pattern)
                         CharUpperBuffW(query.data(), static_cast<DWORD>(query.size()));
                     for (size_t index = 0; index < result->snapshot.lines.size() && !cancelled(); ++index)
@@ -393,8 +385,13 @@ class TerminalSearch
                         }
                         else
                         {
-                            std::wstring text = line.text;
-                            if (!task.matchCase) CharUpperBuffW(text.data(), static_cast<DWORD>(text.size()));
+                            std::wstring_view text = line.text;
+                            if (!task.matchCase)
+                            {
+                                folded = line.text;
+                                CharUpperBuffW(folded.data(), static_cast<DWORD>(folded.size()));
+                                text = folded;
+                            }
                             for (size_t offset = 0; !cancelled() &&
                                 (offset = text.find(query, offset)) != std::wstring::npos; offset += query.size())
                                 result->matches.push_back({index, offset, query.size()});
@@ -443,10 +440,10 @@ class TerminalSearch
         refreshAt_ = 0;
         if (result_->matches.empty()) { anchor_.reset(); Status(L"No matches."); return; }
 
-        selected_ = result_->selected;
-        const Match &match = result_->matches[selected_];
+        const Match &match = result_->matches[result_->selected];
         anchor_ = result_->snapshot.lines[match.line].cells[match.offset];
-        std::wstring status = std::to_wstring(selected_ + 1) + L" of " + std::to_wstring(result_->matches.size()) +
+        std::wstring status = std::to_wstring(result_->selected + 1) + L" of " +
+            std::to_wstring(result_->matches.size()) +
             (result_->matches.size() == 1 ? L" match" : L" matches");
         Status(status.c_str());
         Highlight();
@@ -462,34 +459,22 @@ class TerminalSearch
             target = *task.anchor;
             target.row -= result.snapshot.history - task.history;
         }
-        auto before = [](const terminaltext::Cell &left, const terminaltext::Cell &right)
+        auto position = [&](const Match &match)
         {
-            return left.row < right.row || (left.row == right.row && left.column < right.column);
+            const auto &cell = result.snapshot.lines[match.line].cells[match.offset];
+            return std::pair{cell.row, cell.column};
         };
-        auto cell = [&](const Match &match) { return result.snapshot.lines[match.line].cells[match.offset]; };
-        size_t selected = 0;
+        auto targetPosition = std::pair{target.row, target.column};
+        auto selected = task.direction < 0 || !(task.advance && task.anchor) ?
+            std::ranges::lower_bound(result.matches, targetPosition, {}, position) :
+            std::ranges::upper_bound(result.matches, targetPosition, {}, position);
         if (task.direction < 0)
         {
-            selected = result.matches.size() - 1;
-            for (size_t index = 0; index < result.matches.size(); ++index)
-            {
-                if (!before(cell(result.matches[index]), target)) break;
-                selected = index;
-            }
+            if (selected == result.matches.begin()) selected = result.matches.end();
+            --selected;
         }
-        else
-        {
-            for (size_t index = 0; index < result.matches.size(); ++index)
-            {
-                auto candidate = cell(result.matches[index]);
-                if (before(target, candidate) || (!(task.advance && task.anchor) && !before(candidate, target)))
-                {
-                    selected = index;
-                    break;
-                }
-            }
-        }
-        result.selected = selected;
+        else if (selected == result.matches.end()) selected = result.matches.begin();
+        result.selected = static_cast<size_t>(selected - result.matches.begin());
     }
 
     static void ScrollToMatch(const Result &result, const std::function<bool()> &cancelled)
@@ -547,7 +532,7 @@ class TerminalSearch
             HideHighlight();
             return;
         }
-        const Match &match = result_->matches[selected_];
+        const Match &match = result_->matches[result_->selected];
         const auto &line = result_->snapshot.lines[match.line];
         std::vector<RECT> rectangles;
         int activeRow = -1;
@@ -585,7 +570,6 @@ class TerminalSearch
                         return;
                     }
                 }
-                glyphs.clear();
                 if (!reader.Plain(rows[row], glyphs, attributes, source)) { HideHighlight(); return; }
                 activeRow = row;
             }
@@ -631,7 +615,7 @@ class TerminalSearch
     }
 
     HWND owner_ = nullptr, dialog_ = nullptr, terminal_ = nullptr, overlay_ = nullptr;
-    std::unique_ptr<void, decltype(&DeleteObject)> font_{nullptr, DeleteObject};
+    UniqueGdiObject font_;
     std::vector<RECT> rectangles_;
     std::optional<terminaltext::Cell> anchor_;
     std::unique_ptr<Result> result_, completed_;
@@ -640,7 +624,6 @@ class TerminalSearch
     std::condition_variable_any wake_;
     std::atomic<unsigned> revision_ = 0;
     std::jthread worker_;
-    size_t selected_ = 0;
     unsigned long long stamp_ = 0;
     ULONGLONG refreshAt_ = 0;
     bool busy_ = false;

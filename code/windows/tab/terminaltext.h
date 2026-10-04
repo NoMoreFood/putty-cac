@@ -5,6 +5,7 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include "winutils.h"
 
 // Import the sibling's C layouts with C++-compatible declarations.
 #pragma push_macro("private")
@@ -101,6 +102,7 @@ class Reader
     {
         // Walk history and the active screen in terminal order, joining only soft-wrapped rows.
         if (!ready) return false;
+        snapshot = {};
         std::vector<void *> saved, alternate, screen;
         int savedCount = 0;
         if (!Tree(view.scrollback, saved, !history, &savedCount) || !Tree(view.screen, screen) ||
@@ -120,18 +122,35 @@ class Reader
             Hash(snapshot.stamp, reinterpret_cast<uintptr_t>(saved.back()));
         }
         Line logical;
+        std::vector<std::wstring> glyphs;
+        if (history) snapshot.lines.reserve(saved.size() + extra + screen.size());
         size_t characters = 0;
         auto append = [&](void *address, int row, bool compressed)
         {
-            std::vector<std::wstring> glyphs;
             unsigned short attributes = 0;
             if (!(compressed ? Compressed(address, glyphs, attributes) : Plain(address, glyphs, attributes)))
                 return false;
+            if (row >= 0)
+            {
+                Hash(snapshot.stamp, attributes);
+                for (const auto &glyph : glyphs)
+                    for (wchar_t character : glyph) Hash(snapshot.stamp, character);
+            }
+            if (!history) return true;
+
+            // Build text and cell mappings only for a full search snapshot.
             int scale = (attributes & LATTR_MODE) == LATTR_NORM ? 1 : 2;
             int columns = std::min(static_cast<int>(glyphs.size()), (view.cols + scale - 1) / scale);
             if (attributes & LATTR_WRAPPED2) --columns;
             if (!(attributes & LATTR_WRAPPED))
                 while (columns > 0 && glyphs[columns - 1] == L" ") --columns;
+            if (logical.cells.empty())
+            {
+                size_t length = 0;
+                for (int column = 0; column < columns; ++column) length += glyphs[column].size();
+                logical.text.reserve(length);
+                logical.cells.reserve(length);
+            }
             for (int column = 0; column < columns; ++column)
             {
                 const auto &glyph = glyphs[column];
@@ -145,12 +164,6 @@ class Reader
                     error = L"Terminal history is too large to search.";
                     return false;
                 }
-            }
-            if (row >= 0)
-            {
-                Hash(snapshot.stamp, attributes);
-                for (const auto &glyph : glyphs)
-                    for (wchar_t character : glyph) Hash(snapshot.stamp, character);
             }
             if (!(attributes & LATTR_WRAPPED))
             {
@@ -184,15 +197,15 @@ class Reader
         if (!Read(address, &line, sizeof(line)) || line.cols <= 0 || line.cols > 4096 ||
             line.size < line.cols || line.size > line.cols * (CC_LIMIT + 1)) return false;
         if (!source) source = line.chars;
-        std::vector<termchar> characters(line.cols);
-        if (!Read(source, characters.data(), characters.size() * sizeof(termchar))) return false;
+        characters_.resize(line.cols);
+        if (!Read(source, characters_.data(), characters_.size() * sizeof(termchar))) return false;
         attributes = line.lattr;
-        glyphs.resize(line.cols);
+        glyphs.assign(line.cols, {});
         for (int column = 0; column < line.cols; ++column)
         {
-            if (characters[column].chr == UCSWIDE) continue;
+            if (characters_[column].chr == UCSWIDE) continue;
             int cell = column;
-            termchar glyph = characters[cell];
+            termchar glyph = characters_[cell];
             for (int count = 0; count <= CC_LIMIT; ++count)
             {
                 Append(glyphs[column], glyph.chr, seat.ucsdata);
@@ -200,7 +213,7 @@ class Reader
                 if (!next) break;
                 if (count == CC_LIMIT || next < -cell || next >= line.cols * (CC_LIMIT + 1) - cell) return false;
                 cell += next;
-                if (cell < line.cols) glyph = characters[cell];
+                if (cell < line.cols) glyph = characters_[cell];
                 else if (!Read(source + cell, &glyph, sizeof(glyph))) return false;
             }
         }
@@ -290,14 +303,14 @@ class Reader
 #else
         size_t length = 0;
         if (!Read(address, &length, sizeof(length)) || length > 2 * 1024 * 1024) return false;
-        std::vector<unsigned char> bytes(length);
-        if (!Read(static_cast<unsigned char *>(address) + sizeof(length), bytes.data(), bytes.size())) return false;
+        bytes_.resize(length);
+        if (!Read(static_cast<unsigned char *>(address) + sizeof(length), bytes_.data(), bytes_.size())) return false;
         size_t offset = 0;
         bool valid = true;
         auto byte = [&]() -> unsigned long
         {
-            if (offset == bytes.size()) { valid = false; return 0; }
-            return bytes[offset++];
+            if (offset == bytes_.size()) { valid = false; return 0; }
+            return bytes_[offset++];
         };
         auto number = [&]()
         {
@@ -314,8 +327,8 @@ class Reader
         int columns = static_cast<int>(number());
         attributes = static_cast<unsigned short>(number());
         if (!valid || columns <= 0 || columns > 4096) return false;
-        glyphs.resize(columns);
-        std::vector<unsigned long> characters(columns);
+        glyphs.assign(columns, {});
+        decoded_.resize(columns);
         auto character = [&](unsigned long &state)
         {
             unsigned long first = byte();
@@ -343,7 +356,7 @@ class Reader
                 while (count-- && valid)
                 {
                     if (header >= 128) offset = literal;
-                    if (stream == 0) characters[column] = character(state);
+                    if (stream == 0) decoded_[column] = character(state);
                     else if (stream == 1)
                     {
                         unsigned long first = byte();
@@ -359,25 +372,28 @@ class Reader
                     }
                     else
                     {
-                        if (characters[column] != UCSWIDE) Append(glyphs[column], characters[column], seat.ucsdata);
+                        if (decoded_[column] != UCSWIDE) Append(glyphs[column], decoded_[column], seat.ucsdata);
                         for (int combining = 0; valid; ++combining)
                         {
                             unsigned long initial = 0;
                             unsigned long value = character(initial);
                             if (!value) break;
                             if (combining == CC_LIMIT) return false;
-                            if (characters[column] != UCSWIDE) Append(glyphs[column], value, seat.ucsdata);
+                            if (decoded_[column] != UCSWIDE) Append(glyphs[column], value, seat.ucsdata);
                         }
                     }
                     ++column;
                 }
             }
         }
-        return valid && offset == bytes.size();
+        return valid && offset == bytes_.size();
 #endif
     }
 
-    std::unique_ptr<void, decltype(&CloseHandle)> process_{nullptr, CloseHandle};
+    UniqueHandle process_;
+    std::vector<termchar> characters_;
+    std::vector<unsigned char> bytes_;
+    std::vector<unsigned long> decoded_;
     std::function<bool()> cancelled_;
     ULONGLONG deadline_;
 };

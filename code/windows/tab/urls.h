@@ -2,7 +2,6 @@
 
 #include <algorithm>
 #include <cwctype>
-#include <memory>
 #include <string>
 #include <vector>
 #include "terminaltext.h"
@@ -49,57 +48,46 @@ inline std::wstring AtPoint(HWND terminal, POINT point)
 {
     // Read the sibling PuTTY's painted cells without changing its selection or clipboard.
     RECT client{};
-    DWORD processId = 0;
 
     // PuTTY uses an arrow when the remote application owns mouse input.
     if (!IsWindowEnabled(terminal) || IsHungAppWindow(terminal) ||
         reinterpret_cast<HCURSOR>(GetClassLongPtrW(terminal, GCLP_HCURSOR)) != LoadCursorW(nullptr, IDC_IBEAM) ||
-        !GetClientRect(terminal, &client) || !PtInRect(&client, point) ||
-        !GetWindowThreadProcessId(terminal, &processId)) return {};
-    std::unique_ptr<void, decltype(&CloseHandle)> process(OpenProcess(PROCESS_VM_READ, FALSE, processId), CloseHandle);
-    if (!process) return {};
-    auto read = [&](const void *address, void *data, size_t bytes)
-    {
-        return address && ReadProcessMemory(process.get(), address, data, bytes, nullptr) != 0;
-    };
-    WinGuiSeat seat{};
-    Terminal view{};
-    if (!read(reinterpret_cast<void *>(GetWindowLongPtrW(terminal, GWLP_USERDATA)), &seat, sizeof(seat)) ||
-        seat.term_hwnd != terminal || seat.font_width <= 0 || seat.font_width > 1000 ||
-        seat.font_height <= 0 || seat.font_height > 1000 || seat.offset_width < 0 || seat.offset_height < 0 ||
-        seat.offset_width > point.x || seat.offset_height > point.y || !read(seat.term, &view, sizeof(view)) ||
-        view.rows <= 0 || view.rows > 4096 || view.cols <= 0 || view.cols > 4096 || !view.disptext)
-        return {};
+        !GetClientRect(terminal, &client) || !PtInRect(&client, point)) return {};
+    terminaltext::Reader reader(terminal, {}, 25);
+    const auto &seat = reader.seat;
+    const auto &view = reader.view;
+    if (!reader.ready || seat.offset_width < 0 || seat.offset_height < 0 ||
+        seat.offset_width > point.x || seat.offset_height > point.y || !view.disptext) return {};
     int clickedRow = (point.y - seat.offset_height) / seat.font_height;
     int clickedColumn = (point.x - seat.offset_width) / seat.font_width;
     if (clickedRow >= view.rows || clickedColumn >= view.cols) return {};
     std::vector<termline *> rows(view.rows);
-    if (!read(view.disptext, rows.data(), rows.size() * sizeof(rows[0]))) return {};
+    if (!reader.Read(view.disptext, rows.data(), rows.size() * sizeof(rows[0]))) return {};
     termline line{};
     auto readLine = [&](int row)
     {
-        return read(rows[row], &line, sizeof(line)) && line.cols == view.cols &&
+        return reader.Read(rows[row], &line, sizeof(line)) && line.cols == view.cols &&
             line.size >= line.cols && line.size <= line.cols * (CC_LIMIT + 1) && line.chars;
     };
     if (!readLine(clickedRow)) return {};
     if ((line.lattr & LATTR_MODE) != LATTR_NORM) clickedColumn /= 2;
 
     // Include the complete visible logical line when it spans multiple terminal rows.
-    ULONGLONG deadline = GetTickCount64() + 25;
     int firstRow = clickedRow;
     while (firstRow > 0)
     {
-        if (GetTickCount64() >= deadline || !readLine(firstRow - 1)) return {};
+        if (!readLine(firstRow - 1)) return {};
         if (!(line.lattr & LATTR_WRAPPED)) break;
         --firstRow;
     }
     std::wstring text;
+    std::vector<std::wstring> glyphs;
     size_t clicked = std::wstring::npos;
     size_t bytes = 0;
     bool wrapped = false;
     for (int row = firstRow; row < view.rows; ++row)
     {
-        if (GetTickCount64() >= deadline || !readLine(row)) return {};
+        if (!readLine(row)) return {};
         const termchar *source = line.chars;
         int sourceColumn = clickedColumn;
 
@@ -108,42 +96,33 @@ inline std::wstring AtPoint(HWND terminal, POINT point)
             view.post_bidi_cache && static_cast<size_t>(row) < view.bidi_cache_size)
         {
             bidi_cache_entry before{}, after{};
-            if (!read(view.pre_bidi_cache + row, &before, sizeof(before)) ||
-                !read(view.post_bidi_cache + row, &after, sizeof(after)) || before.width != view.cols ||
+            if (!reader.Read(view.pre_bidi_cache + row, &before, sizeof(before)) ||
+                !reader.Read(view.post_bidi_cache + row, &after, sizeof(after)) || before.width != view.cols ||
                 after.width != view.cols || !before.chars || !after.backward) return {};
             source = before.chars;
-            if (row == clickedRow && (!read(after.backward + clickedColumn, &sourceColumn, sizeof(sourceColumn)) ||
-                sourceColumn < 0 || sourceColumn >= view.cols)) return {};
+            if (row == clickedRow &&
+                (!reader.Read(after.backward + clickedColumn, &sourceColumn, sizeof(sourceColumn)) ||
+                 sourceColumn < 0 || sourceColumn >= view.cols)) return {};
         }
         bytes += static_cast<size_t>(line.cols) * sizeof(termchar);
         if (bytes > 8 * 1024 * 1024) return {};
-        std::vector<termchar> characters(line.cols);
-        if (!read(source, characters.data(), characters.size() * sizeof(characters[0]))) return {};
+        unsigned short attributes = 0;
+        if (!reader.Plain(rows[row], glyphs, attributes, source) || attributes != line.lattr ||
+            glyphs.size() != static_cast<size_t>(line.cols)) return {};
         int columns = (line.lattr & LATTR_MODE) == LATTR_NORM ? line.cols : (line.cols + 1) / 2;
         if (line.lattr & LATTR_WRAPPED2) --columns;
         size_t previous = text.size();
         for (int column = 0; column < columns; ++column)
         {
             bool atPoint = row == clickedRow && column == sourceColumn;
-            if (characters[column].chr == UCSWIDE)
+            if (glyphs[column].empty())
             {
                 if (atPoint && column) clicked = previous;
                 continue;
             }
             previous = text.size();
             if (atPoint) clicked = previous;
-            int cell = column;
-            termchar glyph = characters[cell];
-            for (int count = 0; count <= CC_LIMIT; ++count)
-            {
-                terminaltext::Append(text, glyph.chr, seat.ucsdata);
-                int next = glyph.cc_next;
-                if (!next) break;
-                if (count == CC_LIMIT || next < -cell || next >= line.cols * (CC_LIMIT + 1) - cell) return {};
-                cell += next;
-                if (cell < line.cols) glyph = characters[cell];
-                else if (!read(source + cell, &glyph, sizeof(glyph))) return {};
-            }
+            text += glyphs[column];
         }
         wrapped = (line.lattr & LATTR_WRAPPED) != 0;
         if (!wrapped) break;
@@ -151,7 +130,7 @@ inline std::wstring AtPoint(HWND terminal, POINT point)
 
     // Discard a snapshot if the terminal grid changed while it was being read.
     Terminal current{};
-    if (clicked == std::wstring::npos || !read(seat.term, &current, sizeof(current)) ||
+    if (clicked == std::wstring::npos || !reader.Read(seat.term, &current, sizeof(current)) ||
         current.rows != view.rows || current.cols != view.cols || current.disptop != view.disptop ||
         current.disptext != view.disptext) return {};
     return Find(text, clicked, !wrapped);

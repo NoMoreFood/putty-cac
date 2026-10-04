@@ -17,6 +17,7 @@
 #include <cwctype>
 #include <iterator>
 #include <memory>
+#include <span>
 #include <string>
 #include <utility>
 #include <vector>
@@ -27,6 +28,7 @@ extern "C"
 }
 #include "puttytab-rc.h"
 #include "theme.h"
+#include "winutils.h"
 #include "urls.h"
 #include "search.h"
 
@@ -65,16 +67,6 @@ constexpr WPARAM PuttyCopyAll = 0x0170;
 constexpr WPARAM PuttyCopy = 0x0190;
 constexpr WPARAM PuttyPaste = 0x01A0;
 constexpr WPARAM PuttyFocus = 0x01B0;
-
-using UniqueHandle = std::unique_ptr<void, decltype([](HANDLE handle)
-{
-    if (handle && handle != INVALID_HANDLE_VALUE) CloseHandle(handle);
-})>;
-
-using UniqueGdiObject = std::unique_ptr<void, decltype([](void *object)
-{
-    if (object) DeleteObject(object);
-})>;
 
 struct ProcessWindows
 {
@@ -132,32 +124,6 @@ struct Session
     bool locked = false;
 };
 
-static std::wstring WindowText(HWND window)
-{
-    int length = GetWindowTextLengthW(window);
-    if (length <= 0) return {};
-    std::wstring text(static_cast<size_t>(length) + 1, L'\0');
-    int copied = GetWindowTextW(window, text.data(), static_cast<int>(text.size()));
-    text.resize(copied > 0 ? static_cast<size_t>(copied) : 0);
-    return text;
-}
-
-static SIZE MeasureControlText(HWND control, const std::wstring &text, UINT format = DT_NOPREFIX, int width = 0)
-{
-    HDC deviceContext = GetDC(control);
-    if (!deviceContext) return {};
-    HFONT font = reinterpret_cast<HFONT>(SendMessageW(control, WM_GETFONT, 0, 0));
-    HGDIOBJ previousFont = SelectObject(deviceContext, font ? font : GetStockObject(DEFAULT_GUI_FONT));
-    RECT bounds{0, 0, width, 0};
-    DrawTextW(deviceContext, text.c_str(), static_cast<int>(text.size()), &bounds,
-        DT_CALCRECT | (width > 0 ? DT_WORDBREAK : DT_SINGLELINE) | format);
-    TEXTMETRICW metrics{};
-    GetTextMetricsW(deviceContext, &metrics);
-    if (previousFont) SelectObject(deviceContext, previousFont);
-    ReleaseDC(control, deviceContext);
-    return {bounds.right, std::max(bounds.bottom, metrics.tmHeight)};
-}
-
 static bool IsPuttyTerminal(HWND window)
 {
     wchar_t className[64]{};
@@ -210,11 +176,13 @@ static bool SetWindowLongPtrValue(HWND window, int index, LONG_PTR value)
 
 static BOOL CALLBACK FindProcessWindows(HWND window, LPARAM parameter)
 {
-    // Capture PuTTY's terminal, dialog, and first visible window for the target process.
-    auto &result = *reinterpret_cast<ProcessWindows *>(parameter);
+    // Capture PuTTY's terminal, dialog, and first visible window for each tracked process.
+    auto windows = *reinterpret_cast<std::span<ProcessWindows> *>(parameter);
     DWORD processId = 0;
     GetWindowThreadProcessId(window, &processId);
-    if (processId != result.processId) return TRUE;
+    auto found = std::ranges::find(windows, processId, &ProcessWindows::processId);
+    if (found == windows.end()) return TRUE;
+    auto &result = *found;
     if (IsPuttyTerminal(window)) result.terminal = window;
     if (IsWindowVisible(window))
     {
@@ -231,7 +199,8 @@ static BOOL CALLBACK FindProcessWindows(HWND window, LPARAM parameter)
 static ProcessWindows WindowsForProcess(DWORD processId)
 {
     ProcessWindows result{processId};
-    EnumWindows(FindProcessWindows, reinterpret_cast<LPARAM>(&result));
+    std::span windows(&result, 1);
+    EnumWindows(FindProcessWindows, reinterpret_cast<LPARAM>(&windows));
     return result;
 }
 
@@ -351,9 +320,7 @@ struct TextDialogState
 static void LayoutTextDialog(HWND dialog, TextDialogState &state, const RECT *suggested = nullptr)
 {
     UINT dpi = GetDpiForWindow(dialog);
-    NONCLIENTMETRICSW metrics{sizeof(metrics)};
-    if (!SystemParametersInfoForDpi(SPI_GETNONCLIENTMETRICS, sizeof(metrics), &metrics, 0, dpi)) return;
-    UniqueGdiObject font(CreateFontIndirectW(&metrics.lfMessageFont));
+    UniqueGdiObject font = CreateMessageFont(dialog);
     if (!font) return;
     SendMessageW(dialog, WM_SETFONT, reinterpret_cast<WPARAM>(font.get()), FALSE);
     for (HWND control : state.controls) SendMessageW(control, WM_SETFONT, reinterpret_cast<WPARAM>(font.get()), FALSE);
@@ -1164,26 +1131,8 @@ class App
         AppendMenuW(menu, MF_STRING, IDM_FILE_CLOSE, L"Close Tab");
         AppendMenuW(menu, MF_STRING, IDM_FILE_CLOSE_OTHERS, L"Close Other Tabs");
         Session *session = CurrentSession();
-        UINT hasSession = session ? MF_ENABLED : MF_GRAYED;
-        UINT hasTerminal = session && IsSessionTerminal(*session) ? MF_ENABLED : MF_GRAYED;
-        UINT canReconnect = session && IsDisconnectedTerminal(*session) ? MF_ENABLED : MF_GRAYED;
-        UINT hasUnlockedSession = session && !session->locked ? MF_ENABLED : MF_GRAYED;
-        size_t current = CurrentIndex();
         DWORD targetProcess = session ? session->processId : 0;
-        bool hasUnlockedOther = std::ranges::any_of(sessions_, [session](const Session &candidate)
-            { return &candidate != session && !candidate.locked; });
-        EnableMenuItem(menu, IDM_FILE_DUPLICATE, MF_BYCOMMAND | hasTerminal);
-        EnableMenuItem(menu, IDM_SESSION_RESTART, MF_BYCOMMAND | canReconnect);
-        EnableMenuItem(menu, IDM_SESSION_RENAME, MF_BYCOMMAND | hasSession);
-        EnableMenuItem(menu, IDM_SESSION_RESET_NAME,
-            MF_BYCOMMAND | (session && !session->customTitle.empty() ? MF_ENABLED : MF_GRAYED));
-        EnableMenuItem(menu, IDM_SESSION_LOCK, MF_BYCOMMAND | hasSession);
-        EnableMenuItem(menu, IDM_SESSION_MOVE_LEFT, MF_BYCOMMAND | (current > 0 ? MF_ENABLED : MF_GRAYED));
-        EnableMenuItem(menu, IDM_SESSION_MOVE_RIGHT,
-            MF_BYCOMMAND | (current + 1 < sessions_.size() ? MF_ENABLED : MF_GRAYED));
-        EnableMenuItem(menu, IDM_FILE_CLOSE, MF_BYCOMMAND | hasUnlockedSession);
-        EnableMenuItem(menu, IDM_FILE_CLOSE_OTHERS, MF_BYCOMMAND | (hasUnlockedOther ? MF_ENABLED : MF_GRAYED));
-        CheckMenuItem(menu, IDM_SESSION_LOCK, MF_BYCOMMAND | (session && session->locked ? MF_CHECKED : MF_UNCHECKED));
+        UpdateMenuState(menu);
         UINT command = TrackPopupMenu(menu, TPM_RETURNCMD | TPM_RIGHTBUTTON, x, y, 0, frame_, nullptr);
         DestroyMenu(menu);
         if (command && command != IDM_FILE_NEW)
@@ -1634,10 +1583,10 @@ class App
         if (!job_) return;
 
         // Adopt PuTTY-created sibling processes from the job as new tabs.
-        std::vector<BYTE> buffer(sizeof(JOBOBJECT_BASIC_PROCESS_ID_LIST) + sizeof(ULONG_PTR) * 1024);
+        std::array<ULONG_PTR, sizeof(JOBOBJECT_BASIC_PROCESS_ID_LIST) / sizeof(ULONG_PTR) + 1024> buffer{};
         auto *processes = reinterpret_cast<JOBOBJECT_BASIC_PROCESS_ID_LIST *>(buffer.data());
         if (!QueryInformationJobObject(job_.get(), JobObjectBasicProcessIdList, processes,
-            static_cast<DWORD>(buffer.size()), nullptr))
+            static_cast<DWORD>(sizeof(buffer)), nullptr))
             return;
         for (DWORD index = 0; index < processes->NumberOfProcessIdsInList; ++index)
         {
@@ -1660,6 +1609,13 @@ class App
     void PollSessions()
     {
         AdoptJobProcesses();
+
+        // Enumerate desktop windows once for all tracked sessions.
+        std::vector<ProcessWindows> windows;
+        windows.reserve(sessions_.size());
+        for (const auto &session : sessions_) windows.push_back({session.processId});
+        std::span targets(windows);
+        if (!targets.empty()) EnumWindows(FindProcessWindows, reinterpret_cast<LPARAM>(&targets));
         std::vector<size_t> finished;
         bool exitCancelled = false;
 
@@ -1681,10 +1637,10 @@ class App
                 session.hasScrollbar = false;
                 session.scrollbarMissingSince = 0;
             }
-            ProcessWindows windows = WindowsForProcess(session.processId);
-            if (!session.terminal && windows.terminal)
+            const auto &detected = windows[index];
+            if (!session.terminal && detected.terminal)
             {
-                session.terminal = windows.terminal;
+                session.terminal = detected.terminal;
                 if (session.closing && PostMessageW(session.terminal, WM_CLOSE, 0, 0))
                     session.closeRequestedAt = GetTickCount64();
             }
@@ -1694,8 +1650,8 @@ class App
 
             bool terminalEnabled = session.terminal && IsWindowEnabled(session.terminal);
             if (session.closing && session.terminal && !terminalEnabled) session.closeBlocked = true;
-            if (session.closing && !session.terminal && !session.closeRequestedAt && windows.visible &&
-                PostMessageW(windows.visible, WM_CLOSE, 0, 0))
+            if (session.closing && !session.terminal && !session.closeRequestedAt && detected.visible &&
+                PostMessageW(detected.visible, WM_CLOSE, 0, 0))
                 session.closeRequestedAt = GetTickCount64();
             bool closeCancelled =
                 session.closing && terminalEnabled && session.closeRequestedAt &&
@@ -1707,14 +1663,15 @@ class App
                 session.closeRequestedAt = 0;
                 exitCancelled = true;
             }
-            HWND titledWindow = session.terminal ? session.terminal : windows.dialog ? windows.dialog : windows.visible;
+            HWND titledWindow = session.terminal ? session.terminal :
+                detected.dialog ? detected.dialog : detected.visible;
             if (titledWindow)
             {
                 std::wstring title = WindowText(titledWindow);
                 if (!title.empty() && title != session.detectedTitle) SetDetectedTitle(index, title);
             }
 
-            if (windows.dialog && GetForegroundWindow() == windows.dialog && index != CurrentIndex())
+            if (detected.dialog && GetForegroundWindow() == detected.dialog && index != CurrentIndex())
                 ActivateSession(index, false);
             if (session.attached) EnsureEmbedded(session);
         }
@@ -1726,7 +1683,7 @@ class App
         else
         {
             SyncScrollbar();
-            UpdateStatus();
+            UpdateStatus(windows);
         }
     }
 
@@ -2036,10 +1993,7 @@ class App
         // Size controls using the Windows text font and DPI-scaled padding.
         if (!tabs_) return;
         UINT dpi = GetDpiForWindow(tabs_);
-        NONCLIENTMETRICSW metrics{sizeof(metrics)};
-        UniqueGdiObject font;
-        if (SystemParametersInfoForDpi(SPI_GETNONCLIENTMETRICS, sizeof(metrics), &metrics, 0, dpi))
-            font.reset(CreateFontIndirectW(&metrics.lfMessageFont));
+        UniqueGdiObject font = CreateMessageFont(tabs_);
         HFONT controlFont = font ? reinterpret_cast<HFONT>(font.get()) :
             reinterpret_cast<HFONT>(GetStockObject(DEFAULT_GUI_FONT));
         for (HWND control : {connectLabel_, connectCombo_, connectButton_, tabs_, status_, fullscreenExit_})
@@ -2447,9 +2401,7 @@ class App
         for (size_t index = 0; index < std::min(savedSessions_.size(), maximum); ++index)
         {
             if (connectCombo_) ComboBox_AddString(connectCombo_, savedSessions_[index].c_str());
-            std::wstring label = savedSessions_[index];
-            for (size_t offset = 0; (offset = label.find(L'&', offset)) != std::wstring::npos; offset += 2)
-                label.insert(offset, 1, L'&');
+            std::wstring label = EscapeLabel(savedSessions_[index]);
             AppendMenuW(savedMenu_, MF_STRING, IDM_SAVED_SESSION_FIRST + index, label.c_str());
         }
         if (savedSessions_.size() > maximum)
@@ -2457,10 +2409,11 @@ class App
         if (connectCombo_) SetWindowTextW(connectCombo_, connectText.c_str());
     }
 
-    void UpdateMenuState()
+    void UpdateMenuState(HMENU menu = nullptr)
     {
         // Enable and check menu items from the current session and view state.
-        if (!menu_) return;
+        if (!menu) menu = menu_;
+        if (!menu) return;
         Session *session = CurrentSession();
         UINT hasSession = session ? MF_ENABLED : MF_GRAYED;
         UINT hasTerminal = session && IsSessionTerminal(*session) ? MF_ENABLED : MF_GRAYED;
@@ -2468,36 +2421,36 @@ class App
         const UINT terminalCommands[] = {
             IDM_SESSION_LOG,   IDM_SESSION_RECONFIGURE, IDM_SESSION_COPY, IDM_SESSION_PASTE, IDM_SESSION_COPY_ALL,
             IDM_SESSION_CLEAR_SCROLLBACK, IDM_SESSION_RESET, IDM_SESSION_HELP, IDM_SESSION_ABOUT};
-        for (UINT command : terminalCommands) EnableMenuItem(menu_, command, MF_BYCOMMAND | hasTerminal);
+        for (UINT command : terminalCommands) EnableMenuItem(menu, command, MF_BYCOMMAND | hasTerminal);
         for (UINT command : {IDM_SESSION_FIND, IDM_SESSION_FIND_NEXT, IDM_SESSION_FIND_PREVIOUS})
-            EnableMenuItem(menu_, command, MF_BYCOMMAND |
-                (session && session->attached && IsSessionTerminal(*session) ? MF_ENABLED : MF_GRAYED));
+            EnableMenuItem(menu, command, MF_BYCOMMAND |
+                (session && session->attached && hasTerminal == MF_ENABLED ? MF_ENABLED : MF_GRAYED));
 
-        EnableMenuItem(menu_, IDM_FILE_DUPLICATE, MF_BYCOMMAND | hasTerminal);
-        EnableMenuItem(menu_, IDM_SESSION_RESTART,
+        EnableMenuItem(menu, IDM_FILE_DUPLICATE, MF_BYCOMMAND | hasTerminal);
+        EnableMenuItem(menu, IDM_SESSION_RESTART,
             MF_BYCOMMAND | (session && IsDisconnectedTerminal(*session) ? MF_ENABLED : MF_GRAYED));
-        EnableMenuItem(menu_, IDM_FILE_CLOSE, MF_BYCOMMAND | hasUnlockedSession);
+        EnableMenuItem(menu, IDM_FILE_CLOSE, MF_BYCOMMAND | hasUnlockedSession);
         bool hasUnlocked = std::ranges::any_of(sessions_, [](const Session &candidate) { return !candidate.locked; });
         bool hasUnlockedOther = std::ranges::any_of(sessions_, [session](const Session &candidate)
             { return &candidate != session && !candidate.locked; });
-        EnableMenuItem(menu_, IDM_FILE_CLOSE_OTHERS, MF_BYCOMMAND | (hasUnlockedOther ? MF_ENABLED : MF_GRAYED));
-        EnableMenuItem(menu_, IDM_FILE_CLOSE_ALL, MF_BYCOMMAND | (hasUnlocked ? MF_ENABLED : MF_GRAYED));
-        EnableMenuItem(menu_, IDM_SESSION_RENAME, MF_BYCOMMAND | hasSession);
-        EnableMenuItem(menu_, IDM_SESSION_RESET_NAME,
+        EnableMenuItem(menu, IDM_FILE_CLOSE_OTHERS, MF_BYCOMMAND | (hasUnlockedOther ? MF_ENABLED : MF_GRAYED));
+        EnableMenuItem(menu, IDM_FILE_CLOSE_ALL, MF_BYCOMMAND | (hasUnlocked ? MF_ENABLED : MF_GRAYED));
+        EnableMenuItem(menu, IDM_SESSION_RENAME, MF_BYCOMMAND | hasSession);
+        EnableMenuItem(menu, IDM_SESSION_RESET_NAME,
             MF_BYCOMMAND | (session && !session->customTitle.empty() ? MF_ENABLED : MF_GRAYED));
-        EnableMenuItem(menu_, IDM_SESSION_LOCK, MF_BYCOMMAND | hasSession);
+        EnableMenuItem(menu, IDM_SESSION_LOCK, MF_BYCOMMAND | hasSession);
         size_t current = CurrentIndex();
-        EnableMenuItem(menu_, IDM_SESSION_MOVE_LEFT, MF_BYCOMMAND | (current > 0 ? MF_ENABLED : MF_GRAYED));
-        EnableMenuItem(menu_, IDM_SESSION_MOVE_RIGHT,
+        EnableMenuItem(menu, IDM_SESSION_MOVE_LEFT, MF_BYCOMMAND | (current > 0 ? MF_ENABLED : MF_GRAYED));
+        EnableMenuItem(menu, IDM_SESSION_MOVE_RIGHT,
             MF_BYCOMMAND | (current + 1 < sessions_.size() ? MF_ENABLED : MF_GRAYED));
-        EnableMenuItem(menu_, IDM_VIEW_NEXT, MF_BYCOMMAND | (sessions_.size() > 1 ? MF_ENABLED : MF_GRAYED));
-        EnableMenuItem(menu_, IDM_VIEW_PREVIOUS, MF_BYCOMMAND | (sessions_.size() > 1 ? MF_ENABLED : MF_GRAYED));
-        CheckMenuItem(menu_, IDM_SESSION_LOCK, MF_BYCOMMAND | (session && session->locked ? MF_CHECKED : MF_UNCHECKED));
-        CheckMenuItem(menu_, IDM_VIEW_CLICKABLE_URLS, MF_BYCOMMAND | (clickableUrls_ ? MF_CHECKED : MF_UNCHECKED));
-        CheckMenuItem(menu_, IDM_VIEW_ALWAYS_ON_TOP, MF_BYCOMMAND | (alwaysOnTop_ ? MF_CHECKED : MF_UNCHECKED));
-        CheckMenuItem(menu_, IDM_VIEW_FULLSCREEN, MF_BYCOMMAND | (fullscreen_ ? MF_CHECKED : MF_UNCHECKED));
-        CheckMenuItem(menu_, IDM_VIEW_STATUS_BAR, MF_BYCOMMAND | (statusVisible_ ? MF_CHECKED : MF_UNCHECKED));
-        CheckMenuItem(menu_, IDM_VIEW_CONNECT_BAR, MF_BYCOMMAND | (connectBarVisible_ ? MF_CHECKED : MF_UNCHECKED));
+        EnableMenuItem(menu, IDM_VIEW_NEXT, MF_BYCOMMAND | (sessions_.size() > 1 ? MF_ENABLED : MF_GRAYED));
+        EnableMenuItem(menu, IDM_VIEW_PREVIOUS, MF_BYCOMMAND | (sessions_.size() > 1 ? MF_ENABLED : MF_GRAYED));
+        CheckMenuItem(menu, IDM_SESSION_LOCK, MF_BYCOMMAND | (session && session->locked ? MF_CHECKED : MF_UNCHECKED));
+        CheckMenuItem(menu, IDM_VIEW_CLICKABLE_URLS, MF_BYCOMMAND | (clickableUrls_ ? MF_CHECKED : MF_UNCHECKED));
+        CheckMenuItem(menu, IDM_VIEW_ALWAYS_ON_TOP, MF_BYCOMMAND | (alwaysOnTop_ ? MF_CHECKED : MF_UNCHECKED));
+        CheckMenuItem(menu, IDM_VIEW_FULLSCREEN, MF_BYCOMMAND | (fullscreen_ ? MF_CHECKED : MF_UNCHECKED));
+        CheckMenuItem(menu, IDM_VIEW_STATUS_BAR, MF_BYCOMMAND | (statusVisible_ ? MF_CHECKED : MF_UNCHECKED));
+        CheckMenuItem(menu, IDM_VIEW_CONNECT_BAR, MF_BYCOMMAND | (connectBarVisible_ ? MF_CHECKED : MF_UNCHECKED));
     }
 
     void LayoutStatusParts(int width)
@@ -2511,7 +2464,7 @@ class App
         SendMessageW(status_, SB_SETPARTS, static_cast<WPARAM>(std::size(parts)), reinterpret_cast<LPARAM>(parts));
     }
 
-    void UpdateStatus()
+    void UpdateStatus(std::span<const ProcessWindows> detected = {})
     {
         // Summarize the session count and active PuTTY lifecycle state.
         if (!status_) return;
@@ -2521,7 +2474,8 @@ class App
         Session *session = CurrentSession();
         if (session)
         {
-            ProcessWindows windows = WindowsForProcess(session->processId);
+            auto found = std::ranges::find(detected, session->processId, &ProcessWindows::processId);
+            ProcessWindows windows = found != detected.end() ? *found : WindowsForProcess(session->processId);
             if (session->closing && session->terminal && !IsWindowEnabled(session->terminal))
                 state = L"Close confirmation open";
             else if (session->closing) state = L"Closing...";
@@ -2536,7 +2490,8 @@ class App
         }
         if (exiting_) state = L"Waiting for sessions to close...";
 
-        std::array text{count, state, std::wstring(L"Alt+R: connect   Ctrl+Shift+T: new   F11: full screen")};
+        std::array text{std::move(count), std::move(state),
+            std::wstring(L"Alt+R: connect   Ctrl+Shift+T: new   F11: full screen")};
         bool changed = false;
         for (size_t part = 0; part < text.size(); ++part)
         {
