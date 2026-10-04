@@ -1579,8 +1579,10 @@ class App
         std::vector<wchar_t> mutableCommand(commandLine.begin(), commandLine.end());
         mutableCommand.push_back(L'\0');
 
-        // Start PuTTY suspended so it can join the session-tracking job before executing.
+        // Start PuTTY hidden and suspend it until it joins the session-tracking job.
         STARTUPINFOW startup{sizeof(startup)};
+        startup.dwFlags = STARTF_USESHOWWINDOW;
+        startup.wShowWindow = SW_HIDE;
         PROCESS_INFORMATION processInfo{};
         if (!CreateProcessW(puttyPath_.c_str(), mutableCommand.data(), nullptr, nullptr, FALSE,
             CREATE_SUSPENDED | CREATE_UNICODE_ENVIRONMENT, nullptr, puttyDirectory_.c_str(), &startup, &processInfo))
@@ -1687,7 +1689,7 @@ class App
                     session.closeRequestedAt = GetTickCount64();
             }
             if (!session.closing && session.terminal && !session.attached && !session.attachFailed &&
-                IsWindowVisible(session.terminal) && !IsHungAppWindow(session.terminal))
+                !IsHungAppWindow(session.terminal) && WaitForInputIdle(session.process.get(), 0) == 0)
                 Attach(session);
 
             bool terminalEnabled = session.terminal && IsWindowEnabled(session.terminal);
@@ -2210,6 +2212,7 @@ class App
             return;
         }
         HWND target = windows.dialog ? windows.dialog : windows.terminal ? windows.terminal : windows.visible;
+        if (target == windows.terminal && !session->attachFailed) return;
         if (target)
         {
             ShowWindowAsync(target, SW_RESTORE);
