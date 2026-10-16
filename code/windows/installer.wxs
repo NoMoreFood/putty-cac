@@ -397,6 +397,15 @@ https://msdn.microsoft.com/en-us/library/windows/desktop/dd391569(v=vs.85).aspx
                 Key="{9F4C2855-9F79-4B39-A8D0-E1D42DE1D5F3}, 5"
                 Value="SimonTatham.PuTTY" />
           </Shortcut>
+          <?ifdef PUTTY_CAC ?>
+          <Shortcut Id="DesktopPuTTYtab"
+                    WorkingDirectory="INSTALLDIR" Target="[INSTALLDIR]puttytab.exe"
+                    Name="PuTTYTab$(var.Bitness)" Advertise="no">
+            <ShortcutProperty
+                Key="{9F4C2855-9F79-4B39-A8D0-E1D42DE1D5F3}, 5"
+                Value="NoMoreFood.PuTTYTab" />
+          </Shortcut>
+          <?endif ?>
           <RegistryValue Root="HKLM"
                          Key="$(var.RegKeyPathLocation)\DesktopEntry"
                          Type="string" Value="" KeyPath="yes" />
