@@ -43,6 +43,8 @@ typedef const char *HelpCtx;
 #define WINHELP_CTX_features_dbackspace "config-features-dbackspace"
 #define WINHELP_CTX_features_charset "config-features-charset"
 #define WINHELP_CTX_features_clearscroll "config-features-clearscroll"
+#define WINHELP_CTX_features_osc52_write "config-features-osc52-write"
+#define WINHELP_CTX_features_osc52_read "config-features-osc52-read"
 #define WINHELP_CTX_features_arabicshaping "config-features-shaping"
 #define WINHELP_CTX_features_bidi "config-features-bidi"
 #define WINHELP_CTX_features_bracketed_paste "config-features-bracketed-paste"

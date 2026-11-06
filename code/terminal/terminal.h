@@ -194,6 +194,28 @@ struct terminal_tag {
     int osc_strlen;
     char osc_string[OSC_STR_MAX + 1];
 
+    /*
+     * OSC 52 (clipboard access) payloads can be far longer than
+     * OSC_STR_MAX, so they are accumulated separately, in a buffer
+     * allocated on demand and capped at OSC52_MAX_PAYLOAD bytes. The
+     * buffer is only used if at least one direction of OSC 52 access
+     * is enabled in the configuration; otherwise the payload is
+     * discarded without being stored.
+     */
+#define OSC52_MAX_PAYLOAD (1024 * 1024)
+    strbuf *osc52_buf;
+    bool osc52_overflow;
+
+    /*
+     * State for an outstanding OSC 52 clipboard read. Only one may be
+     * outstanding at a time; further requests are ignored until the
+     * front end delivers the clipboard contents (or an empty result)
+     * via term_clip_read_result().
+     */
+    bool osc52_read_pending;
+#define OSC52_SEL_MAX 16
+    char osc52_read_sel[OSC52_SEL_MAX];
+
     char id_string[1024];
 
     unsigned char *tabs;
@@ -339,6 +361,8 @@ struct terminal_tag {
     bool no_remote_resize;
     bool no_remote_wintitle;
     bool no_remote_clearscroll;
+    bool allow_osc52_write;
+    bool allow_osc52_read;
     bool rawcnp;
     bool utf8linedraw;
     bool rect_select;

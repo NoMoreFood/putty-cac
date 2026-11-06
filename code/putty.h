@@ -1654,6 +1654,13 @@ struct TermWinVtable {
     void (*clip_write)(TermWin *, int clipboard, wchar_t *text, int *attrs,
                        truecolour *colours, int len, bool must_deselect);
     void (*clip_request_paste)(TermWin *, int clipboard);
+    /* Optional (may be NULL): fetch the contents of a clipboard on
+     * behalf of an OSC 52 read request, and deliver them
+     * asynchronously by calling term_clip_read_result(). The front
+     * end must always eventually call term_clip_read_result(), even
+     * if the clipboard is empty or cannot be read, passing NULL in
+     * that case. */
+    void (*clip_request_read)(TermWin *, int clipboard);
 
     void (*refresh)(TermWin *);
 
@@ -1738,6 +1745,13 @@ static inline void win_clip_write(
 { win->vt->clip_write(win, clipboard, text, attrs, colours, len, deselect); }
 static inline void win_clip_request_paste(TermWin *win, int clipboard)
 { win->vt->clip_request_paste(win, clipboard); }
+static inline bool win_clip_request_read(TermWin *win, int clipboard)
+{
+    if (!win->vt->clip_request_read)
+        return false;
+    win->vt->clip_request_read(win, clipboard);
+    return true;
+}
 static inline void win_refresh(TermWin *win)
 { win->vt->refresh(win); }
 static inline void win_request_resize(TermWin *win, int w, int h)
@@ -2032,6 +2046,7 @@ void term_update(Terminal *);
 void term_invalidate(Terminal *);
 void term_blink(Terminal *, bool set_cursor);
 void term_do_paste(Terminal *, const wchar_t *, size_t);
+void term_clip_read_result(Terminal *, const wchar_t *, size_t);
 void term_nopaste(Terminal *);
 void term_copyall(Terminal *, const int *, int);
 void term_pre_reconfig(Terminal *, Conf *);

@@ -594,6 +594,16 @@ CONF_OPTION(no_remote_wintitle, /* disable remote retitling */
     DEFAULT_BOOL(false),
     SAVE_KEYWORD("NoRemoteWinTitle"),
 )
+CONF_OPTION(allow_osc52_write, /* allow OSC 52 to set the clipboard */
+    VALUE_TYPE(BOOL),
+    DEFAULT_BOOL(false),
+    SAVE_KEYWORD("AllowOSC52ClipboardWrite"),
+)
+CONF_OPTION(allow_osc52_read, /* allow OSC 52 to read the clipboard */
+    VALUE_TYPE(BOOL),
+    DEFAULT_BOOL(false),
+    SAVE_KEYWORD("AllowOSC52ClipboardRead"),
+)
 CONF_OPTION(no_remote_clearscroll, /* disable ESC[3J */
     VALUE_TYPE(BOOL),
     DEFAULT_BOOL(false),

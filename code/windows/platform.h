@@ -290,6 +290,11 @@ void write_aclip(HWND hwnd, int clipboard, char *, int);
  */
 #define SEL_NL { 13, 10 }
 
+/* Clipboards targeted by OSC 52 selection parameters: Windows has
+ * only one, so all of 'c', 'p' and 's' map to it. */
+#define OSC52_CLIPBOARD CLIP_SYSTEM
+#define OSC52_PRIMARY CLIP_SYSTEM
+
 /*
  * sk_getxdmdata() does not exist under Windows (not that I
  * couldn't write it if I wanted to, but I haven't bothered), so

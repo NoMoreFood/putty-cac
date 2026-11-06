@@ -94,6 +94,12 @@ typedef void *HelpCtx;
  */
 #define SEL_NL { 10 }
 
+/* Clipboards targeted by OSC 52 selection parameters ('c' and
+ * 'p'/'s' respectively). On OS X there is no PRIMARY, so
+ * MOUSE_SELECT_CLIPBOARD is CLIP_NULL and those writes are dropped. */
+#define OSC52_CLIPBOARD CLIP_CLIPBOARD
+#define OSC52_PRIMARY MOUSE_SELECT_CLIPBOARD
+
 /* Simple wraparound timer function */
 unsigned long getticks(void);
 #define GETTICKCOUNT getticks

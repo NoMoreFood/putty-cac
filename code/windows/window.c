@@ -65,6 +65,7 @@
 #define WM_IGNORE_CLIP (WM_APP + 2)
 #define WM_FULLSCR_ON_MAX (WM_APP + 3)
 #define WM_GOT_CLIPDATA (WM_APP + 4)
+#define WM_GOT_CLIPDATA_FOR_READ (WM_APP + 9)
 
 /* Needed for Chinese support and apparently not always defined. */
 #ifndef VK_PROCESSKEY
@@ -114,6 +115,8 @@ static void make_full_screen(WinGuiSeat *wgs);
 static void clear_full_screen(WinGuiSeat *wgs);
 static void flip_full_screen(WinGuiSeat *wgs);
 static void process_clipdata(WinGuiSeat *wgs, HGLOBAL clipdata, bool unicode);
+static void process_clipdata_for_read(WinGuiSeat *wgs, HGLOBAL clipdata,
+                                      bool unicode);
 static void setup_clipboards(Terminal *, Conf *);
 
 /* Window layout information */
@@ -165,6 +168,7 @@ static void wintw_clip_write(
     TermWin *, int clipboard, wchar_t *text, int *attrs,
     truecolour *colours, int len, bool must_deselect);
 static void wintw_clip_request_paste(TermWin *, int clipboard);
+static void wintw_clip_request_read(TermWin *, int clipboard);
 static void wintw_refresh(TermWin *);
 static void wintw_request_resize(TermWin *, int w, int h);
 static void wintw_set_title(TermWin *, const char *title, int codepage);
@@ -192,6 +196,7 @@ static const TermWinVtable windows_termwin_vt = {
     .bell = wintw_bell,
     .clip_write = wintw_clip_write,
     .clip_request_paste = wintw_clip_request_paste,
+    .clip_request_read = wintw_clip_request_read,
     .refresh = wintw_refresh,
     .request_resize = wintw_request_resize,
     .set_title = wintw_set_title,
@@ -3397,6 +3402,9 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
       case WM_GOT_CLIPDATA:
         process_clipdata(wgs, (HGLOBAL)lParam, wParam);
         return 0;
+      case WM_GOT_CLIPDATA_FOR_READ:
+        process_clipdata_for_read(wgs, (HGLOBAL)lParam, wParam);
+        return 0;
       default:
         if (message == wm_mousewheel || message == WM_MOUSEWHEEL
                                                 || message == WM_MOUSEHWHEEL) {
@@ -5426,10 +5434,19 @@ static DWORD WINAPI clipboard_read_threadfunc(void *param)
     return 0;
 }
 
-static void process_clipdata(WinGuiSeat *wgs, HGLOBAL clipdata, bool unicode)
+/*
+ * Extract the text from clipboard data handed to us by one of the
+ * clipboard-reading threads. Returns a newly allocated NUL-terminated
+ * string, or NULL if there was none.
+ */
+static wchar_t *clipdata_to_wide(HGLOBAL clipdata, bool unicode,
+                                 size_t *len_out)
 {
     wchar_t *clipboard_contents = NULL;
     size_t clipboard_length = 0;
+
+    if (!clipdata)
+        return NULL;
 
     if (unicode) {
         wchar_t *p = GlobalLock(clipdata);
@@ -5442,7 +5459,7 @@ static void process_clipdata(WinGuiSeat *wgs, HGLOBAL clipdata, bool unicode)
             clipboard_contents = snewn(clipboard_length + 1, wchar_t);
             memcpy(clipboard_contents, p, clipboard_length * sizeof(wchar_t));
             clipboard_contents[clipboard_length] = L'\0';
-            term_do_paste(wgs->term, clipboard_contents, clipboard_length);
+            GlobalUnlock(clipdata);
         }
     } else {
         char *s = GlobalLock(clipdata);
@@ -5455,11 +5472,87 @@ static void process_clipdata(WinGuiSeat *wgs, HGLOBAL clipdata, bool unicode)
                                 clipboard_contents, i);
             clipboard_length = i - 1;
             clipboard_contents[clipboard_length] = L'\0';
-            term_do_paste(wgs->term, clipboard_contents, clipboard_length);
+            GlobalUnlock(clipdata);
         }
     }
 
+    *len_out = clipboard_length;
+    return clipboard_contents;
+}
+
+static void process_clipdata(WinGuiSeat *wgs, HGLOBAL clipdata, bool unicode)
+{
+    size_t clipboard_length;
+    wchar_t *clipboard_contents =
+        clipdata_to_wide(clipdata, unicode, &clipboard_length);
+
+    if (clipboard_contents)
+        term_do_paste(wgs->term, clipboard_contents, clipboard_length);
+
     sfree(clipboard_contents);
+}
+
+static void process_clipdata_for_read(WinGuiSeat *wgs, HGLOBAL clipdata,
+                                      bool unicode)
+{
+    size_t clipboard_length = 0;
+    wchar_t *clipboard_contents =
+        clipdata_to_wide(clipdata, unicode, &clipboard_length);
+
+    /* Always deliver a result, even an empty one, so the terminal
+     * doesn't remain waiting for it */
+    term_clip_read_result(wgs->term, clipboard_contents, clipboard_length);
+
+    if (clipboard_contents) {
+        smemclr(clipboard_contents, clipboard_length * sizeof(wchar_t));
+        sfree(clipboard_contents);
+    }
+}
+
+/*
+ * Thread function for an OSC 52 clipboard read. Like the paste
+ * thread, but it always sends exactly one message back, with a NULL
+ * handle if there was no text on the clipboard.
+ */
+static DWORD WINAPI clipboard_read_for_osc52_threadfunc(void *param)
+{
+    HWND hwnd = (HWND)param;
+    HGLOBAL clipdata = NULL;
+    bool unicode = false;
+    bool opened = OpenClipboard(NULL);
+
+    if (opened) {
+        if ((clipdata = GetClipboardData(CF_UNICODETEXT))) {
+            unicode = true;
+        } else {
+            clipdata = GetClipboardData(CF_TEXT);
+        }
+    }
+
+    SendMessage(hwnd, WM_GOT_CLIPDATA_FOR_READ,
+                (WPARAM)unicode, (LPARAM)clipdata);
+
+    if (opened)
+        CloseClipboard();
+
+    return 0;
+}
+
+static void wintw_clip_request_read(TermWin *tw, int clipboard)
+{
+    WinGuiSeat *wgs = container_of(tw, WinGuiSeat, termwin);
+    assert(clipboard == CLIP_SYSTEM);
+
+    /* Read in a subthread, for the same reasons as in
+     * wintw_clip_request_paste below. */
+    DWORD in_threadid; /* required for Win9x */
+    HANDLE hThread = CreateThread(NULL, 0,
+                                  clipboard_read_for_osc52_threadfunc,
+                                  wgs->term_hwnd, 0, &in_threadid);
+    if (hThread)
+        CloseHandle(hThread);          /* we don't need the thread handle */
+    else
+        term_clip_read_result(wgs->term, NULL, 0);
 }
 
 static void wintw_clip_request_paste(TermWin *tw, int clipboard)

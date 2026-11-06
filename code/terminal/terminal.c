@@ -62,6 +62,11 @@ static const char sco2ansicolour[] = { 0, 4, 2, 6, 1, 5, 3, 7 };
 #define sel_nl_sz  (sizeof(sel_nl)/sizeof(wchar_t))
 static const wchar_t sel_nl[] = SEL_NL;
 
+static bool wstartswith(const wchar_t *a, size_t alen,
+                        const wchar_t *b, size_t blen);
+static void osc52_reset(Terminal *term);
+static void osc_string_add(Terminal *term, unsigned char c);
+
 /* forward declaration */
 static void term_userpass_state_free(struct term_userpass_state *s);
 
@@ -1665,6 +1670,8 @@ static void term_copy_stuff_from_conf(Terminal *term)
     term->no_remote_resize = conf_get_bool(term->conf, CONF_no_remote_resize);
     term->no_remote_wintitle = conf_get_bool(term->conf, CONF_no_remote_wintitle);
     term->no_remote_clearscroll = conf_get_bool(term->conf, CONF_no_remote_clearscroll);
+    term->allow_osc52_write = conf_get_bool(term->conf, CONF_allow_osc52_write);
+    term->allow_osc52_read = conf_get_bool(term->conf, CONF_allow_osc52_read);
     term->rawcnp = conf_get_bool(term->conf, CONF_rawcnp);
     term->utf8linedraw = conf_get_bool(term->conf, CONF_utf8linedraw);
     term->rect_select = conf_get_bool(term->conf, CONF_rect_select);
@@ -2151,6 +2158,8 @@ void term_free(Terminal *term)
     delete_callbacks_for_context(term);
 
     conf_free(term->conf);
+
+    osc52_reset(term);
 
     sfree(term->window_title);
     sfree(term->icon_title);
@@ -3185,6 +3194,299 @@ static void toggle_mode(Terminal *term, int mode, int query, bool state)
     }
 }
 
+/* ----------------------------------------------------------------------
+ * OSC 52: remote access to the local clipboard.
+ *
+ * Syntax: OSC 52 ; <selection> ; <data> ST
+ *
+ * <selection> is a (possibly empty) string of characters from
+ * "cpqs01234567" naming the target selection(s). <data> is either:
+ *
+ *  - base64-encoded text, which is written to the selection(s);
+ *  - "?", requesting that the terminal reply with the contents of
+ *    the selection, as an OSC 52 sequence with base64-encoded data;
+ *  - anything else that is not valid base64 (including the "!" used
+ *    by some applications), which clears the selection(s).
+ *
+ * Security: both directions are disabled by default, and each has
+ * its own configuration option. Clipboard reads in particular hand
+ * the local clipboard to the remote host and to anything else
+ * that can write to the terminal (e.g. "cat"ing a malicious file),
+ * so they should only be enabled where the server is trusted.
+ *
+ * Payloads are capped at OSC52_MAX_PAYLOAD bytes of base64. An
+ * oversized sequence is discarded entirely, rather than writing a
+ * truncated string to the clipboard.
+ */
+
+static bool osc52_is_active(Terminal *term)
+{
+    return term->osc_type == OSCLIKE_OSC && term->esc_args[0] == 52;
+}
+
+static void osc52_reset(Terminal *term)
+{
+    if (term->osc52_buf) {
+        strbuf_free(term->osc52_buf);  /* _nm buffer: wipes contents */
+        term->osc52_buf = NULL;
+    }
+    term->osc52_overflow = false;
+}
+
+/*
+ * Append a byte of an OSC string. OSC 52 payloads go in a separate,
+ * larger buffer; everything else goes in the fixed-size osc_string.
+ */
+static void osc_string_add(Terminal *term, unsigned char c)
+{
+    if (osc52_is_active(term)) {
+        if (!term->allow_osc52_write && !term->allow_osc52_read)
+            return;                    /* don't even store it */
+        if (term->osc52_overflow)
+            return;
+        if (!term->osc52_buf)
+            term->osc52_buf = strbuf_new_nm();
+        if (term->osc52_buf->len >= OSC52_MAX_PAYLOAD) {
+            term->osc52_overflow = true;
+            return;
+        }
+        put_byte(term->osc52_buf, c);
+        return;
+    }
+
+    if (term->osc_strlen < OSC_STR_MAX)
+        term->osc_string[term->osc_strlen++] = (char)c;
+}
+
+static bool osc52_valid_selection(ptrlen sel)
+{
+    const char *p = sel.ptr;
+    if (sel.len >= OSC52_SEL_MAX)
+        return false;
+    for (size_t i = 0; i < sel.len; i++)
+        if (!strchr("cpqs01234567", p[i]) || !p[i])
+            return false;
+    return true;
+}
+
+/*
+ * Work out which of our clipboards an OSC 52 selection parameter
+ * refers to. Returns the number written to out[] (at most 2).
+ * Following kitty, alacritty, Windows Terminal etc (and unlike
+ * xterm's default of "s0"), an empty selection means the clipboard,
+ * since that is what tmux and most applications intend by it. Cut
+ * buffers 0-7 and 'q' (secondary) are not supported.
+ */
+static int osc52_clipboards(ptrlen sel, int out[2])
+{
+    int n = 0;
+    bool want_clip = (sel.len == 0), want_primary = false;
+    for (size_t i = 0; i < sel.len; i++) {
+        char c = ((const char *)sel.ptr)[i];
+        if (c == 'c')
+            want_clip = true;
+        else if (c == 'p' || c == 's')
+            want_primary = true;
+    }
+    if (want_clip && OSC52_CLIPBOARD != CLIP_NULL)
+        out[n++] = OSC52_CLIPBOARD;
+    if (want_primary && OSC52_PRIMARY != CLIP_NULL &&
+        OSC52_PRIMARY != CLIP_LOCAL && (n == 0 || out[0] != OSC52_PRIMARY))
+        out[n++] = OSC52_PRIMARY;
+    return n;
+}
+
+/*
+ * Strictly validate base64 (RFC 4648 alphabet, padding optional, no
+ * whitespace). The library decoder is lenient, so it must not see
+ * anything that fails this check.
+ */
+static bool osc52_valid_base64(ptrlen data)
+{
+    const char *p = data.ptr;
+    size_t len = data.len, npad = 0;
+
+    if (len == 0)
+        return true;
+    while (npad < 2 && len > 0 && p[len-1] == '=') {
+        len--;
+        npad++;
+    }
+    if (npad && (len + npad) % 4 != 0)
+        return false;                  /* padding present but misplaced */
+    if (len % 4 == 1)
+        return false;                  /* impossible length */
+    for (size_t i = 0; i < len; i++) {
+        char c = p[i];
+        if (!((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') ||
+              (c >= '0' && c <= '9') || c == '+' || c == '/'))
+            return false;
+    }
+    return true;
+}
+
+static void osc52_write(Terminal *term, ptrlen sel, ptrlen data)
+{
+    int clips[2];
+    int nclips = osc52_clipboards(sel, clips);
+    if (!nclips)
+        return;
+
+    wchar_t *text = NULL;
+    size_t textlen = 0;
+
+    if (osc52_valid_base64(data) && data.len > 0) {
+        /* Restore any padding the sender omitted, then decode */
+        strbuf *b64 = strbuf_new_nm();
+        put_datapl(b64, data);
+        while (b64->len % 4)
+            put_byte(b64, '=');
+        strbuf *raw = base64_decode_sb(ptrlen_from_strbuf(b64));
+        strbuf_free(b64);
+
+        /* Stop at an embedded NUL: clipboard text can't contain one */
+        size_t rawlen = strnlen(raw->s, raw->len);
+        if (rawlen > 0) {
+            size_t wlen;
+            wchar_t *w = dup_mb_to_wc_c(term->ucsdata->line_codepage,
+                                        raw->s, rawlen, &wlen);
+
+            /* Convert bare LF to the platform's clipboard newline */
+            text = snewn(wlen * sel_nl_sz + 1, wchar_t);
+            for (size_t i = 0; i < wlen; i++) {
+                if (w[i] == L'\n' && !(i > 0 && w[i-1] == L'\r')) {
+                    for (size_t j = 0; j < sel_nl_sz; j++)
+                        text[textlen++] = sel_nl[j];
+                } else {
+                    text[textlen++] = w[i];
+                }
+            }
+            smemclr(w, wlen * sizeof(wchar_t));
+            sfree(w);
+        }
+        strbuf_free(raw);
+    }
+    /* Otherwise ("!", or invalid base64) text stays empty: clear. */
+
+    if (!text)
+        text = snewn(1, wchar_t);
+    size_t len = textlen;
+#if SELECTION_NUL_TERMINATED
+    text[len++] = L'\0';
+#endif
+
+    int *attrs = snewn(len ? len : 1, int);
+    truecolour *tcs = snewn(len ? len : 1, truecolour);
+    for (size_t i = 0; i < len; i++) {
+        attrs[i] = ATTR_DEFAULT;
+        tcs[i] = term->basic_erase_char.truecolour;
+    }
+
+    for (int i = 0; i < nclips; i++)
+        win_clip_write(term->win, clips[i], text, attrs, tcs, len, true);
+
+    smemclr(text, (textlen + 1) * sizeof(wchar_t));
+    sfree(text);
+    sfree(attrs);
+    sfree(tcs);
+}
+
+static void do_osc52(Terminal *term)
+{
+    strbuf *buf = term->osc52_buf;
+    bool overflow = term->osc52_overflow;
+    term->osc52_buf = NULL;
+    term->osc52_overflow = false;
+
+    if (!buf)
+        return;          /* empty, or OSC 52 disabled in both directions */
+    if (overflow)
+        goto out;        /* too long: ignore rather than truncate */
+
+    ptrlen pl = ptrlen_from_strbuf(buf);
+    const char *semi = memchr(pl.ptr, ';', pl.len);
+    if (!semi)
+        goto out;        /* malformed: no selection/data separator */
+    ptrlen sel = make_ptrlen(pl.ptr, semi - (const char *)pl.ptr);
+    ptrlen data = make_ptrlen(semi + 1, pl.len - sel.len - 1);
+    if (!osc52_valid_selection(sel))
+        goto out;
+
+    if (ptrlen_eq_string(data, "?")) {
+        int clips[2];
+        if (!term->allow_osc52_read || !term->ldisc ||
+            term->osc52_read_pending || !osc52_clipboards(sel, clips))
+            goto out;
+        memcpy(term->osc52_read_sel, sel.ptr, sel.len);
+        term->osc52_read_sel[sel.len] = '\0';
+        term->osc52_read_pending = true;
+        if (!win_clip_request_read(term->win, clips[0]))
+            term->osc52_read_pending = false;  /* front end can't */
+        goto out;
+    }
+
+    if (term->allow_osc52_write)
+        osc52_write(term, sel, data);
+
+  out:
+    strbuf_free(buf);
+}
+
+/*
+ * Called by the front end to deliver the clipboard contents
+ * requested by an OSC 52 read. 'data' may be NULL (or empty) if the
+ * clipboard was empty or unreadable; we still reply, with empty
+ * data, so that the application isn't left waiting.
+ */
+void term_clip_read_result(Terminal *term, const wchar_t *data, size_t len)
+{
+    if (!term->osc52_read_pending)
+        return;                        /* stale or unsolicited */
+    term->osc52_read_pending = false;
+    if (!term->allow_osc52_read || !term->ldisc)
+        return;
+
+    /* Trim a trailing NUL if the front end included one */
+    if (data && len && data[len-1] == L'\0')
+        len--;
+
+    /* Platform newlines -> LF, which is what a Unix host expects */
+    strbuf *raw = strbuf_new_nm();
+    if (data && len) {
+        wchar_t *w = snewn(len, wchar_t);
+        size_t wlen = 0;
+        for (size_t i = 0; i < len; i++) {
+            if (data[i] == L'\0')
+                break;
+            if (data[i] == sel_nl[0] &&
+                wstartswith(data + i, len - i, sel_nl, sel_nl_sz)) {
+                w[wlen++] = L'\n';
+                i += sel_nl_sz - 1;
+            } else {
+                w[wlen++] = data[i];
+            }
+        }
+        size_t mblen;
+        char *mb = dup_wc_to_mb_c(term->ucsdata->line_codepage, w, wlen,
+                                  "?", &mblen);
+        smemclr(w, len * sizeof(wchar_t));
+        sfree(w);
+        /* Don't reply with more than we would accept ourselves */
+        if ((mblen + 2) / 3 * 4 <= OSC52_MAX_PAYLOAD)
+            put_data(raw, mb, mblen);
+        smemclr(mb, mblen);
+        sfree(mb);
+    }
+
+    strbuf *reply = strbuf_new_nm();
+    put_fmt(reply, "\033]52;%s;", term->osc52_read_sel);
+    base64_encode_bs(BinarySink_UPCAST(reply), ptrlen_from_strbuf(raw), 0);
+    put_byte(reply, '\007');
+    ldisc_send(term->ldisc, reply->s, reply->len, false);
+    strbuf_free(reply);
+    strbuf_free(raw);
+}
+
 /*
  * Process an OSC or similar sequence, with a whole embedded string,
  * like setting the window title or icon name.
@@ -3237,6 +3539,9 @@ static void do_osc(Terminal *term)
                     sfree(reply_buf);
                 }
             }
+            break;
+          case 52:
+            do_osc52(term);
             break;
         }
         break;
@@ -4103,6 +4408,21 @@ static void term_out(Terminal *term, bool called_from_term_data)
                     term->termstate = TOPLEVEL;
                     break;
                 }
+                if (c == '\033') {
+                    /*
+                     * A second ESC aborts the string and begins a
+                     * new escape sequence, as in the DEC/xterm
+                     * parser. This is what makes the tmux
+                     * passthrough wrapping "ESC P tmux; ESC ESC ] ..."
+                     * work when it reaches us without tmux having
+                     * unwrapped it (as some applications emit it
+                     * when they guess wrongly that tmux is present),
+                     * instead of leaving the payload on the screen.
+                     */
+                    term->termstate = SEEN_ESC;
+                    term->esc_query = 0;
+                    break;
+                }
                 /* else fall through */
               case SEEN_ESC:
                 if (c >= ' ' && c <= '/') {
@@ -4126,6 +4446,7 @@ static void term_out(Terminal *term, bool called_from_term_data)
                     term->termstate = SEEN_OSC;
                     term->osc_type = OSCLIKE_OSC;
                     term->osc_strlen = 0;
+                    osc52_reset(term);
                     term->esc_args[0] = 0;
                     term->esc_nargs = 1;
                     break;
@@ -5320,6 +5641,7 @@ static void term_out(Terminal *term, bool called_from_term_data)
                     } else {
                         term->termstate = OSC_STRING;
                         term->osc_strlen = 0;
+                        osc52_reset(term);
                     }
                 }
                 break;
@@ -5390,8 +5712,7 @@ static void term_out(Terminal *term, bool called_from_term_data)
                 }
 
                 /* Anything else gets added to the string */
-                if (term->osc_strlen < OSC_STR_MAX)
-                    term->osc_string[term->osc_strlen++] = (char)c;
+                osc_string_add(term, c);
                 break;
               case OSC_MAYBE_ST_UTF8:
                 /* In UTF-8 mode, we've seen C2, so are we now seeing
@@ -5405,10 +5726,8 @@ static void term_out(Terminal *term, bool called_from_term_data)
                 /* No, so append the pending C2 byte to the OSC string
                  * followed by the current character, and go back to
                  * OSC string accumulation */
-                if (term->osc_strlen < OSC_STR_MAX)
-                    term->osc_string[term->osc_strlen++] = 0xC2;
-                if (term->osc_strlen < OSC_STR_MAX)
-                    term->osc_string[term->osc_strlen++] = (char)c;
+                osc_string_add(term, 0xC2);
+                osc_string_add(term, c);
                 term->termstate = OSC_STRING;
                 break;
               case SEEN_OSC_P: {

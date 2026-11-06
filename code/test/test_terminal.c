@@ -37,7 +37,18 @@ typedef struct Mock {
 
     bool any_test_failed;
 
+    /* OSC 52 clipboard tracking */
+    int nclipwrites;
+    int last_clip;
+    strbuf *clip_text;          /* UTF-8 of last clip_write */
+    bool clip_text_nul_terminated;
+    int nclipreads;
+    int last_clip_read;
+    strbuf *to_backend;
+
     TermWin tw;
+    Seat seat;
+    Backend backend;
 } Mock;
 
 static bool mock_setup_draw_ctx(TermWin *win) { return false; }
@@ -53,6 +64,11 @@ static void mock_palette_set(TermWin *win, unsigned start, unsigned ncolours,
 static void mock_palette_get_overrides(TermWin *tw, Terminal *term) {}
 static void mock_set_title(TermWin *win, const char *title, int codepage);
 static void mock_set_icon_title(TermWin *win, const char *title, int cp) {}
+static void mock_clip_write(TermWin *win, int clipboard, wchar_t *text,
+                            int *attrs, truecolour *colours, int len,
+                            bool must_deselect);
+static void mock_clip_request_read(TermWin *win, int clipboard);
+static void mock_bell(TermWin *win, int mode) {}
 
 static const TermWinVtable mock_termwin_vt = {
     .setup_draw_ctx = mock_setup_draw_ctx,
@@ -64,6 +80,59 @@ static const TermWinVtable mock_termwin_vt = {
     .set_raw_mouse_mode_pointer = mock_set_raw_mouse_mode_pointer,
     .palette_set = mock_palette_set,
     .palette_get_overrides = mock_palette_get_overrides,
+    .clip_write = mock_clip_write,
+    .bell = mock_bell,
+    .clip_request_read = mock_clip_request_read,
+};
+
+static void mock_clip_write(TermWin *win, int clipboard, wchar_t *text,
+                            int *attrs, truecolour *colours, int len,
+                            bool must_deselect)
+{
+    Mock *mk = container_of(win, Mock, tw);
+    mk->nclipwrites++;
+    mk->last_clip = clipboard;
+    mk->clip_text_nul_terminated = (len > 0 && text[len-1] == 0);
+    /* Touch every attr/colour, so ASan/valgrind catch a short array */
+    for (int i = 0; i < len; i++)
+        (void)attrs[i], (void)colours[i];
+    strbuf_clear(mk->clip_text);
+    wchar_t *copy = snewn(len + 1, wchar_t);
+    memcpy(copy, text, len * sizeof(wchar_t));
+    copy[len] = 0;
+    char *utf8 = encode_wide_string_as_utf8(copy);
+    put_dataz(mk->clip_text, utf8);
+    sfree(utf8);
+    sfree(copy);
+}
+
+static void mock_clip_request_read(TermWin *win, int clipboard)
+{
+    Mock *mk = container_of(win, Mock, tw);
+    mk->nclipreads++;
+    mk->last_clip_read = clipboard;
+}
+
+static void mock_backend_send(Backend *be, const char *buf, size_t len)
+{
+    Mock *mk = container_of(be, Mock, backend);
+    put_data(mk->to_backend, buf, len);
+}
+static bool mock_backend_sendok(Backend *be) { return true; }
+static bool mock_ldisc_option_state(Backend *be, int option)
+{ return false; }
+static void mock_provide_ldisc(Backend *be, Ldisc *ldisc) {}
+
+static const BackendVtable mock_backend_vt = {
+    .sendok = mock_backend_sendok,
+    .send = mock_backend_send,
+    .ldisc_option_state = mock_ldisc_option_state,
+    .provide_ldisc = mock_provide_ldisc,
+    .id = "mock",
+};
+
+static const SeatVtable mock_seat_vt = {
+    .echoedit_update = nullseat_echoedit_update,
 };
 
 static Mock *mock_new(void)
@@ -81,6 +150,10 @@ static Mock *mock_new(void)
     mk->title = strbuf_new();
 
     mk->tw.vt = &mock_termwin_vt;
+    mk->seat.vt = &mock_seat_vt;
+    mk->backend.vt = &mock_backend_vt;
+    mk->clip_text = strbuf_new();
+    mk->to_backend = strbuf_new();
 
     return mk;
 }
@@ -88,6 +161,8 @@ static Mock *mock_new(void)
 static void mock_free(Mock *mk)
 {
     strbuf_free(mk->context);
+    strbuf_free(mk->clip_text);
+    strbuf_free(mk->to_backend);
     conf_free(mk->conf);
     term_free(mk->term);
     strbuf_free(mk->title);
@@ -524,17 +599,363 @@ static void test_wintitle(Mock *mk)
     SEQUAL(mk->title->s, "bar");
 }
 
+
+/* ----------------------------------------------------------------------
+ * OSC 52 clipboard tests.
+ */
+
+#if SELECTION_NUL_TERMINATED
+#define EXPECT_NUL true
+#else
+#define EXPECT_NUL false
+#endif
+
+static void osc52_setup(Mock *mk, bool write, bool read)
+{
+    conf_set_bool(mk->conf, CONF_allow_osc52_write, write);
+    conf_set_bool(mk->conf, CONF_allow_osc52_read, read);
+    term_reconfig(mk->term, mk->conf);
+    reset(mk);
+    mk->nclipwrites = mk->nclipreads = 0;
+    mk->last_clip = mk->last_clip_read = -1;
+    strbuf_clear(mk->clip_text);
+    strbuf_clear(mk->to_backend);
+    mk->term->osc52_read_pending = false;
+}
+
+/* Flush anything the terminal sent through the ldisc */
+static void osc52_flush(Mock *mk)
+{
+    run_toplevel_callbacks();
+}
+
+static void test_osc52_disabled_by_default(Mock *mk)
+{
+    Conf *conf = conf_new();
+    do_defaults(NULL, conf);
+    IEQUAL(conf_get_bool(conf, CONF_allow_osc52_write), false);
+    IEQUAL(conf_get_bool(conf, CONF_allow_osc52_read), false);
+    conf_free(conf);
+
+    osc52_setup(mk, false, false);
+    term_datapl(mk->term, PTRLEN_LITERAL("\033]52;c;aGVsbG8=\007"));
+    term_datapl(mk->term, PTRLEN_LITERAL("\033]52;c;!\007"));
+    term_datapl(mk->term, PTRLEN_LITERAL("\033]52;c;?\007"));
+    osc52_flush(mk);
+    IEQUAL(mk->nclipwrites, 0);
+    IEQUAL(mk->nclipreads, 0);
+    IEQUAL(mk->to_backend->len, 0);
+    /* Nothing was buffered either */
+    IEQUAL(mk->term->osc52_buf == NULL, true);
+    /* And the terminal is back to normal afterwards */
+    term_datapl(mk->term, PTRLEN_LITERAL("x"));
+    IEQUAL(get_termchar(mk->term, 0, 0).chr, CSET_ASCII | 'x');
+}
+
+static void test_osc52_write(Mock *mk)
+{
+    osc52_setup(mk, true, false);
+
+    /* BEL-terminated */
+    term_datapl(mk->term, PTRLEN_LITERAL("\033]52;c;aGVsbG8=\007"));
+    IEQUAL(mk->nclipwrites, 1);
+    IEQUAL(mk->last_clip, OSC52_CLIPBOARD);
+    SEQUAL(mk->clip_text->s, "hello");
+    IEQUAL(mk->clip_text_nul_terminated, EXPECT_NUL);
+
+    /* ST-terminated (7-bit) */
+    term_datapl(mk->term, PTRLEN_LITERAL("\033]52;c;d29ybGQ=\033\\"));
+    IEQUAL(mk->nclipwrites, 2);
+    SEQUAL(mk->clip_text->s, "world");
+
+    /* Empty selection parameter (as sent by tmux) means clipboard */
+    term_datapl(mk->term, PTRLEN_LITERAL("\033]52;;aGk=\007"));
+    IEQUAL(mk->nclipwrites, 3);
+    IEQUAL(mk->last_clip, OSC52_CLIPBOARD);
+    SEQUAL(mk->clip_text->s, "hi");
+
+    /* Missing base64 padding is tolerated */
+    term_datapl(mk->term, PTRLEN_LITERAL("\033]52;c;aGk\007"));
+    IEQUAL(mk->nclipwrites, 4);
+    SEQUAL(mk->clip_text->s, "hi");
+
+    /* Primary selection */
+    term_datapl(mk->term, PTRLEN_LITERAL("\033]52;p;cHJp\007"));
+    if (OSC52_PRIMARY != CLIP_NULL) {
+        IEQUAL(mk->last_clip, OSC52_PRIMARY);
+        SEQUAL(mk->clip_text->s, "pri");
+    }
+
+    /* Newlines are converted to the platform clipboard convention */
+    mk->nclipwrites = 0;
+    term_datapl(mk->term, PTRLEN_LITERAL("\033]52;c;YQpiDQpj\007"));
+    IEQUAL(mk->nclipwrites, 1);
+#if SELECTION_NUL_TERMINATED
+    SEQUAL(mk->clip_text->s, "a\r\nb\r\nc");
+#else
+    SEQUAL(mk->clip_text->s, "a\nb\r\nc");
+#endif
+
+    /* Text after the sequence still displays normally */
+    term_datapl(mk->term, PTRLEN_LITERAL("\033[H\033]52;c;aGk=\007ok"));
+    IEQUAL(get_termchar(mk->term, 0, 0).chr, CSET_ASCII | 'o');
+    IEQUAL(get_termchar(mk->term, 1, 0).chr, CSET_ASCII | 'k');
+}
+
+static void test_osc52_write_utf8(Mock *mk)
+{
+    osc52_setup(mk, true, false);
+    int old_cp = mk->ucsdata->line_codepage;
+    mk->ucsdata->line_codepage = CP_UTF8;
+    /* "héllo ✓" in UTF-8 */
+    term_datapl(mk->term,
+                PTRLEN_LITERAL("\033]52;c;aMOpbGxvIOKckw==\007"));
+    IEQUAL(mk->nclipwrites, 1);
+    SEQUAL(mk->clip_text->s, "h\xC3\xA9llo \xE2\x9C\x93");
+    /* C1 ST in UTF-8 (C2 9C) terminates it too */
+    term_datapl(mk->term, PTRLEN_LITERAL("\033]52;c;aGk=\xC2\x9C"));
+    IEQUAL(mk->nclipwrites, 2);
+    SEQUAL(mk->clip_text->s, "hi");
+    mk->ucsdata->line_codepage = old_cp;
+}
+
+static void test_osc52_clear(Mock *mk)
+{
+    osc52_setup(mk, true, false);
+
+    term_datapl(mk->term, PTRLEN_LITERAL("\033]52;c;aGk=\007"));
+    SEQUAL(mk->clip_text->s, "hi");
+    /* "!" clears */
+    term_datapl(mk->term, PTRLEN_LITERAL("\033]52;c;!\007"));
+    IEQUAL(mk->nclipwrites, 2);
+    SEQUAL(mk->clip_text->s, "");
+    IEQUAL(mk->clip_text_nul_terminated, EXPECT_NUL);
+
+    /* Invalid base64 clears */
+    static const char *const bad[] = {
+        "\033]52;c;@@@@\007",       /* bad alphabet */
+        "\033]52;c;aGk=aGk=\007",   /* padding in the middle */
+        "\033]52;c;a\007",          /* impossible length */
+        "\033]52;c;aG k=\007",      /* whitespace */
+        "\033]52;c;aGk===\007",     /* excess padding */
+    };
+    for (size_t i = 0; i < lenof(bad); i++) {
+        term_datapl(mk->term, PTRLEN_LITERAL("\033]52;c;aGk=\007"));
+        SEQUAL(mk->clip_text->s, "hi");
+        term_datapl(mk->term, ptrlen_from_asciz(bad[i]));
+        SEQUAL(mk->clip_text->s, "");
+    }
+
+    /* Empty data clears, too */
+    term_datapl(mk->term, PTRLEN_LITERAL("\033]52;c;aGk=\007"));
+    term_datapl(mk->term, PTRLEN_LITERAL("\033]52;c;\007"));
+    SEQUAL(mk->clip_text->s, "");
+}
+
+static void test_osc52_rejects(Mock *mk)
+{
+    osc52_setup(mk, true, false);
+
+    /* Malformed: no ';' after the selection */
+    term_datapl(mk->term, PTRLEN_LITERAL("\033]52;aGk=\007"));
+    /* Invalid selection characters */
+    term_datapl(mk->term, PTRLEN_LITERAL("\033]52;x;aGk=\007"));
+    term_datapl(mk->term, PTRLEN_LITERAL("\033]52;c\033;aGk=\007"));
+    /* Overlong selection parameter */
+    term_datapl(mk->term,
+                PTRLEN_LITERAL("\033]52;ccccccccccccccccccccc;aGk=\007"));
+    /* Cut buffers only: nothing we support */
+    term_datapl(mk->term, PTRLEN_LITERAL("\033]52;0;aGk=\007"));
+    /* Aborted by CR / LF / CAN-style ESC */
+    term_datapl(mk->term, PTRLEN_LITERAL("\033]52;c;aG\rk=\007"));
+    term_datapl(mk->term, PTRLEN_LITERAL("\033]52;c;aG\nk=\007"));
+    term_datapl(mk->term, PTRLEN_LITERAL("\033]52;c;aG\033[0m"));
+    IEQUAL(mk->nclipwrites, 0);
+
+    /* With write disabled but read enabled, writes are still refused */
+    osc52_setup(mk, false, true);
+    term_datapl(mk->term, PTRLEN_LITERAL("\033]52;c;aGk=\007"));
+    term_datapl(mk->term, PTRLEN_LITERAL("\033]52;c;!\007"));
+    IEQUAL(mk->nclipwrites, 0);
+}
+
+static void test_osc52_large(Mock *mk)
+{
+    osc52_setup(mk, true, false);
+
+    /* Much larger than OSC_STR_MAX: 96KiB of 'A' -> 128KiB base64 */
+    size_t rawlen = 96 * 1024;
+    strbuf *raw = strbuf_new();
+    for (size_t i = 0; i < rawlen; i++)
+        put_byte(raw, 'A' + i % 26);
+    strbuf *seq = strbuf_new();
+    put_datapl(seq, PTRLEN_LITERAL("\033]52;c;"));
+    base64_encode_bs(BinarySink_UPCAST(seq), ptrlen_from_strbuf(raw), 0);
+    put_byte(seq, '\007');
+    term_datapl(mk->term, ptrlen_from_strbuf(seq));
+    IEQUAL(mk->nclipwrites, 1);
+    IEQUAL(mk->clip_text->len, rawlen);
+    IEQUAL(memcmp(mk->clip_text->s, raw->s, rawlen), 0);
+
+    /* Delivered in small pieces, as from a network connection */
+    mk->nclipwrites = 0;
+    strbuf_clear(mk->clip_text);
+    for (size_t i = 0; i < seq->len; i += 1000)
+        term_data(mk->term, seq->s + i,
+                  seq->len - i < 1000 ? seq->len - i : 1000);
+    IEQUAL(mk->nclipwrites, 1);
+    IEQUAL(mk->clip_text->len, rawlen);
+
+    /* Over the limit: ignored entirely, never truncated */
+    mk->nclipwrites = 0;
+    strbuf_clear(seq);
+    put_datapl(seq, PTRLEN_LITERAL("\033]52;c;"));
+    for (size_t i = 0; i < OSC52_MAX_PAYLOAD + 4; i++)
+        put_byte(seq, 'Q');
+    put_byte(seq, '\007');
+    term_datapl(mk->term, ptrlen_from_strbuf(seq));
+    IEQUAL(mk->nclipwrites, 0);
+    IEQUAL(mk->term->osc52_buf == NULL, true);
+
+    /* And the next sequence works normally */
+    term_datapl(mk->term, PTRLEN_LITERAL("\033]52;c;aGk=\007"));
+    IEQUAL(mk->nclipwrites, 1);
+    SEQUAL(mk->clip_text->s, "hi");
+
+    /* Other OSC strings keep their existing limit and behaviour */
+    term_datapl(mk->term, PTRLEN_LITERAL("\033]2;title\007"));
+    term_update(mk->term);
+    SEQUAL(mk->title->s, "title");
+
+    strbuf_free(seq);
+    strbuf_free(raw);
+}
+
+static void test_osc52_read(Mock *mk)
+{
+    /* Disabled: no request, no reply */
+    osc52_setup(mk, true, false);
+    term_datapl(mk->term, PTRLEN_LITERAL("\033]52;c;?\007"));
+    osc52_flush(mk);
+    IEQUAL(mk->nclipreads, 0);
+    IEQUAL(mk->to_backend->len, 0);
+    /* An unsolicited result is dropped */
+    term_clip_read_result(mk->term, L"secret", 6);
+    osc52_flush(mk);
+    IEQUAL(mk->to_backend->len, 0);
+
+    /* Enabled */
+    osc52_setup(mk, false, true);
+    term_datapl(mk->term, PTRLEN_LITERAL("\033]52;c;?\007"));
+    IEQUAL(mk->nclipreads, 1);
+    IEQUAL(mk->last_clip_read, OSC52_CLIPBOARD);
+    /* A second request while one is outstanding is ignored */
+    term_datapl(mk->term, PTRLEN_LITERAL("\033]52;c;?\007"));
+    IEQUAL(mk->nclipreads, 1);
+    term_clip_read_result(mk->term, L"secret", 6);
+    osc52_flush(mk);
+    SEQUAL(mk->to_backend->s, "\033]52;c;c2VjcmV0\007");
+    /* Only one reply per request */
+    strbuf_clear(mk->to_backend);
+    term_clip_read_result(mk->term, L"again", 5);
+    osc52_flush(mk);
+    IEQUAL(mk->to_backend->len, 0);
+
+    /* Selection parameter is echoed; platform newlines become LF */
+    term_datapl(mk->term, PTRLEN_LITERAL("\033]52;;?\033\\"));
+    IEQUAL(mk->nclipreads, 2);
+    {
+        static const wchar_t nl[] = SEL_NL;
+        wchar_t buf[16];
+        size_t n = 0;
+        buf[n++] = L'a';
+        for (size_t i = 0; i < lenof(nl); i++)
+            buf[n++] = nl[i];
+        buf[n++] = L'b';
+        term_clip_read_result(mk->term, buf, n);
+    }
+    osc52_flush(mk);
+    SEQUAL(mk->to_backend->s, "\033]52;;YQpi\007");     /* "a\nb" */
+
+    /* Empty/unreadable clipboard: empty reply, not silence */
+    strbuf_clear(mk->to_backend);
+    term_datapl(mk->term, PTRLEN_LITERAL("\033]52;c;?\007"));
+    term_clip_read_result(mk->term, NULL, 0);
+    osc52_flush(mk);
+    SEQUAL(mk->to_backend->s, "\033]52;c;\007");
+
+    /* Read enabled, write disabled: a read is not a write */
+    IEQUAL(mk->nclipwrites, 0);
+}
+
+static void test_osc52_multiplexers(Mock *mk)
+{
+    osc52_setup(mk, true, false);
+
+    /*
+     * GNU screen DCS passthrough, as emitted by Claude Code when $STY
+     * is set: base64 split into 76-byte chunks, each wrapped in its
+     * own DCS. If screen is NOT actually in the way (e.g. ssh from
+     * inside screen to a host where PuTTY sees the raw bytes), the
+     * first chunk's OSC 52 is still parsed.
+     */
+    term_datapl(mk->term,
+                PTRLEN_LITERAL("\033P\033]52;c;aGVsbG8=\007\033\\"));
+    IEQUAL(mk->nclipwrites, 1);
+    SEQUAL(mk->clip_text->s, "hello");
+
+    /*
+     * tmux DCS passthrough, as sent by opencode and Claude Code when
+     * $TMUX is set. tmux normally unwraps it, but if PuTTY sees it
+     * directly it must not leave junk on the screen, and the OSC 52
+     * inside should still take effect.
+     */
+    mk->nclipwrites = 0;
+    term_datapl(mk->term, PTRLEN_LITERAL("\033[H\033[2J"));
+    term_datapl(mk->term,
+                PTRLEN_LITERAL("\033Ptmux;\033\033]52;c;aGk=\007\033\\"));
+    IEQUAL(get_termchar(mk->term, 0, 0).chr, mk->term->basic_erase_char.chr);
+    IEQUAL(mk->nclipwrites, 1);
+    SEQUAL(mk->clip_text->s, "hi");
+
+    /*
+     * opencode and Claude Code inside tmux send both the raw and the
+     * wrapped form; whichever reaches us, the result is the same.
+     */
+    mk->nclipwrites = 0;
+    term_datapl(mk->term, PTRLEN_LITERAL(
+                    "\033]52;c;aGVsbG8=\007"
+                    "\033Ptmux;\033\033]52;c;aGVsbG8=\007\033\\"));
+    IEQUAL(mk->nclipwrites, 2);
+    SEQUAL(mk->clip_text->s, "hello");
+    IEQUAL(get_termchar(mk->term, 0, 0).chr, mk->term->basic_erase_char.chr);
+
+    /* ESC ESC inside an ordinary OSC also aborts it cleanly */
+    term_datapl(mk->term, PTRLEN_LITERAL("\033]2;zz\033\033[Hq"));
+    IEQUAL(get_termchar(mk->term, 0, 0).chr, CSET_ASCII | 'q');
+}
+
 int main(void)
 {
     Mock *mk = mock_new();
     mk->term = term_init(mk->conf, mk->ucsdata, &mk->tw);
+    Ldisc *ldisc = ldisc_create(mk->conf, mk->term, &mk->backend, &mk->seat);
 
     test_hello_world(mk);
     test_wrap(mk);
     test_nonwrap(mk);
     test_wintitle(mk);
+    test_osc52_disabled_by_default(mk);
+    test_osc52_write(mk);
+    test_osc52_write_utf8(mk);
+    test_osc52_clear(mk);
+    test_osc52_rejects(mk);
+    test_osc52_large(mk);
+    test_osc52_read(mk);
+    test_osc52_multiplexers(mk);
 
     bool failed = mk->any_test_failed;
+    ldisc_free(ldisc);
     mock_free(mk);
 
     if (failed) {

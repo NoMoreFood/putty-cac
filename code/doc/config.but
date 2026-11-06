@@ -925,6 +925,38 @@ response to a command from the server. If you find PuTTY is doing this
 unexpectedly or inconveniently, you can tell PuTTY not to respond to
 that server command.
 
+\S{config-features-osc52-write} Allowing remote \i{clipboard} writing (\i{OSC 52})
+
+Many terminal applications can copy text to the clipboard of the
+machine you are sitting at, even when they run on a remote server,
+by sending the xterm \q{OSC 52} escape sequence. Examples include
+\c{tmux} (with \c{set-clipboard on}), \c{screen}, Neovim, Vim
+plugins, and AI coding assistants such as Claude Code and opencode.
+
+This feature is disabled by default. If you enable it, PuTTY will
+write the text sent in such sequences to the local clipboard. A
+sequence whose data is not valid base64 (for example, \c{!}) clears
+the clipboard. Sequences longer than 1 megabyte of encoded data are
+ignored.
+
+NOTE that this allows anything that can write to your terminal to
+replace your clipboard contents \dash for example a file you merely
+\c{cat}. If you then paste into another program without looking,
+you may paste something you did not intend.
+
+\S{config-features-osc52-read} Allowing remote \i{clipboard} reading
+
+The OSC 52 sequence can also ask the terminal to send the current
+local clipboard contents back to the server. PuTTY supports this
+only if this separate option is enabled; it is disabled by default.
+
+NOTE that this feature is a \e{serious \i{security hazard}}. With it
+enabled, any program on the server, or any data that is merely
+displayed in your terminal, can silently obtain whatever is on your
+local clipboard, including passwords you have copied from elsewhere.
+We recommend you leave it disabled unless you completely trust every
+server you connect to with this configuration.
+
 \S{config-features-dbackspace} Disabling \i{destructive backspace}
 
 Normally, when PuTTY receives character 127 (^?) from the server, it
