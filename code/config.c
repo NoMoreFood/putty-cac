@@ -2658,10 +2658,10 @@ void setup_config_box(struct controlbox *b, bool midsession,
                   HELPCTX(features_clearscroll),
                   conf_checkbox_handler,
                   I(CONF_no_remote_clearscroll));
-    ctrl_checkbox(s, "Allow remote-controlled clipboard writing (OSC 52)",
+    ctrl_checkbox(s, "Allow remote clipboard writing (OSC 52)",
                   'm', HELPCTX(features_osc52_write),
                   conf_checkbox_handler, I(CONF_allow_osc52_write));
-    ctrl_checkbox(s, "Allow remote-controlled clipboard reading (SECURITY)",
+    ctrl_checkbox(s, "Allow remote clipboard reading (SECURITY)",
                   'i', HELPCTX(features_osc52_read),
                   conf_checkbox_handler, I(CONF_allow_osc52_read));
     ctrl_checkbox(s, "Disable destructive backspace on server sending ^?",'b',
