@@ -102,7 +102,15 @@
 <?define ProgramName = "PuTTY$(var.Bitness)" ?>
 
 <?ifdef PUTTY_CAC ?>
-  <?define PuTTYimp_Component_GUID = "F6BFDB1B-6B1E-49F2-8E50-267B867160C7" ?>
+  <?if $(var.RealPlatform) = x64 ?>
+    <?define PuTTYimp_Component_GUID = "31CBFD4E-6ADE-418A-AFFC-A7A137BFC240" ?>
+  <?elseif $(var.RealPlatform) = x86 ?>
+    <?define PuTTYimp_Component_GUID = "F6BFDB1B-6B1E-49F2-8E50-267B867160C7" ?>
+  <?elseif $(var.RealPlatform) = Arm ?>
+    <?define PuTTYimp_Component_GUID = "5921D8CD-C102-43BC-AC9E-0485FF01CB9C" ?>
+  <?elseif $(var.RealPlatform) = Arm64 ?>
+    <?define PuTTYimp_Component_GUID = "E173DF85-2EAE-474A-853B-36B1BFCF4E6E" ?>
+  <?endif ?>
 <?endif ?>
 <Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
 
