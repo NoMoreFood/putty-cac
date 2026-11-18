@@ -28,7 +28,8 @@ extern "C"
 
 namespace terminaltext
 {
-inline void Append(std::wstring &text, unsigned long character, const unicode_data &encoding)
+inline bool Append(std::wstring &text, unsigned long character, const unicode_data &encoding,
+    unsigned long following = UCSWIDE)
 {
     // Decode terminal character sets before encoding Unicode as UTF-16.
     switch (character & CSET_MASK)
@@ -42,6 +43,19 @@ inline void Append(std::wstring &text, unsigned long character, const unicode_da
     case CSET_ACP: character = encoding.unitab_font[character & 0xFF]; break;
     case CSET_OEMCP: character = encoding.unitab_oemcp[character & 0xFF]; break;
     }
+    if (DIRECT_FONT(character))
+    {
+        // A double-byte font glyph occupies two terminal cells but has one search position.
+        bool pair = following != UCSWIDE && (following < 256 || DIRECT_CHAR(following) || DIRECT_FONT(following)) &&
+            IsDBCSLeadByteEx(encoding.font_codepage, static_cast<BYTE>(character));
+        char bytes[] = {static_cast<char>(character), static_cast<char>(following)};
+        wchar_t decoded[2];
+        int length = MultiByteToWideChar(encoding.font_codepage, MB_ERR_INVALID_CHARS, bytes, pair ? 2 : 1,
+            decoded, static_cast<int>(std::size(decoded)));
+        if (length) text.append(decoded, length);
+        else text += L'\uFFFD';
+        return pair && length;
+    }
     if (character > 0x10FFFF || (character >= 0xD800 && character <= 0xDFFF)) character = L' ';
     if (character > 0xFFFF)
     {
@@ -49,6 +63,7 @@ inline void Append(std::wstring &text, unsigned long character, const unicode_da
         text += static_cast<wchar_t>(0xDC00 + ((character - 0x10000) & 0x3FF));
     }
     else text += static_cast<wchar_t>(character);
+    return false;
 }
 
 struct Cell
@@ -225,11 +240,13 @@ class Reader
         for (int column = 0; column < line.cols; ++column)
         {
             if (characters_[column].chr == UCSWIDE) continue;
+            auto &text = glyphs[column];
             int cell = column;
             termchar glyph = characters_[cell];
             for (int count = 0; count <= CC_LIMIT; ++count)
             {
-                Append(glyphs[column], glyph.chr, seat.ucsdata);
+                unsigned long following = !count && column + 1 < line.cols ? characters_[column + 1].chr : UCSWIDE;
+                if (Append(text, glyph.chr, seat.ucsdata, following)) ++column;
                 int next = glyph.cc_next;
                 if (!next) break;
                 if (count == CC_LIMIT || next < -cell || next >= line.cols * (CC_LIMIT + 1) - cell) return false;
@@ -364,6 +381,7 @@ class Reader
             state = value & ~0xFFUL;
             return value;
         };
+        bool trail = false;
         for (int stream = 0; stream < 4 && valid; ++stream)
         {
             unsigned long state = 0;
@@ -393,14 +411,16 @@ class Reader
                     }
                     else
                     {
-                        if (decoded_[column] != UCSWIDE) Append(glyphs[column], decoded_[column], seat.ucsdata);
+                        bool emit = !trail && decoded_[column] != UCSWIDE;
+                        trail = emit && Append(glyphs[column], decoded_[column], seat.ucsdata,
+                            column + 1 < columns ? decoded_[column + 1] : UCSWIDE);
                         for (int combining = 0; valid; ++combining)
                         {
                             unsigned long initial = 0;
                             unsigned long value = character(initial);
                             if (!value) break;
                             if (combining == CC_LIMIT) return false;
-                            if (decoded_[column] != UCSWIDE) Append(glyphs[column], value, seat.ucsdata);
+                            if (emit) Append(glyphs[column], value, seat.ucsdata);
                         }
                     }
                     ++column;
