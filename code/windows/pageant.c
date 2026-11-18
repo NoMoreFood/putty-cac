@@ -343,9 +343,6 @@ struct keylist_update_ctx {
 
 struct keylist_display_data {
     strbuf *alg, *bits, *hash, *comment, *info;
-#ifdef PUTTY_CAC
-    bool provider_backed;
-#endif
 };
 
 static void keylist_update_callback(
@@ -362,10 +359,6 @@ static void keylist_update_callback(
     disp->hash = strbuf_new();
     disp->comment = strbuf_new();
     disp->info = strbuf_new();
-#ifdef PUTTY_CAC
-    disp->provider_backed = key->ssh_version == 2 &&
-        pageant_ssh2_blob_is_provider(ptrlen_from_strbuf(key->blob));
-#endif
 
     /* There is at least one key, so the controls for removing keys
      * should be enabled */
@@ -412,6 +405,18 @@ static void keylist_update_callback(
     }
 
     put_dataz(disp->comment, comment);
+#ifdef PUTTY_CAC
+    if (key->ssh_version == 2 && pageant_ssh2_blob_is_provider(ptrlen_from_strbuf(key->blob))) {
+        char *subject = cert_subject_string(comment);
+        if (subject) {
+            strbuf_clear(disp->comment);
+            put_dataz(disp->comment, subject);
+            sfree(subject);
+        }
+        strbuf_clear(disp->hash);
+        put_data(disp->hash, comment, cert_is_pkcspath(comment) ? strcspn(comment, "=") : strlen(comment));
+    }
+#endif
 
     SIZE sz;
     if (disp->bits->len) {
@@ -777,22 +782,6 @@ static INT_PTR CALLBACK KeyListProc(HWND hwnd, UINT msg,
                            disp->bits->s, disp->bits->len, NULL);
             }
 
-#ifdef PUTTY_CAC
-            if (disp->provider_backed && cert_is_certpath(disp->comment->s))
-            {
-                // replace the has with the thumbprint
-                LPSTR thumbprint = _strdup(disp->comment->s);
-                if (cert_is_pkcspath(disp->comment->s) && strchr(thumbprint,'=') != NULL)
-                {
-                    strchr(thumbprint, '=')[0] = '\0';
-                }
-                ExtTextOut(di->hDC, di->rcItem.left + r.right + colpos_hash,
-                    di->rcItem.top, ETO_CLIPPED, &di->rcItem,
-                    thumbprint, strlen(thumbprint), NULL);
-                free(thumbprint);
-            }
-            else
-#endif // PUTTY_CAC
             ExtTextOut(di->hDC, di->rcItem.left + r.right + colpos_hash,
                        di->rcItem.top, ETO_CLIPPED, &di->rcItem,
                        disp->hash->s, disp->hash->len, NULL);
@@ -803,21 +792,6 @@ static INT_PTR CALLBACK KeyListProc(HWND hwnd, UINT msg,
                 put_byte(sb, '\t');
                 put_datapl(sb, ptrlen_from_strbuf(disp->info));
             }
-
-#ifdef PUTTY_CAC
-            if (disp->provider_backed && cert_is_certpath(disp->comment->s))
-            {
-                // replace the comment with the subject name
-                LPSTR subjectname = cert_subject_string(disp->comment->s);
-                if (subjectname != NULL)
-                {
-                    TabbedTextOut(di->hDC, di->rcItem.left + r.right + colpos_comment,
-                        di->rcItem.top, subjectname, strlen(subjectname), 0, NULL, 0);
-                    sfree(subjectname);
-                }
-            }
-            else
-#endif // PUTTY_CAC
 
             TabbedTextOut(di->hDC, di->rcItem.left + r.right + colpos_comment,
                           di->rcItem.top, sb->s, sb->len, 0, NULL, 0);
