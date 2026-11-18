@@ -9,6 +9,7 @@
 
 #include "ssh.h"
 #include "mpint.h"
+#include "ecc.h"
 
 #define DEFINE_VARIABLES
 #include "cert_pkcs.h"
@@ -43,10 +44,6 @@ void pkcs_lookup_token_cert(CK_FUNCTION_LIST_PTR pFunctionList,
 	LPCSTR szLibrary, LPCBYTE pbThumb,
 	CK_SESSION_HANDLE_PTR phSession, CK_OBJECT_HANDLE_PTR phObject,
 	CK_ATTRIBUTE aFindCriteria[], CK_ULONG iFindCriteria, BOOL bReturnFirst);
-
-// abbreviated ecc structures since they are hidden in the ecc code
-struct WeierstrassPoint { mp_int *X, *Y, *Z; WeierstrassCurve *wc; };
-struct WeierstrassCurve { mp_int *p; MontyContext *mc; ModsqrtContext *sc; mp_int *a, *b; };
 
 #define PKCS_MAX_ECDSA_COORDINATE_SIZE 66
 
@@ -168,7 +165,8 @@ BYTE * cert_pkcs_sign(struct ssh2_userkey * userkey, LPCBYTE pDataToSign, int iD
 	if (pFunctionList == NULL) return NULL;
 
 	// handle lookup of rsa key
-	LPBYTE pLookupValue = NULL;
+	LPBYTE pLookupValue = NULL, pModulus = NULL;
+	BYTE pEncoded[4 + 2 * PKCS_MAX_ECDSA_COORDINATE_SIZE];
 	CK_ULONG iLookupSize = 0;
 	CK_KEY_TYPE oType = 0;
 	CK_ATTRIBUTE_TYPE oAttribute = 0;
@@ -180,40 +178,25 @@ BYTE * cert_pkcs_sign(struct ssh2_userkey * userkey, LPCBYTE pDataToSign, int iD
 		oAttribute = CKA_EC_POINT;
 		struct ecdsa_key *ec = container_of(userkey->key, struct ecdsa_key, sshk);
 
-		// determine key size (the length of x and y must be same and be bit count of finite field p).
-		size_t iKeySize = (mp_get_nbits(ec->publicKey->wc->p) + 7) / 8;
-		
-		// combine the x and y bytes in to a continuous structure
-		BYTE pDataToEncode[1 + 2 * PKCS_MAX_ECDSA_COORDINATE_SIZE];
+		// Encode the affine point as the DER octet string used by CKA_EC_POINT.
+		size_t iKeySize = ec->curve->fieldBytes;
+		BYTE pPoint[1 + 2 * PKCS_MAX_ECDSA_COORDINATE_SIZE] = { 0x04 };
 		if (iKeySize > PKCS_MAX_ECDSA_COORDINATE_SIZE) return NULL;
-		pDataToEncode[0] = 0x04;
-		mp_int * X = monty_export(ec->curve->w.wc->mc, ec->publicKey->X);
-		mp_int * Y = monty_export(ec->curve->w.wc->mc, ec->publicKey->Y);
+		mp_int *x, *y;
+		ecc_weierstrass_get_affine(ec->publicKey, &x, &y);
 		for (size_t i = 0; i < iKeySize; i++)
 		{
-			pDataToEncode[1 + i] = mp_get_byte(X, i);
-			pDataToEncode[1 + i + iKeySize] = mp_get_byte(Y, i);
+			pPoint[iKeySize - i] = mp_get_byte(x, i);
+			pPoint[2 * iKeySize - i] = mp_get_byte(y, i);
 		}
-		mp_free(X);
-		mp_free(Y);
+		mp_free(x);
+		mp_free(y);
 
-		// reverse for big-endian
-		cert_reverse_array(1 + pDataToEncode, iKeySize);
-		cert_reverse_array(1 + pDataToEncode + iKeySize, iKeySize);
-
-		// encode the structure and an der octet string
-		CRYPT_DATA_BLOB tDataToEncode = { 1 + iKeySize + iKeySize, pDataToEncode };
-		CRYPT_ENCODE_PARA tParam = { sizeof(CRYPT_ENCODE_PARA),
-			(PFN_CRYPT_ALLOC)malloc, (PFN_CRYPT_FREE)free };
-		BOOL bEncodeResult = CryptEncodeObjectEx(PKCS_7_ASN_ENCODING, X509_OCTET_STRING,
-			&tDataToEncode, CRYPT_ENCODE_ALLOC_FLAG, &tParam, &pLookupValue, &iLookupSize);
-
-		// ensure encoding was successful
-		if (bEncodeResult == FALSE)
-		{
-			if (pLookupValue != NULL) free(pLookupValue);
-			return NULL;
-		}
+		CRYPT_DATA_BLOB tPoint = { (DWORD)(1 + 2 * iKeySize), pPoint };
+		iLookupSize = sizeof(pEncoded);
+		if (!CryptEncodeObjectEx(X509_ASN_ENCODING, X509_OCTET_STRING, &tPoint,
+			0, NULL, pEncoded, &iLookupSize)) return NULL;
+		pLookupValue = pEncoded;
 	}
 
 	// rsa
@@ -223,7 +206,7 @@ BYTE * cert_pkcs_sign(struct ssh2_userkey * userkey, LPCBYTE pDataToSign, int iD
 		oAttribute = CKA_MODULUS;
 		struct RSAKey * rsa = container_of(userkey->key, struct RSAKey, sshk);
 		iLookupSize = rsa->bytes;
-		pLookupValue = malloc(iLookupSize);
+		pLookupValue = pModulus = malloc(iLookupSize);
 		if (pLookupValue == NULL) return NULL;
 		for (int i = 0; i < iLookupSize; i++)
 		{
@@ -250,7 +233,7 @@ BYTE * cert_pkcs_sign(struct ssh2_userkey * userkey, LPCBYTE pDataToSign, int iD
 		&hPublicKey, aFindPubCriteria, _countof(aFindPubCriteria), TRUE);
 
 	// cleanup the modulus since we no longer need it
-	free(pLookupValue);
+	free(pModulus);
 
 	// check for error
 	if (hSession == CK_INVALID_HANDLE || hPublicKey == CK_INVALID_HANDLE)
