@@ -297,7 +297,7 @@ BYTE * cert_pkcs_sign(struct ssh2_userkey * userkey, LPCBYTE pDataToSign, int iD
 	if (iCertListSize == 0)
 	{
 		BOOL bCached = FALSE;
-		LPSTR szPin = bProtectedAuthentication ? NULL : cert_pin(userkey->comment, FALSE, NULL, &bCached);
+		LPSTR szPin = bProtectedAuthentication ? NULL : cert_pin(userkey->comment, FALSE, &bCached);
 		if (!bProtectedAuthentication && szPin == NULL)
 		{
 			// error
@@ -335,7 +335,7 @@ BYTE * cert_pkcs_sign(struct ssh2_userkey * userkey, LPCBYTE pDataToSign, int iD
 		// add to pin cache if enabled
 		if (szPin != NULL && cert_cache_enabled(CERT_QUERY))
 		{
-			cert_pin(userkey->comment, FALSE, szPin, NULL);
+			cert_cache_pin(userkey->comment, FALSE, szPin);
 		}
 
 		// cleanup creds

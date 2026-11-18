@@ -192,6 +192,9 @@ BYTE* cert_capi_sign(struct ssh2_userkey* userkey, LPCBYTE pDataToSign, int iDat
 	{
 		LPBYTE pSig = NULL;
 		DWORD iSig = 0;
+		void *pin = NULL;
+		size_t pinSize = 0;
+		BOOL widePin = FALSE, pinAccepted = FALSE, providerPrompt = FALSE;
 
 		HCRYPTPROV_OR_NCRYPT_KEY_HANDLE hCryptProv = 0;
 		NCRYPT_KEY_HANDLE hNCryptKey = 0;
@@ -200,12 +203,14 @@ BYTE* cert_capi_sign(struct ssh2_userkey* userkey, LPCBYTE pDataToSign, int iDat
 		if (cert_capi_open_ncrypt_key(pCertCtx, pProviderInfo, &hNCryptProv, &hNCryptKey))
 		{
 			// set pin prompt
-			WCHAR* szPin = NULL;
-			if (cert_cache_enabled(CERT_QUERY) &&
-				(szPin = cert_pin(userkey->comment, TRUE, NULL, NULL)) != NULL)
+			widePin = TRUE;
+			if (cert_cache_enabled(CERT_QUERY) && (pin = cert_pin(userkey->comment, TRUE, NULL)) != NULL)
 			{
-				DWORD iLength = (1 + wcslen(szPin)) * sizeof(WCHAR);
-				(void)NCryptSetProperty(hNCryptKey, NCRYPT_PIN_PROPERTY, (PBYTE)szPin, iLength, 0);
+				pinSize = (wcslen(pin) + 1) * sizeof(WCHAR);
+				SECURITY_STATUS status = NCryptSetProperty(hNCryptKey, NCRYPT_PIN_PROPERTY, pin, (DWORD)pinSize, 0);
+				pinAccepted = status == ERROR_SUCCESS;
+				providerPrompt = status == NTE_NOT_SUPPORTED || status == NTE_INVALID_PARAMETER ||
+					status == ERROR_NOT_SUPPORTED;
 			}
 
 			// setup structure padding 
@@ -229,16 +234,7 @@ BYTE* cert_capi_sign(struct ssh2_userkey* userkey, LPCBYTE pDataToSign, int iDat
 				pSignedData = pSig;
 				*iSigLen = iSig;
 				pSig = NULL;
-
-				// add pin to cache if cache is enabled
-				if (cert_cache_enabled(CERT_QUERY) && szPin != NULL)
-				{
-					cert_pin(userkey->comment, TRUE, szPin, NULL);
-				}
 			}
-
-			// cleanup hash structure and pin 
-			if (szPin != NULL) { SecureZeroMemory(szPin, (1 + wcslen(szPin)) * sizeof(WCHAR)); free(szPin); }
 			if (pHashData != NULL) { sfree(pHashData); }
 		}
 		else if (CryptAcquireContextW(&hCryptProv, pProviderInfo->pwszContainerName,
@@ -246,12 +242,14 @@ BYTE* cert_capi_sign(struct ssh2_userkey* userkey, LPCBYTE pDataToSign, int iDat
 			(pProviderInfo->dwFlags & CRYPT_MACHINE_KEYSET) ? CRYPT_MACHINE_KEYSET : 0) != FALSE)
 		{
 			// set pin prompt
-			LPSTR szPin = NULL;
-			if (cert_cache_enabled(CERT_QUERY) &&
-				(szPin = cert_pin(userkey->comment, FALSE, NULL, NULL)) != NULL)
+			if (cert_cache_enabled(CERT_QUERY) && (pin = cert_pin(userkey->comment, FALSE, NULL)) != NULL)
 			{
-				CryptSetProvParam(hCryptProv, (pProviderInfo->dwKeySpec ==
-					AT_SIGNATURE) ? PP_SIGNATURE_PIN : PP_KEYEXCHANGE_PIN, (LPCBYTE)szPin, 0);
+				pinSize = strlen(pin) + 1;
+				pinAccepted = CryptSetProvParam(hCryptProv,
+					pProviderInfo->dwKeySpec == AT_SIGNATURE ? PP_SIGNATURE_PIN : PP_KEYEXCHANGE_PIN, pin, 0);
+				DWORD status = pinAccepted ? ERROR_SUCCESS : GetLastError();
+				providerPrompt = status == NTE_BAD_TYPE || status == NTE_NOT_SUPPORTED ||
+					status == ERROR_NOT_SUPPORTED || status == ERROR_INVALID_PARAMETER;
 			}
 
 			// CSP implementation
@@ -265,16 +263,7 @@ BYTE* cert_capi_sign(struct ssh2_userkey* userkey, LPCBYTE pDataToSign, int iDat
 				pSignedData = pSig;
 				*iSigLen = iSig;
 				pSig = NULL;
-
-				// add pin to cache if cache is enabled
-				if (cert_cache_enabled(CERT_QUERY) && szPin != NULL)
-				{
-					cert_pin(userkey->comment, FALSE, szPin, NULL);
-				}
 			}
-
-			// cleanup hash structure 
-			if (szPin != NULL) { SecureZeroMemory(szPin, (strlen(szPin) + 1) * sizeof(CHAR)); free(szPin); }
 			if (hHash != (ULONG_PTR)NULL) { CryptDestroyHash(hHash); }
 		}
 
@@ -283,6 +272,16 @@ BYTE* cert_capi_sign(struct ssh2_userkey* userkey, LPCBYTE pDataToSign, int iDat
 		if (hNCryptKey != 0) NCryptFreeObject(hNCryptKey);
 		if (hNCryptProv != 0) NCryptFreeObject(hNCryptProv);
 		if (pSig != NULL) sfree(pSig);
+
+		// Cache only a PIN accepted by a provider that completed the signature.
+		if (pin != NULL)
+		{
+			if (providerPrompt) cert_cache_pin(userkey->comment, widePin, NULL);
+			else if (pinAccepted && pSignedData) cert_cache_pin(userkey->comment, widePin, pin);
+			else cert_pin_clear(userkey->comment);
+			SecureZeroMemory(pin, pinSize);
+			free(pin);
+		}
 	}
 
 	// cleanup certificate handles and return

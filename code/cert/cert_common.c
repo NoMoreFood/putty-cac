@@ -1864,24 +1864,24 @@ VOID cert_pin_clear(LPCSTR szCert)
 			continue;
 		}
 		*ppItem = hItem->NextItem;
-		SecureZeroMemory(hItem->szPin, hItem->iLength);
+		if (hItem->szPin) SecureZeroMemory(hItem->szPin, hItem->iLength);
 		sfree(hItem->szPin);
 		sfree(hItem->szCert);
 		sfree(hItem);
 	}
 }
 
-PVOID cert_pin(LPSTR szCert, BOOL bWide, LPVOID szPin, PBOOL pbCached)
+PVOID cert_pin(LPCSTR szCert, BOOL bWide, PBOOL pbCached)
 {
 	if (pbCached != NULL) *pbCached = FALSE;
-	if (!cert_cache_enabled(CERT_QUERY)) return szPin == NULL ? cert_prompt_pin(bWide) : NULL;
-	if (szPin != NULL) cert_pin_clear(szCert);
+	if (!cert_cache_enabled(CERT_QUERY)) return cert_prompt_pin(bWide);
 
 	// attempt to locate the item in the pin cache
 	for (CACHE_ITEM* hCurItem = PinCacheList; hCurItem != NULL; hCurItem = hCurItem->NextItem)
 	{
 		if (strcmp(hCurItem->szCert, szCert) == 0 && hCurItem->bWide == bWide)
 		{
+			if (!hCurItem->szPin) return NULL;  // The provider handles its own PIN prompt.
 			// Provider callers release returned PINs with free.
 			VOID* pEncrypted = malloc(hCurItem->iLength);
 			if (pEncrypted == NULL) return NULL;
@@ -1898,15 +1898,20 @@ PVOID cert_pin(LPSTR szCert, BOOL bWide, LPVOID szPin, PBOOL pbCached)
 		}
 	}
 
-	// request to add item to pin cache
-	if (szPin != NULL)
-	{
-		// determine length of storage (round up to block size)
+	return cert_prompt_pin(bWide);
+}
+
+void cert_cache_pin(LPCSTR szCert, BOOL bWide, const void *szPin)
+{
+	if (!cert_cache_enabled(CERT_QUERY)) return;
+	cert_pin_clear(szCert);
+	VOID *pEncrypted = NULL;
+	DWORD iCryptLength = 0;
+	if (szPin) {
 		const DWORD iLength = ((bWide) ? sizeof(WCHAR) : sizeof(CHAR)) *
 			(1 + ((bWide) ? wcslen(szPin) : strlen(szPin)));
-		const DWORD iCryptLength = CRYPTPROTECTMEMORY_BLOCK_SIZE *
-			((iLength / CRYPTPROTECTMEMORY_BLOCK_SIZE) + 1);
-		VOID* pEncrypted = snewn(iCryptLength, BYTE);
+		iCryptLength = (iLength + CRYPTPROTECTMEMORY_BLOCK_SIZE - 1) & ~(CRYPTPROTECTMEMORY_BLOCK_SIZE - 1);
+		pEncrypted = snewn(iCryptLength, BYTE);
 		memset(pEncrypted, 0, iCryptLength);
 		memcpy(pEncrypted, szPin, iLength);
 
@@ -1915,21 +1920,17 @@ PVOID cert_pin(LPSTR szCert, BOOL bWide, LPVOID szPin, PBOOL pbCached)
 		{
 			SecureZeroMemory(pEncrypted, iCryptLength);
 			sfree(pEncrypted);
-			return NULL;
+			return;
 		}
-
-		// allocate new item in cache and commit the change
-		CACHE_ITEM* hItem = snew(CACHE_ITEM);
-		hItem->szCert = dupstr(szCert);
-		hItem->szPin = pEncrypted;
-		hItem->iLength = iCryptLength;
-		hItem->bWide = bWide;
-		hItem->NextItem = PinCacheList;
-		PinCacheList = hItem;
-		return NULL;
 	}
 
-	return cert_prompt_pin(bWide);
+	CACHE_ITEM* hItem = snew(CACHE_ITEM);
+	hItem->szCert = dupstr(szCert);
+	hItem->szPin = pEncrypted;
+	hItem->iLength = iCryptLength;
+	hItem->bWide = bWide;
+	hItem->NextItem = PinCacheList;
+	PinCacheList = hItem;
 }
 
 VOID cert_registry_setting_set(LPCSTR sSetting, CERT_SETCMD iCommand)
