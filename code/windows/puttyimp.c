@@ -229,7 +229,7 @@ int wmain(int iArgc, WCHAR** sArgv)
 			// parse the device id to reconstruct from the fido dev path
 			CHAR sVid[9] = "", sPid[9] = "", sId[64] = "";
 			if (sscanf(fido_dev_info_path(tDeviceInfo), 
-				"\\\\?\\hid#%8[^&]&%8[^#]#%64[^#]#{", sVid, sPid, sId) != 3) continue;
+				"\\\\?\\hid#%8[^&]&%8[^#]#%63[^#]#{", sVid, sPid, sId) != 3) continue;
 		
 			// reconstruct the path to open the device handle
 			WCHAR sDevicePath[128] = L"";
