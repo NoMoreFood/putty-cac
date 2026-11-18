@@ -202,6 +202,8 @@ endfunction()
 # Conditionally add PuTTY-CAC compiler customizations
 if(PUTTY_CAC)
   add_compile_definitions(PUTTY_CAC)
+  string(REPLACE "/manifest:no" "/MANIFEST:NO /MANIFESTUAC:NO"
+    CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS}")
   set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded")
   string(REPLACE "/DNDEBUG" "" CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE}")
   string(REPLACE "-DNDEBUG" "" CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE}")

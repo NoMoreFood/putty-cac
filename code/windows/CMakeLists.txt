@@ -231,15 +231,18 @@ add_sources_from_current_dir(crypto
 
 add_executable(puttyimp
   puttyimp.c ../cert/cert_portable.c puttyimp.rc)
-target_link_directories(puttyimp PUBLIC
-  ../contrib/libfido2/lib/${CMAKE_GENERATOR_PLATFORM},
-  contrib/libfido2/lib/${CMAKE_GENERATOR_PLATFORM})
+add_dependencies(puttyimp generated_licence_h)
+set(fido_lib_arch "${CMAKE_C_COMPILER_ARCHITECTURE_ID}")
+if(fido_lib_arch STREQUAL "X86")
+  set(fido_lib_arch Win32)
+endif()
+set(fido_lib_dir "${CMAKE_CURRENT_SOURCE_DIR}/../contrib/libfido2/lib/${fido_lib_arch}")
 target_include_directories(puttyimp PUBLIC ../contrib/libfido2/include)
 target_include_directories(puttyimp PUBLIC ../cert)
-target_link_libraries(puttyimp shlwapi.lib)
-set_target_properties(puttyimp PROPERTIES
-  WIN32_EXECUTABLE OFF
-  LINK_FLAGS "/MANIFESTUAC:\"level='requireAdministrator' uiAccess='false'\"")
+target_link_libraries(puttyimp shlwapi.lib
+  "${fido_lib_dir}/fido2.lib" "${fido_lib_dir}/cbor.lib" "${fido_lib_dir}/crypto.lib")
+# The bundled libfido2 and OpenSSL archives ship without their compiler PDBs.
+target_link_options(puttyimp PRIVATE $<$<CONFIG:Debug>:/IGNORE:4099>)
 installed_program(puttyimp)
 
 add_executable(puttytab

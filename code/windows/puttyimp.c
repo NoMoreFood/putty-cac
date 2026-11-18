@@ -15,9 +15,6 @@
 #include "cert_portable.h"
 
 #pragma comment(lib,"setupapi.lib")
-#pragma comment(lib,"crypto.lib")
-#pragma comment(lib,"fido2.lib")
-#pragma comment(lib,"cbor.lib")
 #pragma comment(lib,"bcrypt.lib")
 #pragma comment(lib,"SetupAPI.lib")
 #pragma comment(lib,"Hid.lib")

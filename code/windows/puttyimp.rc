@@ -8,5 +8,19 @@
 #define APPDESC "PuTTY key import utility"
 
 200 ICON "puttygen.ico"
+1 RT_MANIFEST
+BEGIN
+    "<?xml version='1.0' encoding='UTF-8' standalone='yes'?>\r\n",
+    "<assembly xmlns='urn:schemas-microsoft-com:asm.v1' manifestVersion='1.0'>\r\n",
+    "  <assemblyIdentity name='PuTTYimp' version='0.0.0.0' type='win32' />\r\n",
+    "  <trustInfo xmlns='urn:schemas-microsoft-com:asm.v3'>\r\n",
+    "    <security>\r\n",
+    "      <requestedPrivileges>\r\n",
+    "        <requestedExecutionLevel level='requireAdministrator' uiAccess='false' />\r\n",
+    "      </requestedPrivileges>\r\n",
+    "    </security>\r\n",
+    "  </trustInfo>\r\n",
+    "</assembly>\r\n"
+END
 
 #include "version.rc2"
