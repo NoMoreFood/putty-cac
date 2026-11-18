@@ -130,7 +130,8 @@ EXTERN PVOID cert_pin(LPSTR szCert, BOOL bWide, LPVOID szPin, PBOOL pbCached);
 EXTERN VOID cert_pin_clear(LPCSTR szCert);
 EXTERN PVOID cert_prompt_pin(BOOL bWide);
 EXTERN BOOL cert_capi_delete_key(LPCSTR szCert);
-EXTERN BOOL fido_create_key(LPCSTR szAlgName, LPCSTR szDisplayName, LPCSTR szApplication, BOOL bResidentKey, BOOL bUserVerification);
+EXTERN HRESULT fido_create_key(LPCSTR szAlgName, LPCSTR szDisplayName, LPCSTR szApplication,
+	BOOL bResidentKey, BOOL bUserVerification);
 EXTERN BOOL fido_delete_key(LPCSTR szCert);
 EXTERN VOID fido_import_keys();
 EXTERN LPSTR fido_import_openssh_key();

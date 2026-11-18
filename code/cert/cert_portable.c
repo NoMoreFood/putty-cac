@@ -4,12 +4,14 @@
 
 #include <windows.h>
 #include <shlwapi.h>
+#include <sddl.h>
 #include <objbase.h>
 #include <stdlib.h>
 #include <string.h>
 #include <wchar.h>
 
 #include "cert_portable.h"
+#include "cert_fido.h"
 
 #pragma comment(lib,"shlwapi.lib")
 #pragma comment(lib,"ole32.lib")
@@ -414,6 +416,144 @@ LONG WINAPI cert_portable_RegSetKeyValueA(HKEY hKey, LPCSTR lpSubKey, LPCSTR lpV
 	if (cert_portable_redirect_a(hKey, lpSubKey, &hUseKey, &sUseSubKey))
 		return RegSetKeyValueA(hUseKey, sUseSubKey, lpValueName, dwType, lpData, cbData);
 	return RegSetKeyValueA(hKey, lpSubKey, lpValueName, dwType, lpData, cbData);
+}
+
+LPWSTR fido_get_user_id(void)
+{
+	HANDLE token;
+	if (!OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, &token)) return NULL;
+	union { TOKEN_USER user; BYTE data[TOKEN_USER_MAX_SIZE]; } info;
+	DWORD size = sizeof(info);
+	LPWSTR sid = NULL;
+	if (GetTokenInformation(token, TokenUser, &info, size, &size))
+		ConvertSidToStringSidW(info.user.User.Sid, &sid);
+	CloseHandle(token);
+	return sid;
+}
+
+HANDLE cert_fido_cache_lock(LPCWSTR sid)
+{
+	// The importer and its caller need only wait and release rights, including across elevation.
+	BOOL portable = cert_portable_enabled();
+	LPWSTR current = sid ? NULL : fido_get_user_id();
+	if (!sid) sid = current;
+	WCHAR name[256], sddl[384];
+	PSECURITY_DESCRIPTOR sd = NULL;
+	BOOL ready = sid && swprintf_s(name, _countof(name), L"Global\\PuTTYCACFidoCredentialCache-%s",
+		portable ? L"Portable" : sid) > 0 &&
+		swprintf_s(sddl, _countof(sddl), L"D:P(A;;0x100001;;;%s)(A;;0x100001;;;BA)(A;;0x100001;;;SY)%s"
+			L"S:(ML;;NW;;;ME)", sid, portable ? L"(A;;0x100001;;;IU)" : L"") > 0 &&
+		ConvertStringSecurityDescriptorToSecurityDescriptorW(sddl, SDDL_REVISION_1, &sd, NULL);
+	LocalFree(current);
+	if (!ready) return NULL;
+	SECURITY_ATTRIBUTES sa = { sizeof(sa), sd, FALSE };
+	HANDLE mutex = CreateMutexExW(&sa, name, 0, SYNCHRONIZE | MUTEX_MODIFY_STATE);
+	LocalFree(sd);
+	if (mutex) {
+		DWORD wait = WaitForSingleObject(mutex, INFINITE);
+		if (wait == WAIT_OBJECT_0 || wait == WAIT_ABANDONED) return mutex;
+		CloseHandle(mutex);
+	}
+	return NULL;
+}
+
+void cert_fido_cache_unlock(HANDLE mutex)
+{
+	ReleaseMutex(mutex);
+	CloseHandle(mutex);
+}
+
+BOOL cert_fido_update_cache(LPCWSTR sid, LPCWSTR app, const fido_public_key_buffer_t *key, DWORD key_len,
+	const BYTE *id, DWORD id_len, DWORD verification, const CRYPT_DATA_BLOB *expected)
+{
+	if (!app || !id || !id_len || id_len > FIDO_MAX_CREDID_LEN ||
+		(key && (key_len < sizeof(key->tHeader) || key_len > sizeof(*key)))) return FALSE;
+
+	// Address the initiating user's cache even when the helper runs under a different account.
+	WCHAR path[256] = FIDO_REG_ROOT;
+	if (sid) {
+		PSID parsed;
+		if (!ConvertStringSidToSidW(sid, &parsed)) return FALSE;
+		LocalFree(parsed);
+		if (wcslen(sid) + _countof(FIDO_REG_ROOT) + 1 > _countof(path)) return FALSE;
+		swprintf_s(path, _countof(path), L"%s\\%s", sid, FIDO_REG_ROOT);
+	}
+	HANDLE mutex = cert_fido_cache_lock(sid);
+	if (!mutex) return FALSE;
+	HKEY root = NULL;
+	BOOL success = FALSE;
+	HKEY user = sid ? HKEY_USERS : HKEY_CURRENT_USER;
+	if ((key ?
+		cert_portable_RegCreateKeyExW(user, path, 0, NULL, 0, KEY_READ | KEY_WRITE, NULL, &root, NULL) :
+		cert_portable_RegOpenKeyExW(user, path, 0, KEY_READ | KEY_WRITE, &root)) != ERROR_SUCCESS) goto out;
+
+	// Snapshot all three values before replacing or removing a credential.
+	fido_public_key_buffer_t old_key;
+	BYTE old_id[FIDO_MAX_CREDID_LEN];
+	DWORD old_verification;
+	struct {
+		LPCWSTR name;
+		DWORD type, flags;
+		const void *data;
+		DWORD len;
+		void *old;
+		DWORD old_len;
+		BOOL present;
+	} values[] = {
+		{ L"PubKeyBlobs", REG_BINARY, RRF_RT_REG_BINARY, key, key_len, &old_key, sizeof(old_key) },
+		{ L"CredIdBlobs", REG_BINARY, RRF_RT_REG_BINARY, id, id_len, old_id, sizeof(old_id) },
+		{ L"UserVerification", REG_DWORD, RRF_RT_REG_DWORD, &verification, sizeof(verification),
+			&old_verification, sizeof(old_verification) },
+	};
+	for (BOOL confirmed = FALSE; ; confirmed = TRUE) {
+		for (size_t i = 0; i < _countof(values); i++) {
+			BYTE now[FIDO_MAX_CREDID_LEN];
+			DWORD size = confirmed ? sizeof(now) : values[i].old_len;
+			LSTATUS rc = RegGetValueW(root, values[i].name, app, values[i].flags, NULL,
+				confirmed ? now : values[i].old, &size);
+			BOOL present = rc == ERROR_SUCCESS;
+			if (!present && rc != ERROR_FILE_NOT_FOUND && rc != ERROR_PATH_NOT_FOUND) goto out;
+			if (confirmed && (present != values[i].present ||
+				(present && (size != values[i].old_len || memcmp(now, values[i].old, size))))) goto out;
+			values[i].present = present;
+			values[i].old_len = size;
+		}
+		DWORD old_len = values[1].present ? values[1].old_len : 0;
+		if (expected && (expected->cbData != old_len || (old_len && memcmp(expected->pbData, old_id, old_len))))
+			goto out;
+		BOOL same_id = old_len == id_len && !memcmp(old_id, id, id_len);
+		if (!key && !same_id) goto out;
+		if (confirmed || !key || (expected && old_len) || (!values[0].present && !values[1].present) ||
+			(same_id && values[0].present && values[0].old_len == key_len && !memcmp(&old_key, key, key_len))) break;
+
+		// Wait for the user's decision without blocking readers, then verify the approved snapshot.
+		cert_fido_cache_unlock(mutex);
+		mutex = NULL;
+		if (MessageBoxW(GetForegroundWindow(), L"A different FIDO credential is saved for this application. "
+			L"Replace the saved credential?", L"Replace FIDO Credential", MB_YESNO | MB_ICONQUESTION | MB_DEFBUTTON2)
+			!= IDYES || !(mutex = cert_fido_cache_lock(sid))) goto out;
+	}
+
+	// Restore completed changes if a later value cannot be written.
+	for (size_t i = 0; i < _countof(values); i++) {
+		if (!key && !values[i].present) continue;
+		LSTATUS rc = key ? RegSetKeyValueW(root, values[i].name, app, values[i].type, values[i].data, values[i].len) :
+			RegDeleteKeyValueW(root, values[i].name, app);
+		if (rc == ERROR_SUCCESS) continue;
+		while (i-- > 0) {
+			if (values[i].present)
+				RegSetKeyValueW(root, values[i].name, app, values[i].type, values[i].old, values[i].old_len);
+			else
+				RegDeleteKeyValueW(root, values[i].name, app);
+		}
+		goto out;
+	}
+	success = TRUE;
+
+out:
+	if (root) RegCloseKey(root);
+	if (mutex) cert_fido_cache_unlock(mutex);
+	return success;
 }
 
 static BOOL cert_portable_copy_to_new_file(HKEY hSrc, LPCWSTR sPath)

@@ -13,6 +13,7 @@
 #include <fido/credman.h>
 
 #include "cert_portable.h"
+#include "cert_fido.h"
 
 #pragma comment(lib,"setupapi.lib")
 #pragma comment(lib,"bcrypt.lib")
@@ -161,7 +162,7 @@ int wmain(int iArgc, WCHAR** sArgv)
 		// assume in import mode when run from non-console apps
 		iOperationMode = MODE_IMPORT;
 	}
-	else if (iArgc >= 2 && _wcsicmp(sArgv[1], L"--import-fido") == 0)
+	else if ((iArgc == 2 || iArgc == 3) && _wcsicmp(sArgv[1], L"--import-fido") == 0)
 	{
 		iOperationMode = MODE_IMPORT;
 		if (iArgc == 3) sSidToModify = sArgv[2];
@@ -251,7 +252,7 @@ int wmain(int iArgc, WCHAR** sArgv)
 		{
 			// get relying party list for this device
 			fido_credman_rp_t* tRelyingParty = fido_credman_rp_new();
-			if (tRelyingParty != NULL && (
+			if (tRelyingParty != NULL && fido_dev_supports_credman(tDevice) && (
 				fido_credman_get_dev_rp(tDevice, tRelyingParty, NULL) == FIDO_OK ||
 				fido_credman_get_dev_rp(tDevice, tRelyingParty, GetTokenPin()) == FIDO_OK))
 			{
@@ -286,7 +287,7 @@ int wmain(int iArgc, WCHAR** sArgv)
 						if (iResidentKeyCount > 1) wprintf(L"Notice: application name '%S' has more than one key.", sRelyingPartyId);
 
 						// enumerate resident keys for this relying party
-						for (int iResidentKey = iResidentKeyCount - 1; iResidentKey >= 0; iResidentKey--)
+						for (size_t iResidentKey = iResidentKeyCount; iResidentKey-- > 0;)
 						{
 							// get the credential structure associated with this resident key
 							const fido_cred_t* tCred = fido_credman_rk(tResidentKeyList, iResidentKey);
@@ -307,14 +308,15 @@ int wmain(int iArgc, WCHAR** sArgv)
 							}
 
 							// warn and skip if unsupported type
-							DWORD iMagicByte = 0;
+							fido_public_key_buffer_t key = { 0 };
 							const int iCredAlg = fido_cred_type(tCred);
-							if (iCredAlg == COSE_EDDSA) iMagicByte = BCRYPT_ECDSA_PUBLIC_GENERIC_MAGIC;
-							else if (iCredAlg == COSE_ES256) iMagicByte = BCRYPT_ECDSA_PUBLIC_P256_MAGIC;
-							else if (iCredAlg == COSE_ES384) iMagicByte = BCRYPT_ECDSA_PUBLIC_P384_MAGIC;
-							else if (iCredAlg == COSE_ES512) iMagicByte = BCRYPT_ECDSA_PUBLIC_P521_MAGIC;
-							else
+							switch (iCredAlg)
 							{
+							case COSE_EDDSA: key.tHeader = (BCRYPT_ECCKEY_BLOB){ BCRYPT_ECDSA_PUBLIC_GENERIC_MAGIC, 32 }; break;
+							case COSE_ES256: key.tHeader = (BCRYPT_ECCKEY_BLOB){ BCRYPT_ECDSA_PUBLIC_P256_MAGIC, 32 }; break;
+							case COSE_ES384: key.tHeader = (BCRYPT_ECCKEY_BLOB){ BCRYPT_ECDSA_PUBLIC_P384_MAGIC, 48 }; break;
+							case COSE_ES512: key.tHeader = (BCRYPT_ECCKEY_BLOB){ BCRYPT_ECDSA_PUBLIC_P521_MAGIC, 66 }; break;
+							default:
 								wprintf(L"Unsupported type for relying party '%S'.", sRelyingPartyId);
 								continue;
 							}
@@ -324,24 +326,13 @@ int wmain(int iArgc, WCHAR** sArgv)
 							size_t iPubKeyLen = fido_cred_pubkey_len(tCred);
 							const unsigned char* aCredId = fido_cred_id_ptr(tCred);
 							size_t iCredIdLen = fido_cred_id_len(tCred);
-							DWORD iUserVerification = fido_cred_prot(tCred);
-							const ULONG iKeySize = fido_cred_pubkey_len(tCred) / (iCredAlg == COSE_EDDSA ? 1 : 2);
-
-							// allocate key blob and populate headers
-							int iPublicKeyBobBufferSize = sizeof(PBCRYPT_ECCKEY_BLOB) + fido_cred_pubkey_len(tCred);
-							PBYTE aPublicKeyBlobBuffer = malloc(iPublicKeyBobBufferSize);
-							((PBCRYPT_ECCKEY_BLOB)aPublicKeyBlobBuffer)->cbKey = iKeySize;
-							((PBCRYPT_ECCKEY_BLOB)aPublicKeyBlobBuffer)->dwMagic = iMagicByte;
-							memcpy(&aPublicKeyBlobBuffer[sizeof(BCRYPT_ECCKEY_BLOB)], aPubKeyData, fido_cred_pubkey_len(tCred));
-
-							// create registry keys
-							RegSetKeyValueW(hBaseKey, sPubKeySubKey, sRelyingPartyIdUnicode, REG_BINARY,
-								aPublicKeyBlobBuffer, iPublicKeyBobBufferSize);
-							RegSetKeyValueW(hBaseKey, sCredIdSubKey, sRelyingPartyIdUnicode, REG_BINARY,
-								aCredId, (DWORD)iCredIdLen);
-							RegSetKeyValueW(hBaseKey, sUserVerSubKey, sRelyingPartyIdUnicode, REG_DWORD,
-								&iUserVerification, (DWORD)sizeof(iUserVerification));
-							iKeyCount++;
+							if (!aPubKeyData || !aCredId || !iCredIdLen || iCredIdLen > FIDO_MAX_CREDID_LEN ||
+								iPubKeyLen != key.tHeader.cbKey * (iCredAlg == COSE_EDDSA ? 1 : 2)) continue;
+							memcpy(key.pCoordinates, aPubKeyData, iPubKeyLen);
+							if (cert_fido_update_cache(sSidToModify, sRelyingPartyIdUnicode, &key,
+								(DWORD)(sizeof(key.tHeader) + iPubKeyLen), aCredId, (DWORD)iCredIdLen,
+								fido_cred_prot(tCred), NULL))
+								iKeyCount++;
 						}
 					}
 

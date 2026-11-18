@@ -24,28 +24,14 @@
 #pragma comment(lib,"webauthn.lib")
 #pragma comment(lib,"delayimp.lib")
 
-// registry key locations for fido
-#define FIDO_REG_PUBKEYS L"Software\\SimonTatham\\PuTTY\\Fido\\PubKeyBlobs"
-#define FIDO_REG_CREDIDS L"Software\\SimonTatham\\PuTTY\\Fido\\CredIdBlobs"
-#define FIDO_REG_USERVER L"Software\\SimonTatham\\PuTTY\\Fido\\UserVerification"
-
 // special define since not currently included in header
 #ifndef WEBAUTHN_COSE_ALGORITHM_EDDSA_ED25519
 #define WEBAUTHN_COSE_ALGORITHM_EDDSA_ED25519 -8
 #endif
 
 // Bounds for FIDO identifiers and supported public-key encodings.
-#define FIDO_MAX_APPID_LEN 256
 #define FIDO_MAX_DISPLAY_LEN 64
-#define FIDO_MAX_CREDID_LEN 1023
-#define FIDO_MAX_COORDINATE_LEN 66
-
-typedef struct _fido_public_key_buffer_t
-{
-	BCRYPT_ECCKEY_BLOB tHeader;
-	BYTE pCoordinates[2 * FIDO_MAX_COORDINATE_LEN];
-}
-fido_public_key_buffer_t;
+#define SSH_SK_USER_VERIFICATION_REQD 0x04
 
 typedef struct _fido_algorithm_details_t
 {
@@ -419,69 +405,6 @@ static BOOL cert_fido_decode_credential(LPCSTR sAlgorithm, LPCBYTE pAuthenticato
 	return TRUE;
 }
 
-static BOOL cert_fido_store_credential(LPCWSTR sApplicationId, LPCBYTE pPublicKey, DWORD iPublicKeyLen,
-	LPCBYTE pCredentialId, DWORD iCredentialIdLen, DWORD iUserVerification)
-{
-	if (sApplicationId == NULL || pPublicKey == NULL || pCredentialId == NULL || iCredentialIdLen == 0 ||
-		iCredentialIdLen > FIDO_MAX_CREDID_LEN)
-	{
-		return FALSE;
-	}
-
-	BYTE pOldPublicKey[sizeof(fido_public_key_buffer_t)];
-	BYTE pOldCredentialId[FIDO_MAX_CREDID_LEN];
-	BYTE pOldUserVerification[sizeof(DWORD)];
-	struct {
-		LPCWSTR sKey;
-		DWORD iType, iReadFlags;
-		LPCVOID pNewValue;
-		DWORD iNewLen;
-		LPBYTE pOldValue;
-		DWORD iOldLen, iOldCapacity;
-		BOOL bPresent;
-	} tValues[] = {
-		{ FIDO_REG_PUBKEYS, REG_BINARY, RRF_RT_REG_BINARY, pPublicKey, iPublicKeyLen, pOldPublicKey, 0,
-			sizeof(pOldPublicKey), FALSE },
-		{ FIDO_REG_CREDIDS, REG_BINARY, RRF_RT_REG_BINARY, pCredentialId, iCredentialIdLen, pOldCredentialId, 0,
-			sizeof(pOldCredentialId), FALSE },
-		{ FIDO_REG_USERVER, REG_DWORD, RRF_RT_REG_DWORD, &iUserVerification, sizeof(DWORD), pOldUserVerification, 0,
-			sizeof(pOldUserVerification), FALSE },
-	};
-
-	// Snapshot old values so failed updates cannot erase a working credential.
-	for (size_t i = 0; i < _countof(tValues); i++)
-	{
-		tValues[i].iOldLen = tValues[i].iOldCapacity;
-		LONG iResult = RegGetValueW(HKEY_CURRENT_USER, tValues[i].sKey, sApplicationId, tValues[i].iReadFlags,
-			NULL, tValues[i].pOldValue, &tValues[i].iOldLen);
-		if (iResult == ERROR_SUCCESS)
-			tValues[i].bPresent = TRUE;
-		else if (iResult != ERROR_FILE_NOT_FOUND && iResult != ERROR_PATH_NOT_FOUND)
-			return FALSE;
-	}
-
-	for (size_t i = 0; i < _countof(tValues); i++)
-	{
-		if (RegSetKeyValueW(HKEY_CURRENT_USER, tValues[i].sKey, sApplicationId, tValues[i].iType,
-			tValues[i].pNewValue, tValues[i].iNewLen) == ERROR_SUCCESS)
-		{
-			continue;
-		}
-
-		// Restore every prior value after a partial persistence failure.
-		for (size_t j = 0; j < _countof(tValues); j++)
-		{
-			if (tValues[j].bPresent)
-				RegSetKeyValueW(HKEY_CURRENT_USER, tValues[j].sKey, sApplicationId, tValues[j].iType,
-					tValues[j].pOldValue, tValues[j].iOldLen);
-			else
-				RegDeleteKeyValueW(HKEY_CURRENT_USER, tValues[j].sKey, sApplicationId);
-		}
-		return FALSE;
-	}
-
-	return TRUE;
-}
 
 static BYTE* cert_fido_decode_assertion(LPCSTR sAlgorithm,
 	LPCBYTE pSignature, DWORD iSignatureLen,
@@ -561,39 +484,24 @@ BYTE* cert_fido_sign(struct ssh2_userkey* userkey, LPCBYTE pDataToSign, int iDat
 	const fido_algorithm_details_t* pAlgorithm = cert_fido_lookup_algorithm(sHashAlgName);
 	if (pAlgorithm == NULL) return NULL;
 
-	// Fetch the complete credential ID for nonresident keys.
-	PBYTE pCredentialId = NULL;
-	DWORD iCredentialIdLen = 0;
-	LONG iCredentialResult = RegGetValueW(HKEY_CURRENT_USER, FIDO_REG_CREDIDS, szAppIdUnicode,
-		RRF_RT_REG_BINARY, NULL, NULL, &iCredentialIdLen);
-	if (iCredentialResult == ERROR_SUCCESS)
-	{
-		if (iCredentialIdLen == 0 || iCredentialIdLen > FIDO_MAX_CREDID_LEN)
-			return NULL;
-		pCredentialId = malloc(iCredentialIdLen);
-		if (pCredentialId == NULL || RegGetValueW(HKEY_CURRENT_USER, FIDO_REG_CREDIDS, szAppIdUnicode,
-			RRF_RT_REG_BINARY, NULL, pCredentialId, &iCredentialIdLen) != ERROR_SUCCESS)
-		{
-			free(pCredentialId);
-			return NULL;
-		}
-	}
-	else if (iCredentialResult != ERROR_FILE_NOT_FOUND && iCredentialResult != ERROR_PATH_NOT_FOUND)
-	{
-		return NULL;
-	}
+	// Take a consistent snapshot before asking the authenticator to sign.
+	HANDLE mutex = cert_fido_cache_lock(NULL);
+	if (!mutex) return NULL;
+	BYTE credentialId[FIDO_MAX_CREDID_LEN];
+	DWORD iCredentialIdLen = sizeof(credentialId);
+	LSTATUS idStatus = RegGetValueW(HKEY_CURRENT_USER, FIDO_REG_CREDIDS, szAppIdUnicode,
+		RRF_RT_REG_BINARY, NULL, credentialId, &iCredentialIdLen);
+	DWORD policy = 0, policySize = sizeof(policy);
+	LSTATUS policyStatus = RegGetValueW(HKEY_CURRENT_USER, FIDO_REG_USERVER, szAppIdUnicode,
+		RRF_RT_REG_DWORD, NULL, &policy, &policySize);
+	cert_fido_cache_unlock(mutex);
 
-	//  fetch user verification id from registry
+	if (idStatus == ERROR_FILE_NOT_FOUND || idStatus == ERROR_PATH_NOT_FOUND) iCredentialIdLen = 0;
+	else if (idStatus != ERROR_SUCCESS || !iCredentialIdLen) return NULL;
 	DWORD iUserVerification = WEBAUTHN_USER_VERIFICATION_REQUIREMENT_REQUIRED;
-	DWORD iUserVerificationReg = 0;
-	DWORD iUserVerificationSize = sizeof(iUserVerificationReg);
-	if (RegGetValueW(HKEY_CURRENT_USER, FIDO_REG_USERVER, szAppIdUnicode,
-		RRF_RT_REG_DWORD, NULL, &iUserVerificationReg, &iUserVerificationSize) == ERROR_SUCCESS)
-	{
-		if (iUserVerificationReg == WEBAUTHN_USER_VERIFICATION_OPTIONAL ||
-			iUserVerificationReg == WEBAUTHN_USER_VERIFICATION_OPTIONAL_WITH_CREDENTIAL_ID_LIST)
-			iUserVerification = WEBAUTHN_USER_VERIFICATION_REQUIREMENT_DISCOURAGED;
-	}
+	if (policyStatus == ERROR_SUCCESS && (policy == WEBAUTHN_USER_VERIFICATION_OPTIONAL ||
+		policy == WEBAUTHN_USER_VERIFICATION_OPTIONAL_WITH_CREDENTIAL_ID_LIST))
+		iUserVerification = WEBAUTHN_USER_VERIFICATION_REQUIREMENT_DISCOURAGED;
 
 	//  setup data to sign 
 	WEBAUTHN_CLIENT_DATA tClientData = { WEBAUTHN_CLIENT_DATA_CURRENT_VERSION };
@@ -605,7 +513,7 @@ BYTE* cert_fido_sign(struct ssh2_userkey* userkey, LPCBYTE pDataToSign, int iDat
 	WEBAUTHN_CREDENTIAL tCredential = { WEBAUTHN_CREDENTIAL_CURRENT_VERSION };
 	tCredential.cbId = iCredentialIdLen;
 	tCredential.pwszCredentialType = WEBAUTHN_CREDENTIAL_TYPE_PUBLIC_KEY;
-	tCredential.pbId = pCredentialId;
+	tCredential.pbId = credentialId;
 
 	//  setup assertion options 
 	BOOL bUtfAppId = FALSE;
@@ -623,11 +531,7 @@ BYTE* cert_fido_sign(struct ssh2_userkey* userkey, LPCBYTE pDataToSign, int iDat
 	pParams.pWebAuthNGetAssertionOptions = &tAssertionOptions;
 	pParams.pwszRpId = szAppIdUnicode;
 	HANDLE hThread = CreateThread(NULL, 0, WebAuthNAuthenticatorGetAssertionThread, &pParams, 0, NULL);
-	if (hThread == NULL)
-	{
-		free(pCredentialId);
-		return NULL;
-	}
+	if (hThread == NULL) return NULL;
 
 	// wait for thread to complete while dispatching messages
 	DWORD iExitCode = cert_fido_wait_for_thread(hThread);
@@ -637,7 +541,6 @@ BYTE* cert_fido_sign(struct ssh2_userkey* userkey, LPCBYTE pDataToSign, int iDat
 		wsprintfW(szDbg, L"PuTTY-CAC FIDO: WebAuthNAuthenticatorGetAssertion failed: 0x%08lX (%ls)\n",
 			pParams.hResult, WebAuthNGetErrorName(pParams.hResult));
 		OutputDebugStringW(szDbg);
-		free(pCredentialId);
 		return NULL;
 	}
 
@@ -650,7 +553,6 @@ BYTE* cert_fido_sign(struct ssh2_userkey* userkey, LPCBYTE pDataToSign, int iDat
 
 	//  cleanup 
 	WebAuthNFreeAssertion(pParams.ppWebAuthNAssertion);
-	free(pCredentialId);
 	return Signature;
 }
 
@@ -794,15 +696,22 @@ HCERTSTORE cert_fido_get_cert_store()
 		return hStoreHandle;
 	}
 
-	// enum over cached keys in registry
+	HANDLE mutex = cert_fido_cache_lock(NULL);
+	if (!mutex) {
+		RegCloseKey(hEnumKey);
+		return hStoreHandle;
+	}
+
 	fido_public_key_buffer_t tPublicKey;
 	WCHAR sApplicationId[FIDO_MAX_APPID_LEN];
 	for (int iIndex = 0; ; iIndex++)
 	{
 		DWORD iPublicKeyBufferSize = sizeof(tPublicKey);
 		DWORD iApplicationIdSize = _countof(sApplicationId);
-		if (RegEnumValueW(hEnumKey, iIndex, sApplicationId, &iApplicationIdSize,
-			NULL, NULL, (PBYTE)&tPublicKey, &iPublicKeyBufferSize) != ERROR_SUCCESS) break;
+		LSTATUS status = RegEnumValueW(hEnumKey, iIndex, sApplicationId, &iApplicationIdSize,
+			NULL, NULL, (PBYTE)&tPublicKey, &iPublicKeyBufferSize);
+		if (status == ERROR_MORE_DATA) continue;
+		if (status != ERROR_SUCCESS) break;
 
 		PCCERT_CONTEXT pCertContext = NULL;
 		if (cert_fido_get_cert(&tPublicKey.tHeader, iPublicKeyBufferSize, sApplicationId, &pCertContext) == TRUE)
@@ -812,6 +721,7 @@ HCERTSTORE cert_fido_get_cert_store()
 		}
 	}
 
+	cert_fido_cache_unlock(mutex);
 	RegCloseKey(hEnumKey);
 	return hStoreHandle;
 }
@@ -845,16 +755,18 @@ DWORD WINAPI WebAuthNAuthenticatorMakeCredentialThread(LPVOID lpParam)
 	return TRUE;
 }
 
-BOOL fido_create_key(LPCSTR szAlgName, LPCSTR szDisplayName, LPCSTR szApplication, BOOL bResidentKey, BOOL bUserVerification)
+HRESULT fido_create_key(LPCSTR szAlgName, LPCSTR szDisplayName, LPCSTR szApplication,
+	BOOL bResidentKey, BOOL bUserVerification)
 {
 	// sanity check for webauthn support
-	if (!LoadDelayLoadedLibaries()) return FALSE;
+	if (!LoadDelayLoadedLibaries()) return E_FAIL;
 
 	WCHAR szAppIdUnicode[FIDO_MAX_APPID_LEN];
 	WCHAR szAppDisplayUnicode[FIDO_MAX_DISPLAY_LEN];
 
-	if (MultiByteToWideChar(CP_UTF8, 0, szApplication, -1, szAppIdUnicode, _countof(szAppIdUnicode)) == 0) return FALSE;
-	if (MultiByteToWideChar(CP_UTF8, 0, szDisplayName, -1, szAppDisplayUnicode, _countof(szAppDisplayUnicode)) == 0) return FALSE;
+	if (!MultiByteToWideChar(CP_UTF8, 0, szApplication, -1, szAppIdUnicode, _countof(szAppIdUnicode)) ||
+		!MultiByteToWideChar(CP_UTF8, 0, szDisplayName, -1, szAppDisplayUnicode, _countof(szAppDisplayUnicode)))
+		return E_INVALIDARG;
 
 	const fido_algorithm_details_t* pAlgorithm = NULL;
 	for (size_t i = 0; i < _countof(fido_algorithms); i++)
@@ -865,8 +777,21 @@ BOOL fido_create_key(LPCSTR szAlgName, LPCSTR szDisplayName, LPCSTR szApplicatio
 			break;
 		}
 	}
-	if (pAlgorithm == NULL) return FALSE;
+	if (pAlgorithm == NULL) return E_INVALIDARG;
 	DWORD iSigBytes = pAlgorithm->iSignaturePartSize;
+
+	// Bind replacement approval to the credential present before the authenticator prompt.
+	BYTE id[FIDO_MAX_CREDID_LEN];
+	CRYPT_DATA_BLOB expected = { sizeof(id), id };
+	HANDLE mutex = cert_fido_cache_lock(NULL);
+	if (!mutex) return E_FAIL;
+	LSTATUS status = RegGetValueW(HKEY_CURRENT_USER, FIDO_REG_CREDIDS, szAppIdUnicode, RRF_RT_REG_BINARY,
+		NULL, id, &expected.cbData);
+	cert_fido_cache_unlock(mutex);
+	if (status == ERROR_FILE_NOT_FOUND || status == ERROR_PATH_NOT_FOUND) expected.cbData = 0;
+	else if (status != ERROR_SUCCESS || !expected.cbData) return E_FAIL;
+	else if (MessageBoxW(cert_fido_get_assertion_hwnd(), L"Replace the saved credential for this application?",
+		L"Replace FIDO Credential", MB_YESNO | MB_ICONQUESTION | MB_DEFBUTTON2) != IDYES) return S_FALSE;
 
 	WEBAUTHN_RP_ENTITY_INFORMATION tEntityInfo = { WEBAUTHN_RP_ENTITY_INFORMATION_CURRENT_VERSION };
 	tEntityInfo.pwszName = szAppIdUnicode;
@@ -889,7 +814,7 @@ BOOL fido_create_key(LPCSTR szAlgName, LPCSTR szDisplayName, LPCSTR szApplicatio
 	WebAuthNCredentialParameters.pCredentialParameters = &tCoseParam;
 
 	BYTE pRandomChallenge[FIDO_MAX_COORDINATE_LEN];
-	if (BCryptGenRandom(NULL, pRandomChallenge, iSigBytes, BCRYPT_USE_SYSTEM_PREFERRED_RNG)) return FALSE;
+	if (BCryptGenRandom(NULL, pRandomChallenge, iSigBytes, BCRYPT_USE_SYSTEM_PREFERRED_RNG)) return E_FAIL;
 
 	WEBAUTHN_CLIENT_DATA WebAuthNClientData;
 	WebAuthNClientData.dwVersion = WEBAUTHN_CLIENT_DATA_CURRENT_VERSION;
@@ -924,7 +849,7 @@ BOOL fido_create_key(LPCSTR szAlgName, LPCSTR szDisplayName, LPCSTR szApplicatio
 	pParams.pWebAuthNClientData = &WebAuthNClientData;
 	pParams.pWebAuthNMakeCredentialOptions = &tCredentialOptions;
 	HANDLE hThread = CreateThread(NULL, 0, WebAuthNAuthenticatorMakeCredentialThread, &pParams, 0, NULL);
-	if (hThread == NULL) return FALSE;
+	if (hThread == NULL) return E_FAIL;
 
 	// wait for thread to complete while dispatching messages
 	DWORD iExitCode = cert_fido_wait_for_thread(hThread);
@@ -934,7 +859,7 @@ BOOL fido_create_key(LPCSTR szAlgName, LPCSTR szDisplayName, LPCSTR szApplicatio
 		wsprintfW(szDbg, L"PuTTY-CAC FIDO: WebAuthNAuthenticatorMakeCredential failed: 0x%08lX (%ls)\n",
 			pParams.hResult, WebAuthNGetErrorName(pParams.hResult));
 		OutputDebugStringW(szDbg);
-		return FALSE;
+		return E_FAIL;
 	}
 
 	PWEBAUTHN_CREDENTIAL_ATTESTATION pAttestation = pParams.ppWebAuthNCredentialAttestation;
@@ -943,7 +868,7 @@ BOOL fido_create_key(LPCSTR szAlgName, LPCSTR szDisplayName, LPCSTR szApplicatio
 	{
 		if (pAttestation != NULL)
 			WebAuthNFreeCredentialAttestation(pAttestation);
-		return FALSE;
+		return E_FAIL;
 	}
 
 	// Decode and persist only a fully validated credential.
@@ -952,38 +877,10 @@ BOOL fido_create_key(LPCSTR szAlgName, LPCSTR szDisplayName, LPCSTR szApplicatio
 	BOOL bDecoded = cert_fido_decode_credential(pAlgorithm->sAlgorithm, pAttestation->pbAuthenticatorData,
 		pAttestation->cbAuthenticatorData, pAttestation->pbCredentialId, pAttestation->cbCredentialId,
 		&tPublicKey, &iPublicKeyLen);
-	BOOL bStored = bDecoded && cert_fido_store_credential(szAppIdUnicode, (LPCBYTE)&tPublicKey, iPublicKeyLen,
-		pAttestation->pbCredentialId, pAttestation->cbCredentialId, tCredProtect.dwCredProtect);
+	BOOL bStored = bDecoded && cert_fido_update_cache(NULL, szAppIdUnicode, &tPublicKey, iPublicKeyLen,
+		pAttestation->pbCredentialId, pAttestation->cbCredentialId, tCredProtect.dwCredProtect, &expected);
 	WebAuthNFreeCredentialAttestation(pAttestation);
-	return bStored;
-}
-
-LPWSTR fido_get_user_id()
-{
-	// obtain handle to current process to lookup key
-	HANDLE hToken = NULL;
-	if (OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, &hToken) == FALSE)
-	{
-		return NULL;
-	}
-
-	// Read the bounded token-user record directly into stack storage.
-	LPWSTR sSidString = NULL;
-	union {
-		TOKEN_USER tUser;
-		BYTE pData[TOKEN_USER_MAX_SIZE];
-	} tTokenUser;
-	DWORD dwBufferSize = sizeof(tTokenUser);
-	PTOKEN_USER pTokenUser = (PTOKEN_USER)tTokenUser.pData;
-	if (GetTokenInformation(hToken, TokenUser, pTokenUser, dwBufferSize, &dwBufferSize) &&
-		IsValidSid(pTokenUser->User.Sid))
-	{
-		ConvertSidToStringSidW(pTokenUser->User.Sid, &sSidString);
-	}
-
-	// cleanup and sanity check results
-	CloseHandle(hToken);
-	return sSidString;
+	return bStored ? S_OK : E_FAIL;
 }
 
 static BOOL fido_get_importer_path(WCHAR* sPath)
@@ -1108,91 +1005,48 @@ LPSTR fido_import_openssh_key()
 	// attempt to get the key
 	Filename* oFile = filename_from_str(szFile);
 	ssh2_userkey* pKey = import_ssh2(oFile, SSH_KEYTYPE_OPENSSH_NEW, "", NULL);
-	sfree(oFile);
+	filename_free(oFile);
 
-	// Keep the standardized public-key blob in bounded stack storage.
-	fido_public_key_buffer_t tPublicKey = { 0 };
-	PBCRYPT_ECCKEY_BLOB pPublicKey = &tPublicKey.tHeader;
+	if (!pKey || pKey == SSH2_WRONG_PASSPHRASE) return NULL;
 
-	char* szAppId = NULL;
-	DWORD iFlags = 0;
-	ptrlen* tPubKeyRaw = NULL;
-	ptrlen* tCredId = NULL;
-	ptrlen* szPubKey = NULL;
-
-	// handle ecdsa import
-	if (pKey != NULL && pKey->key != NULL && pKey->key->vt != NULL &&
-		strstr(pKey->key->vt->ssh_id, "sk-ecdsa-") == pKey->key->vt->ssh_id)
+	char *result = NULL;
+	const fido_algorithm_details_t *algorithm = cert_fido_lookup_algorithm(ssh_key_ssh_id(pKey->key));
+	if (algorithm)
 	{
-		struct ecdsa_key* ek = container_of(pKey->key, struct ecdsa_key, sshk);
-		tPubKeyRaw = &ek->publicKeyRaw;
-		tCredId = &ek->credId;
-		szAppId = _strdup(ek->appid);
-		iFlags = ek->flags;
-		pPublicKey->cbKey = ek->publicKeyRaw.len / 2;
-		pPublicKey->dwMagic =
-			strcmp(pKey->key->vt->ssh_id, "sk-ecdsa-sha2-nistp256@openssh.com") == 0 ? BCRYPT_ECDSA_PUBLIC_P256_MAGIC :
-			strcmp(pKey->key->vt->ssh_id, "sk-ecdsa-sha2-nistp384@openssh.com") == 0 ? BCRYPT_ECDSA_PUBLIC_P384_MAGIC :
-			strcmp(pKey->key->vt->ssh_id, "sk-ecdsa-sha2-nistp521@openssh.com") == 0 ? BCRYPT_ECDSA_PUBLIC_P521_MAGIC :
-			BCRYPT_ECDSA_PUBLIC_GENERIC_MAGIC;
-	}
-
-	// handle eddsa import
-	else if (pKey != NULL && pKey->key != NULL && pKey->key->vt != NULL &&
-		strstr(pKey->key->vt->ssh_id, "sk-ssh-ed25519") == pKey->key->vt->ssh_id)
-	{
-		struct eddsa_key* ek = container_of(pKey->key, struct eddsa_key, sshk);
-		tPubKeyRaw = &ek->publicKeyRaw;
-		tCredId = &ek->credId;
-		szAppId = _strdup(ek->appid);
-		iFlags = ek->flags;
-		pPublicKey->cbKey = ek->publicKeyRaw.len;
-		pPublicKey->dwMagic = BCRYPT_ECDSA_PUBLIC_GENERIC_MAGIC;
-	}
-
-	const fido_algorithm_details_t* pAlgorithm = pKey != NULL && pKey->key != NULL && pKey->key->vt != NULL ?
-		cert_fido_lookup_algorithm(pKey->key->vt->ssh_id) : NULL;
-	BOOL bPublicKeyValid = pAlgorithm != NULL && tPubKeyRaw != NULL &&
-		tPubKeyRaw->len == pAlgorithm->iSignaturePartSize * (pAlgorithm->bEd25519 ? 1 : 2) &&
-		cert_fido_public_key_valid(pAlgorithm, tPubKeyRaw->ptr,
-			pAlgorithm->bEd25519 ? NULL : (LPCBYTE)tPubKeyRaw->ptr + pAlgorithm->iSignaturePartSize);
-
-	// key load - upload to cache
-	if (szAppId != NULL && bPublicKeyValid)
-	{
-		// copy public key part into blob
-		memcpy(tPublicKey.pCoordinates, tPubKeyRaw->ptr, tPubKeyRaw->len);
-
-		// convert to unicode for storing to registry
-		WCHAR szAppIdUnicode[FIDO_MAX_APPID_LEN] = L"";
-		BOOL bStored = tCredId != NULL && tCredId->len <= FIDO_MAX_CREDID_LEN && tCredId->len <= MAXDWORD &&
-			MultiByteToWideChar(CP_UTF8, 0, szAppId, -1, szAppIdUnicode, _countof(szAppIdUnicode)) != 0;
-		if (bStored)
+		// Both OpenSSH security-key formats carry an application, a credential ID, and verification flags.
+		ptrlen raw, id;
+		const char *app;
+		unsigned flags;
+		if (algorithm->bEd25519)
 		{
-			bStored = cert_fido_store_credential(szAppIdUnicode, (LPCBYTE)pPublicKey,
-				(DWORD)(sizeof(BCRYPT_ECCKEY_BLOB) + tPubKeyRaw->len), tCredId->ptr, (DWORD)tCredId->len, iFlags);
+			struct eddsa_key *key = container_of(pKey->key, struct eddsa_key, sshk);
+			raw = key->publicKeyRaw; id = key->credId; app = key->appid; flags = key->flags;
 		}
-		if (!bStored)
+		else
 		{
-			free(szAppId);
-			szAppId = NULL;
+			struct ecdsa_key *key = container_of(pKey->key, struct ecdsa_key, sshk);
+			raw = key->publicKeyRaw; id = key->credId; app = key->appid; flags = key->flags;
+		}
+
+		WCHAR wideApp[FIDO_MAX_APPID_LEN];
+		DWORD coordinate = algorithm->iSignaturePartSize;
+		if (raw.len == coordinate * (algorithm->bEd25519 ? 1 : 2) && id.len && id.len <= FIDO_MAX_CREDID_LEN &&
+			cert_fido_public_key_valid(algorithm, raw.ptr, algorithm->bEd25519 ? NULL : (LPCBYTE)raw.ptr + coordinate) &&
+			MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, app, -1, wideApp, _countof(wideApp)))
+		{
+			fido_public_key_buffer_t key = { { algorithm->iPublicKeyMagic, coordinate } };
+			memcpy(key.pCoordinates, raw.ptr, raw.len);
+			DWORD verification = flags & SSH_SK_USER_VERIFICATION_REQD ? WEBAUTHN_USER_VERIFICATION_REQUIRED :
+				WEBAUTHN_USER_VERIFICATION_OPTIONAL_WITH_CREDENTIAL_ID_LIST;
+			if (cert_fido_update_cache(NULL, wideApp, &key, (DWORD)(sizeof(key.tHeader) + raw.len),
+				id.ptr, (DWORD)id.len, verification, NULL)) result = dupstr(app);
 		}
 	}
-	else if (szAppId != NULL)
-	{
-		free(szAppId);
-		szAppId = NULL;
-	}
 
-	// key cleanup
-	if (pKey != NULL)
-	{
-		if (pKey->key != NULL) ssh_key_free(pKey->key);
-		if (pKey->comment != NULL) sfree(pKey->comment);
-		sfree(pKey);
-	}
-
-	return szAppId;
+	ssh_key_free(pKey->key);
+	sfree(pKey->comment);
+	sfree(pKey);
+	return result;
 }
 
 VOID fido_clear_keys()
@@ -1202,9 +1056,12 @@ VOID fido_clear_keys()
 		L"local administrative access to import again. Do you wish to continue?",
 		L"FIDO Cache Deletion Warning", MB_SYSTEMMODAL | MB_ICONINFORMATION | MB_YESNO) == IDYES)
 	{
+		HANDLE mutex = cert_fido_cache_lock(NULL);
+		if (!mutex) return;
 		RegDeleteTreeW(HKEY_CURRENT_USER, FIDO_REG_PUBKEYS);
 		RegDeleteTreeW(HKEY_CURRENT_USER, FIDO_REG_USERVER);
 		RegDeleteTreeW(HKEY_CURRENT_USER, FIDO_REG_CREDIDS);
+		cert_fido_cache_unlock(mutex);
 	}
 }
 
