@@ -1,7 +1,7 @@
 @ECHO OFF
 TITLE Building PuTTY-CAC
 SETLOCAL ENABLEDELAYEDEXPANSION
- 
+
 :: version information
 SET VER=0.85u3
 SET VERN=0.85.3.0
@@ -14,9 +14,9 @@ SET BINDIR=%INSTDIR%\..\binaries
 SET BLDDIR=%INSTDIR%\..\build
 
 :: cert info to use for signing
-set TSAURL=http://time.certum.pl/
-set LIBNAME=PuTTY-CAC
-set LIBURL=https://github.com/NoMoreFood/putty-cac
+SET TSAURL=http://time.certum.pl/
+SET LIBNAME=PuTTY-CAC
+SET LIBURL=https://github.com/NoMoreFood/putty-cac
 
 :: import vs build tools
 FOR /F "USEBACKQ TOKENS=*" %%X in (`
@@ -27,31 +27,41 @@ FOR /F "USEBACKQ TOKENS=*" %%X in (`
 
 :: build the binaries
 CD /D "%INSTDIR%"
-RD /S /Q "%BLDDIR%"
-RD /S /Q "%BINDIR%"
+IF EXIST "%BLDDIR%" RD /S /Q "%BLDDIR%"
+IF EXIST "%BINDIR%" RD /S /Q "%BINDIR%"
+IF EXIST "%BLDDIR%" GOTO :failed
+IF EXIST "%BINDIR%" GOTO :failed
 FOR %%A IN (arm64 x86 x64) DO (
   SET ARCH=%%A
   IF /I "%%A" EQU "X86" SET ARCH=Win32
-  CMAKE -S ..\code -A !ARCH! -B %BLDDIR%\%%A -D PUTTY_CAC=1 -D PUTTY_EMBEDDED_CHM_FILE=%BASEDIR%\doc\putty.chm
-  CMAKE --build %BLDDIR%\%%A --parallel --config Release --target pageant plink pscp psftp pterm putty puttygen ^
+  CMAKE -S "%BASEDIR%" -A !ARCH! -B "%BLDDIR%\%%A" -DPUTTY_CAC=1 "-DPUTTY_EMBEDDED_CHM_FILE=%BASEDIR%\doc\putty.chm"
+  IF ERRORLEVEL 1 GOTO :failed
+  CMAKE --build "%BLDDIR%\%%A" --parallel --config Release --target pageant plink pscp psftp pterm putty puttygen ^
     puttyimp puttytab puttytel
+  IF ERRORLEVEL 1 GOTO :failed
   MKDIR "%BINDIR%\%%A"
-  COPY /Y %BLDDIR%\%%A\Release\*.exe "%BINDIR%\%%A"	
+  IF ERRORLEVEL 1 GOTO :failed
+  COPY /Y "%BLDDIR%\%%A\Release\*.exe" "%BINDIR%\%%A"
+  IF ERRORLEVEL 1 GOTO :failed
 )
 
 :: verify the binaries do not import the dynamic C/C++ runtime
 WHERE DUMPBIN.EXE >NUL 2>&1
 IF ERRORLEVEL 1 (
   ECHO ERROR: dumpbin.exe not found; cannot verify static runtime linkage.
-  EXIT /B 1
+  GOTO :failed
 )
+SET CRTDLLS=vcruntime.*\.dll msvcp.*\.dll msvcr.*\.dll msvcm.*\.dll concrt.*\.dll
+SET CRTDLLS=%CRTDLLS% ucrtbase.*\.dll api-ms-win-crt-.*\.dll
 FOR /R "%BINDIR%" %%F IN (*.exe) DO (
-  FOR /F "USEBACKQ TOKENS=*" %%D IN (`
-    DUMPBIN.EXE /NOLOGO /DEPENDENTS "%%F" ^| FINDSTR /I /R "vcruntime.*\.dll msvcp.*\.dll msvcr.*\.dll msvcm.*\.dll concrt.*\.dll ucrtbase.*\.dll api-ms-win-crt-.*\.dll"
-  `) DO (
-    ECHO ERROR: %%F imports %%D
+  DUMPBIN.EXE /NOLOGO /DEPENDENTS "%%F" > "%BLDDIR%\dependencies.txt"
+  IF ERRORLEVEL 1 GOTO :failed
+  FINDSTR /I /R "%CRTDLLS%" "%BLDDIR%\dependencies.txt"
+  IF ERRORLEVEL 2 GOTO :failed
+  IF NOT ERRORLEVEL 1 (
+    ECHO ERROR: %%F imports the dynamic runtime.
     ECHO ERROR: rebuild with the static runtime before packaging.
-    EXIT /B 1
+    GOTO :failed
   )
 )
 
@@ -65,57 +75,48 @@ FOR /F "DELIMS=" %%X IN ('DIR "%PX86%\Windows Kits\10\bin\signtool.exe" /B /S /A
 SET PATH=%PATH%;%PX86%\Windows Kits\8.1\bin\x64
 FOR /F "DELIMS=" %%X IN ('DIR "%PX86%\WiX Toolset*" /B /AD') DO SET PATH=%PATH%;%PX86%\%%~nxX\bin
 
-:: cleanup
-FOR %%X IN (Win32 x64 Debug Release Temp .vs) DO (
-  FORFILES /S /P "%BASEDIR%\windows" /M "%%X" /C "CMD /C IF @isdir==TRUE RD /S /Q @path" >NUL 2>&1
-)
-FORFILES /S /P "%BINDIR%" /M "*.*" /C "CMD /C IF /I @ext NEQ """exe""" DEL /Q @file"
-
 :: sign the main executables
-signtool sign /a /as /fd sha256 /tr %TSAURL% /td sha256 /d %LIBNAME% /du %LIBURL% "%BINDIR%\arm64\*.exe" "%BINDIR%\x86\*.exe" "%BINDIR%\x64\*.exe"  
-signtool sign /a /fd sha256 /tr %TSAURL% /td sha256 /d %LIBNAME% /du %LIBURL% "%BINDIR%\*.msi"
+SIGNTOOL sign /a /as /fd sha256 /tr %TSAURL% /td sha256 /d %LIBNAME% /du %LIBURL% ^
+  "%BINDIR%\arm64\*.exe" "%BINDIR%\x86\*.exe" "%BINDIR%\x64\*.exe"
+IF ERRORLEVEL 1 GOTO :failed
 
-:: copy prereqs from build dir and 'real' installer
-MKDIR "%BASEDIR%\build"
-COPY /Y "%BASEDIR%\windows\*.url" "%BASEDIR%\build\"
-COPY /Y "%BASEDIR%\windows\*.ico" "%BASEDIR%\build\"
-COPY /Y "%BASEDIR%\windows\README-msi.txt" "%BASEDIR%\build\"
-COPY /Y "%INSTDIR%\*.bmp" "%BASEDIR%\build\"
-
-:: do the build
-PUSHD "%BASEDIR%\build"
+:: build and sign the installers
 FOR %%A IN (Arm64 x86 x64) DO (
   SET LOWERA=%%A
   IF /I "%%A" EQU "ARM64" SET LOWERA=arm64
-  IF /I "%%A" EQU "ARM64" SET WIN64=yes
-  IF /I "%%A" EQU "X64" SET WIN64=yes
-  candle -arch %%A -dWin64=!WIN64! -dBuilddir="%BINDIR%\%%A\\" -dDllOk=Yes -dRealPlatform=%%A -dWinver="%VERN%" -dPUTTY_CAC=1 -dPuttytextver="PuTTY CAC %VERN%" "%BASEDIR%\windows\installer.wxs"
-  light -ext WixUIExtension -ext WixUtilExtension -sval installer.wixobj -o "%BINDIR%\puttycac-%VER%-!LOWERA!.msi"
+  CANDLE -arch %%A -dBuilddir="%BINDIR%\%%A\\" -dDllOk=Yes -dRealPlatform=%%A -dWinver=%VERN% ^
+    -dPUTTY_CAC=1 -dPuttytextver="PuTTY CAC %VERN%" -out "%BLDDIR%\installer-%%A.wixobj" ^
+    "%BASEDIR%\windows\installer.wxs"
+  IF ERRORLEVEL 1 GOTO :failed
+  LIGHT -ext WixUIExtension -ext WixUtilExtension -sval -spdb -b "%BASEDIR%\windows" ^
+    "%BLDDIR%\installer-%%A.wixobj" -out "%BINDIR%\puttycac-%VER%-!LOWERA!.msi"
+  IF ERRORLEVEL 1 GOTO :failed
 )
-POPD
+SIGNTOOL sign /a /fd sha256 /tr %TSAURL% /td sha256 /d %LIBNAME% /du %LIBURL% "%BINDIR%\*.msi"
+IF ERRORLEVEL 1 GOTO :failed
 
-:: sign the msi files
-signtool sign /a /fd sha256 /tr %TSAURL% /td sha256 /d %LIBNAME% /du %LIBURL% "%BINDIR%\*.msi"
-
-:: cleanup
-RD /S /Q "%BASEDIR%\build"
-DEL /F /Q "%BASEDIR%\code\windows\putty.aps"
-DEL /F /Q "%BINDIR%\*.wixpdb"
-
-:: zip up executatables
+:: zip the executables
+SET PSModulePath=%SystemRoot%\System32\WindowsPowerShell\v1.0\Modules
 SET POWERSHELL=POWERSHELL.EXE -NoProfile -NonInteractive -NoLogo -ExecutionPolicy Unrestricted
 FOR %%A IN (arm64 x86 x64) DO (
-  PUSHD "%BINDIR%\%%A"
-  %POWERSHELL% -Command "Compress-Archive '*.exe' -DestinationPath '%BINDIR%\puttycac-%VER%-%%A.zip'"
-  POPD
+  %POWERSHELL% -Command "$ErrorActionPreference='Stop'; $dest=Join-Path $env:BINDIR 'puttycac-%VER%-%%A.zip';" ^
+    "Compress-Archive (Join-Path $env:BINDIR '%%A\*.exe') -DestinationPath $dest -Force"
+  IF ERRORLEVEL 1 GOTO :failed
 )
 
 :: output hash information
 SET HASHFILE=%BINDIR%\puttycac-hash.txt
-IF EXIST "%HASHFILE%" DEL /F "%HASHFILE%"
-%POWERSHELL% -Command "Get-ChildItem -Include @('*.msi','*.exe','*.zip') -Path '%BINDIR%' -Recurse | Get-FileHash -Algorithm SHA256 | Out-File -Append '%HASHFILE%' -Width 256"
-%POWERSHELL% -Command "Get-ChildItem -Include @('*.msi','*.exe','*.zip') -Path '%BINDIR%' -Recurse | Get-FileHash -Algorithm SHA1 | Out-File -Append '%HASHFILE%' -Width 256"
-%POWERSHELL% -NoProfile -NonInteractive -NoLogo -Command "Get-ChildItem -Include @('*.msi','*.exe','*.zip') -Path '%BINDIR%' -Recurse | Get-FileHash -Algorithm MD5 | Out-File -Append '%HASHFILE%' -Width 256"
-%POWERSHELL% -NoProfile -NonInteractive -NoLogo -Command "$Data = Get-Content '%HASHFILE%'; $Data.Replace((Get-Item -LiteralPath '%BINDIR%').FullName + '\','').Trim() | Set-Content '%HASHFILE%'"
+IF EXIST "%HASHFILE%" DEL /F /Q "%HASHFILE%"
+IF EXIST "%HASHFILE%" GOTO :failed
+FOR %%H IN (SHA256 SHA1 MD5) DO (
+  %POWERSHELL% -Command "$ErrorActionPreference='Stop'; $root=(Get-Item -LiteralPath $env:BINDIR).FullName+'\';" ^
+    "$files=Get-ChildItem -Path $root -File -Recurse -Include *.msi,*.exe,*.zip;" ^
+    "$format='{0,-9} {1,-64} {2}'; @($format -f 'Algorithm','Hash','Path'; $files | Get-FileHash -Algorithm %%H |" ^
+    "ForEach-Object { $format -f $_.Algorithm,$_.Hash,$_.Path.Substring($root.Length) })" ^
+    "| Add-Content -Encoding ASCII -LiteralPath $env:HASHFILE"
+  IF ERRORLEVEL 1 GOTO :failed
+)
+EXIT /B 0
 
-PAUSE
+:failed
+EXIT /B 1
