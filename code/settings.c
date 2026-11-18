@@ -952,9 +952,6 @@ void load_open_settings(settings_r *sesskey, Conf *conf)
     gppb(sesskey, "AuthCAPI", 0, conf, CONF_cert_attempt_auth);
     gpps(sesskey, "CAPICertID", "", conf, CONF_cert_fingerprint);
 
-	// convert certificate identifiers from old format
-	char * certid = conf_get_str(conf, CONF_cert_fingerprint);
-	conf_set_str(conf, CONF_cert_fingerprint, certid);
 #endif // PUTTY_CAC
     {
         int storageval = gppi_raw(sesskey, "RemoteQTitleAction", -1);
