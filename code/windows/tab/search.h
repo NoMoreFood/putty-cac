@@ -1,5 +1,6 @@
 #pragma once
 
+#include <array>
 #include <atomic>
 #include <condition_variable>
 #include <exception>
@@ -9,6 +10,7 @@
 #include <regex>
 #include <string_view>
 #include <thread>
+#include <tuple>
 #include <utility>
 
 #include "puttytab-rc.h"
@@ -40,6 +42,11 @@ class TerminalSearch
     {
         // Keep Find's navigation keys on the host thread instead of sending terminal input.
         if (!Owns(message.hwnd)) return false;
+        if (message.message == WM_KEYDOWN && message.wParam == VK_F3 && !(GetKeyState(VK_CONTROL) & 0x8000))
+        {
+            Request((GetKeyState(VK_SHIFT) & 0x8000) ? -1 : 1, true);
+            return true;
+        }
         if (message.message == WM_KEYDOWN && message.wParam == VK_RETURN &&
             (GetFocus() == GetDlgItem(dialog_, IDC_TEXT_VALUE) || (GetKeyState(VK_SHIFT) & 0x8000)))
         {
@@ -71,12 +78,8 @@ class TerminalSearch
         }
         bool visible = IsWindowVisible(dialog_) != 0;
         Update(terminal);
-        if (!visible)
-        {
-            ShowWindow(dialog_, SW_SHOW);
-            Changed();
-        }
-        if (direction && visible) Request(direction, true);
+        if (!visible) ShowWindow(dialog_, SW_SHOW);
+        if (direction || !visible) Request(direction, direction != 0);
         if (!direction || !visible)
         {
             SetForegroundWindow(dialog_);
@@ -91,7 +94,6 @@ class TerminalSearch
         if (terminal_ != terminal)
         {
             terminal_ = terminal;
-            anchor_.reset();
             Changed();
         }
         if (!dialog_ || !IsWindowVisible(dialog_)) return;
@@ -104,7 +106,7 @@ class TerminalSearch
         if (screen.stamp != stamp_)
         {
             stamp_ = screen.stamp;
-            refreshAt_ = GetTickCount64() + 300;
+            if (!refreshAt_) refreshAt_ = GetTickCount64() + 300;
             HideHighlight();
         }
         if (!busy_ && refreshAt_ && GetTickCount64() >= refreshAt_) Request(0, false);
@@ -117,14 +119,72 @@ class TerminalSearch
         size_t line, offset, length;
     };
 
+    struct Anchor
+    {
+        int row, column, savedRows, columns;
+        std::vector<std::pair<int, terminaltext::Row>> marks;
+
+        Anchor(const terminaltext::Snapshot &snapshot, const terminaltext::Cell &cell) :
+            row(snapshot.history + cell.row), column(cell.column),
+            savedRows(snapshot.savedRows), columns(snapshot.columns)
+        {
+            // Follow the match, its neighbors, and the newest rows of the history and screen.
+            int last = static_cast<int>(snapshot.rows.size()) - 1;
+            std::array indices{row - 1, row, row + 1, savedRows - 1, last - 1, last};
+            std::ranges::sort(indices);
+            for (int i : indices)
+                if (i >= 0 && i <= last && (i == row || snapshot.rows[i].textHash) &&
+                    (marks.empty() || marks.back().first != i))
+                    marks.emplace_back(i, snapshot.rows[i]);
+        }
+
+        int Locate(const terminaltext::Snapshot &snapshot) const
+        {
+            // A lone live row may be edited in place, and a width change may clip every row's text.
+            bool useAddress = columns != snapshot.columns || (marks.size() == 1 && row >= savedRows);
+
+            // In the combined buffer, a surviving row's index decreases by the number of older rows discarded.
+            int target = -snapshot.history - 1;
+            std::tuple<bool, int, int> best{};
+            for (int dropped = 0; dropped <= marks.back().first; ++dropped)
+            {
+                bool consistent = true;
+                int matchingSources = 0, matchingTexts = 0;
+                for (const auto &[i, before] : marks)
+                {
+                    int j = i - dropped;
+                    if (j < 0 || static_cast<size_t>(j) >= snapshot.rows.size()) continue;
+                    const auto &after = snapshot.rows[j];
+                    bool sameText = before.textHash == after.textHash;
+                    matchingTexts += sameText;
+                    if ((i < savedRows) == (j < snapshot.savedRows))
+                    {
+                        if (before.source != after.source) consistent = false;
+                        else if (sameText || useAddress) ++matchingSources;
+                    }
+                }
+
+                // Compression changes addresses. A tie keeps the smallest displacement.
+                auto score = std::tuple{consistent, matchingSources, matchingTexts};
+                if ((matchingTexts || matchingSources) && score > best)
+                {
+                    best = score;
+                    target = row - dropped - snapshot.history;
+                    if (matchingSources == static_cast<int>(marks.size())) break;
+                }
+            }
+            return target;
+        }
+    };
+
     struct Task
     {
         unsigned revision;
         HWND terminal, dialog;
         std::wstring query;
         bool matchCase, regex, advance;
-        int direction, history;
-        std::optional<terminaltext::Cell> anchor;
+        int direction;
+        std::optional<Anchor> anchor;
     };
 
     struct Result
@@ -324,8 +384,7 @@ class TerminalSearch
             return;
         }
         Task task{++revision_, terminal_, dialog_, query, IsDlgButtonChecked(dialog_, IDC_FIND_CASE) == BST_CHECKED,
-            IsDlgButtonChecked(dialog_, IDC_FIND_REGEX) == BST_CHECKED, advance, direction,
-            result_ ? result_->snapshot.history : 0, anchor_};
+            IsDlgButtonChecked(dialog_, IDC_FIND_REGEX) == BST_CHECKED, advance, direction, anchor_};
         {
             std::lock_guard lock(mutex_);
             request_ = std::move(task);
@@ -441,7 +500,8 @@ class TerminalSearch
         if (result_->matches.empty()) { anchor_.reset(); Status(L"No matches."); return; }
 
         const Match &match = result_->matches[result_->selected];
-        anchor_ = result_->snapshot.lines[match.line].cells[match.offset];
+        const auto &cell = result_->snapshot.lines[match.line].cells[match.offset];
+        anchor_.emplace(result_->snapshot, cell);
         std::wstring status = std::to_wstring(result_->selected + 1) + L" of " +
             std::to_wstring(result_->matches.size()) +
             (result_->matches.size() == 1 ? L" match" : L" matches");
@@ -451,20 +511,15 @@ class TerminalSearch
 
     static void Choose(Result &result)
     {
-        // Continue from the selected match, accounting for lines newly added to scrollback.
+        // Navigate from the previous match in the current snapshot.
         const Task &task = result.task;
-        terminaltext::Cell target{result.snapshot.top, 0, 1};
-        if (task.anchor)
-        {
-            target = *task.anchor;
-            target.row -= result.snapshot.history - task.history;
-        }
         auto position = [&](const Match &match)
         {
             const auto &cell = result.snapshot.lines[match.line].cells[match.offset];
             return std::pair{cell.row, cell.column};
         };
-        auto targetPosition = std::pair{target.row, target.column};
+        auto targetPosition = task.anchor ? std::pair{task.anchor->Locate(result.snapshot), task.anchor->column} :
+            std::pair{result.snapshot.top, 0};
         auto selected = task.direction < 0 || !(task.advance && task.anchor) ?
             std::ranges::lower_bound(result.matches, targetPosition, {}, position) :
             std::ranges::upper_bound(result.matches, targetPosition, {}, position);
@@ -617,7 +672,7 @@ class TerminalSearch
     HWND owner_ = nullptr, dialog_ = nullptr, terminal_ = nullptr, overlay_ = nullptr;
     UniqueGdiObject font_;
     std::vector<RECT> rectangles_;
-    std::optional<terminaltext::Cell> anchor_;
+    std::optional<Anchor> anchor_;
     std::unique_ptr<Result> result_, completed_;
     std::optional<Task> request_;
     std::mutex mutex_;

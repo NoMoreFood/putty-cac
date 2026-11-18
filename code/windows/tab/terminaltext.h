@@ -62,11 +62,20 @@ struct Line
     std::vector<Cell> cells;
 };
 
+struct Row
+{
+    const void *source;
+    unsigned long long textHash;
+};
+
 struct Snapshot
 {
     std::vector<Line> lines;
+    std::vector<Row> rows;
+    int savedRows = 0;
     int history = 0;
     int top = 0;
+    int columns = 0;
     unsigned long long stamp = 0;
 };
 
@@ -104,14 +113,14 @@ class Reader
         if (!ready) return false;
         snapshot = {};
         std::vector<void *> saved, alternate, screen;
-        int savedCount = 0;
-        if (!Tree(view.scrollback, saved, !history, &savedCount) || !Tree(view.screen, screen) ||
+        if (!Tree(view.scrollback, saved, !history, &snapshot.savedRows) || !Tree(view.screen, screen) ||
             screen.size() != static_cast<size_t>(view.rows)) return false;
         int extra = view.erase_to_scrollback && view.alt_which && view.alt_screen ? view.alt_sblines : 0;
         if (extra < 0 || extra > view.rows || (extra && !Tree(view.alt_screen, alternate)) ||
             extra > static_cast<int>(alternate.size())) return false;
-        snapshot.history = savedCount + extra;
+        snapshot.history = snapshot.savedRows + extra;
         snapshot.top = view.disptop;
+        snapshot.columns = view.cols;
         Hash(snapshot.stamp, view.rows);
         Hash(snapshot.stamp, view.cols);
         Hash(snapshot.stamp, view.alt_which);
@@ -123,31 +132,43 @@ class Reader
         }
         Line logical;
         std::vector<std::wstring> glyphs;
-        if (history) snapshot.lines.reserve(saved.size() + extra + screen.size());
+        if (history)
+        {
+            snapshot.rows.reserve(snapshot.history + screen.size());
+            snapshot.lines.reserve(snapshot.history + screen.size());
+        }
         size_t characters = 0;
         auto append = [&](void *address, int row, bool compressed)
         {
             unsigned short attributes = 0;
             if (!(compressed ? Compressed(address, glyphs, attributes) : Plain(address, glyphs, attributes)))
                 return false;
-            if (row >= 0)
-            {
-                Hash(snapshot.stamp, attributes);
-                for (const auto &glyph : glyphs)
-                    for (wchar_t character : glyph) Hash(snapshot.stamp, character);
-            }
-            if (!history) return true;
-
-            // Build text and cell mappings only for a full search snapshot.
             int scale = (attributes & LATTR_MODE) == LATTR_NORM ? 1 : 2;
             int columns = std::min(static_cast<int>(glyphs.size()), (view.cols + scale - 1) / scale);
             if (attributes & LATTR_WRAPPED2) --columns;
             if (!(attributes & LATTR_WRAPPED))
                 while (columns > 0 && glyphs[columns - 1] == L" ") --columns;
+            size_t length = 0;
+            unsigned long long textHash = 0;
+            for (int column = 0; column < columns; ++column)
+            {
+                const auto &glyph = glyphs[column];
+                length += glyph.size();
+                Hash(textHash, glyph.size());
+                for (wchar_t character : glyph) Hash(textHash, character);
+            }
+            if (row >= 0)
+            {
+                Hash(snapshot.stamp, reinterpret_cast<uintptr_t>(address));
+                Hash(snapshot.stamp, attributes);
+                Hash(snapshot.stamp, textHash);
+            }
+            if (!history) return true;
+
+            // Build text and cell mappings only for a full search snapshot.
+            snapshot.rows.push_back({address, textHash});
             if (logical.cells.empty())
             {
-                size_t length = 0;
-                for (int column = 0; column < columns; ++column) length += glyphs[column].size();
                 logical.text.reserve(length);
                 logical.cells.reserve(length);
             }

@@ -838,9 +838,9 @@ class App
         AppendMenuW(sessionMenu, MF_STRING, IDM_SESSION_COPY, L"&Copy");
         AppendMenuW(sessionMenu, MF_STRING, IDM_SESSION_PASTE, L"&Paste");
         AppendMenuW(sessionMenu, MF_STRING, IDM_SESSION_COPY_ALL, L"C&opy All to Clipboard");
-        AppendMenuW(sessionMenu, MF_STRING, IDM_SESSION_FIND, L"&Find...\tCtrl+F");
-        AppendMenuW(sessionMenu, MF_STRING, IDM_SESSION_FIND_NEXT, L"Find Ne&xt\tF3");
-        AppendMenuW(sessionMenu, MF_STRING, IDM_SESSION_FIND_PREVIOUS, L"Find Pre&vious\tShift+F3");
+        AppendMenuW(sessionMenu, MF_STRING, IDM_SESSION_FIND, L"&Find...\tCtrl+Shift+F");
+        AppendMenuW(sessionMenu, MF_STRING, IDM_SESSION_FIND_NEXT, L"Find Ne&xt\tCtrl+F3");
+        AppendMenuW(sessionMenu, MF_STRING, IDM_SESSION_FIND_PREVIOUS, L"Find Pre&vious\tCtrl+Shift+F3");
         AppendMenuW(sessionMenu, MF_STRING, IDM_SESSION_CLEAR_SCROLLBACK, L"C&lear Scrollback");
         AppendMenuW(sessionMenu, MF_STRING, IDM_SESSION_RESET, L"Rese&t Terminal");
         AppendMenuW(sessionMenu, MF_SEPARATOR, 0, nullptr);
@@ -2658,8 +2658,8 @@ class App
             return 1;
         }
         UINT command = 0;
-        if (control && !shift && !alt && key.vkCode == 'F') command = IDM_SESSION_FIND;
-        else if (!control && !alt && key.vkCode == VK_F3)
+        if (control && shift && !alt && key.vkCode == 'F') command = IDM_SESSION_FIND;
+        else if (control && !alt && key.vkCode == VK_F3)
             command = shift ? IDM_SESSION_FIND_PREVIOUS : IDM_SESSION_FIND_NEXT;
         else if (control && shift && !alt && key.vkCode == 'T') command = IDM_FILE_NEW;
         else if (control && shift && !alt && key.vkCode == 'D') command = IDM_FILE_DUPLICATE;
@@ -2672,7 +2672,7 @@ class App
         else if (control && !shift && !alt && key.vkCode == VK_PRIOR) command = IDM_VIEW_PREVIOUS;
         else if (control && !shift && !alt && key.vkCode == VK_NEXT) command = IDM_VIEW_NEXT;
         else if (control && !shift && !alt && key.vkCode == VK_F4) command = IDM_FILE_CLOSE;
-        else if (!control && !shift && alt && key.vkCode == VK_F4) command = IDM_FILE_EXIT;
+        else if (!findFocused && !control && !shift && alt && key.vkCode == VK_F4) command = IDM_FILE_EXIT;
         else if ((!control && !shift && !alt && key.vkCode == VK_F11) ||
             (!control && !shift && alt && key.vkCode == VK_RETURN))
             command = IDM_VIEW_FULLSCREEN;
