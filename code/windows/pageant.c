@@ -1352,6 +1352,12 @@ static char *answer_filemapping_message(const char *mapname)
         }
 #endif
 
+#ifdef PUTTY_CAC
+        if (wmcpc.allow_provider_add && !EqualSid(mapsid, expectedsid)) {
+            err = dupstr("provider registration requires a file mapping owned by the current user");
+            goto cleanup;
+        }
+#endif
         if (!EqualSid(mapsid, expectedsid) &&
             !EqualSid(mapsid, expectedsid_bc)) {
             err = dupstr("wrong owning SID of file mapping");
@@ -1701,6 +1707,15 @@ static LRESULT CALLBACK wm_copydata_WndProc(HWND hwnd, UINT message,
         char *mapname, *err;
 
         cds = (COPYDATASTRUCT *) lParam;
+#ifdef PUTTY_CAC
+        if (!cds || !cds->lpData || !cds->cbData)
+            return 0;
+        /* Only the local management transport can authorize loading a provider. */
+        wmcpc.allow_provider_add = cds->dwData == PAGEANT_PROVIDER_COPYDATA_ID;
+        if (wmcpc.allow_provider_add) {
+            if (!should_have_security()) return 0;
+        } else
+#endif
         if (cds->dwData != AGENT_COPYDATA_ID)
             return 0;              /* not our message, mate */
         mapname = (char *) cds->lpData;

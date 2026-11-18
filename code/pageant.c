@@ -908,6 +908,9 @@ void pageant_make_keylist_extended(BinarySink *bs) { list_keys(bs, 2, true); }
 
 void pageant_register_client(PageantClient *pc)
 {
+#ifdef PUTTY_CAC
+    pc->allow_provider_add = false;
+#endif
     pc->info = snew(PageantClientInfo);
     pc->info->pc = pc;
     pc->info->head.prev = pc->info->head.next = &pc->info->head;
@@ -1665,6 +1668,11 @@ static PageantAsyncOp *pageant_make_op(
                 (!strcmp(IDEN_SPLIT(selector_string), "*") ||
                  !strcmp(IDEN_SPLIT(selector_string), "**"));
             if (is_cert_selector && !dynamic_selector) {
+                if (!pc->allow_provider_add) {
+                    sfree(selector_string);
+                    fail("provider registration requires local management");
+                    goto add2_cleanup;
+                }
                 sfree(key);
                 strbuf_free(sb); /* no immediate response */
 
@@ -2496,6 +2504,9 @@ static const PageantClientVtable internal_clientvt = {
 typedef struct PageantClientOp {
     strbuf *buf;
     bool request_made;
+#ifdef PUTTY_CAC
+    bool provider_add;
+#endif
     BinarySink_DELEGATE_IMPLEMENTATION;
     BinarySource_IMPLEMENTATION;
 } PageantClientOp;
@@ -2505,6 +2516,9 @@ static PageantClientOp *pageant_client_op_new(void)
     PageantClientOp *pco = snew(PageantClientOp);
     pco->buf = strbuf_new_for_agent_query();
     pco->request_made = false;
+#ifdef PUTTY_CAC
+    pco->provider_add = false;
+#endif
     BinarySink_DELEGATE_INIT(pco, pco->buf);
     BinarySource_INIT(pco, "", 0);
     return pco;
@@ -2528,7 +2542,12 @@ static unsigned pageant_client_op_query(PageantClientOp *pco)
     if (!pageant_local) {
         void *response_raw;
         int resplen_raw;
-        agent_query_synchronous(pco->buf, &response_raw, &resplen_raw);
+#ifdef PUTTY_CAC
+        if (pco->provider_add)
+            agent_query_local_provider(pco->buf, &response_raw, &resplen_raw);
+        else
+#endif
+            agent_query_synchronous(pco->buf, &response_raw, &resplen_raw);
         strbuf_clear(pco->buf);
         put_data(pco->buf, response_raw, resplen_raw);
         sfree(response_raw);
@@ -2548,6 +2567,9 @@ static unsigned pageant_client_op_query(PageantClientOp *pco)
         pic.response = pco->buf;
         pic.got_response = false;
         pageant_register_client(&pic.pc);
+#ifdef PUTTY_CAC
+        pic.pc.allow_provider_add = true;
+#endif
 
         assert(pco->buf->len > 4);
         PageantAsyncOp *pao = pageant_make_op(
@@ -2951,18 +2973,11 @@ int pageant_add_keyfile(Filename *filename, const char *passphrase,
         put_byte(pco, SSH2_AGENTC_ADD_IDENTITY);
         put_stringz(pco, ssh_key_ssh_id(skey->key));
 #ifdef PUTTY_CAC
-        /*
-         * Certificate-backed keys do not contain exportable private key
-         * material. The receiving PuTTY-CAC Pageant recognises the
-         * certificate selector in the following comment and reloads the
-         * key from its provider, so no OpenSSH private blob is required.
-         * Reject any other key type which unexpectedly lacks a serializer.
-         */
-        if (cert_is_certpath(filename->cpath)) {
-            /* The selector itself is the complete private-key reference. */
-        } else if (ssh_key_alg(skey->key)->openssh_blob) {
+        /* Send provider references only over the local management transport. */
+        pco->provider_add = cert_is_certpath(filename->cpath);
+        if (!pco->provider_add && ssh_key_alg(skey->key)->openssh_blob) {
             ssh_key_openssh_blob(skey->key, BinarySink_UPCAST(pco));
-        } else {
+        } else if (!pco->provider_add) {
             pageant_client_op_free(pco);
             sfree(skey->comment);
             ssh_key_free(skey->key);
@@ -2982,6 +2997,13 @@ int pageant_add_keyfile(Filename *filename, const char *passphrase,
         sfree(skey);
 
         if (reply != SSH_AGENT_SUCCESS) {
+#ifdef PUTTY_CAC
+            if (reply > 255 && cert_is_certpath(filename->cpath)) {
+                *retstr = dupstr("Pageant did not answer the provider request. If Pageant is elevated, "
+                                 "add the key from its tray menu or run both instances at the same elevation.");
+                return PAGEANT_ACTION_FAILURE;
+            }
+#endif
             *retstr = dupstr("The already running agent "
                              "refused to add the key.");
             return PAGEANT_ACTION_FAILURE;

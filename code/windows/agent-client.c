@@ -22,7 +22,8 @@ static bool wm_copydata_agent_exists(void)
         return true;
 }
 
-static void wm_copydata_agent_query(strbuf *query, void **out, int *outlen)
+static void wm_copydata_agent_query(strbuf *query, void **out, int *outlen,
+                                    ULONG_PTR request_id)
 {
     HWND hwnd;
     char *mapname;
@@ -79,14 +80,19 @@ static void wm_copydata_agent_query(strbuf *query, void **out, int *outlen)
 
     filemap = CreateFileMapping(INVALID_HANDLE_VALUE, psa, PAGE_READWRITE,
                                 0, AGENT_MAX_MSGLEN, mapname);
-    if (filemap == NULL || filemap == INVALID_HANDLE_VALUE) {
-        sfree(mapname);
-        return;                        /* *out == NULL, so failure */
-    }
+    if (!filemap)
+        goto cleanup;
+#ifdef PUTTY_CAC
+    if (GetLastError() == ERROR_ALREADY_EXISTS)
+        goto cleanup;
+#endif
     p = MapViewOfFile(filemap, FILE_MAP_WRITE, 0, 0, 0);
+    if (!p)
+        goto cleanup;
+
     strbuf_finalise_agent_query(query);
     memcpy(p, query->s, query->len);
-    cds.dwData = AGENT_COPYDATA_ID;
+    cds.dwData = request_id;
     cds.cbData = 1 + strlen(mapname);
     cds.lpData = mapname;
 
@@ -117,11 +123,21 @@ static void wm_copydata_agent_query(strbuf *query, void **out, int *outlen)
         }
     }
     UnmapViewOfFile(p);
-    CloseHandle(filemap);
+
+  cleanup:
+    if (filemap)
+        CloseHandle(filemap);
     sfree(mapname);
     if (psd)
         LocalFree(psd);
 }
+
+#ifdef PUTTY_CAC
+void agent_query_local_provider(strbuf *query, void **out, int *outlen)
+{
+    wm_copydata_agent_query(query, out, outlen, PAGEANT_PROVIDER_COPYDATA_ID);
+}
+#endif
 
 Socket *agent_connect(Plug *plug)
 {
@@ -288,6 +304,6 @@ agent_pending_query *agent_query(
     if (pq || *out)
         return pq;
 
-    wm_copydata_agent_query(query, out, outlen);
+    wm_copydata_agent_query(query, out, outlen, AGENT_COPYDATA_ID);
     return NULL;
 }

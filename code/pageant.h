@@ -27,6 +27,9 @@ struct PageantClient {
      * set it dynamically if you find out at run time that you're not
      * doing logging. */
     bool suppress_logging;
+#ifdef PUTTY_CAC
+    bool allow_provider_add;
+#endif
 };
 struct PageantClientVtable {
     void (*log)(PageantClient *pc, PageantClientRequestId *reqid,
@@ -115,7 +118,9 @@ void pageant_make_keylist2(BinarySink *);
 struct PageantPublicKey;
 bool pageant_public_blob_is_x509(ptrlen blob);
 ptrlen pageant_provider_public_blob(struct PageantPublicKey *pub, bool use_x509, bool remember);
+#define PAGEANT_PROVIDER_COPYDATA_ID 0x804e50bb
 #define LIST_EXTENDED_FLAG_RAW_PUBLIC_KEY 4
+void agent_query_local_provider(strbuf *query, void **out, int *outlen);
 ptrlen pageant_listed_public_blob(struct PageantPublicKey *pub);
 #endif
 
