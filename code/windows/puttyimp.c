@@ -12,12 +12,11 @@
 #include <devpkey.h>
 #include <fido/credman.h>
 
-#include "cert_portable.h"
 #include "cert_fido.h"
 
 #pragma comment(lib,"setupapi.lib")
 #pragma comment(lib,"bcrypt.lib")
-#pragma comment(lib,"SetupAPI.lib")
+#pragma comment(lib,"crypt32.lib")
 #pragma comment(lib,"Hid.lib")
 #pragma comment(lib,"ws2_32.lib")
 #pragma comment(lib,"credui.lib")
@@ -118,43 +117,42 @@ BOOL GrantAccessToDevice(LPCWSTR sDevicePath)
 	return bReturn;
 }
 
-LPCSTR GetTokenPin()
+static BOOL GetTokenPin(CHAR *pin, int capacity, DWORD *status)
 {
-	static CHAR sPINUTF[CREDUI_MAX_PASSWORD_LENGTH + 1] = "";
-	if (strlen(sPINUTF) > 0) return sPINUTF;
+	if (*status != ERROR_SUCCESS) return FALSE;
+	if (*pin) return TRUE;
 
-	// prompt the user to enter the application name
+	// Request a PIN only for operations that require one.
 	CREDUI_INFOW tCredInfo;
 	ZeroMemory(&tCredInfo, sizeof(CREDUI_INFOW));
 	tCredInfo.cbSize = sizeof(tCredInfo);
 	tCredInfo.pszCaptionText = L"Enter Token PIN";
-	tCredInfo.pszMessageText = L"Please enter the PIN for the FIDO token. This will be used to " \
-		L"query the token and cache all public keys assocatied with existing resident keys. ";
+	tCredInfo.pszMessageText = L"Enter the PIN to manage resident credentials on this FIDO token.";
 	WCHAR sUserName[CREDUI_MAX_USERNAME_LENGTH + 1] = L"<Using Token>";
 	WCHAR sPIN[CREDUI_MAX_PASSWORD_LENGTH + 1] = L"";
-	if (CredUIPromptForCredentialsW(&tCredInfo, L"Enter PIN", NULL, 0, &sUserName[0],
+	*status = CredUIPromptForCredentialsW(&tCredInfo, L"Enter PIN", NULL, 0, &sUserName[0],
 		_countof(sUserName), &sPIN[0], _countof(sPIN), NULL,
-		CREDUI_FLAGS_GENERIC_CREDENTIALS | CREDUI_FLAGS_DO_NOT_PERSIST | CREDUI_FLAGS_EXCLUDE_CERTIFICATES | CREDUI_FLAGS_KEEP_USERNAME | CREDUI_FLAGS_ALWAYS_SHOW_UI) != ERROR_SUCCESS)
-	{
-		exit(__LINE__);
-	}
+		CREDUI_FLAGS_GENERIC_CREDENTIALS | CREDUI_FLAGS_DO_NOT_PERSIST | CREDUI_FLAGS_EXCLUDE_CERTIFICATES |
+		CREDUI_FLAGS_KEEP_USERNAME | CREDUI_FLAGS_ALWAYS_SHOW_UI);
+	if (*status == ERROR_SUCCESS && !WideCharToMultiByte(CP_UTF8, 0, sPIN, -1, pin, capacity, NULL, NULL))
+		*status = GetLastError();
+	SecureZeroMemory(sPIN, sizeof(sPIN));
+	return *status == ERROR_SUCCESS;
+}
 
-	// convert to utf8 for libfido compatibility
-	if (WideCharToMultiByte(CP_UTF8, 0, sPIN, -1, sPINUTF, sizeof(sPINUTF), NULL, NULL) == 0 ||
-		strlen(sPINUTF) != wcslen(sPIN))
-	{
-		exit(__LINE__);
-	}
-
-	return sPINUTF;
+static BOOL EnumerationComplete(int result)
+{
+	return result == FIDO_OK || result == FIDO_ERR_NO_CREDENTIALS;
 }
 
 int wmain(int iArgc, WCHAR** sArgv)
 {
 	// parameters for argument processing
 	DWORD iOperationMode = MODE_UNDEFINED;
-	LPSTR sTargetedKey = NULL;
-	LPWSTR sSidToModify = NULL;
+	WCHAR targetApp[FIDO_MAX_APPID_LEN];
+	BYTE targetId[FIDO_MAX_CREDID_LEN];
+	DWORD targetIdLen = sizeof(targetId);
+	LPCWSTR sSidToModify = NULL;
 
 	DWORD iProcessList[] = { 0, 0 };
 	if (iArgc == 1 && GetConsoleProcessList(&iProcessList[0], _countof(iProcessList)) > 1)
@@ -171,46 +169,28 @@ int wmain(int iArgc, WCHAR** sArgv)
 	{
 		iOperationMode = MODE_GRANT;
 	}
-	else if (iArgc >= 3 && _wcsicmp(sArgv[1], L"--delete-fido") == 0)
+	else if ((iArgc == 4 || iArgc == 5) && _wcsicmp(sArgv[1], L"--delete-fido") == 0)
 	{
+		// Both identifiers are hex-encoded so application names survive command-line quoting.
+		DWORD appSize = sizeof(targetApp);
+		if (!CryptStringToBinaryW(sArgv[2], 0, CRYPT_STRING_HEXRAW, (BYTE *)targetApp, &appSize, NULL, NULL) ||
+			appSize < 2 * sizeof(WCHAR) || appSize % sizeof(WCHAR) || targetApp[appSize / sizeof(WCHAR) - 1] ||
+			(wcslen(targetApp) + 1) * sizeof(WCHAR) != appSize ||
+			!CryptStringToBinaryW(sArgv[3], 0, CRYPT_STRING_HEXRAW, targetId, &targetIdLen, NULL, NULL) || !targetIdLen)
+			return ERROR_INVALID_PARAMETER;
 		iOperationMode = MODE_DELETE;
-		int isTargetedKeySize = (wcslen(sArgv[2]) + 1) * sizeof(CHAR);
-		sTargetedKey = malloc(isTargetedKeySize);
-		if (WideCharToMultiByte(CP_UTF8, 0, sArgv[2], -1, sTargetedKey, isTargetedKeySize, NULL, NULL) == 0)
-		{
-			return __LINE__;
-		}
-		
-		if (iArgc == 4) sSidToModify = sArgv[2];
+		if (iArgc == 5) sSidToModify = sArgv[4];
 	}
 
 	// print help if problem processing arguments
 	if (iOperationMode == MODE_UNDEFINED)
 	{
 		wprintf(L"Syntax: --import-fido [SID]\r\n");
-		wprintf(L"Syntax: --delete-fido-key <AppName> [SID]\r\n");
+		wprintf(L"Syntax: --delete-fido <UTF16-App-Hex> <Credential-ID-Hex> [SID]\r\n");
 		wprintf(L"Syntax: --grant-fido\r\n");
 		return __LINE__;
 	}
 
-	// if third argument is specified, then import to that key instead of HKCU
-	LPWSTR sPubKeySubKey = L"Software\\SimonTatham\\PuTTY\\Fido\\PubKeyBlobs";
-	LPWSTR sCredIdSubKey = L"Software\\SimonTatham\\PuTTY\\Fido\\CredIdBlobs";
-	LPWSTR sUserVerSubKey = L"Software\\SimonTatham\\PuTTY\\Fido\\UserVerification";
-	HANDLE hBaseKey = HKEY_CURRENT_USER;
-	if (iOperationMode == MODE_IMPORT && sSidToModify != NULL)
-	{
-		hBaseKey = HKEY_USERS;
-		LPWSTR sNewPubIdSubKey = calloc(wcslen(sSidToModify) + 1 + wcslen(sPubKeySubKey) + 1, sizeof(WCHAR));
-		wsprintfW(sNewPubIdSubKey, L"%s\\%s", sSidToModify, sPubKeySubKey);
-		sPubKeySubKey = sNewPubIdSubKey;
-		LPWSTR sNewCredIdSubKey = calloc(wcslen(sSidToModify) + 1 + wcslen(sCredIdSubKey) + 1, sizeof(WCHAR));
-		wsprintfW(sNewCredIdSubKey, L"%s\\%s", sSidToModify, sCredIdSubKey);
-		sCredIdSubKey = sNewCredIdSubKey;
-		LPWSTR sNewUserVerSubKey = calloc(wcslen(sSidToModify) + 1 + wcslen(sUserVerSubKey) + 1, sizeof(WCHAR));
-		wsprintfW(sNewUserVerSubKey, L"%s\\%s", sSidToModify, sUserVerSubKey);
-		sUserVerSubKey = sNewUserVerSubKey;
-	}
 
 	// allocate memory to hold list of devices
 	fido_dev_info_t* tDevList = fido_dev_info_new(64);
@@ -218,11 +198,23 @@ int wmain(int iArgc, WCHAR** sArgv)
 
 	// enumerate devices
 	size_t iKeyCount = 0;
-	size_t iDevices;
-	fido_dev_info_manifest(tDevList, 64, &iDevices);
+	BOOL scanComplete = TRUE, deleteAttempted = FALSE, deleted = FALSE;
+	DWORD pinStatus = ERROR_SUCCESS;
+	size_t iDevices = 0;
+	if (fido_dev_info_manifest(tDevList, 64, &iDevices) != FIDO_OK)
+	{
+		if (iOperationMode != MODE_DELETE)
+		{
+			fido_dev_info_free(&tDevList, 64);
+			return ERROR_NOT_READY;
+		}
+		scanComplete = FALSE;
+		iDevices = 0;
+	}
 	for (size_t iDevice = 0; iDevice < iDevices; iDevice++)
 	{
 		const fido_dev_info_t* tDeviceInfo = fido_dev_info_ptr(tDevList, iDevice);
+		CHAR pin[4 * CREDUI_MAX_PASSWORD_LENGTH + 1] = "";
 
 		// get device id for sddl lookup
 		if (iOperationMode == MODE_GRANT)
@@ -252,35 +244,38 @@ int wmain(int iArgc, WCHAR** sArgv)
 		{
 			// get relying party list for this device
 			fido_credman_rp_t* tRelyingParty = fido_credman_rp_new();
-			if (tRelyingParty != NULL && fido_dev_supports_credman(tDevice) && (
-				fido_credman_get_dev_rp(tDevice, tRelyingParty, NULL) == FIDO_OK ||
-				fido_credman_get_dev_rp(tDevice, tRelyingParty, GetTokenPin()) == FIDO_OK))
+			int rpResult = FIDO_ERR_NO_CREDENTIALS;
+			if (fido_dev_supports_credman(tDevice))
+			{
+				rpResult = tRelyingParty ? fido_credman_get_dev_rp(tDevice, tRelyingParty, NULL) : FIDO_ERR_INTERNAL;
+				if (tRelyingParty && !EnumerationComplete(rpResult) && GetTokenPin(pin, sizeof(pin), &pinStatus))
+					rpResult = fido_credman_get_dev_rp(tDevice, tRelyingParty, pin);
+			}
+			if (!EnumerationComplete(rpResult)) scanComplete = FALSE;
+			if (rpResult == FIDO_OK)
 			{
 				// enumerate relying parties
 				const size_t iRelyingPartyCount = fido_credman_rp_count(tRelyingParty);
 				for (size_t iRelyingParty = 0; iRelyingParty < iRelyingPartyCount; iRelyingParty++)
 				{
 					const char* sRelyingPartyId = fido_credman_rp_id(tRelyingParty, iRelyingParty);
+					if (!sRelyingPartyId) { scanComplete = FALSE; continue; }
 					if (_strnicmp(sRelyingPartyId, "ssh:", strlen("ssh:")) != 0) continue;
 
-					// skip if key is targetted but this is not the key
-					if (sTargetedKey != NULL && _stricmp(sTargetedKey, sRelyingPartyId) != 0) continue;
-
-					// convert to unicode in order to modify registry keys
-					int iRelyingPartyUnicodeSize = (strlen(sRelyingPartyId) + 1) * sizeof(WCHAR);
-					LPWSTR sRelyingPartyIdUnicode = malloc(iRelyingPartyUnicodeSize);
-					if (MultiByteToWideChar(CP_UTF8, 0, sRelyingPartyId, -1, sRelyingPartyIdUnicode, iRelyingPartyUnicodeSize) == 0)
-					{
-						free(sRelyingPartyIdUnicode);
-						wprintf(L"Unable to format application name '%S'.", sRelyingPartyId);
-						continue;
-					}
+					// The registry and the authenticator must refer to the same relying party.
+					WCHAR sRelyingPartyIdUnicode[FIDO_MAX_APPID_LEN];
+					if (!MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, sRelyingPartyId, -1,
+						sRelyingPartyIdUnicode, _countof(sRelyingPartyIdUnicode))) continue;
+					if (iOperationMode == MODE_DELETE && wcscmp(targetApp, sRelyingPartyIdUnicode)) continue;
 
 					// get a list of resident credentials
 					fido_credman_rk_t* tResidentKeyList = fido_credman_rk_new();
-					if (tResidentKeyList != NULL &&
-						fido_credman_get_dev_rk(tDevice, sRelyingPartyId, tResidentKeyList, NULL) == FIDO_OK ||
-						fido_credman_get_dev_rk(tDevice, sRelyingPartyId, tResidentKeyList, GetTokenPin()) == FIDO_OK)
+					int rkResult = tResidentKeyList ?
+						fido_credman_get_dev_rk(tDevice, sRelyingPartyId, tResidentKeyList, NULL) : FIDO_ERR_INTERNAL;
+					if (tResidentKeyList && !EnumerationComplete(rkResult) && GetTokenPin(pin, sizeof(pin), &pinStatus))
+						rkResult = fido_credman_get_dev_rk(tDevice, sRelyingPartyId, tResidentKeyList, pin);
+					if (!EnumerationComplete(rkResult)) scanComplete = FALSE;
+					if (rkResult == FIDO_OK)
 					{
 						// enumerate resident keys
 						const size_t iResidentKeyCount = fido_credman_rk_count(tResidentKeyList);
@@ -291,20 +286,18 @@ int wmain(int iArgc, WCHAR** sArgv)
 						{
 							// get the credential structure associated with this resident key
 							const fido_cred_t* tCred = fido_credman_rk(tResidentKeyList, iResidentKey);
-							if (tCred == NULL) continue;
+							if (!tCred) { scanComplete = FALSE; continue; }
 
 							// delete key if in delete mode
 							if (iOperationMode == MODE_DELETE)
 							{
-								if (fido_credman_del_dev_rk(tDevice, fido_cred_id_ptr(tCred), fido_cred_id_len(tCred), NULL) == FIDO_OK ||
-									fido_credman_del_dev_rk(tDevice, fido_cred_id_ptr(tCred), fido_cred_id_len(tCred), GetTokenPin()) == FIDO_OK)
-								{
-									RegDeleteKeyValueW(hBaseKey, sPubKeySubKey, sRelyingPartyIdUnicode);
-									RegDeleteKeyValueW(hBaseKey, sCredIdSubKey, sRelyingPartyIdUnicode);
-									RegDeleteKeyValueW(hBaseKey, sUserVerSubKey, sRelyingPartyIdUnicode);
-									iKeyCount++;
-								}
-								continue;
+								if (fido_cred_id_len(tCred) != targetIdLen ||
+									memcmp(fido_cred_id_ptr(tCred), targetId, targetIdLen)) continue;
+								deleteAttempted = TRUE;
+								deleted = fido_credman_del_dev_rk(tDevice, targetId, targetIdLen, NULL) == FIDO_OK ||
+									(GetTokenPin(pin, sizeof(pin), &pinStatus) &&
+									 fido_credman_del_dev_rk(tDevice, targetId, targetIdLen, pin) == FIDO_OK);
+								break;
 							}
 
 							// warn and skip if unsupported type
@@ -337,15 +330,18 @@ int wmain(int iArgc, WCHAR** sArgv)
 					}
 
 					fido_credman_rk_free(&tResidentKeyList);
-					free(sRelyingPartyIdUnicode);
+					if (deleteAttempted || pinStatus != ERROR_SUCCESS) break;
 				}
 			}
 
 			fido_credman_rp_free(&tRelyingParty);
 			fido_dev_close(tDevice);
 		}
+		else scanComplete = FALSE;
 
 		fido_dev_free(&tDevice);
+		SecureZeroMemory(pin, sizeof(pin));
+		if (deleteAttempted || pinStatus != ERROR_SUCCESS) break;
 	}
 
 	WCHAR sMessageToDisplay[64];
@@ -356,8 +352,21 @@ int wmain(int iArgc, WCHAR** sArgv)
 	}
 	if (iOperationMode == MODE_DELETE)
 	{
-		swprintf_s(&sMessageToDisplay[0], _countof(sMessageToDisplay), L"Total Keys Deleted: %zu", iKeyCount);
-		MessageBoxW(NULL, &sMessageToDisplay[0], L"Deletion Summary", MB_OK);
+		// Cache-only credentials are removable even when no resident credential was found.
+		BOOL removed = (deleted || pinStatus == ERROR_CANCELLED ||
+			(scanComplete && !deleteAttempted && pinStatus == ERROR_SUCCESS)) &&
+			cert_fido_update_cache(sSidToModify, targetApp, NULL, 0, targetId, targetIdLen, 0, NULL);
+		LPCWSTR message;
+		if (deleted)
+			message = removed ? L"The selected credential was removed from the token and local cache." :
+				L"The token credential was deleted. The matching cache entry could not be removed.";
+		else if (!scanComplete && pinStatus != ERROR_CANCELLED)
+			message = L"The token could not be checked. The saved credential was kept so you can retry.";
+		else
+			message = removed ? L"The selected credential was removed from the local cache only." :
+				L"The selected credential could not be removed.";
+		MessageBoxW(NULL, message, L"FIDO Key Delete", MB_OK | (removed ? MB_ICONINFORMATION : MB_ICONERROR));
+		if (!removed) { fido_dev_info_free(&tDevList, 64); return ERROR_GEN_FAILURE; }
 	}
 
 	fido_dev_info_free(&tDevList, 64);

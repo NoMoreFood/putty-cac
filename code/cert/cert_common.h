@@ -109,6 +109,7 @@ EXTERN VOID cert_set_parent_hwnd(HWND hWnd);
 EXTERN HWND cert_get_parent_hwnd(VOID);
 EXTERN LPSTR cert_key_string(LPCSTR szCert, BOOL bIncludeSubject);
 EXTERN LPSTR cert_subject_string(LPCSTR szCert);
+EXTERN PCCERT_CONTEXT cert_select_certificate(LPCSTR szIden, BOOL bAutoSelect, LPCWSTR sCustomPrompt);
 EXTERN LPSTR cert_prompt(LPCSTR szIden, BOOL bAutoSelect, LPCWSTR sCustomPrompt);
 EXTERN BOOL cert_test_hash(LPCSTR szCert, DWORD iHashRequest);
 EXTERN BOOL cert_confirm_signing(LPCSTR sFingerPrint, LPCSTR sComment,
@@ -132,7 +133,7 @@ EXTERN PVOID cert_prompt_pin(BOOL bWide);
 EXTERN BOOL cert_capi_delete_key(LPCSTR szCert);
 EXTERN HRESULT fido_create_key(LPCSTR szAlgName, LPCSTR szDisplayName, LPCSTR szApplication,
 	BOOL bResidentKey, BOOL bUserVerification);
-EXTERN BOOL fido_delete_key(LPCSTR szCert);
+EXTERN BOOL fido_delete_key(void);
 EXTERN VOID fido_import_keys();
 EXTERN LPSTR fido_import_openssh_key();
 EXTERN VOID fido_clear_keys();

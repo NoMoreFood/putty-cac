@@ -641,10 +641,9 @@ LPSTR cert_get_cert_thumbprint(LPCSTR szIden, PCCERT_CONTEXT pCertContext)
 	return szThumb;
 }
 
-LPSTR cert_prompt(LPCSTR szIden, BOOL bAutoSelect, LPCWSTR sCustomPrompt)
+PCCERT_CONTEXT cert_select_certificate(LPCSTR szIden, BOOL bAutoSelect, LPCWSTR sCustomPrompt)
 {
 	HCERTSTORE hCertStore = NULL;
-	LPCSTR szHint = NULL;
 
 	if (cert_is_capipath(szIden))
 	{
@@ -667,6 +666,11 @@ LPSTR cert_prompt(LPCSTR szIden, BOOL bAutoSelect, LPCWSTR sCustomPrompt)
 		X509_ASN_ENCODING | PKCS_7_ASN_ENCODING,
 		0, CERT_STORE_CREATE_NEW_FLAG, NULL);
 
+	if (!hMemoryStore) {
+		CertCloseStore(hCertStore, 0);
+		return NULL;
+	}
+
 	// enumerate all certs
 	PCCERT_CONTEXT pCertContext = NULL;
 	int iCertCount = 0;
@@ -675,15 +679,14 @@ LPSTR cert_prompt(LPCSTR szIden, BOOL bAutoSelect, LPCWSTR sCustomPrompt)
 		// ignore invalid certs based on settings
 		if (!cert_check_valid(szIden, pCertContext)) continue;
 
-		CertAddCertificateContextToStore(hMemoryStore, pCertContext, CERT_STORE_ADD_ALWAYS, NULL);
-		iCertCount++;
+		if (CertAddCertificateContextToStore(hMemoryStore, pCertContext, CERT_STORE_ADD_ALWAYS, NULL))
+			iCertCount++;
 	}
 
 	// close original store as we no longer need it
 	CertCloseStore(hCertStore, 0);
 
 	// select certificate from store
-	LPSTR szCert = NULL;
 	if (iCertCount == 1 && bAutoSelect)
 	{
 		// auto select if only single certificate specified
@@ -701,23 +704,18 @@ LPSTR cert_prompt(LPCSTR szIden, BOOL bAutoSelect, LPCWSTR sCustomPrompt)
 			CRYPTUI_SELECT_LOCATION_COLUMN, 0, NULL);
 	}
 
-	// get the certificate hash to pass back
-	if (pCertContext != NULL)
-	{
-		BYTE pbThumbBinary[SHA1_BINARY_SIZE];
-		DWORD cbThumbBinary = SHA1_BINARY_SIZE;
-		if (CertGetCertificateContextProperty(pCertContext, CERT_HASH_PROP_ID, pbThumbBinary, &cbThumbBinary) == TRUE)
-		{
-			szCert = cert_get_cert_thumbprint(IDEN_PREFIX(szIden), pCertContext);
-		}
+	// The selected context retains its reference to the memory store.
+	CertCloseStore(hMemoryStore, 0);
+	return pCertContext;
+}
 
-		// cleanup
-		CertFreeCertificateContext(pCertContext);
-	}
-
-	// cleanup and return
-	CertCloseStore(hMemoryStore, CERT_CLOSE_STORE_FORCE_FLAG);
-	return szCert;
+LPSTR cert_prompt(LPCSTR szIden, BOOL bAutoSelect, LPCWSTR sCustomPrompt)
+{
+	PCCERT_CONTEXT cert = cert_select_certificate(szIden, bAutoSelect, sCustomPrompt);
+	if (!cert) return NULL;
+	LPSTR selector = cert_get_cert_thumbprint(IDEN_PREFIX(szIden), cert);
+	CertFreeCertificateContext(cert);
+	return selector;
 }
 
 BOOL cert_load_cert(LPCSTR szCert, PCERT_CONTEXT* ppCertContext, HCERTSTORE* phCertStore)

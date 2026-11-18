@@ -702,6 +702,7 @@ HCERTSTORE cert_fido_get_cert_store()
 		return hStoreHandle;
 	}
 
+	// Attach the matching credential ID to the exact key shown in the picker.
 	fido_public_key_buffer_t tPublicKey;
 	WCHAR sApplicationId[FIDO_MAX_APPID_LEN];
 	for (int iIndex = 0; ; iIndex++)
@@ -716,6 +717,13 @@ HCERTSTORE cert_fido_get_cert_store()
 		PCCERT_CONTEXT pCertContext = NULL;
 		if (cert_fido_get_cert(&tPublicKey.tHeader, iPublicKeyBufferSize, sApplicationId, &pCertContext) == TRUE)
 		{
+			BYTE id[FIDO_MAX_CREDID_LEN];
+			DWORD len = sizeof(id);
+			if (RegGetValueW(HKEY_CURRENT_USER, FIDO_REG_CREDIDS, sApplicationId,
+				RRF_RT_REG_BINARY, NULL, id, &len) == ERROR_SUCCESS && len) {
+				CRYPT_DATA_BLOB blob = { len, id };
+				CertSetCertificateContextProperty(pCertContext, FIDO_CREDENTIAL_ID_PROP, 0, &blob);
+			}
 			CertAddCertificateContextToStore(hStoreHandle, pCertContext, CERT_STORE_ADD_ALWAYS, NULL);
 			CertFreeCertificateContext(pCertContext);
 		}
@@ -893,33 +901,49 @@ static BOOL fido_get_importer_path(WCHAR* sPath)
 	return TRUE;
 }
 
-BOOL fido_delete_key(LPCSTR szCert)
+BOOL fido_delete_key(void)
 {
-	// split on the hint symbol to get the appid
-	LPSTR sApplicationId = IDEN_SPLIT(szCert);
-	WCHAR szAppIdUnicode[FIDO_MAX_APPID_LEN];
-	if (MultiByteToWideChar(CP_UTF8, 0, sApplicationId, -1, szAppIdUnicode, _countof(szAppIdUnicode)) == 0) return FALSE;
-
-	// get current user sid
-	LPWSTR sSidString = fido_get_user_id();
-	if (sSidString == NULL) return FALSE;
-
-	// construct path to puttyimp from the current directory
-	WCHAR szProgPath[MAX_PATH];
-	if (!fido_get_importer_path(szProgPath))
-	{
-		LocalFree(sSidString);
+	// Bind the deletion to the credential that the user selected.
+	PCCERT_CONTEXT cert = cert_select_certificate(IDEN_FIDO, FALSE,
+		L"Select a saved FIDO key to remove.");
+	if (!cert) return FALSE;
+	WCHAR app[FIDO_MAX_APPID_LEN], appHex[sizeof(app) * 2 + 1], idHex[FIDO_MAX_CREDID_LEN * 2 + 1];
+	BYTE id[FIDO_MAX_CREDID_LEN];
+	DWORD appSize = sizeof(app), idSize = sizeof(id);
+	DWORD appChars = _countof(appHex), idChars = _countof(idHex);
+	DWORD format = CRYPT_STRING_HEXRAW | CRYPT_STRING_NOCRLF;
+	BOOL valid = CertGetCertificateContextProperty(cert, CERT_FRIENDLY_NAME_PROP_ID, app, &appSize) &&
+		CertGetCertificateContextProperty(cert, FIDO_CREDENTIAL_ID_PROP, id, &idSize) && idSize &&
+		CryptBinaryToStringW((BYTE *)app, appSize, format, appHex, &appChars) &&
+		CryptBinaryToStringW(id, idSize, format, idHex, &idChars);
+	CertFreeCertificateContext(cert);
+	if (!valid) {
+		MessageBoxW(GetForegroundWindow(), L"The saved key has no usable credential ID. Import it again before deletion.",
+			L"FIDO Key Delete", MB_OK | MB_ICONERROR);
 		return FALSE;
 	}
-	size_t iParamsLen = wcslen(szAppIdUnicode) + wcslen(sSidString) + _countof(L"--delete-fido \"\" \"\"");
-	WCHAR* szParams = snewn(iParamsLen, WCHAR);
-	swprintf_s(szParams, iParamsLen, L"--delete-fido \"%s\" \"%s\"", szAppIdUnicode, sSidString);
-	LocalFree(sSidString);
 
-	// warn user about elevation prompt user
-	MessageBoxW(NULL, L"PuTTY will now launch the PuTTYImp process to delete the " \
-		L"selected key. This may result in an elevation prompt depending your current " \
-		L"system settings.", L"FIDO Key Delete", MB_SYSTEMMODAL | MB_ICONINFORMATION | MB_OK);
+	int choice = MessageBoxW(GetForegroundWindow(),
+		L"Also delete the matching resident credential from an attached token? "
+		L"Choose No to remove only the saved key from this computer.",
+		L"FIDO Key Delete", MB_YESNOCANCEL | MB_ICONQUESTION | MB_DEFBUTTON2);
+	if (choice == IDNO) {
+		BOOL removed = cert_fido_update_cache(NULL, app, NULL, 0, id, idSize, 0, NULL);
+		MessageBoxW(GetForegroundWindow(), removed ? L"The selected credential was removed from the local cache only." :
+			L"The selected credential could not be removed from the cache.", L"FIDO Key Delete",
+			MB_OK | (removed ? MB_ICONINFORMATION : MB_ICONERROR));
+		return removed;
+	}
+	if (choice != IDYES) return FALSE;
+
+	WCHAR szProgPath[MAX_PATH];
+	if (!fido_get_importer_path(szProgPath)) return FALSE;
+	LPWSTR sSidString = fido_get_user_id();
+	if (!sSidString) return FALSE;
+	size_t iParamsLen = wcslen(appHex) + wcslen(idHex) + wcslen(sSidString) + _countof(L"--delete-fido   ");
+	WCHAR *szParams = snewn(iParamsLen, WCHAR);
+	swprintf_s(szParams, iParamsLen, L"--delete-fido %s %s %s", appHex, idHex, sSidString);
+	LocalFree(sSidString);
 
 	// launch importer
 	INT_PTR iResult = (INT_PTR)ShellExecuteW(GetForegroundWindow(),

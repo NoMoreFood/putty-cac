@@ -980,13 +980,7 @@ void fido_event_handler(dlgcontrol* ctrl, dlgparam* dlg, void* data, int event)
 	// handle fido key delete button press
 	if (ctrl == fidod->fido_delete_key_button && event == EVENT_ACTION)
 	{
-		char* szCert = cert_prompt(IDEN_FIDO, FALSE,
-			L"Select a FIDO key to remove. If this is a resident key, it will also " \
-			L"be deleted from the token.");
-		if (szCert == NULL) return;
-
-		fido_delete_key(szCert);
-		sfree(szCert);
+		fido_delete_key();
 	}
 
 	// handle key algorithm key combo box population
