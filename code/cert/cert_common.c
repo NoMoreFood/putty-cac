@@ -801,7 +801,8 @@ static LPCSTR cert_signature_alg(
 	struct ssh2_userkey* userkey, int iAgentFlags)
 {
 	if (userkey == NULL || userkey->key == NULL ||
-		userkey->key->vt == NULL || userkey->key->vt->ssh_id == NULL)
+		userkey->key->vt == NULL || userkey->key->vt->ssh_id == NULL ||
+		((unsigned)iAgentFlags & ~ssh_key_supported_flags(userkey->key)))
 	{
 		return NULL;
 	}
@@ -815,18 +816,8 @@ static LPCSTR cert_signature_alg(
 
 	if (!strcmp(szAlgo, "ssh-rsa"))
 	{
-		if ((iAgentFlags & SSH_AGENT_RSA_SHA2_512) &&
-			userkey->comment != NULL &&
-			cert_test_hash(userkey->comment, SSH_AGENT_RSA_SHA2_512))
-		{
-			return "rsa-sha2-512";
-		}
-		if ((iAgentFlags & SSH_AGENT_RSA_SHA2_256) &&
-			userkey->comment != NULL &&
-			cert_test_hash(userkey->comment, SSH_AGENT_RSA_SHA2_256))
-		{
-			return "rsa-sha2-256";
-		}
+		if (iAgentFlags & SSH_AGENT_RSA_SHA2_512) return "rsa-sha2-512";
+		if (iAgentFlags & SSH_AGENT_RSA_SHA2_256) return "rsa-sha2-256";
 	}
 
 	return szAlgo;
@@ -967,7 +958,7 @@ BOOL cert_sign(struct ssh2_userkey* userkey,
 		if (!cert_public_blob_matches(userkey, pExpectedBlob, iExpectedBlobLen)) return FALSE;
 	}
 
-	// determine hashing algorithm for signing - upgrade to sha2 if possible
+	// Use the signature algorithm negotiated for this request.
 	LPCSTR sHashAlgName = cert_signature_alg(userkey, iAgentFlags);
 	if (cert_hash_alg_from_name(sHashAlgName) == CERT_HASH_INVALID)
 		return FALSE;

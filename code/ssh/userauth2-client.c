@@ -18,6 +18,7 @@
 
 #ifdef PUTTY_CAC
 #include "cert_common.h"
+#include "pageant.h"
 #endif // PUTTY_CAC
 #define BANNER_LIMIT 131072
 
@@ -296,6 +297,78 @@ static PktIn *ssh2_userauth_pop(struct ssh2_userauth_state *s)
     return pq_pop(s->ppl.in_pq);
 }
 
+#ifdef PUTTY_CAC
+static bool ssh2_userauth_agent_variants(struct ssh2_userauth_state *s)
+{
+    BinarySource reply[1];
+    BinarySource_BARE_INIT_PL(reply, s->agent_response);
+    ptrlen body = get_string(reply);
+    if (get_err(reply) || get_avail(reply)) return false;
+    BinarySource_BARE_INIT_PL(reply, body);
+    if (get_byte(reply) != SSH_AGENT_SUCCESS) return false;
+    uint32_t count = get_uint32(reply), total = count;
+    if (get_err(reply) || count > get_avail(reply) / 12) return false;
+
+    /* Convert negotiated alternates to the identity list consumed by the authentication loop. */
+    strbuf *list = strbuf_new_for_agent_query();
+    put_byte(list, SSH2_AGENT_IDENTITIES_ANSWER);
+    put_uint32(list, count);
+    for (uint32_t i = 0; i < count; i++) {
+        ptrlen blob = get_string(reply), comment = get_string(reply), info = get_string(reply);
+        BinarySource ext[1];
+        BinarySource_BARE_INIT_PL(ext, info);
+        unsigned flags = get_uint32(ext);
+        put_stringpl(list, blob);
+        put_stringpl(list, comment);
+        if (flags & LIST_EXTENDED_FLAG_RAW_PUBLIC_KEY) {
+            ptrlen raw = get_string(ext);
+            if (!raw.len || get_err(ext)) goto invalid;
+            put_stringpl(list, raw);
+            put_stringpl(list, comment);
+            total++;
+        }
+        if (get_err(reply) || get_err(ext)) goto invalid;
+    }
+    if (get_avail(reply)) goto invalid;
+    PUT_32BIT_MSB_FIRST(list->u + 5, total);
+    strbuf_finalise_agent_query(list);
+    sfree(s->agent_response_to_free);
+    s->agent_response = ptrlen_from_strbuf(list);
+    s->agent_response_to_free = strbuf_to_str(list);
+    return true;
+
+  invalid:
+    strbuf_free(list);
+    return false;
+}
+
+static bool ssh2_userauth_advertised(struct ssh2_userauth_state *s, const char *algorithm)
+{
+    if (!s->ppl.bpp->server_sig_algs) return false;
+    ptrlen list = ptrlen_from_strbuf(s->ppl.bpp->server_sig_algs), word;
+    while (get_commasep_word(&list, &word))
+        if (ptrlen_eq_string(word, algorithm)) return true;
+    return false;
+}
+
+static bool ssh2_userauth_use_raw_key(struct ssh2_userauth_state *s)
+{
+    const char *selector = filename_to_str(s->keyfile);
+    if (!cert_is_certpath(selector) || !strstartswith(s->publickey_algorithm, "x509v3-")) return false;
+    ssh2_userkey *raw = cert_load_key_with_x509(selector, false);
+    if (!raw) return false;
+
+    strbuf_clear(s->publickey_blob);
+    ssh_key_public_blob(raw->key, BinarySink_UPCAST(s->publickey_blob));
+    sfree(s->publickey_algorithm);
+    s->publickey_algorithm = dupstr(ssh_key_ssh_id(raw->key));
+    ssh_key_free(raw->key);
+    sfree(raw->comment);
+    sfree(raw);
+    return true;
+}
+#endif
+
 static bool ssh2_userauth_signflags(struct ssh2_userauth_state *s,
                                     unsigned *signflags, const char **algname)
 {
@@ -308,6 +381,8 @@ static bool ssh2_userauth_signflags(struct ssh2_userauth_state *s,
     unsigned supported_flags = ssh_keyalg_supported_flags(alg);
 
 #ifdef PUTTY_CAC
+    if (!supported_flags) return false;
+
     ptrlen pkblob = make_ptrlen(NULL, 0);
     bool from_agent = s->publickey_algorithm != *algname;
     if (from_agent) {
@@ -322,17 +397,13 @@ static bool ssh2_userauth_signflags(struct ssh2_userauth_state *s,
         selector = NULL;
 
     if (strcmp(alg->ssh_id, "x509v3-ssh-rsa") == 0) {
-        int bits = ssh_key_public_bits(alg, pkblob);
-        if (bits < 2048)
-            supported_flags &= ~SSH_AGENT_RSA_SHA2_256;
-
         /*
          * RFC 8308 advertises exact public-key algorithm names. Raw
          * rsa-sha2-256 support says nothing about support for RFC 6187's
          * x509v3-rsa2048-sha256 algorithm.
          */
-        if (s->ppl.bpp->ext_info_x509_rsa_sha256_ok &&
-            (supported_flags & SSH_AGENT_RSA_SHA2_256) &&
+        if (ssh2_userauth_advertised(s, "x509v3-rsa2048-sha256") &&
+            (supported_flags & SSH_AGENT_RSA_SHA2_256) && ssh_key_public_bits(alg, pkblob) >= 2048 &&
             (!selector || cert_test_hash(
                 selector, SSH_AGENT_RSA_SHA2_256))) {
             *signflags = SSH_AGENT_RSA_SHA2_256;
@@ -343,10 +414,16 @@ static bool ssh2_userauth_signflags(struct ssh2_userauth_state *s,
         return false;
     }
 
-    if (selector && !cert_test_hash(selector, SSH_AGENT_RSA_SHA2_256))
-        supported_flags &= ~SSH_AGENT_RSA_SHA2_256;
-    if (selector && !cert_test_hash(selector, SSH_AGENT_RSA_SHA2_512))
-        supported_flags &= ~SSH_AGENT_RSA_SHA2_512;
+    if (selector) {
+        if (s->ppl.bpp->ext_info_rsa_sha512_ok && (supported_flags & SSH_AGENT_RSA_SHA2_512) &&
+            cert_test_hash(selector, SSH_AGENT_RSA_SHA2_512))
+            supported_flags = SSH_AGENT_RSA_SHA2_512;
+        else if (s->ppl.bpp->ext_info_rsa_sha256_ok && (supported_flags & SSH_AGENT_RSA_SHA2_256) &&
+                 cert_test_hash(selector, SSH_AGENT_RSA_SHA2_256))
+            supported_flags = SSH_AGENT_RSA_SHA2_256;
+        else
+            return false;
+    }
 #endif /* PUTTY_CAC */
 
     if (s->ppl.bpp->ext_info_rsa_sha512_ok &&
@@ -543,6 +620,14 @@ static void ssh2_userauth_process_queue(PacketProtocolLayer *ppl)
             if (ppk_loadpub_f(s->keyfile, &s->publickey_algorithm,
                               BinarySink_UPCAST(s->publickey_blob),
                               &s->publickey_comment, &error)) {
+#ifdef PUTTY_CAC
+                // Match Pageant and the configured key against the form the server accepts.
+                if (s->ppl.bpp->server_sig_algs && strstartswith(s->publickey_algorithm, "x509v3-") &&
+                    !ssh2_userauth_advertised(s, s->publickey_algorithm) &&
+                    (strcmp(s->publickey_algorithm, "x509v3-ssh-rsa") ||
+                     !ssh2_userauth_advertised(s, "x509v3-rsa2048-sha256")))
+                    ssh2_userauth_use_raw_key(s);
+#endif
                 s->privatekey_available = (keytype == SSH_KEYTYPE_SSH2);
                 if (!s->privatekey_available)
                     ppl_logevent("Key file contains public key only");
@@ -635,6 +720,17 @@ static void ssh2_userauth_process_queue(PacketProtocolLayer *ppl)
     if (s->tryagent && agent_exists()) {
         ppl_logevent("Pageant is running. Requesting keys.");
 
+#ifdef PUTTY_CAC
+        if (s->ppl.bpp->server_sig_algs) {
+            strbuf *request = strbuf_new_for_agent_query();
+            put_byte(request, SSH2_AGENTC_EXTENSION);
+            put_stringz(request, PUTTYEXT("list-extended"));
+            ssh2_userauth_agent_query(s, request);
+            strbuf_free(request);
+            crWaitUntilV(!s->auth_agent_query);
+        }
+        if (!s->ppl.bpp->server_sig_algs || !ssh2_userauth_agent_variants(s))
+#endif
         /* Request the keys held by the agent. */
         {
             strbuf *request = strbuf_new_for_agent_query();
@@ -1078,6 +1174,15 @@ static void ssh2_userauth_process_queue(PacketProtocolLayer *ppl)
                 const char *newalg = alg_tmp;
                 if (ssh2_userauth_signflags(s, &s->signflags, &newalg))
                     s->agent_keyalg = ptrlen_from_asciz(newalg);
+#ifdef PUTTY_CAC
+                if (s->ppl.bpp->server_sig_algs && strstartswith(newalg, "x509v3-") &&
+                    !ssh2_userauth_advertised(s, newalg)) {
+                    sfree(alg_tmp);
+                    s->agent_key_index++;
+                    s->suppress_wait_for_response_packet = true;
+                    continue;
+                }
+#endif
                 sfree(alg_tmp);
 
                 s->ppl.bpp->pls->actx = SSH2_PKTCTX_PUBLICKEY;
@@ -1233,6 +1338,14 @@ static void ssh2_userauth_process_queue(PacketProtocolLayer *ppl)
 
                 crMaybeWaitUntilV((pktin = ssh2_userauth_pop(s)) != NULL);
                 if (pktin->type != SSH2_MSG_USERAUTH_PK_OK) {
+#ifdef PUTTY_CAC
+                    if (pktin->type == SSH2_MSG_USERAUTH_FAILURE && ssh2_userauth_use_raw_key(s)) {
+                        s->tried_pubkey_config = false;
+                        s->type = AUTH_TYPE_PUBLICKEY_OFFER_QUIET;
+                        pq_push_front(s->ppl.in_pq, pktin);
+                        continue;
+                    }
+#endif
                     /* Key refused. Give up. */
                     pq_push_front(s->ppl.in_pq, pktin);
                     s->type = AUTH_TYPE_PUBLICKEY_OFFER_LOUD;
@@ -1292,7 +1405,14 @@ static void ssh2_userauth_process_queue(PacketProtocolLayer *ppl)
                     /*
                      * Try decrypting the key.
                      */
-                    key = ppk_load_f(s->keyfile, passphrase, &error);
+#ifdef PUTTY_CAC
+                    if (cert_is_certpath(filename_to_str(s->keyfile))) {
+                        key = cert_load_key_for_keyalg(filename_to_str(s->keyfile),
+                            pubkey_blob_to_alg(ptrlen_from_strbuf(s->publickey_blob)));
+                        error = "unable to reopen certificate key";
+                    } else
+#endif
+                        key = ppk_load_f(s->keyfile, passphrase, &error);
                     if (passphrase) {
                         /* burn the evidence */
                         smemclr(passphrase, strlen(passphrase));

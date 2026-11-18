@@ -843,7 +843,7 @@ static void list_keys(BinarySink *bs, int ssh_version, bool extended)
     int i;
     PageantPublicKey *pub;
 #ifdef PUTTY_CAC
-    BOOL use_x509 = ssh_version == 2 && cert_auth_x509_enabled(CERT_QUERY);
+    bool use_x509 = ssh_version == 2 && cert_auth_x509_enabled(CERT_QUERY);
 #endif
 
     put_uint32(bs, count_keys(ssh_version));
@@ -887,6 +887,15 @@ static void list_keys(BinarySink *bs, int ssh_version, bool extended)
             if (priv->encrypted_key_file)
                 flags |= LIST_EXTENDED_FLAG_HAS_ENCRYPTED_KEY_FILE;
             put_uint32(sb, flags);
+#ifdef PUTTY_CAC
+            if (use_x509 && pageant_public_blob_is_x509(pageant_listed_public_blob(pub))) {
+                ptrlen raw = pageant_provider_public_blob(pub, false, false);
+                if (!pageant_public_blob_is_x509(raw)) {
+                    PUT_32BIT_MSB_FIRST(sb->u, flags | LIST_EXTENDED_FLAG_RAW_PUBLIC_KEY);
+                    put_stringpl(sb, raw);
+                }
+            }
+#endif
 
             put_stringsb(bs, sb);
         }

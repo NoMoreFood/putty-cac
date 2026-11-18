@@ -394,7 +394,8 @@ bool ssh2_common_filter_queue(PacketProtocolLayer *ppl)
             /* A later EXT_INFO replaces the earlier extension state. */
             ppl->bpp->ext_info_rsa_sha256_ok = false;
             ppl->bpp->ext_info_rsa_sha512_ok = false;
-            ppl->bpp->ext_info_x509_rsa_sha256_ok = false;
+            if (ppl->bpp->server_sig_algs) strbuf_free(ppl->bpp->server_sig_algs);
+            ppl->bpp->server_sig_algs = NULL;
 #endif
 
             uint32_t nexts = get_uint32(pktin);
@@ -420,17 +421,16 @@ bool ssh2_common_filter_queue(PacketProtocolLayer *ppl)
                      * algorithm is one that the agent and the server
                      * both understand but we do not.)
                      */
+#ifdef PUTTY_CAC
+                    if (ppl->bpp->server_sig_algs) strbuf_free(ppl->bpp->server_sig_algs);
+                    ppl->bpp->server_sig_algs = strbuf_dup(extvalue);
+#endif
                     ptrlen algname;
                     while (get_commasep_word(&extvalue, &algname)) {
                         if (ptrlen_eq_string(algname, "rsa-sha2-256"))
                             ppl->bpp->ext_info_rsa_sha256_ok = true;
                         if (ptrlen_eq_string(algname, "rsa-sha2-512"))
                             ppl->bpp->ext_info_rsa_sha512_ok = true;
-#ifdef PUTTY_CAC
-                        if (ptrlen_eq_string(
-                                algname, "x509v3-rsa2048-sha256"))
-                            ppl->bpp->ext_info_x509_rsa_sha256_ok = true;
-#endif
                     }
                 }
             }

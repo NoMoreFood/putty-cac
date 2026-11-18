@@ -41,7 +41,7 @@ struct BinaryPacketProtocol {
     int remote_bugs;
     bool ext_info_rsa_sha256_ok, ext_info_rsa_sha512_ok;
 #ifdef PUTTY_CAC
-    bool ext_info_x509_rsa_sha256_ok;
+    strbuf *server_sig_algs;
 #endif
 
     /* Set this if remote connection closure should not generate an

@@ -785,6 +785,9 @@ void ssh_bpp_common_setup(BinaryPacketProtocol *bpp)
     pq_in_init(&bpp->in_pq);
     pq_out_init(&bpp->out_pq);
     bpp->input_eof = false;
+#ifdef PUTTY_CAC
+    bpp->server_sig_algs = NULL;
+#endif
     bpp->ic_in_raw.fn = ssh_bpp_input_raw_data_callback;
     bpp->ic_in_raw.ctx = bpp;
     bpp->ic_out_pq.fn = ssh_bpp_output_packet_callback;
@@ -795,6 +798,9 @@ void ssh_bpp_common_setup(BinaryPacketProtocol *bpp)
 void ssh_bpp_free(BinaryPacketProtocol *bpp)
 {
     delete_callbacks_for_context(bpp);
+#ifdef PUTTY_CAC
+    if (bpp->server_sig_algs) strbuf_free(bpp->server_sig_algs);
+#endif
     bpp->vt->free(bpp);
 }
 

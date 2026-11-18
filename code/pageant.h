@@ -115,6 +115,7 @@ void pageant_make_keylist2(BinarySink *);
 struct PageantPublicKey;
 bool pageant_public_blob_is_x509(ptrlen blob);
 ptrlen pageant_provider_public_blob(struct PageantPublicKey *pub, bool use_x509, bool remember);
+#define LIST_EXTENDED_FLAG_RAW_PUBLIC_KEY 4
 ptrlen pageant_listed_public_blob(struct PageantPublicKey *pub);
 #endif
 
