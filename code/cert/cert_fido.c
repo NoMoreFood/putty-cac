@@ -79,18 +79,6 @@ struct GetAttestationThreadParams
 	HRESULT hResult;
 };
 
-static HRESULT fido_last_webauthn_error = S_OK;
-
-HRESULT fido_get_last_error(VOID)
-{
-	return fido_last_webauthn_error;
-}
-
-LPCWSTR fido_get_last_error_name(VOID)
-{
-	return WebAuthNGetErrorName(fido_last_webauthn_error);
-}
-
 static HWND cert_fido_get_assertion_hwnd(VOID)
 {
 	HWND hWnd = GetForegroundWindow();
@@ -643,7 +631,6 @@ BYTE* cert_fido_sign(struct ssh2_userkey* userkey, LPCBYTE pDataToSign, int iDat
 
 	// wait for thread to complete while dispatching messages
 	DWORD iExitCode = cert_fido_wait_for_thread(hThread);
-	fido_last_webauthn_error = pParams.hResult;
 	if (iExitCode != 0 || pParams.ppWebAuthNAssertion == NULL)
 	{
 		WCHAR szDbg[256];
@@ -941,7 +928,6 @@ BOOL fido_create_key(LPCSTR szAlgName, LPCSTR szDisplayName, LPCSTR szApplicatio
 
 	// wait for thread to complete while dispatching messages
 	DWORD iExitCode = cert_fido_wait_for_thread(hThread);
-	fido_last_webauthn_error = pParams.hResult;
 	if (iExitCode != 0)
 	{
 		WCHAR szDbg[256];
