@@ -121,6 +121,7 @@ ptrlen pageant_provider_public_blob(struct PageantPublicKey *pub, bool use_x509,
 #define PAGEANT_PROVIDER_COPYDATA_ID 0x804e50bb
 #define LIST_EXTENDED_FLAG_RAW_PUBLIC_KEY 4
 void agent_query_local_provider(strbuf *query, void **out, int *outlen);
+void pageant_remember_provider(const char *selector, bool add);
 ptrlen pageant_listed_public_blob(struct PageantPublicKey *pub);
 #endif
 

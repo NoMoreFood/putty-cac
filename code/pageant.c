@@ -741,6 +741,7 @@ static void pageant_provider_addop_coroutine(PageantAsyncOp *pao)
         }
 
         if (pageant_add_provider_ssh2_key(key)) {
+            pageant_remember_provider(key->comment, true);
             keylist_update();
             put_byte(response, SSH_AGENT_SUCCESS);
             pageant_client_log(op->pao.info->pc, op->pao.reqid,
@@ -823,12 +824,20 @@ static PageantPublicKey *del_pubkey_pos(int pos)
 
 static void del_pubkey(PageantPublicKey *to_delete)
 {
+#ifdef PUTTY_CAC
+    if (pub_to_priv(to_delete)->provider_backed)
+        pageant_remember_provider(to_delete->comment, false);
+#endif
     PageantPublicKey *deleted = del234(pubkeytree, to_delete);
     remove_pubkey_cleanup(deleted);
 }
 
 static void remove_all_keys(int ssh_version)
 {
+#ifdef PUTTY_CAC
+    if (ssh_version == 2)
+        pageant_remember_provider(NULL, false);
+#endif
     int start = find_first_pubkey_for_version(ssh_version);
     int end = find_first_pubkey_for_version(ssh_version + 1);
     while (end > start) {
@@ -2157,6 +2166,12 @@ bool pageant_delete_nth_ssh1_key(int i)
 
 bool pageant_delete_nth_ssh2_key(int i)
 {
+#ifdef PUTTY_CAC
+    PageantPublicKey *selected = pageant_nth_pubkey(2, i);
+    if (!selected) return false;
+    if (pub_to_priv(selected)->provider_backed)
+        pageant_remember_provider(selected->comment, false);
+#endif
     PageantPublicKey *pub = del_pubkey_pos(
         find_first_pubkey_for_version(2) + i);
     if (!pub)

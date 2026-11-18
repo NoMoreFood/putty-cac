@@ -1982,7 +1982,10 @@ BOOL cert_trusted_certs_only(CERT_SETCMD iCommand)
 
 BOOL cert_save_cert_list_enabled(CERT_SETCMD iCommand)
 {
-	return cert_registry_setting("SaveCertListEnabled", iCommand);
+	BOOL enabled = cert_registry_setting("SaveCertListEnabled", iCommand);
+	if (iCommand == CERT_UNSET && !enabled)
+		RegDeleteKeyValueA(HKEY_CURRENT_USER, PUTTY_REG_POS, "SaveCertList");
+	return enabled;
 }
 
 BOOL cert_cache_enabled(CERT_SETCMD iCommand)

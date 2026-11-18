@@ -94,8 +94,6 @@ static int initial_menuitems_count;
 #define IDM_SCONLY   0x0180
 #define IDM_NOEXPR   0x0190
 #define IDM_TRUSTED  0x01A0
-static bool cert_list_loading = true;
-static bool cert_list_save_pending = false;
 #endif // PUTTY_CAC
 
 /*
@@ -507,38 +505,60 @@ void keylist_update(void)
                      ctx->enable_reencrypt_controls);
     }
 
-#ifdef PUTTY_CAC
-    if (cert_save_cert_list_enabled(CERT_QUERY))
-    {
-        if (cert_list_loading)
-        {
-            cert_list_save_pending = true;
-            return;
-        }
-        /* initialize a double-null terminated string */
-        char* slist = snewn(2, char);
-        int slistsize = 0;
-        memset(slist, 0, 2);
-        char* comment = NULL;
-        for (int ikey = 0; (comment = pageant_nth_ssh2_comment(ikey)) != NULL; ikey++)
-        {
-            /* only process cert keys*/
-            if (!pageant_nth_ssh2_is_provider(ikey)) continue;
-
-            /* append the null separated, double-null terminated string */
-            slist = srealloc(slist, slistsize + strlen(comment) + 2);
-            strcpy(&slist[slistsize], comment);
-            slist[slistsize + strlen(comment) + 1] = '\0';
-            slistsize += strlen(comment) + 1;
-        }
-
-        /* commit full list to registry */
-        RegSetKeyValue(HKEY_CURRENT_USER, PUTTY_REG_POS, "SaveCertList",
-            REG_MULTI_SZ, slist, slistsize > 0 ? slistsize + 1 : 2);
-        sfree(slist);
-    }
-#endif /* PUTTY_CAC */
 }
+
+#ifdef PUTTY_CAC
+static char *load_remembered_providers(void)
+{
+    DWORD size = 0;
+    LSTATUS status = RegGetValueA(HKEY_CURRENT_USER, PUTTY_REG_POS, "SaveCertList",
+                                  RRF_RT_REG_MULTI_SZ, NULL, NULL, &size);
+    if (status == ERROR_FILE_NOT_FOUND || status == ERROR_PATH_NOT_FOUND)
+        return dupstr("");
+    if (status != ERROR_SUCCESS || size > SIZE_MAX - 2)
+        return NULL;
+    char *list = snewn((size_t)size + 2, char);
+    memset(list + size, 0, 2);
+    if (RegGetValueA(HKEY_CURRENT_USER, PUTTY_REG_POS, "SaveCertList",
+                     RRF_RT_REG_MULTI_SZ, NULL, list, &size) == ERROR_SUCCESS)
+        return list;
+    sfree(list);
+    return NULL;
+}
+
+void pageant_remember_provider(const char *selector, bool add)
+{
+    if (!cert_save_cert_list_enabled(CERT_QUERY))
+        return;
+    if (!selector) {
+        RegDeleteKeyValueA(HKEY_CURRENT_USER, PUTTY_REG_POS, "SaveCertList");
+        return;
+    }
+
+    char *list = load_remembered_providers();
+    if (!list)
+        return;
+    strbuf *updated = strbuf_new();
+    bool present = false;
+    for (const char *p = list; *p; p += strlen(p) + 1) {
+        if (!strcmp(selector, p))
+            present = true;
+        else
+            put_asciz(updated, p);
+    }
+    if (add != present) {
+        if (add)
+            put_asciz(updated, selector);
+        if (!updated->len)
+            put_byte(updated, 0);
+        put_byte(updated, 0);
+        RegSetKeyValueA(HKEY_CURRENT_USER, PUTTY_REG_POS, "SaveCertList",
+                        REG_MULTI_SZ, updated->s, updated->len);
+    }
+    strbuf_free(updated);
+    sfree(list);
+}
+#endif
 
 static void win_add_keyfile(Filename *filename, bool encrypted)
 {
@@ -1589,7 +1609,16 @@ static LRESULT CALLBACK TrayWndProc(HWND hwnd, UINT message,
 		  CheckMenuItem(systray_menu, IDM_SAVELIST, iNewState);
 		  DWORD SaveCertListEnabled = (iNewState == MF_CHECKED);
 		  cert_save_cert_list_enabled(SaveCertListEnabled ? CERT_SET : CERT_UNSET);
-		  if (SaveCertListEnabled) keylist_update();
+          if (SaveCertListEnabled) {
+              strbuf *list = strbuf_new();
+              for (int i = 0; i < pageant_count_ssh2_keys(); i++)
+                  if (pageant_nth_ssh2_is_provider(i))
+                      put_asciz(list, pageant_nth_ssh2_comment(i));
+              if (!list->len) put_byte(list, 0);
+              put_byte(list, 0);
+              RegSetKeyValueA(HKEY_CURRENT_USER, PUTTY_REG_POS, "SaveCertList", REG_MULTI_SZ, list->s, list->len);
+              strbuf_free(list);
+          }
 	  } break;
 	  case IDM_PINCACHE: {
 		  DWORD iItem = CheckMenuItem(systray_menu, IDM_PINCACHE, MF_CHECKED);
@@ -2206,13 +2235,8 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 
     if (cert_save_cert_list_enabled(CERT_QUERY))
     {
-        DWORD iKeySize = 0;
-        char* szKey = NULL;
-        if (RegGetValue(HKEY_CURRENT_USER, PUTTY_REG_POS, "SaveCertList", RRF_RT_REG_MULTI_SZ,
-            NULL, NULL, &iKeySize) == ERROR_SUCCESS &&
-            RegGetValue(HKEY_CURRENT_USER, PUTTY_REG_POS, "SaveCertList", RRF_RT_REG_MULTI_SZ,
-                NULL, (szKey = snewn(iKeySize, char)), &iKeySize) == ERROR_SUCCESS)
-        {
+        char *szKey = load_remembered_providers();
+        if (szKey) {
             for (char* szKeyPart = szKey; *szKeyPart != '\0'; szKeyPart += strlen(szKeyPart) + 1)
             {
                 char* szErr = NULL;
@@ -2224,9 +2248,6 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
         }
         sfree(szKey);
     }
-
-    cert_list_loading = false;
-    if (cert_list_save_pending) keylist_update();
 
     AppendMenu(systray_menu, MF_ENABLED, IDM_VIEWKEYS, "&View Keys && Certs");
 	AppendMenu(systray_menu, MF_ENABLED, IDM_ADDKEY, "Add PuTTY &Key");
