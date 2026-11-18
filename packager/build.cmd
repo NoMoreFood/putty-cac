@@ -2,6 +2,11 @@
 TITLE Building PuTTY-CAC
 SETLOCAL ENABLEDELAYEDEXPANSION
 
+SET SIGN_RELEASE=1
+IF /I "%~1" EQU "--unsigned" SET SIGN_RELEASE=
+IF NOT "%~1" EQU "" IF DEFINED SIGN_RELEASE GOTO :usage
+IF NOT "%~2" EQU "" GOTO :usage
+
 :: version information
 SET VER=0.85u3
 SET VERN=0.85.3.0
@@ -76,9 +81,11 @@ SET PATH=%PATH%;%PX86%\Windows Kits\8.1\bin\x64
 FOR /F "DELIMS=" %%X IN ('DIR "%PX86%\WiX Toolset*" /B /AD') DO SET PATH=%PATH%;%PX86%\%%~nxX\bin
 
 :: sign the main executables
-SIGNTOOL sign /a /as /fd sha256 /tr %TSAURL% /td sha256 /d %LIBNAME% /du %LIBURL% ^
-  "%BINDIR%\arm64\*.exe" "%BINDIR%\x86\*.exe" "%BINDIR%\x64\*.exe"
-IF ERRORLEVEL 1 GOTO :failed
+IF DEFINED SIGN_RELEASE (
+  SIGNTOOL sign /a /as /fd sha256 /tr %TSAURL% /td sha256 /d %LIBNAME% /du %LIBURL% ^
+    "%BINDIR%\arm64\*.exe" "%BINDIR%\x86\*.exe" "%BINDIR%\x64\*.exe"
+  IF ERRORLEVEL 1 GOTO :failed
+)
 
 :: build and sign the installers
 FOR %%A IN (Arm64 x86 x64) DO (
@@ -92,8 +99,10 @@ FOR %%A IN (Arm64 x86 x64) DO (
     "%BLDDIR%\installer-%%A.wixobj" -out "%BINDIR%\puttycac-%VER%-!LOWERA!.msi"
   IF ERRORLEVEL 1 GOTO :failed
 )
-SIGNTOOL sign /a /fd sha256 /tr %TSAURL% /td sha256 /d %LIBNAME% /du %LIBURL% "%BINDIR%\*.msi"
-IF ERRORLEVEL 1 GOTO :failed
+IF DEFINED SIGN_RELEASE (
+  SIGNTOOL sign /a /fd sha256 /tr %TSAURL% /td sha256 /d %LIBNAME% /du %LIBURL% "%BINDIR%\*.msi"
+  IF ERRORLEVEL 1 GOTO :failed
+)
 
 :: zip the executables
 SET PSModulePath=%SystemRoot%\System32\WindowsPowerShell\v1.0\Modules
@@ -118,5 +127,7 @@ FOR %%H IN (SHA256 SHA1 MD5) DO (
 )
 EXIT /B 0
 
+:usage
+ECHO Usage: %~nx0 [--unsigned]
 :failed
 EXIT /B 1
