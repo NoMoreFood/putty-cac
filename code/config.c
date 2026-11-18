@@ -818,7 +818,7 @@ void cert_event_handler(dlgcontrol* ctrl, dlgparam* dlg, void* data, int event)
 		char* szCert = conf_get_str(conf, CONF_cert_fingerprint);
 		char* szKeyString = cert_key_string(szCert, GetKeyState(VK_SHIFT) >= 0);
 		if (szKeyString == NULL) return;
-        write_aclip(NULL, CLIP_SYSTEM, szKeyString, strlen(szKeyString));
+		cert_copy_to_clipboard(dlg->hwnd, szKeyString);
 		sfree(szKeyString);
 	}
 

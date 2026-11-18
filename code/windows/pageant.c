@@ -901,25 +901,7 @@ static INT_PTR CALLBACK KeyListProc(HWND hwnd, UINT msg,
 			}
 			sfree(selectedArray);
 			
-			/* allocate global memory so other apps can see grab it from the clipboard */
-			HGLOBAL hGlob = GlobalAlloc(GMEM_MOVEABLE, strlen(szClipString) + 1);
-			if (hGlob != NULL)
-			{
-				/* open clipboard and copy key in */
-                if (OpenClipboard(hwnd) != 0 && EmptyClipboard() != 0)
-                {
-                    /* copy the key string into a global for loading onto the clipboard */
-                    char* szClipData = (char*)GlobalLock(hGlob);
-                    if (szClipData != NULL)
-                    {
-                        strcpy(szClipData, szClipString);
-                        GlobalUnlock(hGlob);
-                        SetClipboardData(CF_TEXT, hGlob);
-                    }
-                    CloseClipboard();
-                }
-			}
-
+			cert_copy_to_clipboard(hwnd, szClipString);
 			sfree(szClipString);
 		  }
 		  return 0;

@@ -1415,6 +1415,24 @@ struct ssh2_userkey* cert_load_key(LPCSTR szCert)
 	return cert_load_key_with_x509(szCert, cert_auth_x509_enabled(CERT_QUERY));
 }
 
+void cert_copy_to_clipboard(HWND hwnd, const char *text)
+{
+	size_t size = strlen(text) + 1;
+	HGLOBAL mem = GlobalAlloc(GMEM_MOVEABLE, size);
+	if (!mem) return;
+	char *copy = GlobalLock(mem);
+	if (copy) {
+		memcpy(copy, text, size);
+		GlobalUnlock(mem);
+		if (OpenClipboard(hwnd)) {
+			if (EmptyClipboard() && SetClipboardData(CF_TEXT, mem))
+				mem = NULL; /* The clipboard owns the allocation. */
+			CloseClipboard();
+		}
+	}
+	if (mem) GlobalFree(mem);
+}
+
 LPSTR cert_key_string(LPCSTR szCert, BOOL bIncludeSubject)
 {
 	// sanity check

@@ -107,6 +107,7 @@ EXTERN BOOL cert_sign_for_keyalg(LPCSTR szCert,
 EXTERN VOID cert_set_busy_cursor(HWND hWnd, BOOL bBusy);
 EXTERN VOID cert_set_parent_hwnd(HWND hWnd);
 EXTERN HWND cert_get_parent_hwnd(VOID);
+EXTERN void cert_copy_to_clipboard(HWND hwnd, const char *text);
 EXTERN LPSTR cert_key_string(LPCSTR szCert, BOOL bIncludeSubject);
 EXTERN LPSTR cert_subject_string(LPCSTR szCert);
 EXTERN PCCERT_CONTEXT cert_select_certificate(LPCSTR szIden, BOOL bAutoSelect, LPCWSTR sCustomPrompt);
