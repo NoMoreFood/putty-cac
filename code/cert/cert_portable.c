@@ -4,6 +4,7 @@
 
 #include <windows.h>
 #include <shlwapi.h>
+#include <objbase.h>
 #include <stdlib.h>
 #include <string.h>
 #include <wchar.h>
@@ -11,6 +12,7 @@
 #include "cert_portable.h"
 
 #pragma comment(lib,"shlwapi.lib")
+#pragma comment(lib,"ole32.lib")
 
 static const WCHAR sPuttyRoot[] = L"Software\\SimonTatham";
 static const WCHAR sSoftwareRoot[] = L"Software";
@@ -55,27 +57,24 @@ static BOOL cert_portable_find_settings(WCHAR* sPath)
 	return FALSE;
 }
 
+static void cert_portable_remove_logs(LPCWSTR sPath)
+{
+	const WCHAR* suffixes[] = { L".LOG1", L".LOG2" };
+	for (size_t i = 0; i < _countof(suffixes); i++)
+	{
+		WCHAR sLog[MAX_PATH + _countof(L".LOG1")];
+		swprintf_s(sLog, _countof(sLog), L"%s%s", sPath, suffixes[i]);
+		DeleteFileW(sLog);
+	}
+}
+
 static void cert_portable_cleanup(void)
 {
 	if (hPortableRoot == NULL) return;
 	RegCloseKey(hPortableRoot);
 	hPortableRoot = NULL;
 
-	const WCHAR* suffixes[] =
-	{
-		L".LOG1",
-		L".LOG2",
-		L".tmp.LOG1",
-		L".tmp.LOG2"
-	};
-
-	for (size_t i = 0; i < _countof(suffixes); ++i)
-	{		
-		WCHAR sLog[MAX_PATH + _countof(L".tmp.LOG1") - 1];
-		wcscpy(sLog, sPortablePath);
-		wcscat(sLog, suffixes[i]);
-		DeleteFileW(sLog);
-	}
+	cert_portable_remove_logs(sPortablePath);
 }
 
 static BOOL CALLBACK cert_portable_init(PINIT_ONCE pInitOnce, PVOID pParam, PVOID* ppContext)
@@ -153,22 +152,6 @@ static LPWSTR cert_portable_from_mb(LPCSTR sValue)
 	return sReturn;
 }
 
-static BOOL cert_portable_temp_path(LPCWSTR sPath, WCHAR* sTempPath)
-{
-	size_t iLen = wcslen(sPath);
-	if (iLen + 4 >= MAX_PATH) return FALSE;
-	wcscpy(sTempPath, sPath);
-	wcscat(sTempPath, L".tmp");
-	return TRUE;
-}
-
-static BOOL cert_portable_replace_file(LPCWSTR sTempPath, LPCWSTR sPath)
-{
-	if (MoveFileExW(sTempPath, sPath, MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH))
-		return TRUE;
-	DeleteFileW(sTempPath);
-	return FALSE;
-}
 
 static BOOL cert_portable_path_matches(LPCWSTR sPath, LPCWSTR sPrefix)
 {
@@ -439,8 +422,13 @@ static BOOL cert_portable_copy_to_new_file(HKEY hSrc, LPCWSTR sPath)
 	HKEY hDst;
 	BOOL bResult = FALSE;
 
-	if (!cert_portable_temp_path(sPath, sTempPath)) return FALSE;
-	DeleteFileW(sTempPath);
+	// A private hive name keeps concurrent exports independent.
+	GUID id;
+	LPCWSTR slash = wcsrchr(sPath, L'\\');
+	size_t prefix = slash ? (size_t)(slash + 1 - sPath) : 0;
+	if (prefix >= _countof(sTempPath) || FAILED(CoCreateGuid(&id))) return FALSE;
+	wmemcpy(sTempPath, sPath, prefix);
+	if (!StringFromGUID2(&id, sTempPath + prefix, (int)(_countof(sTempPath) - prefix))) return FALSE;
 
 	if (RegLoadAppKeyW(sTempPath, &hDst, KEY_ALL_ACCESS, 0, 0) == ERROR_SUCCESS)
 	{
@@ -448,13 +436,10 @@ static BOOL cert_portable_copy_to_new_file(HKEY hSrc, LPCWSTR sPath)
 		RegCloseKey(hDst);
 	}
 
-	if (!bResult)
-	{
-		DeleteFileW(sTempPath);
-		return FALSE;
-	}
-
-	return cert_portable_replace_file(sTempPath, sPath);
+	if (bResult) bResult = MoveFileExW(sTempPath, sPath, MOVEFILE_WRITE_THROUGH);
+	if (!bResult) DeleteFileW(sTempPath);
+	cert_portable_remove_logs(sTempPath);
+	return bResult;
 }
 
 BOOL cert_portable_get_settings_path(WCHAR* sPath)
