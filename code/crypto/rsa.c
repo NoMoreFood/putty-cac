@@ -1065,37 +1065,6 @@ static const ssh_hashalg *x509_ssh_rsa_sigparams(
     return &ssh_sha1;
 }
 
-static void x509_ssh_rsa_sign(ssh_key *key, ptrlen data,
-                               unsigned flags, BinarySink *bs)
-{
-    RSAKey *rsa = container_of(key, RSAKey, sshk);
-    const char *sig_name;
-    const ssh_hashalg *halg =
-        x509_ssh_rsa_sigparams(key->vt->ssh_id, &sig_name);
-
-    size_t nbytes = (mp_get_nbits(rsa->modulus) + 7) / 8;
-    unsigned char *bytes = rsa_pkcs1_signature_string(nbytes, halg, data);
-    mp_int *in = mp_from_bytes_be(make_ptrlen(bytes, nbytes));
-    smemclr(bytes, nbytes);
-    sfree(bytes);
-
-    mp_int *out = rsa_privkey_op(in, rsa);
-    mp_free(in);
-
-    put_stringz(bs, sig_name);
-    /*
-     * Both RSA signature formats in RFC 6187 encode the signature as
-     * an unsigned integer without padding, unlike the modulus-sized
-     * octet string used by RFC 8332's rsa-sha2-* algorithms.
-     */
-    size_t sig_nbytes = (mp_get_nbits(out) + 7) / 8;
-    put_uint32(bs, sig_nbytes);
-    for (size_t i = 0; i < sig_nbytes; i++)
-        put_byte(bs, mp_get_byte(out, sig_nbytes - 1 - i));
-
-    mp_free(out);
-}
-
 static bool x509_ssh_rsa_verify(ssh_key *key, ptrlen sig, ptrlen data)
 {
     RSAKey *rsa = container_of(key, RSAKey, sshk);
@@ -1199,7 +1168,7 @@ const ssh_keyalg ssh_x509v3_ssh_rsa = {
     .new_priv_openssh = x509_ssh_rsa_new_priv_openssh,
     .freekey = x509_ssh_rsa_freekey,
     .invalid = x509_ssh_rsa_invalid,
-    .sign = x509_ssh_rsa_sign,
+    .sign = nullkey_sign,
     .verify = x509_ssh_rsa_verify,
     .public_blob = x509_ssh_rsa_public_blob,
     .private_blob = NULL,
@@ -1223,7 +1192,7 @@ const ssh_keyalg ssh_x509v3_rsa2048_sha256 = {
     .new_priv_openssh = x509_ssh_rsa_new_priv_openssh,
     .freekey = x509_ssh_rsa_freekey,
     .invalid = x509_ssh_rsa_invalid,
-    .sign = x509_ssh_rsa_sign,
+    .sign = nullkey_sign,
     .verify = x509_ssh_rsa_verify,
     .public_blob = x509_ssh_rsa_public_blob,
     .private_blob = NULL,

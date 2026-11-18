@@ -1280,6 +1280,9 @@ extern const ssh_keyalg ssh_ecdsa_nistp256;
 extern const ssh_keyalg ssh_ecdsa_nistp384;
 extern const ssh_keyalg ssh_ecdsa_nistp521;
 #ifdef PUTTY_CAC
+/* Provider-backed public keys cannot sign using software private material. */
+static inline void nullkey_sign(ssh_key *key, ptrlen data, unsigned flags, BinarySink *bs) {}
+
 extern const ssh_keyalg ssh_ecdsa_nistp256_sk;
 extern const ssh_keyalg ssh_ecdsa_nistp384_sk;
 extern const ssh_keyalg ssh_ecdsa_nistp521_sk;

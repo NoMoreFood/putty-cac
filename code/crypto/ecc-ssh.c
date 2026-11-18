@@ -987,11 +987,24 @@ static bool ecdsa_verify(ssh_key *key, ptrlen sig, ptrlen data)
     BinarySource_BARE_INIT_PL(src, sig);
 
     /* Check the signature starts with the algorithm name */
+#ifdef PUTTY_CAC
+    /* RFC 6187 signatures name the underlying ECDSA algorithm. */
+    ptrlen id = ptrlen_from_asciz(ek->sshk.vt->ssh_id);
+    bool x509 = ptrlen_startswith(id, PTRLEN_LITERAL("x509v3-"), &id);
+    if (x509) {
+        if (!ptrlen_eq_ptrlen(get_string(src), id))
+            return false;
+    } else
+#endif
     if (!ptrlen_eq_string(get_string(src), ek->sshk.vt->ssh_id))
         return false;
 
     /* Everything else is nested inside a sub-string. Descend into that. */
     ptrlen sigstr = get_string(src);
+#ifdef PUTTY_CAC
+    if (x509 && get_avail(src))
+        return false;
+#endif
     if (get_err(src))
         return false;
     BinarySource_BARE_INIT_PL(src, sigstr);
@@ -1011,6 +1024,13 @@ static bool ecdsa_verify(ssh_key *key, ptrlen sig, ptrlen data)
     invalid |= mp_eq_integer(s, 0);
     invalid |= mp_cmp_hs(r, ek->curve->w.G_order);
     invalid |= mp_cmp_hs(s, ek->curve->w.G_order);
+#ifdef PUTTY_CAC
+    if (x509 && (invalid || get_avail(src))) {
+        mp_free(r);
+        mp_free(s);
+        return false;
+    }
+#endif
 
     /* Get the hash of the signed data, converted to an integer */
     mp_int *z = ecdsa_signing_exponent_from_data(ek->curve, extra, data);
@@ -1028,6 +1048,14 @@ static bool ecdsa_verify(ssh_key *key, ptrlen sig, ptrlen data)
     WeierstrassPoint *sum = ecc_weierstrass_add_general(u1G, u2P);
     ecc_weierstrass_point_free(u1G);
     ecc_weierstrass_point_free(u2P);
+#ifdef PUTTY_CAC
+    if (x509 && ecc_weierstrass_is_identity(sum)) {
+        ecc_weierstrass_point_free(sum);
+        mp_free(r);
+        mp_free(s);
+        return false;
+    }
+#endif
 
     mp_int *x;
     ecc_weierstrass_get_affine(sum, &x, NULL);
@@ -2122,8 +2150,6 @@ bool ec_ed_alg_and_curve_by_bits(
 
 #include "cert_common.h"
 
-#define x509v3_base_id(ssh_id) ((ssh_id) + (sizeof("x509v3-") - 1))
-
 static WeierstrassPoint *parse_x509_ecdsa_pubkey(
     ptrlen cert, const char *keyalg, const struct ec_curve *curve)
 {
@@ -2221,111 +2247,6 @@ static void x509_ecdsa_public_blob(ssh_key *key, BinarySink *bs)
     put_data(bs, xkey->cert_data, xkey->cert_len);
 }
 
-static void x509_ecdsa_sign(ssh_key *key, ptrlen data,
-                            unsigned flags, BinarySink *bs)
-{
-    struct ecdsa_key *ec = container_of(key, struct ecdsa_key, sshk);
-    const struct ecsign_extra *extra = (const struct ecsign_extra *)key->vt->extra;
-    assert(ec->privateKey);
-
-    mp_int *z = ecdsa_signing_exponent_from_data(ec->curve, extra, data);
-    mp_int *k = rfc6979(extra->hash, ec->curve->w.G_order, ec->privateKey, data);
-    WeierstrassPoint *kG = ecc_weierstrass_multiply(ec->curve->w.G, k);
-    mp_int *x;
-    ecc_weierstrass_get_affine(kG, &x, NULL);
-    ecc_weierstrass_point_free(kG);
-
-    mp_int *r = mp_mod(x, ec->curve->w.G_order);
-    mp_free(x);
-
-    mp_int *rPriv = mp_modmul(r, ec->privateKey, ec->curve->w.G_order);
-    mp_int *numerator = mp_modadd(z, rPriv, ec->curve->w.G_order);
-    mp_free(z);
-    mp_free(rPriv);
-    mp_int *kInv = mp_invert(k, ec->curve->w.G_order);
-    mp_free(k);
-    mp_int *s = mp_modmul(numerator, kInv, ec->curve->w.G_order);
-    mp_free(numerator);
-    mp_free(kInv);
-
-    // The signature blob names the base algorithm (e.g. "ecdsa-sha2-nistp256"), not the "x509v3-"-prefixed key id
-    put_stringz(bs, x509v3_base_id(key->vt->ssh_id));
-
-    strbuf *substr = strbuf_new();
-    put_mp_ssh2(substr, r);
-    put_mp_ssh2(substr, s);
-    put_stringsb(bs, substr);
-
-    mp_free(r);
-    mp_free(s);
-}
-
-static bool x509_ecdsa_verify(ssh_key *key, ptrlen sig, ptrlen data)
-{
-    struct ecdsa_key *ek = container_of(key, struct ecdsa_key, sshk);
-    const struct ecsign_extra *extra = (const struct ecsign_extra *)key->vt->extra;
-
-    BinarySource src[1];
-    BinarySource_BARE_INIT_PL(src, sig);
-
-    if (!ptrlen_eq_string(get_string(src), x509v3_base_id(key->vt->ssh_id)))
-        return false;
-
-    ptrlen sigstr = get_string(src);
-    if (get_err(src) || get_avail(src) != 0)
-        return false;
-    BinarySource_BARE_INIT_PL(src, sigstr);
-
-    mp_int *r = get_mp_ssh2(src);
-    mp_int *s = get_mp_ssh2(src);
-    if (get_err(src) || get_avail(src) != 0) {
-        mp_free(r);
-        mp_free(s);
-        return false;
-    }
-
-    unsigned invalid = 0;
-    invalid |= mp_eq_integer(r, 0);
-    invalid |= mp_eq_integer(s, 0);
-    invalid |= mp_cmp_hs(r, ek->curve->w.G_order);
-    invalid |= mp_cmp_hs(s, ek->curve->w.G_order);
-
-    mp_int *z = ecdsa_signing_exponent_from_data(ek->curve, extra, data);
-
-    mp_int *w = mp_invert(s, ek->curve->w.G_order);
-    mp_int *u1 = mp_modmul(z, w, ek->curve->w.G_order);
-    mp_free(z);
-    mp_int *u2 = mp_modmul(r, w, ek->curve->w.G_order);
-    mp_free(w);
-    WeierstrassPoint *u1G = ecc_weierstrass_multiply(ek->curve->w.G, u1);
-    mp_free(u1);
-    WeierstrassPoint *u2H = ecc_weierstrass_multiply(ek->publicKey, u2);
-    mp_free(u2);
-    // Must use the fully general addition: u1*G and u2*H may be equal or inverse, which the fast ecc_weierstrass_add cannot handle (matches the base ecdsa_verify)
-    WeierstrassPoint *u1Gu2H = ecc_weierstrass_add_general(u1G, u2H);
-    ecc_weierstrass_point_free(u1G);
-    ecc_weierstrass_point_free(u2H);
-    if (ecc_weierstrass_is_identity(u1Gu2H)) {
-        ecc_weierstrass_point_free(u1Gu2H);
-        mp_free(r);
-        mp_free(s);
-        return false;
-    }
-
-    mp_int *rx;
-    ecc_weierstrass_get_affine(u1Gu2H, &rx, NULL);
-    ecc_weierstrass_point_free(u1Gu2H);
-
-    mp_divmod_into(rx, ek->curve->w.G_order, NULL, rx);
-    invalid |= (1 ^ mp_cmp_eq(r, rx));
-    mp_free(rx);
-
-    mp_free(r);
-    mp_free(s);
-
-    return !invalid;
-}
-
 static int x509_ecdsa_pubkey_bits(const ssh_keyalg *self, ptrlen pub)
 {
     ssh_key *sshk = x509_ecdsa_new_pub(self, pub);
@@ -2349,8 +2270,8 @@ const ssh_keyalg ssh_x509v3_ecdsa_nistp256 = {
     .new_priv_openssh = x509_ecdsa_new_priv_openssh,
     .freekey = x509_ecdsa_freekey,
     .invalid = ec_signkey_invalid,
-    .sign = x509_ecdsa_sign,
-    .verify = x509_ecdsa_verify,
+    .sign = nullkey_sign,
+    .verify = ecdsa_verify,
     .public_blob = x509_ecdsa_public_blob,
     .private_blob = NULL,
     .openssh_blob = NULL,
@@ -2374,8 +2295,8 @@ const ssh_keyalg ssh_x509v3_ecdsa_nistp384 = {
     .new_priv_openssh = x509_ecdsa_new_priv_openssh,
     .freekey = x509_ecdsa_freekey,
     .invalid = ec_signkey_invalid,
-    .sign = x509_ecdsa_sign,
-    .verify = x509_ecdsa_verify,
+    .sign = nullkey_sign,
+    .verify = ecdsa_verify,
     .public_blob = x509_ecdsa_public_blob,
     .private_blob = NULL,
     .openssh_blob = NULL,
@@ -2399,8 +2320,8 @@ const ssh_keyalg ssh_x509v3_ecdsa_nistp521 = {
     .new_priv_openssh = x509_ecdsa_new_priv_openssh,
     .freekey = x509_ecdsa_freekey,
     .invalid = ec_signkey_invalid,
-    .sign = x509_ecdsa_sign,
-    .verify = x509_ecdsa_verify,
+    .sign = nullkey_sign,
+    .verify = ecdsa_verify,
     .public_blob = x509_ecdsa_public_blob,
     .private_blob = NULL,
     .openssh_blob = NULL,
