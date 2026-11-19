@@ -10,7 +10,7 @@ param()
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
-if (-not $IsWindows) { throw 'These registry regression tests require Windows.' }
+if (-not $IsWindows) { throw 'These PuTTY-CAC regression tests require Windows.' }
 
 # Load only the production helpers, never the integration script's main block.
 $SourcePath = Join-Path $PSScriptRoot 'Test-PuTTYCAC.ps1'
@@ -18,7 +18,7 @@ $Tokens = $null
 $ParseErrors = $null
 $Ast = [Parser]::ParseFile($SourcePath, [ref]$Tokens, [ref]$ParseErrors)
 if ($ParseErrors.Count) { throw ($ParseErrors.Message -join "`n") }
-foreach ($Name in @('Invoke-Native', 'Backup-PuTTYRegistry', 'Restore-PuTTYRegistry')) {
+foreach ($Name in @('Invoke-Native', 'Wait-SshServer', 'Backup-PuTTYRegistry', 'Restore-PuTTYRegistry')) {
     $Definitions = @($Ast.FindAll({
         param($Node)
         $Node -is [FunctionDefinitionAst] -and $Node.Name -eq $Name
@@ -103,6 +103,35 @@ function Invoke-Case([string]$Name, [scriptblock]$Action) {
 }
 
 try {
+    Invoke-Case 'ForwardedSshListener' {
+        $HostName = '127.0.0.1'
+        $Listener = [Net.Sockets.TcpListener]::new([Net.IPAddress]::Loopback, 0)
+        $Listener.Start()
+        $ServerPort = $Listener.LocalEndpoint.Port
+        $Job = Start-ThreadJob -ArgumentList $Listener -ScriptBlock {
+            param($Listener)
+            foreach ($Banner in 'HTTP/1.1', 'SSH-2.0-test') {
+                $Peer = $Listener.AcceptTcpClient()
+                try {
+                    $Bytes = [Text.Encoding]::ASCII.GetBytes("$Banner`r`n")
+                    $Peer.GetStream().Write($Bytes, 0, $Bytes.Length)
+                }
+                finally { $Peer.Dispose() }
+            }
+        }
+        try {
+            Wait-SshServer 'Test server' $ServerPort 5
+            Assert-Test ($null -ne (Wait-Job $Job -Timeout 3)) 'The probe accepted a non-SSH listener.'
+            Receive-Job $Job -ErrorAction Stop
+            $Listener.Stop()
+            Assert-Throws { Wait-SshServer 'Stopped server' $ServerPort 1 } 'The probe accepted a closed port.'
+        }
+        finally {
+            $Listener.Stop()
+            Remove-Job $Job -Force
+        }
+    }
+
     Invoke-Case 'AllValueKinds' {
         param($Target)
         $Key = New-FixtureKey $Target
@@ -262,4 +291,4 @@ finally {
 $Failed = @($script:Results | Where-Object { -not $_.Passed }).Count
 Write-Host "$($script:Results.Count - $Failed) cases passed, $Failed failed; $script:Assertions assertions."
 Write-Host "Artifacts: $ArtifactRoot"
-if ($Failed) { throw 'Registry preservation regression tests failed.' }
+if ($Failed) { throw 'PuTTY-CAC regression tests failed.' }

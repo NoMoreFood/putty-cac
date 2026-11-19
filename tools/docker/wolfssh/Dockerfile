@@ -4,8 +4,8 @@
 
 FROM debian:bookworm-slim AS builder
 
-ARG WOLFSSL_VERSION=5.9.2
-ARG WOLFSSH_VERSION=1.5.0
+ARG WOLFSSL_VERSION=5.9.4
+ARG WOLFSSH_VERSION=1.6.0
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
         autoconf \
@@ -34,6 +34,7 @@ RUN ./autogen.sh \
         --enable-static \
         --disable-mlkem \
         --enable-wolfssh \
+        --enable-sp=yes \
     && make -j"$(nproc)" \
     && make install
 
@@ -46,15 +47,17 @@ RUN curl -fsSL "https://github.com/wolfSSL/wolfssh/archive/refs/tags/v${WOLFSSH_
 
 WORKDIR /build/wolfssh
 
+# Allow a full base64-encoded X.509 leaf on each authorized_keys line.
 RUN ./autogen.sh \
     && PKG_CONFIG_PATH=/opt/wolfssl/lib/pkgconfig \
-       CPPFLAGS="-I/opt/wolfssl/include -DWOLFSSH_NO_SHA1_SOFT_DISABLE" \
+       CPPFLAGS="-I/opt/wolfssl/include -DWOLFSSH_NO_SHA1_SOFT_DISABLE -DMAX_LINE_SZ=8192" \
        LDFLAGS="-L/opt/wolfssl/lib" \
        ./configure \
         --prefix=/opt/wolfssh \
         --disable-shared \
         --enable-static \
         --enable-certs \
+        --enable-shell \
         --enable-scp \
         --enable-sftp \
         --enable-sshd \
@@ -71,6 +74,7 @@ RUN install -d -m 755 /var/empty \
     && useradd -r -d /var/empty -s /usr/sbin/nologin sshd \
     && useradd -m -s /bin/sh testuser \
     && echo "testuser:test" | chpasswd \
+    && install -d -m 700 -o testuser -g testuser /home/testuser/.ssh \
     && install -d -m 755 /etc/wolfssh
 
 COPY --from=builder /opt/wolfssh/sbin/wolfsshd /usr/local/sbin/wolfsshd
@@ -88,6 +92,7 @@ RUN touch /etc/wolfssh/client-ca.pem \
         'UsePrivilegeSeparation no' \
         'UseDNS no' \
         'TrustedUserCAKeys /etc/wolfssh/client-ca.pem' \
+        'AuthorizedKeysFile .ssh/authorized_keys' \
         'HostKey /etc/wolfssh/server-key.pem' \
         > /etc/wolfssh/sshd_config
 

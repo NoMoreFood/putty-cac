@@ -83,6 +83,27 @@ function Test-IsAdmin {
     return $Principal.IsInRole([WindowsBuiltInRole]::Administrator)
 }
 
+# Docker can accept a loopback connection before the guest's sshd is ready.
+function Wait-SshServer([string]$Name, [int[]]$Ports, [int]$TimeoutSeconds = 15) {
+    $Timer = [Stopwatch]::StartNew()
+    do {
+        $Ports = @($Ports | Where-Object {
+            $Client = [Net.Sockets.TcpClient]::new()
+            try {
+                if (-not $Client.ConnectAsync($HostName, $_).Wait(500)) { return $true }
+                $Client.ReceiveTimeout = 500
+                $Reader = [BinaryReader]::new($Client.GetStream())
+                return [Text.Encoding]::ASCII.GetString($Reader.ReadBytes(8)) -cne 'SSH-2.0-'
+            }
+            catch { return $true }
+            finally { $Client.Dispose() }
+        })
+        if ($Ports.Count -eq 0) { return }
+        Start-Sleep -Milliseconds 500
+    } while ($Timer.Elapsed.TotalSeconds -lt $TimeoutSeconds)
+    throw "$Name did not send an SSH identification on port(s) $($Ports -join ', ')."
+}
+
 # Create directory if it doesn't exist; returns the resolved path
 function New-Directory([string]$Path) {
     if (-not (Test-Path -LiteralPath $Path -PathType Container)) {
@@ -1304,16 +1325,7 @@ function Test-DropbearInteroperability(
             'chown testuser:testuser /home/testuser/.ssh/authorized_keys && chmod 600 /home/testuser/.ssh/authorized_keys'
         ) | Out-Null
 
-        $Listening = $false
-        $Timeout = (Get-Date).AddSeconds(15)
-        while ((Get-Date) -lt $Timeout) {
-            if (Get-NetTCPConnection -LocalPort $DropbearPort -ErrorAction SilentlyContinue) {
-                $Listening = $true
-                break
-            }
-            Start-Sleep -Milliseconds 500
-        }
-        if (-not $Listening) { throw "Dropbear failed to listen on port $DropbearPort." }
+        Wait-SshServer 'Dropbear' $DropbearPort
 
         New-Directory $HostKeyDirectory | Out-Null
         $HostKeyFiles = @(
@@ -1417,6 +1429,7 @@ function Test-WolfSshX509Interoperability(
     }
 
     $RootPemPath = Join-Path $script:Paths.Run 'wolfssh-client-ca.pem'
+    $AuthKeysPath = Join-Path $script:Paths.Run 'wolfssh-authorized-keys'
     $HostKeyDirectory = Join-Path $script:Paths.Run 'wolfssh_hostkeys'
 
     try {
@@ -1427,6 +1440,23 @@ function Test-WolfSshX509Interoperability(
         ) | Out-Null
 
         Write-CertificatePem -Certificate $ChainCase.Root -Path $RootPemPath
+        $WolfSshCases = @(
+            [PSCustomObject]@{
+                Name = 'RSA-CHAIN'; CertId = $ChainCase.CertId; Cert = $ChainCase.Leaf; Algorithm = 'x509v3-ssh-rsa'
+            }
+            foreach ($Leaf in $ChainCase.EcdsaLeaves) {
+                [PSCustomObject]@{
+                    Name = $Leaf.Name; CertId = $Leaf.CertId; Cert = $Leaf.Cert
+                    Algorithm = "x509v3-ecdsa-sha2-nistp$($Leaf.Bits)"
+                }
+            }
+        )
+        # Authorize the leaf DER for this account, including the control that must fail CA validation.
+        $AuthorizedKeys = @(
+            foreach ($Case in $WolfSshCases) { "$($Case.Algorithm) $([Convert]::ToBase64String($Case.Cert.RawData))" }
+            if ($UntrustedCase) { "x509v3-ssh-rsa $([Convert]::ToBase64String($UntrustedCase.Cert.RawData))" }
+        )
+        Set-Content -LiteralPath $AuthKeysPath -Value $AuthorizedKeys -Encoding ascii
         Invoke-Native -FilePath $DockerCmd.Source -ArgumentList @(
             'rm', '-f', $WolfSshContainerName
         ) -IgnoreExitCode | Out-Null
@@ -1444,19 +1474,13 @@ function Test-WolfSshX509Interoperability(
             "${WolfSshContainerName}:/etc/wolfssh/client-ca.pem"
         ) | Out-Null
         Invoke-Native -FilePath $DockerCmd.Source -ArgumentList @(
+            'cp', $AuthKeysPath, "${WolfSshContainerName}:/home/testuser/.ssh/authorized_keys"
+        ) | Out-Null
+        Invoke-Native -FilePath $DockerCmd.Source -ArgumentList @(
             'start', $WolfSshContainerName
         ) | Out-Null
 
-        $Listening = $false
-        $Timeout = (Get-Date).AddSeconds(15)
-        while ((Get-Date) -lt $Timeout) {
-            if (Get-NetTCPConnection -LocalPort $WolfSshPort -ErrorAction SilentlyContinue) {
-                $Listening = $true
-                break
-            }
-            Start-Sleep -Milliseconds 500
-        }
-        if (-not $Listening) { throw "wolfSSH failed to listen on port $WolfSshPort." }
+        Wait-SshServer 'wolfSSH' $WolfSshPort
 
         New-Directory $HostKeyDirectory | Out-Null
         $PublicKeyLine = (Invoke-Native -FilePath $DockerCmd.Source -ArgumentList @(
@@ -1476,33 +1500,11 @@ function Test-WolfSshX509Interoperability(
         $WolfSshHostKeys = @($Matches[1])
 
         Add-Result -Name 'WOLFSSH-X509-SETUP' -Status 'Pass' -Detail `
-            'Started Dockerized wolfSSH 1.5.0 with RFC 6187 enabled and only the test root CA trusted.'
+            'Started Dockerized wolfSSH with RFC 6187 enabled and only the test root CA trusted.'
 
-        $WolfSshCases = [List[object]]::new()
-        $WolfSshCases.Add([PSCustomObject]@{
-                Name      = 'RSA-CHAIN'
-                CertId    = $ChainCase.CertId
-                Algorithm = 'x509v3-ssh-rsa'
-            }) | Out-Null
-        foreach ($EcdsaLeaf in $ChainCase.EcdsaLeaves) {
-            $WolfSshCases.Add([PSCustomObject]@{
-                    Name      = $EcdsaLeaf.Name
-                    CertId    = $EcdsaLeaf.CertId
-                    Algorithm = "x509v3-ecdsa-sha2-nistp$($EcdsaLeaf.Bits)"
-                }) | Out-Null
-        }
-
-        # wolfsshd's sample exec handler currently exits successfully without
-        # relaying command stdout. For this provider, assert the client exit
-        # status here and corroborate certificate authorization from the server
-        # log below instead of depending on `whoami` output.
         foreach ($Case in $WolfSshCases) {
-            $PlinkArgs = @('-batch', '-ssh', '-P', $WolfSshPort.ToString(), '-l', $UserName) +
-                ($WolfSshHostKeys | ForEach-Object { @('-hostkey', $_) }) +
-                @('-i', $Case.CertId, $HostName, 'whoami')
-            Invoke-Native -FilePath $script:Paths.Plink -ArgumentList $PlinkArgs | Out-Null
-            Add-Result -Name "PLINK-WOLFSSH-X509-$($Case.Name)" -Status 'Pass' -Detail `
-                "Direct CAPI authentication with $($Case.Algorithm) and exec-session setup succeeded."
+            Invoke-PlinkTest -Name "WOLFSSH-X509-$($Case.Name)" -CertId $Case.CertId `
+                -HostKeys $WolfSshHostKeys -ServerPort $WolfSshPort -NoRetry
         }
         if ($UntrustedCase) {
             $UntrustedArgs = @('-batch', '-ssh', '-P', $WolfSshPort.ToString(), '-l', $UserName) +
@@ -1522,17 +1524,6 @@ function Test-WolfSshX509Interoperability(
                 'wolfSSH rejected an otherwise usable RSA client certificate outside the configured CA hierarchy.'
         }
 
-        $Logs = Invoke-Native -FilePath $DockerCmd.Source -ArgumentList @(
-            'logs', $WolfSshContainerName
-        ) -IgnoreExitCode
-        $LogText = "$($Logs.StdOut)`n$($Logs.StdErr)"
-        $CaAuthorizationCount = [regex]::Matches(
-            $LogText, 'Relying on CA for public key check'
-        ).Count
-        if ($CaAuthorizationCount -lt $WolfSshCases.Count) {
-            throw "wolfSSH recorded only $CaAuthorizationCount CA-based authorizations for $($WolfSshCases.Count) successful certificate cases."
-        }
-
         Add-Result -Name 'WOLFSSH-X509-RFC6187' -Status 'Pass' -Detail `
             'Independent wolfSSH validation accepted RSA and ECDSA P-256/P-384/P-521 leaf/intermediate chains and authenticated them to the configured root.'
     }
@@ -1547,7 +1538,7 @@ function Test-WolfSshX509Interoperability(
             'rm', '-f', $WolfSshContainerName
         ) -IgnoreExitCode | Out-Null
         Remove-Item -LiteralPath $HostKeyDirectory -Recurse -Force -ErrorAction SilentlyContinue
-        Remove-Item -LiteralPath $RootPemPath -Force -ErrorAction SilentlyContinue
+        Remove-Item -LiteralPath $RootPemPath, $AuthKeysPath -Force -ErrorAction SilentlyContinue
     }
 }
 
@@ -1627,17 +1618,7 @@ function Test-AsyncSshX509Interoperability(
             'start', $AsyncSshContainerName
         ) | Out-Null
 
-        $PendingPorts = @($AsyncSshListeners.Port)
-        $Timeout = (Get-Date).AddSeconds(20)
-        while ($PendingPorts.Count -gt 0 -and (Get-Date) -lt $Timeout) {
-            $PendingPorts = @($PendingPorts | Where-Object {
-                    -not (Get-NetTCPConnection -State Listen -LocalPort $_ -ErrorAction SilentlyContinue)
-                })
-            if ($PendingPorts.Count -gt 0) { Start-Sleep -Milliseconds 500 }
-        }
-        if ($PendingPorts.Count -gt 0) {
-            throw "AsyncSSH failed to listen on port(s): $($PendingPorts -join ', ')."
-        }
+        Wait-SshServer 'AsyncSSH' $AsyncSshListeners.Port 20
 
         New-Directory $HostKeyDirectory | Out-Null
         $PublicKeyLine = (Invoke-Native -FilePath $DockerCmd.Source -ArgumentList @(
@@ -2329,7 +2310,14 @@ function Test-PageantFilters([object[]]$Positive, [object[]]$Negative, [object]$
             Add-Result -Name 'PAGEANT-IGNOREEXPIRED' -Status 'Pass' -Detail 'Verified -ignoreexpiredcerts filters expired certificates out of the autoload list.'
         }
 
-        if (-not $TrustTestRoots) { Add-Result -Name 'PAGEANT-TRUSTFILTER' -Status 'Skip' -Detail 'Skipped TrustedCertsOnly autoload coverage because trusted root installation was not requested.' }
+        if ($TrustTestRoots -and ($Negative | Where-Object Name -eq 'NEG-UNTRUSTED')) {
+            Add-Result -Name 'PAGEANT-TRUSTFILTER' -Status 'Pass' `
+                -Detail 'Listed trusted certificates and excluded the untrusted client certificate.'
+        }
+        else {
+            Add-Result -Name 'PAGEANT-TRUSTFILTER' -Status 'Skip' `
+                -Detail 'Trust filtering requires installed test roots and an untrusted client certificate.'
+        }
     }
     finally {
         if ($Bridge.Process -and -not $Bridge.Process.HasExited) { Stop-Process -Id $Bridge.Process.Id -Force -ErrorAction SilentlyContinue }
@@ -2703,18 +2691,10 @@ try {
     ) | Out-Null
 
     # Wait for sshd to start listening
-    $Listening = $false
-    $Timeout = (Get-Date).AddSeconds(15)
-    while ((Get-Date) -lt $Timeout) {
-        if (Get-NetTCPConnection -LocalPort $Port -ErrorAction SilentlyContinue) {
-            $Listening = $true
-            break
-        }
-        Start-Sleep -Milliseconds 500
-    }
-    if (-not $Listening) {
+    try { Wait-SshServer 'PKIX-SSH' $Port }
+    catch {
         $Logs = (Invoke-Native -FilePath $DockerCmd.Source -ArgumentList @('logs', $PkixContainerName) -IgnoreExitCode).StdOut
-        throw "PKIX-SSH container sshd failed to listen on port $Port.`nLogs:`n$Logs"
+        throw "$($_.Exception.Message)`nLogs:`n$Logs"
     }
 
     # Extract host key fingerprints from the container
